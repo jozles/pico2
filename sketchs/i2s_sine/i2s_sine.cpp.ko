@@ -1,0 +1,78 @@
+#include "pico/stdlib.h"
+#include "hardware/pio.h"
+#include "hardware/clocks.h"
+#include "hardware/timer.h"
+#include "i2s.pio.h"   // Fichier généré par pioasm (programme I²S)
+#include <math.h>
+#include <stdio.h>
+
+#define SAMPLE_RATE 44100
+#define FREQUENCY   440.0   // La 440 Hz
+#define AMPLITUDE   30000   // Amplitude max (16 bits signé)
+
+#define I2S_DATA_PIN  4     // DIN du MAX98357A
+#define I2S_BCLK_PIN  2     // BCLK
+#define I2S_LRCLK_PIN 3     // LRCLK
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+void i2s_program_init(PIO pio, uint sm, uint offset,
+                      uint pin_data, uint pin_bclk, uint pin_lrclk,
+                      uint sample_rate) {
+    // Configurer les pins
+    pio_gpio_init(pio, pin_data);
+    pio_gpio_init(pio, pin_bclk);
+    pio_gpio_init(pio, pin_lrclk);
+
+    pio_sm_set_consecutive_pindirs(pio, sm, pin_data, 1, true);
+    pio_sm_set_consecutive_pindirs(pio, sm, pin_bclk, 1, true);
+    pio_sm_set_consecutive_pindirs(pio, sm, pin_lrclk, 1, true);
+
+    // Charger le programme
+    pio_sm_config c = i2s_program_get_default_config(offset);
+
+    // Associer les pins
+    sm_config_set_out_pins(&c, pin_data, 1);
+    sm_config_set_sideset_pins(&c, pin_bclk);
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
+
+    // Clock divider pour atteindre sample_rate
+    float div = (float)clock_get_hz(clk_sys) / (sample_rate * 32); 
+    sm_config_set_clkdiv(&c, div);
+
+    // Init state machine
+    pio_sm_init(pio, sm, offset, &c);
+    pio_sm_set_enabled(pio, sm, true);
+}
+
+int main() {
+    stdio_init_all();
+
+    sleep_ms(10000);printf("+i2s_sine_gen.0\n");
+
+    // I²S load
+    PIO pio = pio0;
+    uint offset = pio_add_program(pio, &i2s_program);
+    uint sm = pio_claim_unused_sm(pio, true);
+
+    i2s_program_init(
+        pio, sm, offset,
+        I2S_DATA_PIN, I2S_BCLK_PIN, I2S_LRCLK_PIN,
+        SAMPLE_RATE);
+
+    // Sine gen
+    double phase = 0.0;
+    double phase_inc = 2.0 * M_PI * FREQUENCY / SAMPLE_RATE;
+
+    while (true) {
+
+        int16_t sample = (int16_t)(AMPLITUDE * sin(phase));
+        phase += phase_inc;
+        if (phase >= 2.0 * M_PI) phase -= 2.0 * M_PI;
+
+        uint32_t stereo = ((uint16_t)sample << 16) | (uint16_t)sample;
+        pio_sm_put_blocking(pio, sm, stereo);
+    }
+}
