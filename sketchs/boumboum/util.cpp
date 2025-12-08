@@ -8,6 +8,8 @@ uint32_t ledsTimer=0;
 uint32_t ledOnTime=LEDONDURAT;
 uint32_t ledOffTime=LEDOFFDURAT;
 
+struct repeating_timer millisTimer;
+
 void ledBlink(){
     if(gpio_get(LED)){
         if((millisCounter-ledsTimer)>ledOnTime){gpio_put(LED,LOW);}
@@ -32,10 +34,10 @@ void blink_wait(){
     uint32_t ledOffTime=ledOffTimeBackup;
 }
 
-//bool millisTimerHandler(struct repeating_timer *t){
-//    millisCounter++;
-//    return true;
-//}
+bool millisTimerHandler(struct repeating_timer *t){
+    millisCounter++;
+    return true;
+}
 
 void initLeds(){
     gpio_init(LED);gpio_set_dir(LED,GPIO_OUT); gpio_put(LED,LOW);
@@ -44,6 +46,6 @@ void initLeds(){
     //gpio_set_dir(LED_GREEN,GPIO_OUT);gpio_put(LED_GREEN,LOW);
 
 
-    //struct repeating_timer millisTimer;
-    //add_repeating_timer_ms(10, millisTimerHandler, NULL, &millisTimer);
+    
+    add_repeating_timer_ms(10, millisTimerHandler, NULL, &millisTimer);
 }
