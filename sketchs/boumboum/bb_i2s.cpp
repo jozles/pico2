@@ -22,6 +22,13 @@
 
 #define SINE_WAVE_TABLE_LEN 2048
 //#define SAMPLES_PER_BUFFER 1156 // Samples / channel
+//static int16_t sine_wave_table[SINE_WAVE_TABLE_LEN];
+//uint32_t step0 = 0x200000;
+//uint32_t step1 = 0x200000;
+//uint32_t pos0 = 0;
+//uint32_t pos1 = 0;
+//const uint32_t pos_max = 0x10000 * SINE_WAVE_TABLE_LEN;
+//uint vol = 20;
 
 //static const uint32_t PIN_DCDC_PSM_CTRL = 23;
 
@@ -54,18 +61,10 @@ static audio_i2s_config_t i2s_config = {
     .pio_sm = 0
 };
 
-static int16_t sine_wave_table[SINE_WAVE_TABLE_LEN];
-uint32_t step0 = 0x200000;
-uint32_t step1 = 0x200000;
-uint32_t pos0 = 0;
-uint32_t pos1 = 0;
-const uint32_t pos_max = 0x10000 * SINE_WAVE_TABLE_LEN;
-uint vol = 20;
-
-static inline uint32_t _millis(void)
-{
-	return to_ms_since_boot(get_absolute_time());
-}
+//static inline uint32_t _millis(void)
+//{
+//	return to_ms_since_boot(get_absolute_time());
+//}
 
 void i2s_audio_deinit()
 {
@@ -242,11 +241,12 @@ void bb_i2s_start(){
 //   where i2s_callback_func() is declared with __attribute__((weak))
 void i2s_callback_func()
 {
-    if (decode_flg && audio_data!=nullptr) {
+    if (decode_flg && (audio_data!=nullptr)) {
 
         audio_buffer_t *buffer = take_audio_buffer(ap, false);
         if (buffer == NULL) { return; }
         int32_t *samples = (int32_t *) buffer->buffer->bytes;
+        
         memcpy(audio_data,samples,buffer->max_sample_count);
 
         buffer->sample_count = buffer->max_sample_count;
