@@ -6,7 +6,9 @@
 
 #include <stdio.h>
 #include <math.h>
+#include <cstring>
 #include "bb_i2s.h"
+#include "const.h"
 
 #include "hardware/pll.h"
 #include "hardware/clocks.h"
@@ -17,14 +19,17 @@
 #include "pico/audio.h"
 #include "pico/audio_i2s.h"
 
-#define SINE_WAVE_TABLE_LEN 2048
-#define SAMPLES_PER_BUFFER 1156 // Samples / channel
 
-static const uint32_t PIN_DCDC_PSM_CTRL = 23;
+#define SINE_WAVE_TABLE_LEN 2048
+//#define SAMPLES_PER_BUFFER 1156 // Samples / channel
+
+//static const uint32_t PIN_DCDC_PSM_CTRL = 23;
+
+
+bool i2s_hungry = true;                 // indique que le buffer courant est copié dans le buffer de dma ; donc préparer la suite
+int32_t* audio_data=nullptr;            // pointeur du buffer courant
 
 audio_buffer_pool_t *ap;
-bool i2s_hungry = true;
-int32_t* audio_data=nullptr;
 static bool decode_flg = false;
 static constexpr int32_t DAC_ZERO = 1;
 

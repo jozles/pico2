@@ -19,12 +19,16 @@ volatile uint32_t ledBlinker=0;
 
 uint8_t leds[NBLEDS]={LED_RED,LED_GREEN,LED_BLUE};
 
-// I2S *********
+// I2S 
 
-extern PIO pio;
-extern uint sm;
+extern bool i2s_hungry;                 // indique que le buffer courant est copié dans le buffer de dma ; donc préparer la suite
+extern int32_t* audio_data;             // pointeur du buffer courant
+
+// millis
 
 volatile uint32_t millisCounter=0;
+
+// coder    
 
 volatile int32_t coder1Counter=0;
 volatile int32_t coder1Counter0=0;
@@ -50,6 +54,4 @@ int main() {
         //tight_loop_contents(); // évite l’optimisation
     }
 
-    //uint32_t stereo = ((uint16_t)sample << 16) | (uint16_t)sample;
-    //pio_sm_put_blocking(pio, sm, stereo);
 }

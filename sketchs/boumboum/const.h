@@ -1,6 +1,8 @@
 #ifndef _CONST_H
 #define _CONST_H_
 
+#include "pico/stdlib.h"
+
 #define PI 3.141592636
 
 /* coder */

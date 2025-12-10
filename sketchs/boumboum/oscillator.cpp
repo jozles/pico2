@@ -12,9 +12,11 @@ uint32_t sampleCounter=0;
 
 void fillSineWaveForms(){
 
+    //sine_wave_table[i] = 32767 * cosf(i * 2 * (float) (M_PI / SINE_WAVE_TABLE_LEN));
+
     printf("filling sinus \n");
     for(uint16_t i=0;i<WFSTEPNB/4;i++){
-        sineWaveform[i]=(uint16_t)(sin(((float)i)/2048*2*PI)*32765);
+        sineWaveform[i]= 32767 * cosf(i * 2 * (float) (M_PI / WFSTEPNB));        //(uint16_t)(sin(((float)i)/WFSTEPNB*2*PI)*32767);
         sineWaveform[1023-i]=sineWaveform[i];
         sineWaveform[i+1023]=-sineWaveform[i];
         sineWaveform[2047-i]=-sineWaveform[i];
