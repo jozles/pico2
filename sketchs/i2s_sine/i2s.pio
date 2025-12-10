@@ -1,28 +1,29 @@
 .program i2s
-.side_set 2 opt
+.side_set 2 opt    ; side[0]=BCLK, side[1]=LRCLK
+; OUT pin = DIN
 
-; Programme minimal I²S : envoie un mot 32 bits (16 bits gauche + 16 bits droit)
-; LRCLK bas = gauche, haut = droite
-; BCLK généré par side_set
-
-; Récupère un mot 32 bits du FIFO
 pull block
 
-; Canal gauche (16 bits)
-set x, 15
-left_loop:
-    out pins, 1 side 0b00   ; LRCLK=0, envoie bit sur DIN
-    nop       side 0b01     ; toggle BCLK
-    jmp x-- left_loop
+; --- MSB delay gauche (1 bit) ---
+nop        side 0b00   ; BCLK=0, LRCLK=0
+nop        side 0b01   ; BCLK=1, LRCLK=0
 
-; Canal droit (16 bits)
-set x, 15
-right_loop:
-    out pins, 1 side 0b10   ; LRCLK=1, envoie bit sur DIN
-    nop       side 0b11     ; toggle BCLK
-    jmp x-- right_loop
+; --- 15 bits canal gauche ---
+set x, 14
+left_bits:
+    out pins, 1 side 0b00   ; BCLK=0, LRCLK=0 → DIN change
+    nop         side 0b01   ; BCLK=1, LRCLK=0 → codec lit DIN
+    jmp x-- left_bits
 
-; Boucle infinie
+; --- MSB delay droit (1 bit) ---
+nop        side 0b10   ; BCLK=0, LRCLK=1
+nop        side 0b11   ; BCLK=1, LRCLK=1
+
+; --- 15 bits canal droit ---
+set x, 14
+right_bits:
+    out pins, 1 side 0b10   ; BCLK=0, LRCLK=1 → DIN change
+    nop         side 0b11   ; BCLK=1, LRCLK=1 → codec lit DIN
+    jmp x-- right_bits
+
 jmp 0
-
-.wrap

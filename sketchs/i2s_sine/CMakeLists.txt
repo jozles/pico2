@@ -46,7 +46,7 @@ target_link_libraries(i2s_sine pico_stdlib)
 pico_generate_pio_header(i2s_sine ${CMAKE_CURRENT_LIST_DIR}/i2s.pio)
 
 # Lien avec les bibliothèques nécessaires
-target_link_libraries(i2s_sine pico_stdlib hardware_pio hardware_clocks)
+target_link_libraries(i2s_sine pico_stdlib hardware_pio hardware_clocks hardware_dma)
 
 # Génère les fichiers UF2, bin, hex
 pico_add_extra_outputs(i2s_sine)
