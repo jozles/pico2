@@ -1,53 +1,55 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
-//#include "hardware/timer.h"
 #include "const.h"
 #include "coder.h"
 #include "util.h"
+#include "hardware/pio.h"
+
+// led ********
+
+#define LEDBLINK  if((millisCounter-ledBlinker)>durOffOn[led]){ledBlinker=millisCounter;led=!led;gpio_put(LED,led);}
+
+#define LED 25 // built_in
+#define LEDONDUR 100
+#define LEDOFFDUR 1000
+
+volatile uint32_t durOffOn[]={LEDOFFDUR,LEDONDUR};
+volatile bool led=false;
+volatile uint32_t ledBlinker=0;
 
 uint8_t leds[NBLEDS]={LED_RED,LED_GREEN,LED_BLUE};
 
+// I2S *********
+
+extern PIO pio;
+extern uint sm;
+
+volatile uint32_t millisCounter=0;
+
 volatile int32_t coder1Counter=0;
-int32_t coder1Counter0=0;
+volatile int32_t coder1Counter0=0;
 
-uint32_t intDur;
-
-uint32_t testCnt=0;
-
-extern uint32_t millisCounter;
-
-/*bool millisTimerHandler(struct repeating_timer *t){
-    millisCounter++;
-    return true;
-}*/
 
 int main() {
     stdio_init_all();
-    initLeds();
+    sleep_ms(10000);printf("+boumboum \n");
+    setup();
 
      
-    //coderInit(PIO_CLOCK,PIO_DATA,PIO_SW,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER);
-    //coderSetup(&coder1Counter);
+    coderInit(PIO_CLOCK,PIO_DATA,PIO_SW,PIO_VPP,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER);
+    coderSetup(&coder1Counter);
 
-
-    // Boucle principale vide : tout est géré par l’interruption
     while (true) {
 
-    if(millisCounter>=10000){
-    millisCounter=0;gpio_put(LED,ON);sleep_ms(3000);
-    gpio_put(LED,false);sleep_ms(1000);}
+        LEDBLINK
 
-            gpio_put(LED,true);sleep_ms(30);
-            gpio_put(LED,false);sleep_ms(50);
-            gpio_put(LED,HIGH);sleep_ms(30);
-            gpio_put(LED,LOW);sleep_ms(1500);
-        /*
-        ledBlink();
         if(coder1Counter!=coder1Counter0){
             printf("\r        \r%lu",coder1Counter);
             coder1Counter0=coder1Counter;    
         }
         //tight_loop_contents(); // évite l’optimisation
-    */
     }
+
+    //uint32_t stereo = ((uint16_t)sample << 16) | (uint16_t)sample;
+    //pio_sm_put_blocking(pio, sm, stereo);
 }

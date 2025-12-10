@@ -27,15 +27,27 @@ set(PICO_BOARD pico2 CACHE STRING "Board type")
 
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
+# We also need PICO EXTRAS
+set(PICO_EXTRAS_FETCH_FROM_GIT ON CACHE BOOL "Set to ON to fetch copy of PICO EXTRAS from git if not otherwise locatable")
+include(pico_extras_import.cmake)
 
 project(boumboum C CXX ASM)
 
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
+add_subdirectory(pico_audio_i2s_32b/src/pico_audio_32b pico_audio_32b)
+add_subdirectory(pico_audio_i2s_32b pico_audio_i2s_32b)
+
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(boumboum boumboum.cpp coder.cpp util.cpp frequences.cpp oscillator.cpp)
+add_executable(boumboum 
+	boumboum.cpp 
+	coder.cpp 
+	util.cpp 
+	frequences.cpp 
+	oscillator.cpp
+	bb_i2s.cpp)
 
 pico_set_program_name(boumboum "boumboum")
 pico_set_program_version(boumboum "0.1")
@@ -46,12 +58,21 @@ pico_enable_stdio_usb(boumboum 1)
 
 # Add the standard library to the build
 target_link_libraries(boumboum
-        pico_stdlib)
+        pico_stdlib
+		hardware_clocks
+		hardware_dma
+		hardware_pio
+    	pico_audio_32b
+    	pico_audio_i2s_32b
+)
 
 # Add the standard include files to the build
 target_include_directories(boumboum PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
 )
+
+# Lien avec les bibliothèques nécessaires
+#target_link_libraries(boumboum pico_stdlib hardware_pio hardware_clocks audio)
 
 pico_add_extra_outputs(boumboum)
 

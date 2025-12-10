@@ -5,9 +5,10 @@
 
 /* coder */
 
-#define PIO_CLOCK         2                              // D2 sur PORTD
-#define PIO_DATA          0                              // D0 sur PORTD
-#define PIO_SW            1                              // D1 sur PORTD
+#define PIO_CLOCK         10          
+#define PIO_DATA          11          
+#define PIO_SW            12          
+#define PIO_VPP           13    // vcc coder                         
 
 #define LOW 0
 #define OFF 0
@@ -34,11 +35,23 @@
 #define LED_RED           53
 #define LED_GREEN         49
 
+/* I2S */
+
+#define SAMPLE_RATE 44100
+#define FREQUENCY   440.0   // La 440 Hz
+#define AMPLITUDE   30000   // Amplitude max (16 bits signé)
+
+#define I2S_DATA_PIN  4     // DIN du MAX98357A
+#define I2S_BCLK_PIN  2     // BCLK
+#define I2S_LRCLK_PIN 3     // LRCLK
+
 /* oscillator */
 
 #define WFSTEPNB 2048
-#define SAMPLE_F 44100       
-#define SAMPLE_PER (float)1/SAMPLE_F 
+#define SAMPLE_F SAMPLE_RATE       
+#define SAMPLE_PER (float)1/SAMPLE_F
+
+static const uint32_t PIN_DCDC_PSM_CTRL = 23;
 
 #endif  //_CONST_H_
 
