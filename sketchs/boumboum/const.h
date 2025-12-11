@@ -30,12 +30,20 @@
 #define LEDONDURAT 20
 #define LEDOFFDURAT 2000
 
-#define LED 25  // pico2 built_in
+/* led */
+#define LEDBLINK  if((millisCounter-ledBlinker)>durOffOn[led]){ledBlinker=millisCounter;led=!led;gpio_put(LED,led);}
+#define LEDONDUR 100
+#define LEDOFFDUR 1000
 
+
+
+#define LED 25  // pico2 built_in
 #define NBLEDS            3
 #define LED_BLUE          47
 #define LED_RED           53
 #define LED_GREEN         49
+
+//uint8_t leds[NBLEDS]={LED_RED,LED_GREEN,LED_BLUE};
 
 /* I2S */
 
@@ -47,13 +55,21 @@
 #define I2S_BCLK_PIN  2     // BCLK
 #define I2S_LRCLK_PIN 3     // LRCLK
 
-/* oscillator */
+/* frequencies */
 
 #define WFSTEPNB 2048
 #define SAMPLE_F SAMPLE_RATE       
 #define SAMPLE_PER (float)1/SAMPLE_F
+#define FREQUENCY_DECIM 1000  // pour travailler en milliHz
+#define NUMBER_OF_OCTAVES 10
+#define OCTAVE0_FREQ SAMPLE_F/SAMPLE_BUFFER_SIZE
+#define SAMPLES_PER_BUFFER 1024 //1156 // Samples / channel   
+#define SAMPLE_BUFFER_SIZE SAMPLES_PER_BUFFER  // nombre d'échantillons par buffer (doit être multiple de 4 pour le dma i2s)
 
-static const uint32_t PIN_DCDC_PSM_CTRL = 23;
+
+#define PIN_DCDC_PSM_CTRL 23
+
+
 
 #endif  //_CONST_H_
 

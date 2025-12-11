@@ -8,6 +8,21 @@
 const uint8_t octNb = OCTNB;
 float baseFreq = FREQ0;
 float octFreq[octNb+1];
+int16_t sineWaveform[WFSTEPNB];
+
+void fillSineWaveForms(){
+
+    //sine_wave_table[i] = 32767 * cosf(i * 2 * (float) (M_PI / SINE_WAVE_TABLE_LEN));
+
+    printf("filling sinus \n");
+    for(uint16_t i=0;i<WFSTEPNB/4;i++){
+        sineWaveform[i]= (uint16_t)(sin(((float)i)/WFSTEPNB*2*PI)*32767);
+        sineWaveform[1023-i]=sineWaveform[i];
+        sineWaveform[i+1024]=-sineWaveform[i];
+        sineWaveform[2047-i]=-sineWaveform[i];
+        printf("%d %5.4f %d \n",i,sin(((float)i)/WFSTEPNB*2*PI),sineWaveform[i]);
+    }
+}
 
 void fillOctFreq() { 
   for (uint8_t i = 0; i <= octNb; i++) {

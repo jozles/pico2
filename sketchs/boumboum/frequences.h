@@ -21,6 +21,7 @@
 #define INCRNB 409    // int(4096/10)=409
 #define FREQ0 16.345  // pour avoir un LA à 440Hz avecc 409 incréments par octave  
 
+void fillSineWaveForms();
 void fillOctFreq();
 void showOctFreq(); 
 void fillOctIncr();

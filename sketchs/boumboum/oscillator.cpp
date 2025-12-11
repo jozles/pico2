@@ -5,24 +5,10 @@
 #include <math.h>
 
 
-int16_t sineWaveform[WFSTEPNB];
 uint32_t sampleCounter=0;
 
 //#define PI 3.1415926536
 
-void fillSineWaveForms(){
-
-    //sine_wave_table[i] = 32767 * cosf(i * 2 * (float) (M_PI / SINE_WAVE_TABLE_LEN));
-
-    printf("filling sinus \n");
-    for(uint16_t i=0;i<WFSTEPNB/4;i++){
-        sineWaveform[i]= 32767 * cosf(i * 2 * (float) (M_PI / WFSTEPNB));        //(uint16_t)(sin(((float)i)/WFSTEPNB*2*PI)*32767);
-        sineWaveform[1023-i]=sineWaveform[i];
-        sineWaveform[i+1023]=-sineWaveform[i];
-        sineWaveform[2047-i]=-sineWaveform[i];
-        printf("%d %5.4f %d",i,((float)i)/2048*2*PI,6,sineWaveform[i]);
-    }
-}
 
 uint16_t samplePtr(float freq,uint32_t sc){
 
@@ -44,7 +30,7 @@ uint16_t samplePtr(float freq,uint32_t sc){
     return ez;   
 }
 
-void testSample(uint32_t sC,float freq){
+/*void testSample(uint32_t sC,float freq){
 
     fillSineWaveForms();
 
@@ -73,4 +59,4 @@ void testSample(uint32_t sC,float freq){
         //Serial.print(micros()-time0);
         printf("%d %d %d \n",i,j,sineWaveform[j]);
     }
-}
+}*/

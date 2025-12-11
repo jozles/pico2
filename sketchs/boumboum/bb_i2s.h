@@ -7,8 +7,7 @@
     et recommencer à chaque fois que i2s_hungry devient true 
     SAMPLES_PER_BUFFER indique le nombre d'échantillons (32bits) par canal L/R du buffer
     */
-
-#define SAMPLES_PER_BUFFER 1156 // Samples / channel    
+ 
 
 void bb_i2s_start();
 

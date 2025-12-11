@@ -6,12 +6,17 @@
 #include "const.h"
 #include "util.h"
 #include "coder.h"
+#include "frequences.h"
 
 //PIO pio = pio0;
 //uint offset;
 //uint sm;
 
 extern volatile uint32_t millisCounter;
+
+volatile uint32_t durOffOn[]={LEDOFFDUR,LEDONDUR};
+volatile bool led=false;
+volatile uint32_t ledBlinker=0;
 
 struct repeating_timer millisTimer;
 
@@ -35,6 +40,7 @@ void setup(){
     // irq timer
     add_repeating_timer_ms(1, millisTimerHandler, NULL, &millisTimer);
 
+    fillSineWaveForms();
     bb_i2s_start();
 
 }

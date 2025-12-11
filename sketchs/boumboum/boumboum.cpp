@@ -5,19 +5,13 @@
 #include "util.h"
 #include "hardware/pio.h"
 
-// led ********
+#include "test.h"
 
-#define LEDBLINK  if((millisCounter-ledBlinker)>durOffOn[led]){ledBlinker=millisCounter;led=!led;gpio_put(LED,led);}
+// leds
 
-#define LED 25 // built_in
-#define LEDONDUR 100
-#define LEDOFFDUR 1000
-
-volatile uint32_t durOffOn[]={LEDOFFDUR,LEDONDUR};
-volatile bool led=false;
-volatile uint32_t ledBlinker=0;
-
-uint8_t leds[NBLEDS]={LED_RED,LED_GREEN,LED_BLUE};
+extern volatile uint32_t durOffOn[];
+extern volatile bool led;
+extern volatile uint32_t ledBlinker;
 
 // I2S 
 
@@ -38,6 +32,8 @@ int main() {
     stdio_init_all();
     sleep_ms(10000);printf("+boumboum \n");
     setup();
+
+    testSample(SAMPLE_RATE,200);
 
      
     coderInit(PIO_CLOCK,PIO_DATA,PIO_SW,PIO_VPP,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER);

@@ -247,6 +247,12 @@ void i2s_callback_func()
         if (buffer == NULL) { return; }
         int32_t *samples = (int32_t *) buffer->buffer->bytes;
         
+            if(buffer->max_sample_count!=SAMPLES_PER_BUFFER){
+                printf("buffer size mismatch %d %d\n",buffer->max_sample_count,SAMPLES_PER_BUFFER);
+                while(1);
+            }
+
+
         memcpy(audio_data,samples,buffer->max_sample_count);
 
         buffer->sample_count = buffer->max_sample_count;
