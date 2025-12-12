@@ -60,6 +60,7 @@ void dumpStr16(int32_t* str){
     for(uint32_t i=0;i<16;i++){
         printf("%08x ",str[i]);
     }
+    printf(" ");
     for(uint32_t i=0;i<16;i++){
         for(uint8_t j=0;j<4;j++){
             uint8_t v0=(str[i]>>((3-j)*8))&0x000000FF;

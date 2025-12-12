@@ -54,9 +54,9 @@ void testSample(float freq,uint8_t ampl)
             if(h_cnt<3){
                 printf("h_cnt:%d err:%x s:%p a:%p c:%d\n",h_cnt,i2s_error,i2s_s,i2s_a,i2s_c);
                 printf("audio_data=sample_buffer\n");
-                dumpStr(audio_data,i2s_c);
+                dumpStr(audio_data,i2s_c*2);
                 printf("irq_buffer\n");
-                dumpStr(i2s_s,i2s_c);
+                dumpStr(i2s_s,i2s_c*2);
                 h_cnt++;
             }
             //printf("o\n");

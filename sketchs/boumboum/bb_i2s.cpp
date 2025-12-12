@@ -267,12 +267,13 @@ void i2s_callback_func()
                 return;
             }
 
-        memcpy(samples,audio_data,buffer->max_sample_count);
+        memcpy(samples,audio_data,(buffer->max_sample_count)*2*4); // 4 bytes per sample, 2 channels    
 
         buffer->sample_count = buffer->max_sample_count;
         give_audio_buffer(ap, buffer);
-        i2s_hungry=true;
+        
         audio_data=nullptr;
+        i2s_hungry=true;
         //printf("|\n");        
     }
 }
