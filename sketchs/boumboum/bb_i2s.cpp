@@ -9,6 +9,7 @@
 #include <cstring>
 #include "bb_i2s.h"
 #include "const.h"
+#include "util.h"
 
 #include "hardware/pll.h"
 #include "hardware/clocks.h"
@@ -33,8 +34,12 @@
 //static const uint32_t PIN_DCDC_PSM_CTRL = 23;
 
 
-bool i2s_hungry = true;                 // indique que le buffer courant est copié dans le buffer de dma ; donc préparer la suite
-int32_t* audio_data=nullptr;            // pointeur du buffer courant
+volatile bool i2s_hungry = true;                 // indique que le buffer courant est copié dans le buffer de dma ; donc préparer la suite
+int32_t* audio_data=nullptr;                     // pointeur du buffer courant
+volatile uint32_t i2s_error=0;
+int32_t* i2s_s=nullptr;
+int32_t* i2s_a=nullptr;
+uint32_t i2s_c=0;
 
 audio_buffer_pool_t *ap;
 static bool decode_flg = false;
@@ -239,25 +244,36 @@ void bb_i2s_start(){
 //   void __isr __time_critical_func(audio_i2s_dma_irq_handler)()
 //   defined at my_pico_audio_i2s/audio_i2s.c
 //   where i2s_callback_func() is declared with __attribute__((weak))
+extern "C" {
+
 void i2s_callback_func()
 {
-    if (decode_flg && (audio_data!=nullptr)) {
 
+    //printf("i2s_callback_func\n");
+    if (decode_flg && (audio_data!=nullptr)) {
+        //printf("_\n");
         audio_buffer_t *buffer = take_audio_buffer(ap, false);
-        if (buffer == NULL) { return; }
-        int32_t *samples = (int32_t *) buffer->buffer->bytes;
+        if (buffer == NULL) { 
+            //printf("=\n");
+            return; }
         
+            int32_t *samples = (int32_t *) buffer->buffer->bytes;
+        
+            i2s_s=samples;i2s_a=audio_data;i2s_c=buffer->max_sample_count;
+
             if(buffer->max_sample_count!=SAMPLES_PER_BUFFER){
-                printf("buffer size mismatch %d %d\n",buffer->max_sample_count,SAMPLES_PER_BUFFER);
-                while(1);
+                i2s_error=buffer->max_sample_count;
+                //printf("M\n"); 
+                return;
             }
 
-
-        memcpy(audio_data,samples,buffer->max_sample_count);
+        memcpy(samples,audio_data,buffer->max_sample_count);
 
         buffer->sample_count = buffer->max_sample_count;
         give_audio_buffer(ap, buffer);
         i2s_hungry=true;
         audio_data=nullptr;
+        //printf("|\n");        
     }
+}
 }

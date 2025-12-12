@@ -20,7 +20,7 @@ void fillSineWaveForms(){
         sineWaveform[1023-i]=sineWaveform[i];
         sineWaveform[i+1024]=-sineWaveform[i];
         sineWaveform[2047-i]=-sineWaveform[i];
-        printf("%d %5.4f %d \n",i,sin(((float)i)/WFSTEPNB*2*PI),sineWaveform[i]);
+        //printf("%d %5.4f %8x \n",i,sin(((float)i)/WFSTEPNB*2*PI),sineWaveform[i]);
     }
 }
 

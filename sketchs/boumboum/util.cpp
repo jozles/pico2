@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "pico/stdlib.h"
 #include "hardware/timer.h"
 #include "hardware/pio.h"
@@ -43,4 +44,36 @@ void setup(){
     fillSineWaveForms();
     bb_i2s_start();
 
+}
+
+void dumpVal(uint32_t val){
+    
+    for(int i=0;i<4;i++){
+        uint8_t v0=val>>(i*8)&0xff;
+        printf("%02x",v0);
+    }
+    printf("\n");
+}
+
+void dumpStr16(int32_t* str){
+    printf("%p    ",str);
+    for(uint32_t i=0;i<16;i++){
+        printf("%08x ",str[i]);
+    }
+    for(uint32_t i=0;i<16;i++){
+        for(uint8_t j=0;j<4;j++){
+            uint8_t v0=(str[i]>>((3-j)*8))&0x000000FF;
+            if(v0>=0x20 && v0<0x7f){printf("%c",v0);}
+            else{printf(".");}
+        }
+        printf(" ");
+    }
+    printf("\n");
+}
+
+void dumpStr(int32_t* str,uint32_t nb){
+    for(uint32_t i=0;i<nb;i+=16){
+        dumpStr16(&str[i]);
+    }
+    printf("\n");
 }
