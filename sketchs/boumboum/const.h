@@ -38,6 +38,7 @@
 
 
 #define LED 25  // pico2 built_in
+#define LED_PIN LED
 #define NBLEDS            3
 #define LED_BLUE          47
 #define LED_RED           53
@@ -63,9 +64,10 @@
 #define FREQUENCY_DECIM 1000  // pour travailler en milliHz
 #define NUMBER_OF_OCTAVES 10
 #define OCTAVE0_FREQ SAMPLE_F/SAMPLE_BUFFER_SIZE
-#define SAMPLES_PER_BUFFER 1024 //1156 // Samples / channel   
+#define SAMPLES_PER_BUFFER 1156 // Samples / channel   
 #define SAMPLE_BUFFER_SIZE SAMPLES_PER_BUFFER  // nombre d'échantillons par buffer (doit être multiple de 4 pour le dma i2s)
 
+#define SINE_WAVE_TABLE_LEN 2048
 
 #define PIN_DCDC_PSM_CTRL 23
 

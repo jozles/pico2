@@ -9,6 +9,8 @@
 #include "coder.h"
 #include "frequences.h"
 
+//#include "synth.h"
+
 //PIO pio = pio0;
 //uint offset;
 //uint sm;
@@ -42,8 +44,8 @@ void setup(){
     add_repeating_timer_ms(1, millisTimerHandler, NULL, &millisTimer);
 
     fillSineWaveForms();
-    bb_i2s_start();
-
+    bb_i2s_start(440,200);
+    //synth_start();
 }
 
 void dumpVal(uint32_t val){

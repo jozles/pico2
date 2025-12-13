@@ -3,7 +3,7 @@
 
 #include "pico/stdlib.h"
 
-int bb_i2s_start(float freq,uint8_t ampl);
+int synth_start();
 
 
 #endif  //_SYNTH_H_ 

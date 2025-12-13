@@ -48,7 +48,8 @@ add_executable(boumboum
 	frequences.cpp 
 	oscillator.cpp
 	bb_i2s.cpp
-	test.cpp)
+	test.cpp
+	)
 
 pico_set_program_name(boumboum "boumboum")
 pico_set_program_version(boumboum "0.1")

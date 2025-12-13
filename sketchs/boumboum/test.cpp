@@ -39,7 +39,7 @@ void testSample(float freq,uint8_t ampl)
 
         //printf("i:%4d k:%d sine_ech_nb:%04d sample:%08x\n",i,k,ech,sample_buffer[i*2]);
 
-        ech+=8;if(ech>=WFSTEPNB){ech-=WFSTEPNB;}
+        ech+=32;if(ech>=WFSTEPNB){ech-=WFSTEPNB;}           // @32 : 2048/32=64 échantillons par période @44100 : 44100/64=689 Hz
     }
     
     printf("start feeding\n");

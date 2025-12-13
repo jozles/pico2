@@ -33,7 +33,7 @@ int main() {
     sleep_ms(10000);printf("+boumboum \n");
     setup();
 
-    testSample(440,200);
+    //testSample(440,200);
 
      
     coderInit(PIO_CLOCK,PIO_DATA,PIO_SW,PIO_VPP,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER);
