@@ -21,8 +21,10 @@
 #include "pico/audio_i2s.h"
 
 extern int16_t sineWaveform[WFSTEPNB];
+
 volatile bool i2s_hungry = true;                 // indique que le buffer courant est copié dans le buffer de dma ; donc préparer la suite
 int32_t* audio_data=nullptr;                     // pointeur du buffer courant
+
 volatile uint32_t i2s_error=0;
 int32_t* i2s_s=nullptr;
 int32_t* i2s_a=nullptr;
@@ -55,11 +57,6 @@ static audio_i2s_config_t i2s_config = {
     .dma_channel1 = 1,
     .pio_sm = 0
 };
-
-//static inline uint32_t _millis(void)
-//{
-//	return to_ms_since_boot(get_absolute_time());
-//}
 
 void i2s_audio_deinit()
 {
@@ -124,112 +121,8 @@ audio_buffer_pool_t *i2s_audio_init(uint32_t sample_freq)
     return producer_pool;
 }
 
-
-//int main() {
-
-//    stdio_init_all();
-
- /*   // Set PLL_USB 96MHz
-    pll_init(pll_usb, 1, 1536 * MHZ, 4, 4);
-    clock_configure(clk_usb,
-        0,
-        CLOCKS_CLK_USB_CTRL_AUXSRC_VALUE_CLKSRC_PLL_USB,
-        96 * MHZ,
-        48 * MHZ);
-    // Change clk_sys to be 96MHz.
-    clock_configure(clk_sys,
-        CLOCKS_CLK_SYS_CTRL_SRC_VALUE_CLKSRC_CLK_SYS_AUX,
-        CLOCKS_CLK_SYS_CTRL_AUXSRC_VALUE_CLKSRC_PLL_USB,
-        96 * MHZ,
-        96 * MHZ);
-    // CLK peri is clocked from clk_sys so need to change clk_peri's freq
-    clock_configure(clk_peri,
-        0,
-        CLOCKS_CLK_PERI_CTRL_AUXSRC_VALUE_CLK_SYS,
-        96 * MHZ,
-        96 * MHZ);
-    // Reinit uart now that clk_peri has changed
-    stdio_init_all();*/
-
-    //gpio_init(LED_PIN);
-    //gpio_set_dir(LED_PIN, GPIO_OUT);
-    // DCDC PSM control
-    // 0: PFM mode (best efficiency)
-    // 1: PWM mode (improved ripple)
-    //gpio_init(PIN_DCDC_PSM_CTRL);
-    //gpio_set_dir(PIN_DCDC_PSM_CTRL, GPIO_OUT);
-    //gpio_put(PIN_DCDC_PSM_CTRL, 1); // PWM mode for less Audio noise
-
-    //2048 samples 
-    
-    //for (int i = 0; i < SINE_WAVE_TABLE_LEN; i++) {
-    //    sine_wave_table[i] = 32767 * cosf(i * 2 * (float) (M_PI / SINE_WAVE_TABLE_LEN));
-    //}
-
-    //ap = i2s_audio_init(44100);
-/*
-    while (true) {
-        int c = getchar_timeout_us(1000000);
-        if (c >= 0 && c != PICO_ERROR_TIMEOUT) {
-            if (c == '-' && vol) vol--;
-            if ((c == '=' || c == '+') && vol < 256) vol++;
-            if (c == '[' && step0 > 0x10000) step0 -= 0x10000;
-            if (c == ']' && step0 < (SINE_WAVE_TABLE_LEN / 16) * 0x20000) step0 += 0x10000;
-            if (c == '{' && step1 > 0x10000) step1 -= 0x10000;
-            if (c == '}' && step1 < (SINE_WAVE_TABLE_LEN / 16) * 0x20000) step1 += 0x10000;
-            if (c == 'q') break;
-            printf("vol = %d, step0 = %d, step1 = %d      \r", static_cast<int>(vol), static_cast<int>(step0 >> 16), static_cast<int>(step1 >> 16));
-        } else {
-            gpio_put(LED_PIN, 0);
-            sleep_ms(250);
-            gpio_put(LED_PIN, 1);
-        }
-    }
-    puts("\n");
-    return 0;*/
-//}
-
-/*void decode()
-{
-    audio_buffer_t *buffer = take_audio_buffer(ap, false);
-    if (buffer == NULL) { return; }
-    int32_t *samples = (int32_t *) buffer->buffer->bytes;
-    for (uint i = 0; i < buffer->max_sample_count; i++) {
-        int32_t value0 = (vol * sine_wave_table[pos0 >> 16u]) << 8u;
-        int32_t value1 = (vol * sine_wave_table[pos1 >> 16u]) << 8u;
-        // use 32bit full scale
-        samples[i*2+0] = value0 + (value0 >> 16u);  // L
-        samples[i*2+1] = value1 + (value1 >> 16u);  // R
-        pos0 += step0;
-        pos1 += step1;
-        if (pos0 >= pos_max) pos0 -= pos_max;
-        if (pos1 >= pos_max) pos1 -= pos_max;
-    }
-
-    memcpy(audio_data,samples,buffer->max_sample_count);
-
-    buffer->sample_count = buffer->max_sample_count;
-    give_audio_buffer(ap, buffer);
-    return;
-}
-
-extern "C" {
-// callback from:
-//   void __isr __time_critical_func(audio_i2s_dma_irq_handler)()
-//   defined at my_pico_audio_i2s/audio_i2s.c
-//   where i2s_callback_func() is declared with __attribute__((weak))
-void i2s_callback_func()
-{
-    if (decode_flg) {
-        decode();
-    }
-}
-}*/
-
 void bb_i2s_start(float freq,uint8_t ampl){
     
-
-
     sleep_ms(5000);printf("test_sample _ freq:%5.4f ampl:%d\n",freq,ampl);
 
     uint8_t h_cnt=0;
@@ -274,44 +167,39 @@ void bb_i2s_start(float freq,uint8_t ampl){
     }
 }
 
+extern "C" {
 // callback from:
 //   void __isr __time_critical_func(audio_i2s_dma_irq_handler)()
 //   defined at my_pico_audio_i2s/audio_i2s.c
 //   where i2s_callback_func() is declared with __attribute__((weak))
-extern "C" {
-
 void i2s_callback_func()
 {
-
-    //printf("i2s_callback_func\n");
     if (decode_flg && (audio_data!=nullptr)) {
-        //printf("_\n");
         audio_buffer_t *buffer = take_audio_buffer(ap, false);
-        if (buffer == NULL) { 
-            //printf("=\n");
-            return; }
-        
-        int32_t *samples = (int32_t *) buffer->buffer->bytes;
-        
-        i2s_s=samples;i2s_a=audio_data;i2s_c=buffer->max_sample_count;
 
-        if(buffer->max_sample_count!=SAMPLES_PER_BUFFER){
-            i2s_error=buffer->max_sample_count;
-                //printf("M\n"); 
-            return;
-        }
+    if (buffer == NULL) { return; } 
+    int32_t *samples = (int32_t *) buffer->buffer->bytes;
+        
+    i2s_s=samples;i2s_a=audio_data;i2s_c=buffer->max_sample_count;
 
-        memcpy(samples,audio_data,(buffer->max_sample_count)*2*4); // 4 bytes per sample, 2 channels    
-
-        buffer->sample_count = buffer->max_sample_count;
-        give_audio_buffer(ap, buffer);
-        
-        audio_data=nullptr;
-        i2s_hungry=true;
-        //printf("|\n"); 
-        
-        
+    if(buffer->max_sample_count!=SAMPLES_PER_BUFFER){
+        i2s_error=buffer->max_sample_count;
+        return;
     }
-    return;
+
+    memcpy(samples,audio_data,(buffer->max_sample_count)*2*4); // 4 bytes per sample, 2 channels    
+
+
+
+
+
+    buffer->sample_count = buffer->max_sample_count;
+    give_audio_buffer(ap, buffer);
+        
+    audio_data=nullptr;
+    i2s_hungry=true;
+        
+
+    }
 }
 }

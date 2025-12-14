@@ -21,6 +21,7 @@
 #include "pico/audio_i2s.h"
 
 static int16_t sine_wave_table[SINE_WAVE_TABLE_LEN];
+
 uint32_t step0 = 0x200000;
 uint32_t step1 = 0x200000;
 uint32_t pos0 = 0;
@@ -56,11 +57,6 @@ static audio_i2s_config_t i2s_config = {
     .dma_channel1 = 1,
     .pio_sm = 0
 };
-
-/*static inline uint32_t _millis(void)
-{
-	return to_ms_since_boot(get_absolute_time());
-}*/
 
 void i2s_audio_deinit()
 {
@@ -171,7 +167,6 @@ int bb_i2s_start(float freq,uint8_t ampl) {
     return 0;
 }
 
-
 extern "C" {
 // callback from:
 //   void __isr __time_critical_func(audio_i2s_dma_irq_handler)()
@@ -180,11 +175,11 @@ extern "C" {
 void i2s_callback_func()
 {
     if (decode_flg) {
-        //decode();
          audio_buffer_t *buffer = take_audio_buffer(ap, false);
 
     if (buffer == NULL) { return; }
     int32_t *samples = (int32_t *) buffer->buffer->bytes;
+
     for (uint i = 0; i < buffer->max_sample_count; i++) {
         int32_t value0 = (vol * sine_wave_table[pos0 >> 16u]) << 8u;
         int32_t value1 = (vol * sine_wave_table[pos1 >> 16u]) << 8u;
@@ -195,16 +190,15 @@ void i2s_callback_func()
         pos1 += step1;
         if (pos0 >= pos_max) pos0 -= pos_max;
         if (pos1 >= pos_max) pos1 -= pos_max;
-        //printf("i:%d v0:%x samples[i*2+0]:%x \n", i, value0, samples[i*2+0]);
-        
+        //printf("i:%d v0:%x samples[i*2+0]:%x \n", i, value0, samples[i*2+0]);       
     }
+
     buffer->sample_count = buffer->max_sample_count;
-    b_=buffer->max_sample_count;
     give_audio_buffer(ap, buffer);
     
+    b_=buffer->max_sample_count;
     s=samples;
     sn=buffer->max_sample_count;
-
 
     }
 }
