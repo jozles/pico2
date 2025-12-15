@@ -20,18 +20,14 @@
 #include "pico/audio.h"
 #include "pico/audio_i2s.h"
 
-static int16_t sine_wave_table[SINE_WAVE_TABLE_LEN];
+extern int16_t sineWaveform[WFSTEPNB];
 
-uint32_t step0 = 0x200000;
-uint32_t step1 = 0x200000;
-uint32_t pos0 = 0;
-uint32_t pos1 = 0;
-const uint32_t pos_max = 0x10000 * SINE_WAVE_TABLE_LEN;
-uint vol = 20;
+uint32_t i2s_error=0xffffffff;
 
-volatile uint32_t b_=0;
-int32_t* s=nullptr;
-uint32_t sn=0;
+
+
+
+
 
 audio_buffer_pool_t *ap;
 static bool decode_flg = false;
@@ -40,7 +36,7 @@ static constexpr int32_t DAC_ZERO = 1;
 #define audio_pio __CONCAT(pio, PICO_AUDIO_I2S_PIO)
 
 static audio_format_t audio_format = {
-    .sample_freq = 44100,
+    .sample_freq = SAMPLE_RATE,
     .pcm_format = AUDIO_PCM_FORMAT_S32,
     .channel_count = AUDIO_CHANNEL_STEREO
 };
@@ -121,49 +117,12 @@ audio_buffer_pool_t *i2s_audio_init(uint32_t sample_freq)
     return producer_pool;
 }
 
-int bb_i2s_start(float freq,uint8_t ampl) { 
- 
-    stdio_init_all();
+int bb_i2s_start(){
 
-    sleep_ms(10000); // wait for debugger attach
-    printf("+synth\n");
+    //stdio_init_all();
 
-    gpio_init(LED_PIN);
-    gpio_set_dir(LED_PIN, GPIO_OUT);
-    // DCDC PSM control
-    // 0: PFM mode (best efficiency)
-    // 1: PWM mode (improved ripple)
-    gpio_init(PIN_DCDC_PSM_CTRL);
-    gpio_set_dir(PIN_DCDC_PSM_CTRL, GPIO_OUT);
-    gpio_put(PIN_DCDC_PSM_CTRL, 1); // PWM mode for less Audio noise
+    ap = i2s_audio_init(SAMPLE_RATE);
 
-    //2048 samples 
-    
-    for (int i = 0; i < SINE_WAVE_TABLE_LEN; i++) {
-        sine_wave_table[i] = 32767 * cosf(i * 2 * (float) (M_PI / SINE_WAVE_TABLE_LEN));
-    }
-
-    ap = i2s_audio_init(44100);
-
-    while (true) {
-        int c = getchar_timeout_us(1000000);
-        if (c >= 0 && c != PICO_ERROR_TIMEOUT) {
-            if (c == '-' && vol) vol--;
-            if ((c == '=' || c == '+') && vol < 256) vol++;
-            if (c == '[' && step0 > 0x10000) step0 -= 0x10000;
-            if (c == ']' && step0 < (SINE_WAVE_TABLE_LEN / 16) * 0x20000) step0 += 0x10000;
-            if (c == '{' && step1 > 0x10000) step1 -= 0x10000;
-            if (c == '}' && step1 < (SINE_WAVE_TABLE_LEN / 16) * 0x20000) step1 += 0x10000;
-            if (c == 'p') {dumpStr(s,sn*2);}
-            if (c == 'q') break;
-            printf("vol = %d, step0 = %d, step1 = %d, b:%d      \r", static_cast<int>(vol), static_cast<int>(step0 >> 16), static_cast<int>(step1 >> 16),b_);
-        } else {
-            gpio_put(LED_PIN, 0);
-            sleep_ms(250);
-            gpio_put(LED_PIN, 1);
-        }
-    }
-    puts("\n");
     return 0;
 }
 
@@ -175,31 +134,16 @@ extern "C" {
 void i2s_callback_func()
 {
     if (decode_flg) {
-         audio_buffer_t *buffer = take_audio_buffer(ap, false);
+        audio_buffer_t *buffer = take_audio_buffer(ap, false);
 
-    if (buffer == NULL) { return; }
-    int32_t *samples = (int32_t *) buffer->buffer->bytes;
+        if (buffer == NULL) { return; } 
+        int32_t *samples = (int32_t *) buffer->buffer->bytes;
 
-    for (uint i = 0; i < buffer->max_sample_count; i++) {
-        int32_t value0 = (vol * sine_wave_table[pos0 >> 16u]) << 8u;
-        int32_t value1 = (vol * sine_wave_table[pos1 >> 16u]) << 8u;
-        // use 32bit full scale
-        samples[i*2+0] = value0 + (value0 >> 16u);  // L
-        samples[i*2+1] = value1 + (value1 >> 16u);  // R
-        pos0 += step0;
-        pos1 += step1;
-        if (pos0 >= pos_max) pos0 -= pos_max;
-        if (pos1 >= pos_max) pos1 -= pos_max;
-        //printf("i:%d v0:%x samples[i*2+0]:%x \n", i, value0, samples[i*2+0]);       
-    }
+        next_sound_feeding(samples,buffer->max_sample_count);
+        //memcpy(samples,(int32_t*)audio_data,(buffer->max_sample_count)*2*4); // 4 bytes per sample, 2 channels    
 
-    buffer->sample_count = buffer->max_sample_count;
-    give_audio_buffer(ap, buffer);
-    
-    b_=buffer->max_sample_count;
-    s=samples;
-    sn=buffer->max_sample_count;
-
+        buffer->sample_count = buffer->max_sample_count;
+        give_audio_buffer(ap, buffer);
     }
 }
 }

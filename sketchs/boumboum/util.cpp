@@ -8,12 +8,13 @@
 #include "util.h"
 #include "coder.h"
 #include "frequences.h"
+#include "test.h"
 
-//#include "synth.h"
+// boumboum
 
-//PIO pio = pio0;
-//uint offset;
-//uint sm;
+volatile uint8_t what=0;
+
+#define W_TEST 1
 
 extern volatile uint32_t millisCounter;
 
@@ -22,6 +23,8 @@ volatile bool led=false;
 volatile uint32_t ledBlinker=0;
 
 struct repeating_timer millisTimer;
+
+extern volatile int32_t coder1Counter;
 
 bool millisTimerHandler(struct repeating_timer *t){
     millisCounter++;
@@ -44,9 +47,37 @@ void setup(){
     add_repeating_timer_ms(1, millisTimerHandler, NULL, &millisTimer);
 
     fillSineWaveForms();
-    bb_i2s_start(440,200);
-    //synth_start();
+    freq_start();
+
+    what=W_TEST;
+
+    coderInit(PIO_CLOCK,PIO_DATA,PIO_SW,PIO_VPP,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER);
+    coderSetup(&coder1Counter);
+
+    bb_i2s_start();
+
 }
+
+    // exclusively called by void i2s_callback_func() in bb_i2s.cpp 
+    // and dependancies _ see bb_i2s.cpp
+void next_sound_feeding(int32_t* next_sound,uint32_t next_sound_size){
+
+        if(next_sound_size!=SAMPLES_PER_BUFFER){
+            printf("next_sound_size:%d != SAMPLES_PER_BUFFER:%d\n",next_sound_size,SAMPLES_PER_BUFFER);
+            LEDBLINK_ERROR;
+            return;
+        }
+
+    switch (what){
+        case W_TEST:    
+        test_next_sound_feeding(next_sound,next_sound_size);
+            break;
+        
+        default:
+            break;
+    }
+}
+
 
 void dumpVal(uint32_t val){
     
@@ -56,6 +87,7 @@ void dumpVal(uint32_t val){
     }
     printf("\n");
 }
+
 
 void dumpStr16(int32_t* str){
     printf("%p    ",str);

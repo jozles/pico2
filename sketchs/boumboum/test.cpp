@@ -3,8 +3,11 @@
 #include "util.h"
 #include "bb_i2s.h"
 #include <stdio.h>
-#include <math.h>   
+#include <math.h> 
+#include <cstring>  
 #include "frequences.h"
+
+static uint32_t sample_buffer[SAMPLE_BUFFER_SIZE*2]; // 4 bytes per sample, 2 channels
 
 extern volatile uint32_t millisCounter;
 
@@ -20,17 +23,20 @@ extern int32_t* i2s_s;
 extern int32_t* i2s_a;
 extern uint32_t i2s_c; 
 
-void testSample(float freq,uint8_t ampl)
+//void testSample(float freq,uint16_t ampl){}
+
+float testSample(int16_t freq_lin,uint16_t ampl)
 {
-    sleep_ms(5000);printf("test_sample _ freq:%5.4f ampl:%d\n",freq,ampl);
+    float freq_snd=calcFreq(freq_lin);
+
+    //sleep_ms(5000);
+    printf("test_sample _ freq_lin:%5d freq_snd:%5.2f ampl:%d\r",freq_lin,freq_snd,ampl);
 
     uint8_t h_cnt=0;
 
-    uint32_t sample_buffer[SAMPLE_BUFFER_SIZE*2]; // 4 bytes per sample, 2 channels
-
     uint16_t k=0,ech=0;
 
-    printf("filling sample buffer ...\n");
+    //printf("filling sample buffer ...\n");
 
     for(uint32_t i=0;i<SAMPLE_BUFFER_SIZE;i++){
 
@@ -41,27 +47,9 @@ void testSample(float freq,uint8_t ampl)
 
         ech+=32;if(ech>=WFSTEPNB){ech-=WFSTEPNB;}           // @32 : 2048/32=64 échantillons par période @44100 : 44100/64=689 Hz
     }
-    
-    printf("start feeding\n");
-
-    while(1){
-
-        if(i2s_hungry){
-
-            i2s_hungry=false;                       // avant de charger le buffer suivant pour ne pas risquer d'effacer le prochain true de l'irq
-            audio_data=(int32_t*)sample_buffer;     // audio_data!=nullptr indique à l'irq qu'il y a des données à envoyer
-            
-            if(h_cnt<3){
-                printf("h_cnt:%d err:%x s:%p a:%p c:%d\n",h_cnt,i2s_error,i2s_s,i2s_a,i2s_c);
-                printf("audio_data=sample_buffer\n");
-                dumpStr(audio_data,i2s_c*2);
-                printf("irq_buffer\n");
-                dumpStr(i2s_s,i2s_c*2);
-                h_cnt++;
-            }
-            //printf("o\n");
-        }
-    }
+    return freq_snd;
 }
 
-
+void test_next_sound_feeding(int32_t* next_sound,uint32_t next_sound_size){
+    memcpy(next_sound,sample_buffer,next_sound_size*2*4); // 4 bytes per sample, 2 channels
+}

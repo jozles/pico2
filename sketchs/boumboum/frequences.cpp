@@ -10,11 +10,14 @@ float baseFreq = FREQ0;
 float octFreq[octNb+1];
 int16_t sineWaveform[WFSTEPNB];
 
+const uint16_t octIncrNb = 409;
+float octIncr[octIncrNb];
+
 void fillSineWaveForms(){
 
     //sine_wave_table[i] = 32767 * cosf(i * 2 * (float) (M_PI / SINE_WAVE_TABLE_LEN));
 
-    printf("filling sinus \n");
+    printf("  filling sinus \n");
     for(uint16_t i=0;i<WFSTEPNB/4;i++){
         sineWaveform[i]= (uint16_t)(sin(((float)i)/WFSTEPNB*2*PI)*32767);
         sineWaveform[1023-i]=sineWaveform[i];
@@ -32,14 +35,12 @@ void fillOctFreq() {
 
 void showOctFreq() 
 { 
-  printf("fréquences des octaves");
+  printf("  fréquences des octaves\n");
   for (uint16_t i = 0; i < octNb; i++ ){
-    printf("%5.4f",octFreq[i]);
+    printf("%d: %5.3f - ",i,octFreq[i]);
   }
+  printf("\n");
 }
-
-const uint16_t octIncrNb = 409;
-float octIncr[octIncrNb];
 
 void fillOctIncr() 
 { 
@@ -53,46 +54,47 @@ void fout(float octF,float octF_1,uint16_t incr,uint8_t dec)
   printf("%5.4f/%5.4f ",octIncr[incr],octF+(octF_1-octF)*octIncr[incr]);
 }                         
 
-void showOctIncr(float octF,float octF1)
+void showOctIncr(float oct0,float octn)
 { 
-  printf("ratios d'incréments d'octave\n");
+for(uint8_t j=oct0;j<octn;j++){
+
+  printf("  ratios d'incréments d'octave oct:%d f:%4.3f à f:%4.3f\n",j,octFreq[j],octFreq[j+1]);
   uint8_t dec=4;
   uint8_t step=4;
   uint16_t max=octIncrNb/step*step;
+  float delta=octFreq[j+1]-octFreq[j];
+  
   for (uint16_t i = 0; i < max; i+=step ){
-    for(uint8_t j=0;j<step;j++){fout(octF,octF1,i+j,dec);} 
-    printf("\n");
-  }
-  if(max<octIncrNb){
-    for (uint16_t i = max+1; i < octIncrNb; i++ ){
-      fout(octF,octF1,i,dec);
-    }
-    printf("\n---");
+    printf("octIncr[%d] = %0.4f=%5.3f  %0.4f=%5.3f %0.4f=%5.3f %0.4f=%5.3f\n",i,
+      octIncr[i],delta*octIncr[i]+octFreq[j],
+      octIncr[i+1],delta*octIncr[i+1]+octFreq[j],
+      octIncr[i+2],delta*octIncr[i+2]+octFreq[j],
+      octIncr[i+3],delta*octIncr[i+3]+octFreq[j]);
   }
 }
+  
+}
 
-float calcFreq(uint16_t val) 
+float calcFreq(uint16_t val) // from lin value (0-octIncrNb*OCTNB) to snd value (baseF à baseF*2^OCTNB)
 { 
-  uint8_t oct = val / octIncrNb;
+  uint8_t oct = val/ octIncrNb;
   uint16_t incr = val % octIncrNb;
-  float freq = octFreq[oct] * octIncr[incr];
+  float freq = octFreq[oct] +octIncr[incr]*(octFreq[oct+1]-octFreq[oct]);
  return freq;
 }
 
-void start()                //void setup() 
+void freq_start()                //void setup() 
 {  
   //Serial.begin(115200);
-  printf("+calcul fréquences\n");
+  printf(" -calcul fréquences\n");
   
   fillOctFreq();
   showOctFreq();
   fillOctIncr();
-  showOctIncr(0,0);
+  showOctIncr(0,1);
   
-  uint8_t oct = 4;
-  printf("Exemples de fréquences (octave %d)\n",oct);
 
-  showOctIncr(octFreq[oct],octFreq[oct+1]);
+  //showOctIncr(octFreq[oct],octFreq[oct+1]);
 }
 
 //void loop(){

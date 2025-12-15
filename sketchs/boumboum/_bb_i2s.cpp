@@ -129,7 +129,7 @@ void bb_i2s_start(float freq,uint8_t ampl){
 
     uint32_t sample_buffer[SAMPLE_BUFFER_SIZE*2]; // 4 bytes per sample, 2 channels
 
-    uint16_t k=0,ech=0;
+    uint16_t ech=0;
 
     printf("filling sample buffer ...\n");
 
@@ -138,7 +138,7 @@ void bb_i2s_start(float freq,uint8_t ampl){
         sample_buffer[i*2]= (ampl*sineWaveform[ech]); // Left channel
         sample_buffer[i*2+1]= sample_buffer[i*2]; // Right channel
 
-        //printf("i:%4d k:%d sine_ech_nb:%04d sample:%08x\n",i,k,ech,sample_buffer[i*2]);
+        //printf("i:%4d sine_ech_nb:%04d sample:%08x\n",i,ech,sample_buffer[i*2]);
 
         ech+=32;if(ech>=WFSTEPNB){ech-=WFSTEPNB;}           // @32 : 2048/32=64 échantillons par période @44100 : 44100/64=689 Hz
     }

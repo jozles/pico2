@@ -28,5 +28,6 @@ void fillOctIncr();
 void fout(float octF,float octF_1,uint16_t incr,uint8_t dec);
 void showOctIncr(float octF,float octF1);
 float calcFreq(uint16_t val);
+void freq_start();
 
 #endif  //_FREQUENCES_H_

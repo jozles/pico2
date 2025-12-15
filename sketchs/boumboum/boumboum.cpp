@@ -6,17 +6,13 @@
 #include "hardware/pio.h"
 
 #include "test.h"
+#include "frequences.h"
 
 // leds
 
 extern volatile uint32_t durOffOn[];
 extern volatile bool led;
 extern volatile uint32_t ledBlinker;
-
-// I2S 
-
-extern bool i2s_hungry;                 // indique que le buffer courant est copié dans le buffer de dma ; donc préparer la suite
-extern int32_t* audio_data;             // pointeur du buffer courant
 
 // millis
 
@@ -27,27 +23,39 @@ volatile uint32_t millisCounter=0;
 volatile int32_t coder1Counter=0;
 volatile int32_t coder1Counter0=0;
 
+// frequence
+
+volatile int16_t freq_lin=0;
+volatile int16_t amplitude=0;   
+
+
+
 
 int main() {
     stdio_init_all();
-    sleep_ms(10000);printf("+boumboum \n");
+    sleep_ms(10000);printf("\n+boumboum \n");
     setup();
 
-    //testSample(440,200);
+    amplitude=500;
+    freq_lin=1943;      // 440Hz
 
-     
-    coderInit(PIO_CLOCK,PIO_DATA,PIO_SW,PIO_VPP,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER);
-    coderSetup(&coder1Counter);
+    coder1Counter=freq_lin;
+
+    
+
 
     while (true) {
 
         LEDBLINK
 
         if(coder1Counter!=coder1Counter0){
-            printf("\r        \r%lu",coder1Counter);
-            coder1Counter0=coder1Counter;    
+            //printf("\r        \r%lu",coder1Counter);
+            coder1Counter0=coder1Counter;
+            testSample(coder1Counter,amplitude);    
         }
         //tight_loop_contents(); // évite l’optimisation
+
+           
     }
 
 }

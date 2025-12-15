@@ -2,6 +2,7 @@
 #define _CONST_H_
 
 #include "pico/stdlib.h"
+#include "util.h"
 
 #define PI 3.141592636
 
@@ -32,7 +33,8 @@
 
 /* led */
 #define LEDBLINK  if((millisCounter-ledBlinker)>durOffOn[led]){ledBlinker=millisCounter;led=!led;gpio_put(LED,led);}
-#define LEDONDUR 100
+#define LEDBLINK_ERROR  durOffOn[0]=2*durOffOn[1];LEDBLINK
+#define LEDONDUR 60
 #define LEDOFFDUR 1000
 
 
