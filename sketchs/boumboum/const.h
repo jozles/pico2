@@ -31,13 +31,13 @@
 #define LEDONDURAT 20
 #define LEDOFFDURAT 2000
 
+#define TEST_PIN 15
+
 /* led */
 #define LEDBLINK  if((millisCounter-ledBlinker)>durOffOn[led]){ledBlinker=millisCounter;led=!led;gpio_put(LED,led);}
 #define LEDBLINK_ERROR  durOffOn[0]=2*durOffOn[1];LEDBLINK
 #define LEDONDUR 60
 #define LEDOFFDUR 1000
-
-
 
 #define LED 25  // pico2 built_in
 #define LED_PIN LED
@@ -60,18 +60,20 @@
 
 /* frequencies */
 
-#define WFSTEPNB 2048
-#define SAMPLE_F SAMPLE_RATE       
+#define SAMPLE_F SAMPLE_RATE        // fréquence d'échantillonnage audio   
 #define SAMPLE_PER (float)1/SAMPLE_F
-#define FREQUENCY_DECIM 1000  // pour travailler en milliHz
+//#define FREQUENCY_DECIM 1000      // pour travailler en milliHz
 #define NUMBER_OF_OCTAVES 10
 #define OCTAVE0_FREQ SAMPLE_F/SAMPLE_BUFFER_SIZE
-#define SAMPLES_PER_BUFFER 1156 // Samples / channel   
+#define SAMPLES_PER_BUFFER 1024 //1156     // Samples / channel   
 #define SAMPLE_BUFFER_SIZE SAMPLES_PER_BUFFER  // nombre d'échantillons par buffer (doit être multiple de 4 pour le dma i2s)
 
-#define SINE_WAVE_TABLE_LEN 2048
+#define SINE_WAVE_TABLE_POW 11      // ***** POWER OF 2 *****  nombre d'échantillons dans la table d'onde sinus
+#define SINE_WAVE_TABLE_LEN 2048    // ***** POWER OF 2 *****  nombre d'échantillons dans la table d'onde sinus
 
-#define PIN_DCDC_PSM_CTRL 23
+#define VOICES_NB 4                 // nombre de voix simultanées
+
+#define PIN_DCDC_PSM_CTRL 23        // to set the DCDC in PSM mode for less audio noise
 
 
 

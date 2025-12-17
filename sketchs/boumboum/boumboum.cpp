@@ -28,7 +28,7 @@ volatile int32_t coder1Counter0=0;
 volatile int16_t freq_lin=0;
 volatile int16_t amplitude=0;   
 
-
+struct voice voices[VOICES_NB];
 
 
 int main() {
@@ -36,12 +36,13 @@ int main() {
     sleep_ms(10000);printf("\n+boumboum \n");
     setup();
 
-    amplitude=500;
+    //amplitude=60;
+    voices[0].amplitude=6000;
     freq_lin=1943;      // 440Hz
 
     coder1Counter=freq_lin;
 
-    
+uint32_t sb[SAMPLE_BUFFER_SIZE];  
 
 
     while (true) {
@@ -51,7 +52,11 @@ int main() {
         if(coder1Counter!=coder1Counter0){
             //printf("\r        \r%lu",coder1Counter);
             coder1Counter0=coder1Counter;
-            testSample(coder1Counter,amplitude);    
+            voices[0].frequency=calcFreq(coder1Counter);
+
+            printf("freq:%5.3f ampl:%d\r",voices[0].frequency,voices[0].amplitude);
+            
+            //testSample(coder1Counter,amplitude);    
         }
         //tight_loop_contents(); // évite l’optimisation
 

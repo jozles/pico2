@@ -8,18 +8,16 @@
 const uint8_t octNb = OCTNB;
 float baseFreq = FREQ0;
 float octFreq[octNb+1];
-int16_t sineWaveform[WFSTEPNB];
+int16_t sineWaveform[SINE_WAVE_TABLE_LEN];
 
 const uint16_t octIncrNb = 409;
 float octIncr[octIncrNb];
 
+
 void fillSineWaveForms(){
-
-    //sine_wave_table[i] = 32767 * cosf(i * 2 * (float) (M_PI / SINE_WAVE_TABLE_LEN));
-
     printf("  filling sinus \n");
-    for(uint16_t i=0;i<WFSTEPNB/4;i++){
-        sineWaveform[i]= (uint16_t)(sin(((float)i)/WFSTEPNB*2*PI)*32767);
+    for(uint16_t i=0;i<SINE_WAVE_TABLE_LEN/4;i++){
+        sineWaveform[i]= (uint16_t)(sin(((float)i)/SINE_WAVE_TABLE_LEN*2*PI)*32767);
         sineWaveform[1023-i]=sineWaveform[i];
         sineWaveform[i+1024]=-sineWaveform[i];
         sineWaveform[2047-i]=-sineWaveform[i];
@@ -27,6 +25,7 @@ void fillSineWaveForms(){
     }
 }
 
+// tableau des fréquences d'octaves
 void fillOctFreq() { 
   for (uint8_t i = 0; i <= octNb; i++) {
     octFreq[i] = baseFreq * (1<<i); 
@@ -42,39 +41,37 @@ void showOctFreq()
   printf("\n");
 }
 
+// tableau des ratios d'incréments sur 1 octave
 void fillOctIncr() 
 { 
   for (uint16_t i = 0; i < octIncrNb; i++) {
     octIncr[i] = (float)(powf((float)2,(float)i/(float)octIncrNb))-1; 
   }
-}
-
-void fout(float octF,float octF_1,uint16_t incr,uint8_t dec) 
-{ 
-  printf("%5.4f/%5.4f ",octIncr[incr],octF+(octF_1-octF)*octIncr[incr]);
-}                         
+}                        
 
 void showOctIncr(float oct0,float octn)
 { 
-for(uint8_t j=oct0;j<octn;j++){
+  for(uint8_t j=oct0;j<octn;j++){
 
-  printf("  ratios d'incréments d'octave oct:%d f:%4.3f à f:%4.3f\n",j,octFreq[j],octFreq[j+1]);
-  uint8_t dec=4;
-  uint8_t step=4;
-  uint16_t max=octIncrNb/step*step;
-  float delta=octFreq[j+1]-octFreq[j];
+    printf("  filling ratios d'incréments d'octave oct:%d f:%4.3f à f:%4.3f\n",j,octFreq[j],octFreq[j+1]);
+    uint8_t dec=4;
+    uint8_t step=4;
+    uint16_t max=octIncrNb/step*step;
+    float delta=octFreq[j+1]-octFreq[j];
   
-  for (uint16_t i = 0; i < max; i+=step ){
-    printf("octIncr[%d] = %0.4f=%5.3f  %0.4f=%5.3f %0.4f=%5.3f %0.4f=%5.3f\n",i,
-      octIncr[i],delta*octIncr[i]+octFreq[j],
-      octIncr[i+1],delta*octIncr[i+1]+octFreq[j],
-      octIncr[i+2],delta*octIncr[i+2]+octFreq[j],
-      octIncr[i+3],delta*octIncr[i+3]+octFreq[j]);
+    for (uint16_t i = 0; i < max; i+=step ){
+      if(i==0 || i==max-step){
+        printf("octIncr[%03d] = %0.4f=%5.3f  %0.4f=%5.3f %0.4f=%5.3f %0.4f=%5.3f\n",i,
+          octIncr[i],delta*octIncr[i]+octFreq[j],
+          octIncr[i+1],delta*octIncr[i+1]+octFreq[j],
+          octIncr[i+2],delta*octIncr[i+2]+octFreq[j],
+          octIncr[i+3],delta*octIncr[i+3]+octFreq[j]);
+      }
+    }
   }
 }
-  
-}
 
+// calcul de la fréquence sonore à partir de la valeur linéaire
 float calcFreq(uint16_t val) // from lin value (0-octIncrNb*OCTNB) to snd value (baseF à baseF*2^OCTNB)
 { 
   uint8_t oct = val/ octIncrNb;
@@ -83,6 +80,7 @@ float calcFreq(uint16_t val) // from lin value (0-octIncrNb*OCTNB) to snd value 
  return freq;
 }
 
+// initialisation des tableaux pour permettre calcFreq()
 void freq_start()                //void setup() 
 {  
   //Serial.begin(115200);
@@ -92,11 +90,51 @@ void freq_start()                //void setup()
   showOctFreq();
   fillOctIncr();
   showOctIncr(0,1);
-  
 
-  //showOctIncr(octFreq[oct],octFreq[oct+1]);
 }
 
-//void loop(){
-//blink_wait();
-//}
+void voiceInit(float freq,struct voice* v)
+{
+    v->sampleNbToFill=SAMPLE_BUFFER_SIZE;    
+    v->currentSample=0;
+    v->frequency=freq;    
+    v->amplitude=0;
+    v->freqCoeff=0;
+    v->dhexFreq=0;
+    v->moduloMask=0;
+    v->moduloShift=0;
+    
+    uint32_t fr=(uint16_t)freq;
+    v->freqCoeff=32;
+    while(fr!=0){
+        fr>>=1;v->freqCoeff--;      // @16KHz maxi, coeff min=18 ; @16hz mini, coeff max=27
+    }
+
+    v->dhexFreq=(uint32_t)(freq*(1<<v->freqCoeff))/SAMPLE_RATE;
+
+    v->moduloMask=(1<<(v->freqCoeff+1))-1;
+
+    v->moduloShift=v->freqCoeff-SINE_WAVE_TABLE_POW;
+
+    printf("voice init freq:%5.2f freqCoeff:%d dhexFreq:%08x moduloMask:%08x moduloShift:%d\n",
+        v->frequency,v->freqCoeff,v->dhexFreq,v->moduloMask,v->moduloShift);
+}
+
+void fillVoiceBuffer(int32_t* sampleBuffer,struct voice* v)
+{
+  gpio_put(TEST_PIN,ON);
+
+   for(uint16_t i=0;i<v->sampleNbToFill;i++){
+    float int_part;
+
+    uint32_t ech=(uint32_t)(modff(v->currentSample*v->frequency/SAMPLE_RATE,&int_part)*SINE_WAVE_TABLE_LEN); // nbre ech 
+    sampleBuffer[i*2]=sineWaveform[ech]*v->amplitude;
+    sampleBuffer[i*2+1]=sampleBuffer[i*2]; // stereo
+
+    v->currentSample++;
+  }
+    
+  gpio_put(TEST_PIN,OFF);
+  
+}
+

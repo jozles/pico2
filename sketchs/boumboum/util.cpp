@@ -12,9 +12,12 @@
 
 // boumboum
 
+extern struct voice voices[];
+
 volatile uint8_t what=0;
 
-#define W_TEST 1
+#define W_TEST 1    // test simple ; sinus continu depuis buffer rempli une fois (1/32)
+#define W_SINUS 2   // sinus continu calculé à la volée
 
 extern volatile uint32_t millisCounter;
 
@@ -40,19 +43,23 @@ void setup(){
     //gpio_init(LED_RED);gpio_set_dir(LED_RED,GPIO_OUT);gpio_put(LED_RED,LOW);
     //gpio_set_dir(LED_GREEN,GPIO_OUT);gpio_put(LED_GREEN,LOW);
 
+    gpio_init(TEST_PIN);gpio_set_dir(TEST_PIN,GPIO_OUT); gpio_put(TEST_PIN,LOW);
+
     gpio_init(PIN_DCDC_PSM_CTRL);gpio_set_dir(PIN_DCDC_PSM_CTRL, GPIO_OUT);
     gpio_put(PIN_DCDC_PSM_CTRL, 1); // PWM mode for less Audio noise
     
+    coderInit(PIO_CLOCK,PIO_DATA,PIO_SW,PIO_VPP,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER);
+    coderSetup(&coder1Counter);
     // irq timer
     add_repeating_timer_ms(1, millisTimerHandler, NULL, &millisTimer);
 
     fillSineWaveForms();
     freq_start();
 
-    what=W_TEST;
+    uint8_t channel=0;
+    voiceInit(440,&voices[channel]);
 
-    coderInit(PIO_CLOCK,PIO_DATA,PIO_SW,PIO_VPP,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER);
-    coderSetup(&coder1Counter);
+    what=W_SINUS;
 
     bb_i2s_start();
 
@@ -71,6 +78,10 @@ void next_sound_feeding(int32_t* next_sound,uint32_t next_sound_size){
     switch (what){
         case W_TEST:    
         test_next_sound_feeding(next_sound,next_sound_size);
+            break;
+
+        case W_SINUS:
+        fillVoiceBuffer(next_sound,&voices[0]);
             break;
         
         default:

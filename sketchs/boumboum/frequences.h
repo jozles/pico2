@@ -21,13 +21,28 @@
 #define INCRNB 409    // int(4096/10)=409
 #define FREQ0 16.345  // pour avoir un LA à 440Hz avecc 409 incréments par octave  
 
+struct voice {
+    //int32_t*    sampleBuffer;
+    uint16_t    sampleNbToFill;    
+    uint32_t    currentSample;
+    float       frequency;    
+    uint16_t    amplitude;
+    uint8_t     freqCoeff;
+    uint32_t    dhexFreq;
+    uint32_t    moduloMask;
+    uint8_t     moduloShift;      
+};
+
 void fillSineWaveForms();
 void fillOctFreq();
 void showOctFreq(); 
 void fillOctIncr();
-void fout(float octF,float octF_1,uint16_t incr,uint8_t dec);
 void showOctIncr(float octF,float octF1);
 float calcFreq(uint16_t val);
 void freq_start();
+void getEch(float freq,uint32_t sampleCounter,uint16_t sampleNbToFill,uint32_t* sampleBuffer);
+
+void voiceInit(float freq,struct voice* v);
+void fillVoiceBuffer(int32_t* sampleBuffer,struct voice* v);
 
 #endif  //_FREQUENCES_H_
