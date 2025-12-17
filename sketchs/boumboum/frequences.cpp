@@ -21,7 +21,7 @@ void fillSineWaveForms(){
         sineWaveform[1023-i]=sineWaveform[i];
         sineWaveform[i+1024]=-sineWaveform[i];
         sineWaveform[2047-i]=-sineWaveform[i];
-        //printf("%d %5.4f %8x \n",i,sin(((float)i)/WFSTEPNB*2*PI),sineWaveform[i]);
+        //printf("%d %5.4f %8x \n",i,sin(((float)i)/SINE_WAVE_TABLE_LEN*2*PI),sineWaveform[i]);
     }
 }
 
@@ -124,16 +124,18 @@ void fillVoiceBuffer(int32_t* sampleBuffer,struct voice* v)
 {
   gpio_put(TEST_PIN,ON);
 
-   for(uint16_t i=0;i<v->sampleNbToFill;i++){
+  uint32_t ech; 
+  for(uint16_t i=0;i<v->sampleNbToFill;i++){
     float int_part;
 
-    uint32_t ech=(uint32_t)(modff(v->currentSample*v->frequency/SAMPLE_RATE,&int_part)*SINE_WAVE_TABLE_LEN); // nbre ech 
+    ech=(uint32_t)(modff(v->currentSample*v->frequency/SAMPLE_RATE,&int_part)*SINE_WAVE_TABLE_LEN); // nbre ech 
     sampleBuffer[i*2]=sineWaveform[ech]*v->amplitude;
     sampleBuffer[i*2+1]=sampleBuffer[i*2]; // stereo
 
     v->currentSample++;
   }
-    
+  if(v->currentSample>=SAMPLE_RATE*10 && ech>=SINE_WAVE_TABLE_LEN-4){v->currentSample=0;}   // re-init to avoid phase error
+
   gpio_put(TEST_PIN,OFF);
   
 }
