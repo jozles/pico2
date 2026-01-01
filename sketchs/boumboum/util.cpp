@@ -53,7 +53,7 @@ void setup(){
     // irq timer
     add_repeating_timer_ms(1, millisTimerHandler, NULL, &millisTimer);
 
-    fillSineWaveForms();
+    fillBasicWaveForms();
     freq_start();
 
     uint8_t channel=0;

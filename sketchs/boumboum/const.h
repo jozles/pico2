@@ -68,8 +68,10 @@
 #define SAMPLES_PER_BUFFER 1024 //1156     // Samples / channel   
 #define SAMPLE_BUFFER_SIZE SAMPLES_PER_BUFFER  // nombre d'échantillons par buffer (doit être multiple de 4 pour le dma i2s)
 
-#define SINE_WAVE_TABLE_POW 11      // ***** POWER OF 2 *****  nombre d'échantillons dans la table d'onde sinus
-#define SINE_WAVE_TABLE_LEN 2048    // ***** POWER OF 2 *****  nombre d'échantillons dans la table d'onde sinus
+#define BASIC_WAVE_TABLE_POW 11      // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
+#define BASIC_WAVE_TABLE_LEN 2048   // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
+//#define SINE_WAVE_TABLE_POW 11      // ***** POWER OF 2 *****  nombre d'échantillons dans la table d'onde sinus
+//#define SINE_WAVE_TABLE_LEN 2048    // ***** POWER OF 2 *****  nombre d'échantillons dans la table d'onde sinus
 
 #define VOICES_NB 4                 // nombre de voix simultanées
 

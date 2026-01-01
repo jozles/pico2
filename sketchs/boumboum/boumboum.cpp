@@ -36,11 +36,13 @@ int main() {
     sleep_ms(10000);printf("\n+boumboum \n");
     setup();
 
-    //amplitude=60;
-    voices[0].amplitude=6000;
+    voices[0].basicWaveAmpl[WAVE_SINUS]=MAX_AMP_VAL;
+    voices[0].genAmpl=6000;
     freq_lin=1943;      // 440Hz
 
     coder1Counter=freq_lin;
+
+
 
 uint32_t sb[SAMPLE_BUFFER_SIZE];  
 
@@ -54,7 +56,7 @@ uint32_t sb[SAMPLE_BUFFER_SIZE];
             coder1Counter0=coder1Counter;
             voices[0].frequency=calcFreq(coder1Counter);
 
-            printf("freq:%5.3f ampl:%d\r",voices[0].frequency,voices[0].amplitude);
+            printf("freq:%5.3f ampl:%d\r",voices[0].frequency,voices[0].genAmpl);
             
             //testSample(coder1Counter,amplitude);    
         }

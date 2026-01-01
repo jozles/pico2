@@ -19,21 +19,30 @@
 
 #define OCTNB 11
 #define INCRNB 409    // int(4096/10)=409
-#define FREQ0 16.345  // pour avoir un LA à 440Hz avecc 409 incréments par octave  
+#define FREQ0 16.345  // pour avoir un LA à 440Hz avecc 409 incréments par octave 
+#define BASIC_WAVES_NB 6 // sinus, carré, triangle, dent de scie, bruit blanc,bruit rose 
+#define WAVE_SINUS 0
+#define WAVE_SQUARE 1
+#define WAVE_TRIANGLE 2
+#define WAVE_SAWTOOTH 3 
+#define WAVE_WHITENOISE 4
+#define WAVE_PINKNOISE 5
+#define MAX_AMP_VAL 32767
 
 struct voice {
     //int32_t*    sampleBuffer;
     uint16_t    sampleNbToFill;    
     uint32_t    currentSample;
     float       frequency;    
-    uint16_t    amplitude;
+    uint16_t    basicWaveAmpl[BASIC_WAVES_NB];
+    uint16_t    genAmpl;
     uint8_t     freqCoeff;
     uint32_t    dhexFreq;
     uint32_t    moduloMask;
     uint8_t     moduloShift;      
 };
 
-void fillSineWaveForms();
+void fillBasicWaveForms();
 void fillOctFreq();
 void showOctFreq(); 
 void fillOctIncr();

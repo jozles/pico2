@@ -8,20 +8,40 @@
 const uint8_t octNb = OCTNB;
 float baseFreq = FREQ0;
 float octFreq[octNb+1];
-int16_t sineWaveform[SINE_WAVE_TABLE_LEN];
+int16_t sineWaveform[BASIC_WAVE_TABLE_LEN];
+int16_t squareWaveform[BASIC_WAVE_TABLE_LEN];
+int16_t triangleWaveform[BASIC_WAVE_TABLE_LEN];
+int16_t sawtoothWaveform[BASIC_WAVE_TABLE_LEN];
+int16_t pinkNoiseWaveform[BASIC_WAVE_TABLE_LEN];
+int16_t whiteNoiseWaveform[BASIC_WAVE_TABLE_LEN];
 
 const uint16_t octIncrNb = 409;
 float octIncr[octIncrNb];
 
 
-void fillSineWaveForms(){
-    printf("  filling sinus \n");
-    for(uint16_t i=0;i<SINE_WAVE_TABLE_LEN/4;i++){
-        sineWaveform[i]= (uint16_t)(sin(((float)i)/SINE_WAVE_TABLE_LEN*2*PI)*32767);
-        sineWaveform[1023-i]=sineWaveform[i];
-        sineWaveform[i+1024]=-sineWaveform[i];
-        sineWaveform[2047-i]=-sineWaveform[i];
+void fillBasicWaveForms(){
+    printf("  filling basic \n");
+    for(uint16_t i=0;i<BASIC_WAVE_TABLE_LEN/4;i++){
+        sineWaveform[i]= (uint16_t)(sin(((float)i)/BASIC_WAVE_TABLE_LEN*2*PI)*MAX_AMP_VAL);
+        sineWaveform[(BASIC_WAVE_TABLE_LEN/2)-i]=sineWaveform[i];
+        sineWaveform[i+(BASIC_WAVE_TABLE_LEN/2)]=-sineWaveform[i];
+        sineWaveform[BASIC_WAVE_TABLE_LEN-i]=-sineWaveform[i];
         //printf("%d %5.4f %8x \n",i,sin(((float)i)/SINE_WAVE_TABLE_LEN*2*PI),sineWaveform[i]);
+        squareWaveform[i]=MAX_AMP_VAL;
+        squareWaveform[i+(BASIC_WAVE_TABLE_LEN/4)]=MAX_AMP_VAL;
+        squareWaveform[i+(BASIC_WAVE_TABLE_LEN/2)]=-MAX_AMP_VAL;
+        squareWaveform[BASIC_WAVE_TABLE_LEN-i]=-MAX_AMP_VAL;
+
+        triangleWaveform[i]=i*(MAX_AMP_VAL/(BASIC_WAVE_TABLE_LEN/4));
+        triangleWaveform[(BASIC_WAVE_TABLE_LEN/2)-i]=triangleWaveform[i];
+        triangleWaveform[i+(BASIC_WAVE_TABLE_LEN/2)]=-triangleWaveform[i];
+        triangleWaveform[BASIC_WAVE_TABLE_LEN-i]=-triangleWaveform[i];
+
+        sawtoothWaveform[i]=i*MAX_AMP_VAL/BASIC_WAVE_TABLE_LEN/2;
+        sawtoothWaveform[(BASIC_WAVE_TABLE_LEN/4)+i]=sawtoothWaveform[i]+MAX_AMP_VAL/2;
+        sawtoothWaveform[(BASIC_WAVE_TABLE_LEN/2)+i]=-(MAX_AMP_VAL-sawtoothWaveform[i]);
+        sawtoothWaveform[BASIC_WAVE_TABLE_LEN-i]=-sawtoothWaveform[i];        
+
     }
 }
 
@@ -98,7 +118,7 @@ void voiceInit(float freq,struct voice* v)
     v->sampleNbToFill=SAMPLE_BUFFER_SIZE;    
     v->currentSample=0;
     v->frequency=freq;    
-    v->amplitude=0;
+    for(uint8_t i=0;i<BASIC_WAVES_NB;i++){v->basicWaveAmpl[i]=0;}  // all waves off
     v->freqCoeff=0;
     v->dhexFreq=0;
     v->moduloMask=0;
@@ -106,7 +126,7 @@ void voiceInit(float freq,struct voice* v)
     
     uint32_t fr=(uint16_t)freq;
     v->freqCoeff=32;
-    while(fr!=0){
+    while(fr!=0){                   
         fr>>=1;v->freqCoeff--;      // @16KHz maxi, coeff min=18 ; @16hz mini, coeff max=27
     }
 
@@ -114,7 +134,7 @@ void voiceInit(float freq,struct voice* v)
 
     v->moduloMask=(1<<(v->freqCoeff+1))-1;
 
-    v->moduloShift=v->freqCoeff-SINE_WAVE_TABLE_POW;
+    v->moduloShift=v->freqCoeff-BASIC_WAVE_TABLE_POW;
 
     printf("voice init freq:%5.2f freqCoeff:%d dhexFreq:%08x moduloMask:%08x moduloShift:%d\n",
         v->frequency,v->freqCoeff,v->dhexFreq,v->moduloMask,v->moduloShift);
@@ -128,13 +148,21 @@ void fillVoiceBuffer(int32_t* sampleBuffer,struct voice* v)
   for(uint16_t i=0;i<v->sampleNbToFill;i++){
     float int_part;
 
-    ech=(uint32_t)(modff(v->currentSample*v->frequency/SAMPLE_RATE,&int_part)*SINE_WAVE_TABLE_LEN); // nbre ech 
-    sampleBuffer[i*2]=sineWaveform[ech]*v->amplitude;
+    ech=(uint32_t)(modff(v->currentSample*v->frequency/SAMPLE_RATE,&int_part)*BASIC_WAVE_TABLE_LEN); // ech nbr 
+
+    sampleBuffer[i*2]=
+        ((sineWaveform[ech]*v->basicWaveAmpl[WAVE_SINUS]
+      + squareWaveform[ech]*v->basicWaveAmpl[WAVE_SQUARE]
+      + triangleWaveform[ech]*v->basicWaveAmpl[WAVE_TRIANGLE]
+      + sawtoothWaveform[ech]*v->basicWaveAmpl[WAVE_SAWTOOTH]
+      + whiteNoiseWaveform[ech]*v->basicWaveAmpl[WAVE_WHITENOISE]
+      + pinkNoiseWaveform[ech]*v->basicWaveAmpl[WAVE_PINKNOISE])
+      /16)*v->genAmpl;
     sampleBuffer[i*2+1]=sampleBuffer[i*2]; // stereo
 
     v->currentSample++;
   }
-  if(v->currentSample>=SAMPLE_RATE*10 && ech>=SINE_WAVE_TABLE_LEN-4){v->currentSample=0;}   // re-init to avoid phase error
+  if(v->currentSample>=SAMPLE_RATE*10 && ech>=BASIC_WAVE_TABLE_LEN-4){v->currentSample=0;}   // re-init to avoid phase error
 
   gpio_put(TEST_PIN,OFF);
   
