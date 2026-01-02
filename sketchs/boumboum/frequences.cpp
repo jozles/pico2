@@ -27,7 +27,7 @@ void fillBasicWaveForms(){
         sineWaveform[i+(BASIC_WAVE_TABLE_LEN/2)]=-sineWaveform[i];
         sineWaveform[BASIC_WAVE_TABLE_LEN-i]=-sineWaveform[i];
         //printf("%d %5.4f %8x \n",i,sin(((float)i)/SINE_WAVE_TABLE_LEN*2*PI),sineWaveform[i]);
-        squareWaveform[i]=MAX_AMP_VAL;
+       /* squareWaveform[i]=MAX_AMP_VAL;
         squareWaveform[i+(BASIC_WAVE_TABLE_LEN/4)]=MAX_AMP_VAL;
         squareWaveform[i+(BASIC_WAVE_TABLE_LEN/2)]=-MAX_AMP_VAL;
         squareWaveform[BASIC_WAVE_TABLE_LEN-i]=-MAX_AMP_VAL;
@@ -41,7 +41,7 @@ void fillBasicWaveForms(){
         sawtoothWaveform[(BASIC_WAVE_TABLE_LEN/4)+i]=sawtoothWaveform[i]+MAX_AMP_VAL/2;
         sawtoothWaveform[(BASIC_WAVE_TABLE_LEN/2)+i]=-(MAX_AMP_VAL-sawtoothWaveform[i]);
         sawtoothWaveform[BASIC_WAVE_TABLE_LEN-i]=-sawtoothWaveform[i];        
-
+*/
     }
 }
 
@@ -150,7 +150,8 @@ void fillVoiceBuffer(int32_t* sampleBuffer,struct voice* v)
 
     ech=(uint32_t)(modff(v->currentSample*v->frequency/SAMPLE_RATE,&int_part)*BASIC_WAVE_TABLE_LEN); // ech nbr 
 
-    sampleBuffer[i*2]=
+    sampleBuffer[i*2]=sineWaveform[ech]*v->genAmpl;
+    /*
         ((sineWaveform[ech]*v->basicWaveAmpl[WAVE_SINUS]
       + squareWaveform[ech]*v->basicWaveAmpl[WAVE_SQUARE]
       + triangleWaveform[ech]*v->basicWaveAmpl[WAVE_TRIANGLE]
@@ -158,6 +159,7 @@ void fillVoiceBuffer(int32_t* sampleBuffer,struct voice* v)
       + whiteNoiseWaveform[ech]*v->basicWaveAmpl[WAVE_WHITENOISE]
       + pinkNoiseWaveform[ech]*v->basicWaveAmpl[WAVE_PINKNOISE])
       /16)*v->genAmpl;
+      */
     sampleBuffer[i*2+1]=sampleBuffer[i*2]; // stereo
 
     v->currentSample++;

@@ -36,7 +36,7 @@ int main() {
     sleep_ms(10000);printf("\n+boumboum \n");
     setup();
 
-    voices[0].basicWaveAmpl[WAVE_SINUS]=MAX_AMP_VAL;
+    voices[0].basicWaveAmpl[WAVE_SINUS]=1; //MAX_AMP_VAL;
     voices[0].genAmpl=6000;
     freq_lin=1943;      // 440Hz
 
