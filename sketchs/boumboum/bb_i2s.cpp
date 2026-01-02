@@ -20,8 +20,6 @@
 #include "pico/audio.h"
 #include "pico/audio_i2s.h"
 
-extern int16_t sineWaveform[SINE_WAVE_TABLE_LEN];
-
 uint32_t i2s_error=0xffffffff;
 
 

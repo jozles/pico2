@@ -15,7 +15,7 @@ extern volatile uint32_t durOffOn[];
 extern volatile bool led;
 extern volatile uint32_t ledBlinker;
 
-extern int16_t sineWaveform[SINE_WAVE_TABLE_LEN];
+extern int16_t sineWaveform[BASIC_WAVE_TABLE_LEN];
 extern volatile bool i2s_hungry;        // indique que le buffer courant est copié dans le buffer de dma ; donc préparer la suite
 extern int32_t* audio_data;             // pointeur du buffer courant
 extern uint32_t i2s_error; 
@@ -47,7 +47,7 @@ float testSample(int16_t freq_lin,uint16_t ampl)
 
         //printf("i:%4d k:%d sine_ech_nb:%04d sample:%08x\n",i,k,ech,sample_buffer[i*2]);
 
-        ech+=32;if(ech>=SINE_WAVE_TABLE_LEN){ech-=SINE_WAVE_TABLE_LEN;}           // @32 : 2048/32=64 échantillons par période @44100 : 44100/64=689 Hz
+        ech+=32;if(ech>=BASIC_WAVE_TABLE_LEN){ech-=BASIC_WAVE_TABLE_LEN;}           // @32 : 2048/32=64 échantillons par période @44100 : 44100/64=689 Hz
     }
     return freq_snd;
 }

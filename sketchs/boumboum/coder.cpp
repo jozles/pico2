@@ -38,6 +38,7 @@ extern PIO pio;
 bool coderTimerHandler(){
 
     coderClock=gpio_get(pio_clock_pin);
+    printf("$");
 
     if(coderClock == coderClock0){                                // no change 
         if(coderItStatus<coderStrobeNumber){                      // wait for change after strobe delay

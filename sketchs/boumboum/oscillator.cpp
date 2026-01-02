@@ -23,7 +23,7 @@ uint16_t samplePtr(float req_freq,uint32_t from_start_millis_counter){
 
 //Serial.print(SAMPLE_PER,10);Serial.print(' ');Serial.print(bs,6);Serial.print(' ');Serial.print(ds,6);Serial.print(' ');
 
-        ez=(uint16_t)(ds*SINE_WAVE_TABLE_LEN);
+        ez=(uint16_t)(ds*BASIC_WAVE_TABLE_LEN);
 
     return ez;   
 }
@@ -42,7 +42,7 @@ uint16_t samplePtr(uint32_t req_freqx100,uint32_t from_start_millis_counter){
 
 //Serial.print(SAMPLE_PER,10);Serial.print(' ');Serial.print(bs,6);Serial.print(' ');Serial.print(ds,6);Serial.print(' ');
 
-        ez=(uint16_t)(ds*SINE_WAVE_TABLE_LEN);
+        ez=(uint16_t)(ds*BASIC_WAVE_TABLE_LEN);
 
     return ez;   
 }
