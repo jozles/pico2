@@ -5,6 +5,7 @@
  */
 
 #include "pico/stdlib.h"
+#include <stdio.h>
 
 // Pico W devices use a GPIO on the WIFI chip for the LED,
 // so when building for Pico W, CYW43_WL_GPIO_LED_PIN will be defined
@@ -31,7 +32,7 @@ int pico_led_init(void) {
 #endif
 }
 
-// Turn the led on or off
+// Turn the led on or offr
 void pico_set_led(bool led_on) {
 #if defined(PICO_DEFAULT_LED_PIN)
     // Just set the GPIO on or off
@@ -44,11 +45,15 @@ void pico_set_led(bool led_on) {
 
 int main() {
     stdio_init_all();
+    sleep_ms(10000);
+    printf("+ready\n");
+ 
     //int rc = pico_led_init();
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);    
     
     //hard_assert(rc == PICO_OK);
+    uint32_t n=0;
     while (true) {
         gpio_put(PICO_DEFAULT_LED_PIN, true);
         sleep_ms(50);
@@ -58,5 +63,6 @@ int main() {
         sleep_ms(50);
         pico_set_led(false);
         sleep_ms(LED_DELAY_MS);
+        printf("tick %d\n",n++);
     }
 }
