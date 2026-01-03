@@ -9,6 +9,7 @@
 #include "coder.h"
 #include "frequences.h"
 #include "test.h"
+#include "leds.h"
 
 // boumboum
 
@@ -62,6 +63,8 @@ void setup(){
     what=W_SINUS;
 
     bb_i2s_start();
+
+    ledsWs2812Setup();
 
 }
 

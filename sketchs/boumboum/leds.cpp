@@ -3,10 +3,23 @@
 #include "hardware/dma.h"
 #include "hardware/irq.h"
 #include "hardware/clocks.h"
+#include "const.h"
+#include "util.h"
 
-#include "ws2812.pio.h"
+extern "C" {
+    #include "ws2812.pio.h"
+}
 
-#define LED_PIN 2
+// leds
+
+extern volatile uint32_t durOffOn[];
+extern volatile bool led;
+extern volatile uint32_t ledBlinker;
+
+// millis
+
+extern volatile uint32_t millisCounter;
+
 #define BUFFER_WORDS 64   // paramétrable
 
 static uint32_t buffer[BUFFER_WORDS];
@@ -21,7 +34,7 @@ void __isr dma_handler() {
     dma_hw->ints0 = 1u << dma_chan;
 
     // ligne à 0 pendant le reset WS2812
-    gpio_put(LED_PIN, 0);
+    gpio_put(LED_PIN_WS2812, 0);
     sleep_us(60);
 
     fill_buffer(buffer, BUFFER_WORDS);
@@ -31,19 +44,19 @@ void __isr dma_handler() {
     dma_channel_set_trans_count(dma_chan, BUFFER_WORDS, true);
 }
 
-int main() {
-    stdio_init_all();
+int ledsWs2812Setup() {
+    //stdio_init_all();
 
-    gpio_init(LED_PIN);
-    gpio_set_dir(LED_PIN, GPIO_OUT);
-    gpio_put(LED_PIN, 0);
+    gpio_init(LED_PIN_WS2812);
+    gpio_set_dir(LED_PIN_WS2812, GPIO_OUT);
+    gpio_put(LED_PIN_WS2812, 0);
 
     uint offset = pio_add_program(pio, &ws2812_program);
     sm = pio_claim_unused_sm(pio, true);
 
     pio_sm_config c = ws2812_program_get_default_config(offset);
-    sm_config_set_sideset_pins(&c, LED_PIN);
-    pio_sm_set_consecutive_pindirs(pio, sm, LED_PIN, 1, true);
+    sm_config_set_sideset_pins(&c, LED_PIN_WS2812);
+    pio_sm_set_consecutive_pindirs(pio, sm, LED_PIN_WS2812, 1, true);
 
     // PIO clock = 8 MHz
     float div = (float)clock_get_hz(clk_sys) / 8000000.0f;
@@ -56,6 +69,7 @@ int main() {
 
     // DMA
     dma_chan = dma_claim_unused_channel(true);
+    if(dma_chan<0){LEDBLINK_ERROR_DMA}
     dma_channel_config dc = dma_channel_get_default_config(dma_chan);
     channel_config_set_transfer_data_size(&dc, DMA_SIZE_32);
     channel_config_set_read_increment(&dc, true);
@@ -74,7 +88,11 @@ int main() {
     dma_channel_set_irq0_enabled(dma_chan, true);
     irq_set_exclusive_handler(DMA_IRQ_0, dma_handler);
     irq_set_enabled(DMA_IRQ_0, true);
+    return 0;
+}
 
+void ledsWs2812Test()
+{
     fill_buffer(buffer, BUFFER_WORDS);
 
     dma_channel_start(dma_chan);

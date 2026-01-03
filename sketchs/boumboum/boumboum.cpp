@@ -8,6 +8,8 @@
 #include "test.h"
 #include "frequences.h"
 
+#include "leds.h"
+
 // leds
 
 extern volatile uint32_t durOffOn[];
@@ -41,6 +43,8 @@ int main() {
     freq_lin=1943;      // 440Hz
 
     coder1Counter=freq_lin;
+
+    ledsWs2812Test();
 
 
     while (true) {

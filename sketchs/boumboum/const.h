@@ -35,16 +35,20 @@
 
 /* led */
 #define LEDBLINK  if((millisCounter-ledBlinker)>durOffOn[led]){ledBlinker=millisCounter;led=!led;gpio_put(LED,led);}
-#define LEDBLINK_ERROR  durOffOn[0]=2*durOffOn[1];LEDBLINK
+#define LEDBLINK_ERROR      durOffOn[0]=2*durOffOn[1];LEDBLINK
+#define LEDBLINK_ERROR_DMA  durOffOn[0]=3*durOffOn[1];LEDBLINK
 #define LEDONDUR 60
 #define LEDOFFDUR 1000
 
 #define LED 25  // pico2 built_in
 #define LED_PIN LED
-#define NBLEDS            3
-#define LED_BLUE          47
-#define LED_RED           53
-#define LED_GREEN         49
+
+#define LED_PIN_WS2812 2
+
+//#define NBLEDS            3
+//#define LED_BLUE          47
+//#define LED_RED           53
+//#define LED_GREEN         49
 
 //uint8_t leds[NBLEDS]={LED_RED,LED_GREEN,LED_BLUE};
 

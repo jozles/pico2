@@ -1,5 +1,5 @@
 .program ws2812
-.side_set 1
+.side_set 1 opt
 
 ; PIO clock typique : 8 MHz → 125 ns par cycle
 ; Timings WS2812 :
