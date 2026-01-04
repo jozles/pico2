@@ -36,6 +36,13 @@ struct voice voices[VOICES_NB];
 int main() {
     stdio_init_all();
     sleep_ms(10000);printf("\n+boumboum \n");
+    
+    pio_full_reset(pio0);
+    pio_full_reset(pio1);
+
+    ledsWs2812Setup();
+
+/*    
     setup();
 
     voices[0].basicWaveAmpl[WAVE_SINUS]=MAX_AMP_VAL;
@@ -43,7 +50,7 @@ int main() {
     freq_lin=1943;      // 440Hz
 
     coder1Counter=freq_lin;
-
+*/
     ledsWs2812Test();
 
 

@@ -36,8 +36,57 @@ bool millisTimerHandler(struct repeating_timer *t){
     return true;
 }
 
+void dump_pio_instr(PIO pio, const char *label) {
+    printf("%s pio#%p:\n", label, pio);
+    for (int i = 0; i < 32; i++) {
+        printf("instr[%02d] = 0x%04x\n", i, pio->instr_mem[i]);
+    }
+}
+
+void debug_gpio3_function(void) {
+    uint func = gpio_get_function(3);
+    printf("GPIO3 function = %u\n", func);
+}
+
+void pio_full_reset(PIO pio) {
+
+    printf("pio#%p full reset\n",pio);
+
+    // 1. Désactiver toutes les SM
+    for (int sm = 0; sm < 4; sm++) {
+        pio_sm_set_enabled(pio, sm, false);
+    }
+
+    // 2. Libérer toutes les SM dans le SDK
+    for (int sm = 0; sm < 4; sm++) {
+        pio_sm_unclaim(pio, sm);
+    }
+
+    // 3. Effacer la mémoire d’instructions PIO
+    pio_clear_instruction_memory(pio);
+
+    // 4. Redémarrer les diviseurs de clock
+    for (int sm = 0; sm < 4; sm++) {
+        pio_sm_clkdiv_restart(pio, sm);
+    }
+
+    // 5. Reset interne complet des SM
+    for (int sm = 0; sm < 4; sm++) {
+        pio_sm_restart(pio, sm);
+    }
+
+    //printf("Dump PIO0:\n");
+    //for (int i = 0; i < 32; i++) {
+    //    printf("instr[%02d] = 0x%04x\n", i, pio0->instr_mem[i]);
+    //}
+
+}
+
 
 void setup(){
+
+    pio_full_reset(pio0);
+    pio_full_reset(pio1);
 
     gpio_init(LED);gpio_set_dir(LED,GPIO_OUT); gpio_put(LED,LOW);
     //gpio_init(LED_BLUE);gpio_set_dir(LED_BLUE,GPIO_OUT);gpio_put(LED_BLUE,LOW);

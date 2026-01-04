@@ -1,21 +1,35 @@
 .program ws2812
 .side_set 1 opt
 
-; PIO clock typique : 8 MHz → 125 ns par cycle
-; Timings WS2812 :
-;   1 : haut ~700 ns, bas ~600 ns
-;   0 : haut ~350 ns, bas ~800 ns
+; WS2812 DEBUG - compatible RP2350
+; Chaque bit est envoyé via out pins,1
+; Le timing encode 0 ou 1
 
 .wrap_target
-pull block         ; récupère 32 bits
-out x, 8           ; ignore les 8 MSB → ne garde que 24 bits
+pull block
+out x, 24        ; 24 bits dans X
+
 bitloop:
-    out y, 1       ; récupère 1 bit dans Y
-    jmp !y do_zero side 1 [2] ; bit=1 → HIGH plus longtemps
-do_one:
-    jmp continue   side 0 [4]
-do_zero:
-    jmp continue   side 0 [1]
-continue:
-    jmp x-- bitloop
+    out pins, 1  side 1   ; sort le bit MSB → HIGH
+    nop         side 1    ; T1H ou T0H (bit=1 → HIGH plus long)
+    nop         side 0    ; T1L ou T0L (bit=0 → LOW plus long)
+    jmp x--, bitloop
 .wrap
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
