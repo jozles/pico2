@@ -54,9 +54,10 @@ int main() {
 
     pio_sm_init(pio, sm, offset, &c);
     
-    //sm_config_set_clkdiv(&c, 1.25f); // par ex. ralentit à 0,5 MHz
-    float div = (float)clock_get_hz(clk_sys) / 800000.0f;
-    sm_config_set_clkdiv(&c, div);
+
+    float div = 14; // (float)clock_get_hz(clk_sys) / 800000.0f;
+    pio_sm_set_clkdiv(pio,sm, div);
+    //sm_config_set_clkdiv(&c, div);
 
     gpio_set_function(PIN_WS2812, GPIO_FUNC_PIO0);
     
@@ -65,10 +66,33 @@ int main() {
 
     printf("début ws2812\n");ledblink(100);
 
-    uint32_t grb;
+    uint32_t ms=700;
     while (true) {
-             pio_sm_put_blocking(pio,sm,0x00FF00); // vert
-             sleep_ms(500);
+             pio_sm_put_blocking(pio,sm,0xF80000); // bleu
+             pio_sm_put_blocking(pio,sm,0x0000F0); // vert
+             pio_sm_put_blocking(pio,sm,0x00F800); // rouge
+             pio_sm_put_blocking(pio,sm,0x00F0F0); // jaune
+             sleep_ms(ms);
+             
+             pio_sm_put_blocking(pio,sm,0x00F0F0); // jaune
+             pio_sm_put_blocking(pio,sm,0xF80000); // bleu
+             pio_sm_put_blocking(pio,sm,0x0000F0); // vert
+             pio_sm_put_blocking(pio,sm,0x00F800); // rouge
+             sleep_ms(ms);
+
+             pio_sm_put_blocking(pio,sm,0x00F800); // rouge
+             pio_sm_put_blocking(pio,sm,0x00F0F0); // jaune
+             pio_sm_put_blocking(pio,sm,0xF80000); // bleu
+             pio_sm_put_blocking(pio,sm,0x0000F0); // vert
+             
+             sleep_ms(ms);
+             pio_sm_put_blocking(pio,sm,0x0000F0); // vert
+             pio_sm_put_blocking(pio,sm,0x00F800); // rouge
+             pio_sm_put_blocking(pio,sm,0x00F0F0); // jaune
+             pio_sm_put_blocking(pio,sm,0xF80000); // bleu
+             sleep_ms(ms);
+             //pio_sm_put_blocking(pio,sm,0x00000000); // off
+             //sleep_ms(500);             
     }
 }
  
