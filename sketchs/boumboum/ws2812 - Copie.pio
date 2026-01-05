@@ -1,0 +1,53 @@
+.program ws2812
+.side_set 1
+
+.wrap_target
+pull block        side 0
+out x, 24         side 0
+
+bitloop:
+    ; BIT = 1 → HIGH long
+    out pins, 1   side 1 [2]
+    jmp !x do_zero side 1 [3]
+
+    ; BIT = 1 → LOW court
+    nop           side 0 [3]
+    jmp continue  side 0 [1]
+
+do_zero:
+    ; BIT = 0 → HIGH court
+    nop           side 1 [1]
+    nop           side 1 [1]
+
+    ; BIT = 0 → LOW long
+    nop           side 0 [4]
+
+continue:
+    ; Séparation explicite pour empêcher fusion
+    nop           side 0 [2]
+    jmp x-- bitloop side 0 [0]
+.wrap
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

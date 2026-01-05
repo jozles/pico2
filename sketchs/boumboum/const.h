@@ -58,9 +58,9 @@
 #define FREQUENCY   440.0   // La 440 Hz
 #define AMPLITUDE   30000   // Amplitude max (16 bits signé)
 
-#define I2S_DATA_PIN  4     // DIN du MAX98357A
-#define I2S_BCLK_PIN  2     // BCLK
-#define I2S_LRCLK_PIN 3     // LRCLK
+//#define I2S_DATA_PIN  4     // DIN du MAX98357A
+//#define I2S_BCLK_PIN  2     // BCLK
+//#define I2S_LRCLK_PIN 3     // LRCLK
 
 /* frequencies */
 

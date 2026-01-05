@@ -1,0 +1,20 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Flash Pico2 via USB",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "C:/Windows/System32/cmd.exe",
+            "args": ["/C", "echo Flash done"],
+            "preLaunchTask": "Flash Pico2 via USB",
+            "cwd": "${workspaceFolder}",
+            "MIMode": "gdb",
+            "miDebuggerPath": "C:/Users/jozle/.pico-sdk/toolchain/14_2_Rel1/bin/arm-none-eabi-gdb.exe",
+            "stopAtEntry": false
+        }
+    ]
+}
+
+
+

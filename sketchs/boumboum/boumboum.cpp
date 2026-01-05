@@ -37,8 +37,21 @@ int main() {
     stdio_init_all();
     sleep_ms(10000);printf("\n+boumboum \n");
     
-    pio_full_reset(pio0);
-    pio_full_reset(pio1);
+    //pio_full_reset(pio0);
+    //pio_full_reset(pio1);
+
+    /*printf("\nTEST GPIO3 BRUT\n");
+
+    gpio_init(LED_PIN_WS2812);          // LED_PIN_WS2812 == 3
+    gpio_set_dir(LED_PIN_WS2812, GPIO_OUT);
+
+    while (true) {
+        gpio_put(LED_PIN_WS2812, 1);
+        sleep_ms(1);
+        gpio_put(LED_PIN_WS2812, 0);
+        sleep_ms(1);
+    }*/
+
 
     ledsWs2812Setup();
 
