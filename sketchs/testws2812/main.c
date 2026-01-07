@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include <stdio.h>
+#include <string.h>
 #include "hardware/pio.h"
 #include "hardware/clocks.h"
 #include "ws2812.pio.h"
@@ -24,6 +25,11 @@ static inline void ws2812_put_pixel(PIO pio, int sm, uint32_t color) {
     pio_sm_put_blocking(pio, sm, grb << 8); // <<8 pour n’envoyer que 24 bits
 }
 
+void pio_sm_put_blocking_array(PIO pio, uint sm, const uint32_t *src, size_t len) {
+    for (size_t i = 0; i < len; i++) {
+        pio_sm_put_blocking(pio, sm, src[i]);
+    }
+}
 
 int main() {
     stdio_init_all();
@@ -34,32 +40,33 @@ int main() {
 
     printf("\n+testWs2812\n");
 
+    
+    // choix pio
     PIO pio = pio0;
     int sm = 0;
 
+    // réservation sm 
     sm = pio_claim_unused_sm(pio, true);
     // Charger le programme PIO
     uint offset = pio_add_program(pio, &ws2812_program);
 
     // Configurer le state machine
-    pio_gpio_init(pio, PIN_WS2812);
-    pio_sm_set_consecutive_pindirs(pio, sm, PIN_WS2812, 1, true);
+    pio_gpio_init(pio, PIN_WS2812);                                 // attache le gpio au pio (si plusieurs gpio plusieurs inits)
+    pio_sm_set_consecutive_pindirs(pio, sm, PIN_WS2812, 1, true);   // 1er,nbre,direction des gpio de la sm (correspond pour le pilotage sm à "gpio_set_dir()" en pilotage processeur)
 
-    pio_sm_config c = ws2812_program_get_default_config(offset);
-    sm_config_set_sideset_pins(&c, PIN_WS2812);
-
-    sm_config_set_out_pins(&c, PIN_WS2812, 1);
-    sm_config_set_out_shift(&c, true, true, 24);
-    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
-
-    pio_sm_init(pio, sm, offset, &c);
+    pio_sm_config c = ws2812_program_get_default_config(offset);    // créé la structure de la config de la sm
+    sm_config_set_sideset_pins(&c, PIN_WS2812);                     // gpio de base de la sm qui sera associée à la structure                 
+    sm_config_set_out_pins(&c, PIN_WS2812, 1);                      // direction des GPIOs de la sm (pas compris pourquoi il y a 2 couches de direction avec pio_sm_consecutive_pindirs)                 
+    sm_config_set_out_shift(&c, true, true, 24);                    // controle du shift register alimenté par le TX FIFO (,right,autopull,threshpld)
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);                  // concatène FIFO TX et RX (8 bytes)
+    float div = 14;
+    sm_config_set_clkdiv(&c, div);                                  // env 150/14 = 107nS
+    pio_sm_init(pio, sm, offset, &c);                               // attache le programme et la structure à la sm 
     
-
-    float div = 14; // (float)clock_get_hz(clk_sys) / 800000.0f;
-    pio_sm_set_clkdiv(pio,sm, div);
+    //pio_sm_set_clkdiv(pio,sm, div);
     //sm_config_set_clkdiv(&c, div);
 
-    gpio_set_function(PIN_WS2812, GPIO_FUNC_PIO0);
+    //gpio_set_function(PIN_WS2812, GPIO_FUNC_PIO0);                  
     
     pio_sm_clear_fifos(pio, sm);
     pio_sm_set_enabled(pio, sm, true);
@@ -67,63 +74,25 @@ int main() {
     printf("début ws2812\n");ledblink(100);
 
     uint32_t ms=700;
-    while (true) {
-             pio_sm_put_blocking(pio,sm,0xF80000); // bleu
-             pio_sm_put_blocking(pio,sm,0x0000F0); // vert
-             pio_sm_put_blocking(pio,sm,0x00F800); // rouge
-             pio_sm_put_blocking(pio,sm,0x00F0F0); // jaune
-             sleep_ms(ms);
-             
-             pio_sm_put_blocking(pio,sm,0x00F0F0); // jaune
-             pio_sm_put_blocking(pio,sm,0xF80000); // bleu
-             pio_sm_put_blocking(pio,sm,0x0000F0); // vert
-             pio_sm_put_blocking(pio,sm,0x00F800); // rouge
-             sleep_ms(ms);
-
-             pio_sm_put_blocking(pio,sm,0x00F800); // rouge
-             pio_sm_put_blocking(pio,sm,0x00F0F0); // jaune
-             pio_sm_put_blocking(pio,sm,0xF80000); // bleu
-             pio_sm_put_blocking(pio,sm,0x0000F0); // vert
-             
-             sleep_ms(ms);
-             pio_sm_put_blocking(pio,sm,0x0000F0); // vert
-             pio_sm_put_blocking(pio,sm,0x00F800); // rouge
-             pio_sm_put_blocking(pio,sm,0x00F0F0); // jaune
-             pio_sm_put_blocking(pio,sm,0xF80000); // bleu
-             sleep_ms(ms);
-             //pio_sm_put_blocking(pio,sm,0x00000000); // off
-             //sleep_ms(500);             
+    uint8_t lbvrj=4;
+    uint32_t bvrj[] = {0xF80000,0x0000F0,0x00F800,0x00F0F0,0xF80000,0x0000F0,0x00F800,0x00F0F0};
+    uint8_t cnt=0;
+while(1){
+    cnt=0;    
+    while(cnt<2){
+        cnt++;
+        for(uint8_t i=0;i<lbvrj;i++){pio_sm_put_blocking_array(pio,sm,&bvrj[i],lbvrj);sleep_ms(ms);}
+    }
+    uint32_t up_down[lbvrj];
+    uint32_t init_val[]={0x800000,0x008000,0x000080,0x008080};
+    memset(up_down,0x00,lbvrj*4);
+    cnt=0;
+    while(cnt<4){
+        uint32_t iv=init_val[cnt];
+        for(int8_t i=0;i<lbvrj;i++){up_down[i]=iv>>i*2;pio_sm_put_blocking_array(pio,sm,up_down,lbvrj);sleep_ms(ms);up_down[i]=0;}
+        for(int8_t i=lbvrj-2;i>0;i--){up_down[i]=iv>>i*2;pio_sm_put_blocking_array(pio,sm,up_down,lbvrj);sleep_ms(ms);up_down[i]=0;}
+        cnt++;
     }
 }
- 
-/* 
-    // Envoyer une couleur test (vert)
-    while (true) {
-        
-        ws2812_put_pixel(pio, sm, 0x00FF00); // vert
-        
-        //uint32_t grb = (r << 16) | (g << 8) | b;
-        //pio_sm_put_blocking(pio, sm, grb << 8);
 
-        if((ledcnt&0x0000000f)!=0){sleep_ms(100);}
-        else ledblink(100);
-        ledcnt++;
-    }
-
-
-            grb=0x00ff00;
-        pio_sm_put_blocking(pio,sm,grb); // vert
-        sleep_ms(500);
-        grb=0x0000FF;
-        pio_sm_put_blocking(pio,sm,grb); // bleu
-        sleep_ms(500);
-        grb=0xFF0000;
-        pio_sm_put_blocking(pio,sm,grb); // rouge
-        sleep_ms(500);
-        grb=0xFFFFFF;
-        pio_sm_put_blocking(pio,sm,grb); // blanc
-        sleep_ms(500);
-        grb=0x000000;
-        pio_sm_put_blocking(pio,sm,grb); // off
-        sleep_ms(500);
-}*/
+}

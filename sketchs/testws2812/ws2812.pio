@@ -4,16 +4,14 @@
 .wrap_target
 bitloop:
     out x, 1        side 0 [0]
-    jmp !x do_zero  side 1 [1]
-    jmp    do_one   side 1 [1]
+    jmp !x do_zero  side 1 [3]
+    jmp    do_one   side 1 [4]
 
-do_zero:    nop side 1 [2]   ; haut 4 cycles ≈ 0,416 µs
-            nop side 0 [5]   ; bas 8 cycles ≈ 0,832 µs
-            jmp bitloop side 0 [1]
+do_zero:
+    jmp bitloop side 0 [7]
 
-do_one:     nop side 1 [4]   ; haut 8 cycles ≈ 0,832 µs
-            nop side 0 [1]  
-            jmp bitloop side 0 [1] 
+do_one:   
+    jmp bitloop side 0 [2]
 .wrap
 
 
