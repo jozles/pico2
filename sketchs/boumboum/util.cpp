@@ -85,8 +85,8 @@ void pio_full_reset(PIO pio) {
 
 void setup(){
 
-    pio_full_reset(pio0);
-    pio_full_reset(pio1);
+    //pio_full_reset(pio0);
+    //pio_full_reset(pio1);
 
     gpio_init(LED);gpio_set_dir(LED,GPIO_OUT); gpio_put(LED,LOW);
     //gpio_init(LED_BLUE);gpio_set_dir(LED_BLUE,GPIO_OUT);gpio_put(LED_BLUE,LOW);

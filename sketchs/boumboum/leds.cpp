@@ -1,6 +1,7 @@
 /* leds.cpp */
 
 #include <stdio.h>
+#include <string.h>
 #include "pico/stdlib.h"
 #include "hardware/pio.h"
 #include "hardware/clocks.h"
@@ -9,9 +10,21 @@
 
 static PIO pio = pio0;   // si GPIO3 n’est pas routé sur pio0, bascule sur pio1
 static uint sm;
-static uint offset;
+//static uint offset;
 
-void ledsWs2812Setup(void) {
+extern volatile uint32_t millisCounter;
+
+/* test datas */
+#define LEDS_NB 4
+#define COL_NB 4
+uint8_t cnt=0;
+uint32_t t0=0;        
+uint8_t lbvrj=COL_NB;
+uint32_t bvrj[] = {0xF80000,0x0000F0,0x00F800,0x00F0F0,0xF80000,0x0000F0,0x00F800,0x00F0F0};
+uint32_t up_down[LEDS_NB];   
+uint32_t init_val[]={0x800000,0x008000,0x000080,0x008080};  
+
+/*void ledsWs2812Setup(void) {
     printf("=== WS2812 RP2350 / GPIO%d ===\n", LED_PIN_WS2812);
 
     // Réservation d’un state machine et chargement du programme
@@ -40,16 +53,91 @@ void ledsWs2812Setup(void) {
     pio_sm_set_enabled(pio, sm, true);
 
     printf(" +PROGRAM SIZE = %u instructions\n", ws2812_program.length);
-}
+}*/
 
-static inline void ws2812_put(uint32_t grb) {
+/*static inline void ws2812_put(uint32_t grb) {
     // Envoi d’un pixel en format GRB
     pio_sm_put_blocking(pio, sm, grb);
+}*/
+
+void pio_sm_put_blocking_array(PIO pio, uint sm, const uint32_t *src, size_t len) {
+    for (size_t i = 0; i < len; i++) {
+        pio_sm_put_blocking(pio, sm, src[i]);
+    }
+}
+
+void ledsWs2812Setup(void) {
+    
+    //ws2812 led 
+    uint8_t ledPin=LED_PIN_WS2812;
+    
+    // choix pio
+    //PIO pio = pio0;
+    //int sm = 0;
+
+    // réservation sm 
+    sm = pio_claim_unused_sm(pio, true);
+    // Charger le programme PIO
+    uint offset = pio_add_program(pio, &ws2812_program);
+
+    // Configurer le state machine
+    pio_gpio_init(pio, ledPin);                                 // attache le gpio au pio (si plusieurs gpio plusieurs inits)
+    pio_sm_set_consecutive_pindirs(pio, sm, ledPin, 1, true);   // 1er,nbre,direction des gpio de la sm (correspond pour le pilotage sm à "gpio_set_dir()" en pilotage processeur)
+
+    pio_sm_config c = ws2812_program_get_default_config(offset);    // créé la structure de la config de la sm
+    sm_config_set_sideset_pins(&c, ledPin);                     // gpio de base de la sm qui sera associée à la structure                 
+    sm_config_set_out_pins(&c, ledPin, 1);                      // direction des GPIOs de la sm (pas compris pourquoi il y a 2 couches de direction avec pio_sm_consecutive_pindirs)                 
+    sm_config_set_out_shift(&c, true, true, 24);                    // controle du shift register alimenté par le TX FIFO (,right,autopull,threshpld)
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);                  // concatène FIFO TX et RX (8 bytes)
+    float div = 14;
+    sm_config_set_clkdiv(&c, div);                                  // env 150/14 = 107nS
+    pio_sm_init(pio, sm, offset, &c);                               // attache le programme et la structure à la sm 
+    
+    //pio_sm_set_clkdiv(pio,sm, div);
+    //sm_config_set_clkdiv(&c, div);
+
+    //gpio_set_function(PIN_WS2812, GPIO_FUNC_PIO0);                  
+    
+    pio_sm_clear_fifos(pio, sm);
+    pio_sm_set_enabled(pio, sm, true);
+
+    printf("début ws2812\n");
+}
+
+void ledsWs2812Test(uint32_t ms) {
+
+    if((millisCounter-t0)>ms){
+        t0=millisCounter;
+  
+        if(cnt<(LEDS_NB*2)){
+            pio_sm_put_blocking_array(pio,sm,&bvrj[cnt%LEDS_NB],LEDS_NB);sleep_ms(ms);
+        }
+        else{
+        
+            uint8_t p=cnt-LEDS_NB*2;        // p 0 - COL_NB*(LEDS_NB+(LEDS_NB-2) 1 AR/coul
+ 
+            if(p<COL_NB*(2*LEDS_NB-2)){     // montée + descente / coul 
+                memset(up_down,0x00,LEDS_NB);
+                uint32_t x=p/(LEDS_NB*2-2);     // x 0 - COL_NB  (0 color 0 ; 1 color 1 ... n color lbvrj)
+                uint32_t i=p%(LEDS_NB*2-2);     // y 0-(LEDS_NB*2-2) position dans la couleur (montée+descente)
+                uint32_t iv=init_val[x];        // iv = valeur initiale de la couleur
+            
+                if(i<LEDS_NB){      // montée
+                    up_down[i]=iv>>i*2;pio_sm_put_blocking_array(pio,sm,up_down,lbvrj);sleep_ms(ms);up_down[i]=0;}
+                else {              // descente
+                    i=2*(LEDS_NB-1)-i; 
+                    up_down[i]=iv>>i*2;pio_sm_put_blocking_array(pio,sm,up_down,lbvrj);sleep_ms(ms);up_down[i]=0;}  
+            }
+        }
+        cnt++;
+        if(cnt>=(LEDS_NB*2+COL_NB*(2*LEDS_NB-2))){
+            cnt=0;
+        }
+    }
 }
 
 
-
-void ledsWs2812Test(void) {
+/*void ledsWs2812Test(void) {
     while (true) {
         ws2812_put(0x00FF00); // vert
         sleep_ms(500);
@@ -62,5 +150,5 @@ void ledsWs2812Test(void) {
         ws2812_put(0x000000); // off
         sleep_ms(500);
     }
-}
+}*/
 

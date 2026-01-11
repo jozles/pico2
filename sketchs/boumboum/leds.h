@@ -3,6 +3,6 @@
 
 
 int ledsWs2812Setup();
-void ledsWs2812Test();
+void ledsWs2812Test(uint32_t ms);
 
 #endif //_LEDS_H_
