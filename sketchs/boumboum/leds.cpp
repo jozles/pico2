@@ -110,7 +110,7 @@ void ledsWs2812Test(uint32_t ms) {
         t0=millisCounter;
   
         if(cnt<(LEDS_NB*2)){
-            pio_sm_put_blocking_array(pio,sm,&bvrj[cnt%LEDS_NB],LEDS_NB);sleep_ms(ms);
+            pio_sm_put_blocking_array(pio,sm,&bvrj[cnt%LEDS_NB],LEDS_NB);
         }
         else{
         
@@ -123,10 +123,10 @@ void ledsWs2812Test(uint32_t ms) {
                 uint32_t iv=init_val[x];        // iv = valeur initiale de la couleur
             
                 if(i<LEDS_NB){      // montée
-                    up_down[i]=iv>>i*2;pio_sm_put_blocking_array(pio,sm,up_down,lbvrj);sleep_ms(ms);up_down[i]=0;}
+                    up_down[i]=iv>>i*2;pio_sm_put_blocking_array(pio,sm,up_down,lbvrj);up_down[i]=0;}
                 else {              // descente
                     i=2*(LEDS_NB-1)-i; 
-                    up_down[i]=iv>>i*2;pio_sm_put_blocking_array(pio,sm,up_down,lbvrj);sleep_ms(ms);up_down[i]=0;}  
+                    up_down[i]=iv>>i*2;pio_sm_put_blocking_array(pio,sm,up_down,lbvrj);up_down[i]=0;}  
             }
         }
         cnt++;
