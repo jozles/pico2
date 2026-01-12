@@ -33,7 +33,8 @@ struct voice {
     //int32_t*    sampleBuffer;
     uint16_t    sampleNbToFill;    
     uint32_t    currentSample;
-    float       frequency;    
+    float       frequency;
+    float       newFrequency;    
     uint16_t    basicWaveAmpl[BASIC_WAVES_NB];
     uint16_t    genAmpl;
     uint8_t     freqCoeff;

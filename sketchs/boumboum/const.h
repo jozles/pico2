@@ -54,6 +54,9 @@
 
 /* I2S */
 
+//#define PICO_AUDIO_I2S_PIO 0   dans pico_audio_i2s.h
+#define PICO_WS2812_PIO 1
+
 #define SAMPLE_RATE 44100
 #define FREQUENCY   440.0   // La 440 Hz
 #define AMPLITUDE   30000   // Amplitude max (16 bits signé)

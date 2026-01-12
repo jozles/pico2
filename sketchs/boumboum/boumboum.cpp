@@ -44,6 +44,7 @@ int main() {
     freq_lin=1943;      // 440Hz
 
     coder1Counter=freq_lin;
+    voices[0].frequency=calcFreq(coder1Counter);
 
 
 
@@ -54,9 +55,9 @@ int main() {
         if(coder1Counter!=coder1Counter0){
 
             coder1Counter0=coder1Counter;
-            voices[0].frequency=calcFreq(coder1Counter);
+            voices[0].newFrequency=calcFreq(coder1Counter);
 
-            printf("freq:%5.3f ampl:%d\r",voices[0].frequency,voices[0].genAmpl);
+            printf("freq:%5.3f ampl:%d   \r",voices[0].frequency,voices[0].genAmpl);
             
             //testSample(coder1Counter,amplitude);
             

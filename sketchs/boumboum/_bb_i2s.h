@@ -3,6 +3,7 @@
 
 #include "pico/stdlib.h"
 
+
 /* comment ça fonctionne 
     depuis le programme principal on fait i2s_start() pour tout initialiser et démarrer 
     puis remplir un buffer, préciser son adresse dans audio_data 

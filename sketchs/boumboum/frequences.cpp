@@ -118,7 +118,7 @@ void voiceInit(float freq,struct voice* v)
 {
     v->sampleNbToFill=SAMPLE_BUFFER_SIZE;    
     v->currentSample=0;
-    v->frequency=freq;    
+    v->newFrequency=freq;    
     for(uint8_t i=0;i<BASIC_WAVES_NB;i++){v->basicWaveAmpl[i]=0;}  // all waves off
     v->freqCoeff=0;
     v->dhexFreq=0;
@@ -145,11 +145,20 @@ void fillVoiceBuffer(int32_t* sampleBuffer,struct voice* v)
 {
   gpio_put(TEST_PIN,ON);
 
-  uint32_t ech; 
+  uint32_t ech=0,prev_ech=0;  // ptr dans la table d'onde basique
   for(uint16_t i=0;i<v->sampleNbToFill;i++){
     float int_part;
 
+    prev_ech=ech;
     ech=(uint32_t)(modff(v->currentSample*v->frequency/SAMPLE_RATE,&int_part)*BASIC_WAVE_TABLE_LEN); // ech nbr 
+    
+    // si changement de fréquence, synchro sur début table d'onde pour éviter les défauts de forme d'onde
+    if((v->newFrequency!=0)&&(prev_ech>ech)){ 
+      v->frequency=v->newFrequency;
+      v->newFrequency=0;
+      ech=0;
+      v->currentSample=0;
+    }
 
     sampleBuffer[i*2]=     //sineWaveform[ech]*v->genAmpl;
     

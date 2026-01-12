@@ -8,7 +8,8 @@
 #include "ws2812.pio.h"
 #include "const.h"
 
-static PIO pio = pio0;   // si GPIO3 n’est pas routé sur pio0, bascule sur pio1
+#define ws2812_pio __CONCAT(pio, PICO_WS2812_PIO)
+static PIO pio = ws2812_pio;   // pio0 used by i2s
 static uint sm;
 //static uint offset;
 
@@ -22,7 +23,7 @@ uint32_t t0=0;
 uint8_t lbvrj=COL_NB;
 uint32_t bvrj[] = {0xF80000,0x0000F0,0x00F800,0x00F0F0,0xF80000,0x0000F0,0x00F800,0x00F0F0};
 uint32_t up_down[LEDS_NB];   
-uint32_t init_val[]={0x800000,0x008000,0x000080,0x008080};  
+uint32_t init_val[]={0x800000,0x008000,0x000080,0x008080};  // B R V Y
 
 /*void ledsWs2812Setup(void) {
     printf("=== WS2812 RP2350 / GPIO%d ===\n", LED_PIN_WS2812);
@@ -111,6 +112,7 @@ void ledsWs2812Test(uint32_t ms) {
   
         if(cnt<(LEDS_NB*2)){
             pio_sm_put_blocking_array(pio,sm,&bvrj[cnt%LEDS_NB],LEDS_NB);
+            cnt=LEDS_NB*2-1;
         }
         else{
         
