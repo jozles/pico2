@@ -54,12 +54,14 @@
 
 #define PICO_WS2812_PIO 1
 #define ws2812_pio __CONCAT(pio, PICO_WS2812_PIO)
-#define LED_PIN_WS2812_0 3  // until 4 leds on pico2 with the same pio 
+#define WS2812_LED_PIN_0 0  // until 4 leds on pico2 with the same pio 
                             // each one using a different state machine (return from ledsWs2812Setup())
 
 /* I2S */
 
 //#define PICO_AUDIO_I2S_PIO 0   dans pico_audio_i2s.h
+#define PICO_AUDIO_I2S_CLOCK_PIN_BASE 4 // 16        // 2 consecutive gpios
+#define PICO_AUDIO_I2S_DATA_PIN 2 // 18
 
 #define SAMPLE_RATE 44100
 #define FREQUENCY   440.0   // La 440 Hz

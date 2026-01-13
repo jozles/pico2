@@ -42,7 +42,7 @@ int main() {
     sleep_ms(10000);printf("\n+boumboum \n");
     
     setup();
-    int smWs0=ledsWs2812Setup(pioWs,LED_PIN_WS2812_0);  // max 4 !
+    int smWs0=ledsWs2812Setup(pioWs,WS2812_LED_PIN_0);  // max 4 !
 
     voices[0].basicWaveAmpl[WAVE_SINUS]=MAX_AMP_VAL;
     voices[0].genAmpl=6000;
