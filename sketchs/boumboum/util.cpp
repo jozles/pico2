@@ -113,7 +113,7 @@ void setup(){
 
     bb_i2s_start();
 
-    ledsWs2812Setup();
+    //ledsWs2812Setup();
 
 }
 

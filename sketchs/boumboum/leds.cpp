@@ -8,9 +8,8 @@
 #include "ws2812.pio.h"
 #include "const.h"
 
-#define ws2812_pio __CONCAT(pio, PICO_WS2812_PIO)
-static PIO pio = ws2812_pio;   // pio0 used by i2s
-static uint sm;
+//static PIO pio = ws2812_pio;   // pio0 used by i2s
+//static uint sm;
 //static uint offset;
 
 extern volatile uint32_t millisCounter;
@@ -67,17 +66,14 @@ void pio_sm_put_blocking_array(PIO pio, uint sm, const uint32_t *src, size_t len
     }
 }
 
-void ledsWs2812Setup(void) {
-    
-    //ws2812 led 
-    uint8_t ledPin=LED_PIN_WS2812;
-    
-    // choix pio
-    //PIO pio = pio0;
-    //int sm = 0;
+int ledsWs2812Setup(PIO pio,uint8_t ledPin) {
 
-    // réservation sm 
-    sm = pio_claim_unused_sm(pio, true);
+    // réservation sm
+    int sm = pio_claim_unused_sm(pio, true); 
+    if(sm<0){
+        printf("ledsWs2812Setup: no sm available\n");
+        return -1;
+    }
     // Charger le programme PIO
     uint offset = pio_add_program(pio, &ws2812_program);
 
@@ -96,16 +92,16 @@ void ledsWs2812Setup(void) {
     
     //pio_sm_set_clkdiv(pio,sm, div);
     //sm_config_set_clkdiv(&c, div);
-
     //gpio_set_function(PIN_WS2812, GPIO_FUNC_PIO0);                  
     
     pio_sm_clear_fifos(pio, sm);
     pio_sm_set_enabled(pio, sm, true);
 
     printf("début ws2812\n");
+    return sm;
 }
 
-void ledsWs2812Test(uint32_t ms) {
+void ledsWs2812Test(PIO pio,int sm,uint32_t ms) {
 
     if((millisCounter-t0)>ms){
         t0=millisCounter;

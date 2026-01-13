@@ -32,12 +32,17 @@ volatile int16_t amplitude=0;
 
 struct voice voices[VOICES_NB];
 
+// ws2812
+
+static PIO pioWs = ws2812_pio;   // pio0 used by i2s
+
 
 int main() {
     stdio_init_all();
     sleep_ms(10000);printf("\n+boumboum \n");
     
     setup();
+    int smWs0=ledsWs2812Setup(pioWs,LED_PIN_WS2812_0);  // max 4 !
 
     voices[0].basicWaveAmpl[WAVE_SINUS]=MAX_AMP_VAL;
     voices[0].genAmpl=6000;
@@ -63,8 +68,8 @@ int main() {
             
         }
 
-        ledsWs2812Test(700);
-           
+        ledsWs2812Test(pioWs,smWs0,700);
+    
     }
 
 }

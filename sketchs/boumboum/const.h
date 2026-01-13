@@ -43,8 +43,6 @@
 #define LED 25  // pico2 built_in
 #define LED_PIN LED
 
-#define LED_PIN_WS2812 3
-
 //#define NBLEDS            3
 //#define LED_BLUE          47
 //#define LED_RED           53
@@ -52,10 +50,16 @@
 
 //uint8_t leds[NBLEDS]={LED_RED,LED_GREEN,LED_BLUE};
 
+/* Ws2812 */
+
+#define PICO_WS2812_PIO 1
+#define ws2812_pio __CONCAT(pio, PICO_WS2812_PIO)
+#define LED_PIN_WS2812_0 3  // until 4 leds on pico2 with the same pio 
+                            // each one using a different state machine (return from ledsWs2812Setup())
+
 /* I2S */
 
 //#define PICO_AUDIO_I2S_PIO 0   dans pico_audio_i2s.h
-#define PICO_WS2812_PIO 1
 
 #define SAMPLE_RATE 44100
 #define FREQUENCY   440.0   // La 440 Hz
