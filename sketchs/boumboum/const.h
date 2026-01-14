@@ -31,7 +31,9 @@
 #define LEDONDURAT 20
 #define LEDOFFDURAT 2000
 
-#define TEST_PIN 15
+/* Test_Pin */
+
+#define TEST_PIN 22
 
 /* led */
 
