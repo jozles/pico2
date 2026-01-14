@@ -37,6 +37,7 @@ pico_sdk_init()
 
 add_executable(st7789
     test_st7789.c
+    font12x12.c
     )
 pico_enable_stdio_usb(st7789 1)
 pico_enable_stdio_uart(st7789 0)
@@ -46,6 +47,8 @@ pico_enable_stdio_uart(st7789 0)
 target_link_libraries(st7789 
     pico_stdlib
     hardware_spi
+    hardware_pio
+    hardware_dma
     )
 
 if (PICO_CYW43_SUPPORTED)
