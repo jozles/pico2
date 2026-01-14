@@ -34,27 +34,21 @@
 #define TEST_PIN 15
 
 /* led */
+
 #define LEDBLINK  if((millisCounter-ledBlinker)>durOffOn[led]){ledBlinker=millisCounter;led=!led;gpio_put(LED,led);}
 #define LEDBLINK_ERROR      durOffOn[0]=2*durOffOn[1];LEDBLINK
-#define LEDBLINK_ERROR_DMA  durOffOn[0]=3*durOffOn[1];LEDBLINK
+//#define LEDBLINK_ERROR_DMA  durOffOn[0]=3*durOffOn[1];LEDBLINK
 #define LEDONDUR 60
 #define LEDOFFDUR 1000
 
 #define LED 25  // pico2 built_in
 #define LED_PIN LED
 
-//#define NBLEDS            3
-//#define LED_BLUE          47
-//#define LED_RED           53
-//#define LED_GREEN         49
-
-//uint8_t leds[NBLEDS]={LED_RED,LED_GREEN,LED_BLUE};
-
 /* Ws2812 */
 
 #define PICO_WS2812_PIO 1
 #define ws2812_pio __CONCAT(pio, PICO_WS2812_PIO)
-#define WS2812_LED_PIN_0 0  // until 4 leds on pico2 with the same pio 
+#define WS2812_LED_PIN_0 0  // until 4 wS2812 ledschains on pico2 with the same pio 
                             // each one using a different state machine (return from ledsWs2812Setup())
 
 /* I2S */
@@ -71,7 +65,7 @@
 //#define I2S_BCLK_PIN  2     // BCLK
 //#define I2S_LRCLK_PIN 3     // LRCLK
 
-/* frequencies */
+/* frequencies/voices */
 
 #define SAMPLE_F SAMPLE_RATE        // fréquence d'échantillonnage audio   
 #define SAMPLE_PER (float)1/SAMPLE_F

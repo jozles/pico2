@@ -22,7 +22,7 @@ uint32_t t0=0;
 uint8_t lbvrj=COL_NB;
 uint32_t bvrj[] = {0xF80000,0x0000F0,0x00F800,0x00F0F0,0xF80000,0x0000F0,0x00F800,0x00F0F0};
 uint32_t up_down[LEDS_NB];   
-uint32_t init_val[]={0x800000,0x008000,0x000080,0x008080};  // B R V Y
+uint32_t init_val[]={0xC00000,0x008000,0x000080,0x008080};  // B R V Y
 
 /*void ledsWs2812Setup(void) {
     printf("=== WS2812 RP2350 / GPIO%d ===\n", LED_PIN_WS2812);
