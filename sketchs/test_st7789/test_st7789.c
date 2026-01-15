@@ -1,5 +1,6 @@
 /* test_st7789 */
 #include <stdio.h>
+#include <string.h>
 #include "../boumboum/const.h"
 #include "st7789_fonts.h"
 
@@ -396,6 +397,69 @@ void tft_draw_text_12x12_block(
     );
 }
 
+void tft_draw_text_12x12_block_(
+    uint16_t x,
+    uint16_t y,
+    const char *s,
+    uint16_t fg,
+    uint16_t bg,
+    uint8_t mult)
+{
+    dma_wait();
+
+    int len = 0;
+    while (s[len]) len++;
+
+    int w = len * 12;
+    int h = 12;
+
+    int idx = 0;
+
+    for (int ligne = 0; ligne < 12; ligne++) {
+
+        for (int car = 0; car < len; car++) {
+
+            const uint16_t *glyph = font12x12[(uint8_t)s[car]];
+            uint16_t bits = glyph[ligne];
+
+            for (int bit = 0; bit < 12; bit++) {
+
+                uint16_t color =
+                    (bits & (1 << (11 - bit))) ? fg : bg;
+
+                tft_frame[idx++] = color >> 8;
+                tft_frame[idx++] = color & 0xFF;
+                for(uint8_t i=0;i<mult-1;i++){
+                    tft_frame[idx] = tft_frame[idx-2];
+                    tft_frame[idx+1] = tft_frame[idx-1];
+                    idx+=2;                    
+                }
+            }
+        }
+        uint16_t curr=idx;
+        for(uint8_t i=0;i<(mult-1);i++){
+            memcpy(&tft_frame[curr+(len*12*2*mult)*i], &tft_frame[curr - len * 12 * 2 * mult], len * 12 * 2 * mult);
+            idx+=len*12*2*mult;
+        }
+    }
+
+    // fenêtre = position réelle sur l'écran
+    tft_set_window(x, y, x + w*mult - 1, y + h*mult - 1);
+
+    dma_done = false;
+    gpio_put(PIN_DC, 1);
+    gpio_put(PIN_CS, 0);
+
+    dma_channel_configure(
+        dma_chan,
+        &dma_cfg,
+        &spi0_hw->dr,
+        tft_frame,
+        w * h * 2 * mult * mult, 
+        true
+    );
+}
+
 // ---------------------------------------------------------
 // MAIN
 // ---------------------------------------------------------
@@ -424,33 +488,37 @@ int main() {
 
         tft_fill(0x0000); // écran noir
 
-        tft_draw_text_12x12_block(20, 20, "+HELLO World!", 0xFFFF, 0x0000);
+        tft_draw_text_12x12_block(0, 16, "+HELLO World!", 0xFFFF, 0x0000);
 
-        tft_draw_char_12x12(90, 20, 'U', 0xFFFF, 0x0000);
-        tft_draw_char_12x12(50, 20, 'A', 0xFFFF, 0x0000);
-        tft_draw_char_12x12(130, 20, 'Z', 0xFFFF, 0x0000);
-        tft_draw_char_12x12(170, 20, '$', 0xFFFF, 0x0000);
+        tft_draw_text_12x12_block(0, 32, "AaBbCcDdEeFfGgHhIiJj", 0xFFFF, 0x0000);
+        tft_draw_text_12x12_block(0, 48, "KkLlMmNnOoPpQqRrSsTt", 0xFFFF, 0x0000);
+        tft_draw_text_12x12_block(0, 64, "UuVvWwXxYyZz", 0xFFFF, 0x0000);
+        tft_draw_text_12x12_block(0, 80, "$+-*/,;:?\%&#()[]{}", 0xFFFF, 0x0000);
+        tft_draw_text_12x12_block_(0, 108, "$+-*/,;:?", 0xFFFF, 0x0000,2);
+        tft_draw_text_12x12_block_(0, 134, "\%&#()[]{}", 0xFFFF, 0x0000,2);
+        tft_draw_text_12x12_block_(0, 160, "0123456789", 0xFFFF, 0x0000,2);
+        tft_draw_text_12x12_block_(0, 200, "012345", 0xFFFF, 0x0000,3);
 
-        sleep_ms(1000);
+        sleep_ms(10000);
     
-        tft_fill_rect(21,0,TFT_H-20,TFT_W, 0x0000);
+        tft_fill_rect(0,0,TFT_H,TFT_W, 0x0000);
         tft_fill_rect(50, 50, 140, 140, 0xFFFF);
         sleep_ms(1000);
 
-        tft_fill_rect(21,0,TFT_H-20,TFT_W, 0xFFFF);
+        tft_fill_rect(0,0,TFT_H,TFT_W, 0xFFFF);
         tft_fill_rect(50, 50, 140, 140, 0x0000);
         sleep_ms(1000);
 
-        tft_fill_rect(20,0,TFT_W-20,TFT_H, 0x07E0);
-        tft_fill_rect(50, 50, 140, 140, 0x07E0);
-        sleep_ms(1000);
-
-        tft_fill_rect(20,0,TFT_W-20,TFT_H, 0x001F);
+        tft_fill_rect(0,0,TFT_W,TFT_H, 0x07E0); // vert
         tft_fill_rect(50, 50, 140, 140, 0x001F);
         sleep_ms(1000);
 
-        tft_fill_rect(20,0,TFT_W-20,TFT_H, 0xF800);
+        tft_fill_rect(0,0,TFT_W,TFT_H, 0x001F); // rouge
         tft_fill_rect(50, 50, 140, 140, 0xF800);
+        sleep_ms(1000);
+
+        tft_fill_rect(0,0,TFT_W,TFT_H, 0xF800); // bleu
+        tft_fill_rect(50, 50, 140, 140, 0x07E0);
         sleep_ms(1000);
     }
 }
