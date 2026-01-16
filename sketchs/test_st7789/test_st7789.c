@@ -262,9 +262,6 @@ void tft_fill_rect(uint16_t line_debut,
     gpio_put(PIN_DC, 1);
     gpio_put(PIN_CS, 0);
 
-    // TEST_PIN ON
-    gpio_put(TEST_PIN, 1);
-
     dma_channel_configure(
         dma_chan,
         &dma_cfg,
@@ -273,9 +270,7 @@ void tft_fill_rect(uint16_t line_debut,
         total_bytes,
         true
     );
-
-    // TEST_PIN OFF
-    gpio_put(TEST_PIN, 0);
+  
 
 }
 
@@ -380,6 +375,8 @@ void tft_draw_text_12x12_block(
         }
     }
 
+  
+
     // fenêtre = position réelle sur l'écran
     tft_set_window(x, y, x + w - 1, y + h - 1);
 
@@ -403,9 +400,12 @@ void tft_draw_text_12x12_block_(
     const char *s,
     uint16_t fg,
     uint16_t bg,
-    uint8_t mult)
+    int8_t mult)
 {
-    dma_wait();
+
+       dma_wait();
+
+    if(mult<1){mult=1;}
 
     int len = 0;
     while (s[len]) len++;
@@ -429,7 +429,7 @@ void tft_draw_text_12x12_block_(
 
                 tft_frame[idx++] = color >> 8;
                 tft_frame[idx++] = color & 0xFF;
-                for(uint8_t i=0;i<mult-1;i++){
+                for(int8_t i=0;i<mult-1;i++){
                     tft_frame[idx] = tft_frame[idx-2];
                     tft_frame[idx+1] = tft_frame[idx-1];
                     idx+=2;                    
@@ -437,7 +437,7 @@ void tft_draw_text_12x12_block_(
             }
         }
         uint16_t curr=idx;
-        for(uint8_t i=0;i<(mult-1);i++){
+        for(int8_t i=0;i<(mult-1);i++){
             memcpy(&tft_frame[curr+(len*12*2*mult)*i], &tft_frame[curr - len * 12 * 2 * mult], len * 12 * 2 * mult);
             idx+=len*12*2*mult;
         }
@@ -496,13 +496,16 @@ int main() {
         tft_draw_text_12x12_block(0, 80, "$+-*/,;:?\%&#()[]{}", 0xFFFF, 0x0000);
         tft_draw_text_12x12_block_(0, 108, "$+-*/,;:?", 0xFFFF, 0x0000,2);
         tft_draw_text_12x12_block_(0, 134, "\%&#()[]{}", 0xFFFF, 0x0000,2);
+        sleep_ms(100);  gpio_put(TEST_PIN, 1);
         tft_draw_text_12x12_block_(0, 160, "0123456789", 0xFFFF, 0x0000,2);
+        gpio_put(TEST_PIN, 0);
         tft_draw_text_12x12_block_(0, 200, "012345", 0xFFFF, 0x0000,3);
 
         sleep_ms(10000);
     
         tft_fill_rect(0,0,TFT_H,TFT_W, 0x0000);
         tft_fill_rect(50, 50, 140, 140, 0xFFFF);
+        tft_draw_text_12x12_block_(50, 100, "ST7789", 0xFFFF, 0x0000,2);
         sleep_ms(1000);
 
         tft_fill_rect(0,0,TFT_H,TFT_W, 0xFFFF);
