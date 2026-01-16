@@ -86,7 +86,16 @@
 
 #define PIN_DCDC_PSM_CTRL 23        // to set the DCDC in PSM mode for less audio noise
 
+/* st7789 */
 
+#define ST7789_PIN_SCK   18
+#define ST7789_PIN_MOSI  19
+#define ST7789_PIN_DC    16
+#define ST7789_PIN_RST   20
+#define ST7789_PIN_CS    17
+
+#define ST7789_SPI 0
+#define ST7789_spi __CONCAT(spi, ST7789_SPI)
 
 #endif  //_CONST_H_
 

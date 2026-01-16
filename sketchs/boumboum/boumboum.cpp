@@ -7,8 +7,8 @@
 
 #include "test.h"
 #include "frequences.h"
-
 #include "leds.h"
+#include "st7789.h"
 
 // leds
 
@@ -43,6 +43,8 @@ int main() {
     
     setup();
     int smWs0=ledsWs2812Setup(pioWs,WS2812_LED_PIN_0);  // max 4 !
+
+    st7789_Setup(40000000);
 
     voices[0].basicWaveAmpl[WAVE_SINUS]=MAX_AMP_VAL;
     voices[0].genAmpl=6000;

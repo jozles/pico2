@@ -4,7 +4,9 @@
             "name": "Pico",
             "includePath": [
                 "${workspaceFolder}/**",
-                "${userHome}/.pico-sdk/sdk/2.2.0/**"
+                "${userHome}/.pico-sdk/sdk/2.2.0/**",
+                "${userHome}/.pico-sdk/toolchain/14_2_Rel1/arm-none-eabi/include"
+
             ],
             "forcedInclude": [
                 "${workspaceFolder}/build/generated/pico_base/pico/config_autogen.h",
