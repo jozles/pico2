@@ -1,7 +1,9 @@
-#include <stdint.h>
+/* st7789 */
 #include <stdio.h>
 #include <string.h>
-#include "const.h"
+#include <stdint.h>
+#include "st7789.h"
+#include "../boumboum/const.h"
 #include "st7789_fonts.h"
 
 #include "pico/stdlib.h"
@@ -9,8 +11,8 @@
 #include "hardware/gpio.h"
 #include "hardware/dma.h"
 
-#define TFT_W 240
-#define TFT_H 240
+#include "font12x12.h"
+
 
 static int dma_chan;
 static dma_channel_config dma_cfg;
@@ -18,34 +20,12 @@ static volatile bool dma_done = false;
 
 static uint8_t tft_frame[TFT_W * TFT_H * 2];
 
-static void tft_init(void);
-void init_dma_spi();
+static uint8_t testCnt=0;
 
 void dma_wait(){
     while (!dma_done) {
         tight_loop_contents();
     }
-}
-
-void st7789_Setup(uint32_t spi_speed_hz){
-
-    gpio_init(TEST_PIN);gpio_set_dir(TEST_PIN,GPIO_OUT); gpio_put(TEST_PIN,LOW);
-    
-    spi_init(spi0, spi_speed_hz);
-    
-    gpio_set_function(ST7789_PIN_SCK,  GPIO_FUNC_SPI);
-    gpio_set_function(ST7789_PIN_MOSI, GPIO_FUNC_SPI);
-
-    spi_set_format(spi0, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
-
-    gpio_init(ST7789_PIN_DC);  gpio_set_dir(ST7789_PIN_DC, GPIO_OUT);
-    gpio_init(ST7789_PIN_RST); gpio_set_dir(ST7789_PIN_RST, GPIO_OUT);
-    gpio_init(ST7789_PIN_CS);  gpio_set_dir(ST7789_PIN_CS, GPIO_OUT);
-    gpio_put(ST7789_PIN_CS, 1);
-
-    tft_init();
-    init_dma_spi();
-    dma_done = true;
 }
 
 // ---------------------------------------------------------
@@ -76,8 +56,8 @@ void init_dma_spi() {
     channel_config_set_dreq(&dma_cfg, DREQ_SPI0_TX);
 
     dma_channel_set_irq0_enabled(dma_chan, true);
-    irq_set_exclusive_handler(DMA_IRQ_0, dma_irq_handler);
-    irq_set_enabled(DMA_IRQ_0, true);
+    irq_set_exclusive_handler(DMA_IRQ_2, dma_irq_handler);
+    irq_set_enabled(DMA_IRQ_2, true);
 }
 
 // ---------------------------------------------------------
@@ -196,8 +176,8 @@ static void tft_init(void) {
 // WINDOW
 // ---------------------------------------------------------
 static void tft_set_window(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) {
-    uint8_t caset[] = { uint8_t(x0>>8), uint8_t(x0&0xFF), uint8_t(x1>>8), uint8_t(x1&0xFF) };
-    uint8_t raset[] = { uint8_t(y0>>8), uint8_t(y0&0xFF), uint8_t(y1>>8), uint8_t(y1&0xFF) };
+    uint8_t caset[] = { (uint8_t)(x0>>8), (uint8_t)(x0&0xFF), (uint8_t)(x1>>8), (uint8_t)(x1&0xFF) };
+    uint8_t raset[] = { (uint8_t)(y0>>8), (uint8_t)(y0&0xFF), (uint8_t)(y1>>8), (uint8_t)(y1&0xFF) };
 
     tft_cmd(0x2A);
     tft_data(caset, 4);
@@ -206,6 +186,28 @@ static void tft_set_window(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) {
     tft_data(raset, 4);
 
     tft_cmd(0x2C);
+}
+
+void st7789_setup(uint32_t spiSpeed)
+{
+    gpio_init(TEST_PIN);gpio_set_dir(TEST_PIN,GPIO_OUT); gpio_put(TEST_PIN,LOW);
+
+    spi_init(spi0, spiSpeed);
+    gpio_set_function(ST7789_PIN_SCK,  GPIO_FUNC_SPI);
+    gpio_set_function(ST7789_PIN_MOSI, GPIO_FUNC_SPI);
+
+    spi_set_format(spi0, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
+
+    gpio_init(ST7789_PIN_DC);  gpio_set_dir(ST7789_PIN_DC, GPIO_OUT);
+    gpio_init(ST7789_PIN_RST); gpio_set_dir(ST7789_PIN_RST, GPIO_OUT);
+    gpio_init(ST7789_PIN_CS);  gpio_set_dir(ST7789_PIN_CS, GPIO_OUT);
+    gpio_put(ST7789_PIN_CS, 1);
+    gpio_init(ST7789_PIN_BL);  gpio_set_dir(ST7789_PIN_BL, GPIO_OUT);
+    gpio_put(ST7789_PIN_BL, 1);
+
+    tft_init();
+    init_dma_spi();
+    dma_done = true;
 }
 
 // ---------------------------------------------------------
@@ -247,17 +249,13 @@ void tft_fill(uint16_t color) {
 // ---------------------------------------------------------
 // FILL : 1 DMA = un rectangle dans l'écran
 // ---------------------------------------------------------
-void tft_fill_rect(uint16_t line_debut,
-                   uint16_t colonne_debut,
-                   uint16_t nbre_lignes,
-                   uint16_t nbre_colonnes,
-                   uint16_t color)
+void tft_fill_rect(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,uint16_t col_nb,uint16_t color)
 {
 
     dma_wait();
 
     // 1) buffer EXACT de la taille du pavé
-    size_t total_pixels = nbre_lignes * nbre_colonnes;
+    size_t total_pixels = lines_nb * col_nb;
     size_t total_bytes  = total_pixels * 2;
 
     // 2) remplir le buffer
@@ -267,12 +265,7 @@ void tft_fill_rect(uint16_t line_debut,
     }
 
     // 3) définir la fenêtre EXACTE
-    tft_set_window(
-        colonne_debut,
-        line_debut,
-        colonne_debut + nbre_colonnes - 1,
-        line_debut + nbre_lignes - 1
-    );
+    tft_set_window(beg_col,beg_line,beg_col+col_nb-1,beg_line+lines_nb-1);
 
     // 4) lancer un seul DMA pour tout le pavé
     dma_done = false;
@@ -288,8 +281,6 @@ void tft_fill_rect(uint16_t line_debut,
         total_bytes,
         true
     );
-  
-
 }
 
 // ---------------------------------------------------------
@@ -361,6 +352,7 @@ void tft_draw_text_12x12_block(
     uint16_t fg,
     uint16_t bg)
 {
+    dma_wait();
 
     int len = 0;
     while (s[len]) len++;
@@ -388,7 +380,7 @@ void tft_draw_text_12x12_block(
         }
     }
 
-    dma_wait();
+  
 
     // fenêtre = position réelle sur l'écran
     tft_set_window(x, y, x + w - 1, y + h - 1);
@@ -415,6 +407,8 @@ void tft_draw_text_12x12_block_(
     uint16_t bg,
     int8_t mult)
 {
+
+       dma_wait();
 
     if(mult<1){mult=1;}
 
@@ -454,8 +448,6 @@ void tft_draw_text_12x12_block_(
         }
     }
 
-    dma_wait();
-
     // fenêtre = position réelle sur l'écran
     tft_set_window(x, y, x + w*mult - 1, y + h*mult - 1);
 
@@ -473,69 +465,82 @@ void tft_draw_text_12x12_block_(
     );
 }
 
-// ---------------------------------------------------------
-// MAIN
-/* ---------------------------------------------------------
-int main() {
-    stdio_init_all();
+void test_st7789(){
+/*
+    switch (testCnt++){
 
-    gpio_init(TEST_PIN);gpio_set_dir(TEST_PIN,GPIO_OUT); gpio_put(TEST_PIN,LOW);
+        case 0:
+            tft_fill(0x0000); // écran noir
+            break;
+        case 1:
+            tft_draw_text_12x12_block(0, 16, "+HELLO World!", 0xFFFF, 0x0000);
+            break;
+        case 2:
+            tft_draw_text_12x12_block(0, 32, "AaBbCcDdEeFfGgHhIiJj", 0xFFFF, 0x0000);
+            break;
+        case 3:
+            tft_draw_text_12x12_block(0, 48, "KkLlMmNnOoPpQqRrSsTt", 0xFFFF, 0x0000);
+            break;
+        case 4:
+            tft_draw_text_12x12_block(0, 64, "UuVvWwXxYyZz", 0xFFFF, 0x0000);
+            break;
+        case 5:
+            tft_draw_text_12x12_block(0, 80, "$+-*,/;:?\%&#()[]{}", 0xFFFF, 0x0000);
+            break;
+        case 6:            
+            tft_draw_text_12x12_block_(0, 108, "$+-*,/;:?", 0xFFFF, 0x0000,2);
+            break;
+        case 7:
+            tft_draw_text_12x12_block_(0, 134, "\%&#()[]{}", 0xFFFF, 0x0000,2);
+            break;
+        case 8:
+            //sleep_ms(100);  gpio_put(TEST_PIN, 1);
+            tft_draw_text_12x12_block_(0, 160, "0123456789", 0xFFFF, 0x0000,2);
+            //gpio_put(TEST_PIN, 0);
+            break;
+        case 9:
+            tft_draw_text_12x12_block_(0, 200, "012345", 0xFFFF, 0x0000,3);
+            break;
+        
 
-    spi_init(spi0, 40000000);
-    gpio_set_function(ST7789_PIN_SCK,  GPIO_FUNC_SPI);
-    gpio_set_function(ST7789_PIN_MOSI, GPIO_FUNC_SPI);
+        case 10:
+            tft_fill_rect(0,0,TFT_H,TFT_W, 0x0000);
+            break;
+        case 11:
+            tft_fill_rect(50, 50, 140, 140, 0xFFFF);
+            break;
+        case 12:
+            tft_fill_rect(96,50,4,140, 0x0000);
+            break;
+        case 13:
+            tft_draw_text_12x12_block_(50, 100, "ST7789", 0xFFFF, 0x0000,2);
+            break;
+        
+        case 14:
+            tft_fill_rect(0,0,TFT_H,TFT_W, 0xFFFF);
+            tft_fill_rect(50, 50, 140, 140, 0x0000);
+            tft_fill_rect(96,50,4,140, 0xFFFF);
+            tft_draw_text_12x12_block_(50, 100, "ST7789", 0x0000, 0xFFFF,2);
+            break;
 
-    spi_set_format(spi0, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
+        case 15:
+            tft_fill_rect(0,0,TFT_W,TFT_H, 0x07E0); // vert
+            tft_fill_rect(50, 50, 140, 140, 0x001F);
+            break;
 
-    gpio_init(ST7789_PIN_DC);  gpio_set_dir(ST7789_PIN_DC, GPIO_OUT);
-    gpio_init(ST7789_PIN_RST); gpio_set_dir(ST7789_PIN_RST, GPIO_OUT);
-    gpio_init(ST7789_PIN_CS);  gpio_set_dir(ST7789_PIN_CS, GPIO_OUT);
-    gpio_put(ST7789_PIN_CS, 1);
+        case 16:
+            tft_fill_rect(0,0,TFT_W,TFT_H, 0x001F); // rouge
+            tft_fill_rect(50, 50, 140, 140, 0xF800);
+            break;
 
-    tft_init();
-    init_dma_spi();
-    dma_done = true;
-}*/
+        case 17:
+            tft_fill_rect(0,0,TFT_W,TFT_H, 0xF800); // bleu
+            tft_fill_rect(50, 50, 140, 140, 0x07E0);
+            break;
 
-void test_st7789()
-{
-        while (1) {
-
-        tft_fill(0x0000); // écran noir
-
-        tft_draw_text_12x12_block(0, 16, "+HELLO World!", 0xFFFF, 0x0000);
-
-        tft_draw_text_12x12_block(0, 32, "AaBbCcDdEeFfGgHhIiJj", 0xFFFF, 0x0000);
-        tft_draw_text_12x12_block(0, 48, "KkLlMmNnOoPpQqRrSsTt", 0xFFFF, 0x0000);
-        tft_draw_text_12x12_block(0, 64, "UuVvWwXxYyZz", 0xFFFF, 0x0000);
-        tft_draw_text_12x12_block(0, 80, "$+-*/,;:?\%&#()[]{}", 0xFFFF, 0x0000);
-        tft_draw_text_12x12_block_(0, 108, "$+-*/,;:?", 0xFFFF, 0x0000,2);
-        tft_draw_text_12x12_block_(0, 134, "\%&#()[]{}", 0xFFFF, 0x0000,2);
-        sleep_ms(100);  gpio_put(TEST_PIN, 1);
-        tft_draw_text_12x12_block_(0, 160, "0123456789", 0xFFFF, 0x0000,2);
-        gpio_put(TEST_PIN, 0);
-        tft_draw_text_12x12_block_(0, 200, "012345", 0xFFFF, 0x0000,3);
-
-        sleep_ms(10000);
+        default:
+            testCnt=0;
+            break;
+    }*/
     
-        tft_fill_rect(0,0,TFT_H,TFT_W, 0x0000);
-        tft_fill_rect(50, 50, 140, 140, 0xFFFF);
-        sleep_ms(1000);
-
-        tft_fill_rect(0,0,TFT_H,TFT_W, 0xFFFF);
-        tft_fill_rect(50, 50, 140, 140, 0x0000);
-        sleep_ms(1000);
-
-        tft_fill_rect(0,0,TFT_W,TFT_H, 0x07E0); // vert
-        tft_fill_rect(50, 50, 140, 140, 0x001F);
-        sleep_ms(1000);
-
-        tft_fill_rect(0,0,TFT_W,TFT_H, 0x001F); // rouge
-        tft_fill_rect(50, 50, 140, 140, 0xF800);
-        sleep_ms(1000);
-
-        tft_fill_rect(0,0,TFT_W,TFT_H, 0xF800); // bleu
-        tft_fill_rect(50, 50, 140, 140, 0x07E0);
-        sleep_ms(1000);
-    }
 }

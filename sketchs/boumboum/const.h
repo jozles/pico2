@@ -6,6 +6,7 @@
 
 #define PI 3.141592636
 
+
 /* coder */
 
 #define PIO_CLOCK         10          
@@ -88,11 +89,14 @@
 
 /* st7789 */
 
+// le dma utilise l'irq1 ; l'irq 0 est utilisée par le dma de l'i2s
+
 #define ST7789_PIN_SCK   18
 #define ST7789_PIN_MOSI  19
 #define ST7789_PIN_DC    16
 #define ST7789_PIN_RST   20
 #define ST7789_PIN_CS    17
+#define ST7789_PIN_BL    21
 
 #define ST7789_SPI 0
 #define ST7789_spi __CONCAT(spi, ST7789_SPI)

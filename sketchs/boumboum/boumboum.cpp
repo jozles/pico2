@@ -40,11 +40,14 @@ static PIO pioWs = ws2812_pio;   // pio0 used by i2s
 int main() {
     stdio_init_all();
     sleep_ms(10000);printf("\n+boumboum \n");
+
+    gpio_init(LED);gpio_set_dir(LED,GPIO_OUT); gpio_put(LED,LOW);
     
     setup();
+
     int smWs0=ledsWs2812Setup(pioWs,WS2812_LED_PIN_0);  // max 4 !
 
-    st7789_Setup(40000000);
+    st7789_setup(40000000);
 
     voices[0].basicWaveAmpl[WAVE_SINUS]=MAX_AMP_VAL;
     voices[0].genAmpl=6000;
@@ -53,7 +56,16 @@ int main() {
     coder1Counter=freq_lin;
     voices[0].frequency=calcFreq(coder1Counter);
 
+            //tft_fill_rect(0,0,TFT_H,TFT_W, 0xFFFF);
+            //tft_fill_rect(50, 50, 140, 140, 0x0000);
+            //tft_fill_rect(96,50,4,140, 0xFFFF);
+            //tft_draw_text_12x12_block_(50, 100, "ST7789", 0x0000, 0xFFFF,2);
 
+    while(1){
+        sleep_ms(500);gpio_put(LED,HIGH);sleep_ms(500);gpio_put(LED,LOW);
+        ledsWs2812Test(pioWs,smWs0,700);
+        //test_st7789();
+    }
 
     while (true) {
 
@@ -71,6 +83,8 @@ int main() {
         }
 
         ledsWs2812Test(pioWs,smWs0,700);
+
+
     
     }
 
