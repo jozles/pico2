@@ -64,7 +64,7 @@ int main() {
     while(1){
         sleep_ms(500);gpio_put(LED,HIGH);sleep_ms(500);gpio_put(LED,LOW);
         ledsWs2812Test(pioWs,smWs0,700);
-        //test_st7789();
+        test_st7789();
     }
 
     while (true) {

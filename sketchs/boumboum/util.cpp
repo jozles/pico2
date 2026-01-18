@@ -111,7 +111,7 @@ void setup(){
 
     what=W_SINUS;
 
-    bb_i2s_start();
+    //bb_i2s_start();
 
     //ledsWs2812Setup();
 

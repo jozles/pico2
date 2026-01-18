@@ -56,8 +56,8 @@ void init_dma_spi() {
     channel_config_set_dreq(&dma_cfg, DREQ_SPI0_TX);
 
     dma_channel_set_irq0_enabled(dma_chan, true);
-    irq_set_exclusive_handler(DMA_IRQ_2, dma_irq_handler);
-    irq_set_enabled(DMA_IRQ_2, true);
+    irq_set_exclusive_handler(DMA_IRQ_0, dma_irq_handler);
+    irq_set_enabled(DMA_IRQ_0, true);
 }
 
 // ---------------------------------------------------------
@@ -466,7 +466,7 @@ void tft_draw_text_12x12_block_(
 }
 
 void test_st7789(){
-/*
+
     switch (testCnt++){
 
         case 0:
@@ -541,6 +541,6 @@ void test_st7789(){
         default:
             testCnt=0;
             break;
-    }*/
+    }
     
 }

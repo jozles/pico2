@@ -51,6 +51,7 @@ add_executable(boumboum
 	test.cpp
 	leds.cpp
 	st7789.cpp
+	font12x12.c
 	)
 
 pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/ws2812.pio)
