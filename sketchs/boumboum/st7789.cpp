@@ -14,16 +14,18 @@
 #include "font12x12.h"
 
 
-static int dma_chan;
+static int st_dma_chan;
 static dma_channel_config dma_cfg;
-static volatile bool dma_done = false;
+static volatile bool st_dma_done = false;
 
 static uint8_t tft_frame[TFT_W * TFT_H * 2];
 
 static uint8_t testCnt=0;
 
+static void tft_init(void);
+
 void dma_wait(){
-    while (!dma_done) {
+    while (!st_dma_done) {
         tight_loop_contents();
     }
 }
@@ -31,8 +33,9 @@ void dma_wait(){
 // ---------------------------------------------------------
 // DMA IRQ : remonte CS quand le transfert complet est fini
 // ---------------------------------------------------------
-void dma_irq_handler() {
-    dma_hw->ints0 = 1u << dma_chan;   // clear IRQ
+
+void st_dma_irq_handler() {
+    dma_hw->ints0 = 1u << st_dma_chan;   // clear IRQ
 
     // attendre que le SPI ait vidé son FIFO
     while (spi_is_busy(spi0)) {
@@ -40,24 +43,48 @@ void dma_irq_handler() {
     }
 
     gpio_put(ST7789_PIN_CS, 1);              // FIN du transfert complet
-    dma_done = true;
+    st_dma_done = true;
 }
 
 // ---------------------------------------------------------
 // DMA init
 // ---------------------------------------------------------
 void init_dma_spi() {
-    dma_chan = dma_claim_unused_channel(true);
-    dma_cfg = dma_channel_get_default_config(dma_chan);
+    st_dma_chan = dma_claim_unused_channel(true);
+    dma_cfg = dma_channel_get_default_config(st_dma_chan);
 
     channel_config_set_transfer_data_size(&dma_cfg, DMA_SIZE_8);
     channel_config_set_read_increment(&dma_cfg, true);
     channel_config_set_write_increment(&dma_cfg, false);
     channel_config_set_dreq(&dma_cfg, DREQ_SPI0_TX);
+   
+    dma_channel_set_irq1_enabled(st_dma_chan, true);
+#ifndef GLOBAL_DMA_IRQ_HANDLER 
+    irq_set_exclusive_handler(DMA_IRQ_1, st_dma_irq_handler);
+    irq_set_enabled(DMA_IRQ_1, true);
+#endif
+}
 
-    dma_channel_set_irq0_enabled(dma_chan, true);
-    irq_set_exclusive_handler(DMA_IRQ_0, dma_irq_handler);
-    irq_set_enabled(DMA_IRQ_0, true);
+void st7789_setup(uint32_t spiSpeed)
+{
+    gpio_init(TEST_PIN);gpio_set_dir(TEST_PIN,GPIO_OUT); gpio_put(TEST_PIN,LOW);
+
+    spi_init(spi0, spiSpeed);
+    gpio_set_function(ST7789_PIN_SCK,  GPIO_FUNC_SPI);
+    gpio_set_function(ST7789_PIN_MOSI, GPIO_FUNC_SPI);
+
+    spi_set_format(spi0, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
+
+    gpio_init(ST7789_PIN_DC);  gpio_set_dir(ST7789_PIN_DC, GPIO_OUT);
+    gpio_init(ST7789_PIN_RST); gpio_set_dir(ST7789_PIN_RST, GPIO_OUT);
+    gpio_init(ST7789_PIN_CS);  gpio_set_dir(ST7789_PIN_CS, GPIO_OUT);
+    gpio_put(ST7789_PIN_CS, 1);
+    gpio_init(ST7789_PIN_BL);  gpio_set_dir(ST7789_PIN_BL, GPIO_OUT);
+    gpio_put(ST7789_PIN_BL, 1);
+
+    tft_init();
+    init_dma_spi();
+    st_dma_done = true;
 }
 
 // ---------------------------------------------------------
@@ -85,7 +112,7 @@ static void tft_reset(void) {
 }
 
 // ---------------------------------------------------------
-// TON INIT GOLDEN — inchangé, byte pour byte
+// INIT SCREEN ST7789
 // ---------------------------------------------------------
 static void tft_init(void) {
     tft_reset();
@@ -188,28 +215,6 @@ static void tft_set_window(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) {
     tft_cmd(0x2C);
 }
 
-void st7789_setup(uint32_t spiSpeed)
-{
-    gpio_init(TEST_PIN);gpio_set_dir(TEST_PIN,GPIO_OUT); gpio_put(TEST_PIN,LOW);
-
-    spi_init(spi0, spiSpeed);
-    gpio_set_function(ST7789_PIN_SCK,  GPIO_FUNC_SPI);
-    gpio_set_function(ST7789_PIN_MOSI, GPIO_FUNC_SPI);
-
-    spi_set_format(spi0, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
-
-    gpio_init(ST7789_PIN_DC);  gpio_set_dir(ST7789_PIN_DC, GPIO_OUT);
-    gpio_init(ST7789_PIN_RST); gpio_set_dir(ST7789_PIN_RST, GPIO_OUT);
-    gpio_init(ST7789_PIN_CS);  gpio_set_dir(ST7789_PIN_CS, GPIO_OUT);
-    gpio_put(ST7789_PIN_CS, 1);
-    gpio_init(ST7789_PIN_BL);  gpio_set_dir(ST7789_PIN_BL, GPIO_OUT);
-    gpio_put(ST7789_PIN_BL, 1);
-
-    tft_init();
-    init_dma_spi();
-    dma_done = true;
-}
-
 // ---------------------------------------------------------
 // FILL : 1 DMA = tout l'écran
 // ---------------------------------------------------------
@@ -227,7 +232,7 @@ void tft_fill(uint16_t color) {
 
     tft_set_window(0, 0, TFT_W - 1, TFT_H - 1);
 
-    dma_done = false;
+    st_dma_done = false;
 
     gpio_put(ST7789_PIN_DC, 1);
     gpio_put(ST7789_PIN_CS, 0);
@@ -235,7 +240,7 @@ void tft_fill(uint16_t color) {
     gpio_put(TEST_PIN,ON);
 
     dma_channel_configure(
-        dma_chan,
+        st_dma_chan,
         &dma_cfg,
         &spi0_hw->dr,        // destination = SPI TX FIFO
         frame,               // source = buffer complet
@@ -268,13 +273,13 @@ void tft_fill_rect(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,uint16_t
     tft_set_window(beg_col,beg_line,beg_col+col_nb-1,beg_line+lines_nb-1);
 
     // 4) lancer un seul DMA pour tout le pavé
-    dma_done = false;
+    st_dma_done = false;
 
     gpio_put(ST7789_PIN_DC, 1);
     gpio_put(ST7789_PIN_CS, 0);
 
     dma_channel_configure(
-        dma_chan,
+        st_dma_chan,
         &dma_cfg,
         &spi0_hw->dr,
         tft_frame,
@@ -317,12 +322,12 @@ void tft_draw_char_12x12(uint16_t y, uint16_t x,
     // fenêtre exacte
     tft_set_window(x, y, x + w - 1, y + h - 1);
 
-    dma_done = false;
+    st_dma_done = false;
     gpio_put(ST7789_PIN_DC, 1);
     gpio_put(ST7789_PIN_CS, 0);
 
     dma_channel_configure(
-        dma_chan,
+        st_dma_chan,
         &dma_cfg,
         &spi0_hw->dr,
         tft_frame,
@@ -385,12 +390,12 @@ void tft_draw_text_12x12_block(
     // fenêtre = position réelle sur l'écran
     tft_set_window(x, y, x + w - 1, y + h - 1);
 
-    dma_done = false;
+    st_dma_done = false;
     gpio_put(ST7789_PIN_DC, 1);
     gpio_put(ST7789_PIN_CS, 0);
 
     dma_channel_configure(
-        dma_chan,
+        st_dma_chan,
         &dma_cfg,
         &spi0_hw->dr,
         tft_frame,
@@ -451,12 +456,12 @@ void tft_draw_text_12x12_block_(
     // fenêtre = position réelle sur l'écran
     tft_set_window(x, y, x + w*mult - 1, y + h*mult - 1);
 
-    dma_done = false;
+    st_dma_done = false;
     gpio_put(ST7789_PIN_DC, 1);
     gpio_put(ST7789_PIN_CS, 0);
 
     dma_channel_configure(
-        dma_chan,
+        st_dma_chan,
         &dma_cfg,
         &spi0_hw->dr,
         tft_frame,

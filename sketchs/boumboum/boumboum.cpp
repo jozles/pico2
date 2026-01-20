@@ -45,10 +45,6 @@ int main() {
     
     setup();
 
-    int smWs0=ledsWs2812Setup(pioWs,WS2812_LED_PIN_0);  // max 4 !
-
-    st7789_setup(40000000);
-
     voices[0].basicWaveAmpl[WAVE_SINUS]=MAX_AMP_VAL;
     voices[0].genAmpl=6000;
     freq_lin=1943;      // 440Hz
@@ -63,7 +59,7 @@ int main() {
 
     while(1){
         sleep_ms(500);gpio_put(LED,HIGH);sleep_ms(500);gpio_put(LED,LOW);
-        ledsWs2812Test(pioWs,smWs0,700);
+        //ledsWs2812Test(pioWs,smWs0,700);
         test_st7789();
     }
 
@@ -82,7 +78,7 @@ int main() {
             
         }
 
-        ledsWs2812Test(pioWs,smWs0,700);
+        ledsWs2812Test(700);
 
 
     

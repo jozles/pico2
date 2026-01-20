@@ -44,14 +44,18 @@
 #define LEDONDUR 60
 #define LEDOFFDUR 1000
 
-#define LED 25  // pico2 built_in
+#define LED 25              // pico2 built_in
 #define LED_PIN LED
+
+/* dma */
+
+#define GLOBAL_DMA_IRQ_HANDLER
 
 /* Ws2812 */
 
 #define PICO_WS2812_PIO 1
 #define ws2812_pio __CONCAT(pio, PICO_WS2812_PIO)
-#define WS2812_LED_PIN_0 0  // until 4 wS2812 ledschains on pico2 with the same pio 
+#define WS2812_LED_PIN 0    // until 4 wS2812 ledschains on pico2 with the same pio 
                             // each one using a different state machine (return from ledsWs2812Setup())
 
 /* I2S */
@@ -100,6 +104,7 @@
 
 #define ST7789_SPI 0
 #define ST7789_spi __CONCAT(spi, ST7789_SPI)
+#define ST7789_SPI_SPEED 40000000
 
 #endif  //_CONST_H_
 

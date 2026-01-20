@@ -3,6 +3,7 @@
 #include "hardware/timer.h"
 #include "hardware/pio.h"
 #include "hardware/clocks.h"
+#include "hardware/dma.h"
 #include "bb_i2s.h"
 #include "const.h"
 #include "util.h"
@@ -10,8 +11,12 @@
 #include "frequences.h"
 #include "test.h"
 #include "leds.h"
+#include "st7789.h"
 
 // boumboum
+
+static int st_dma_channel;
+static int ws_dma_channel;
 
 extern struct voice voices[];
 
@@ -82,6 +87,24 @@ void pio_full_reset(PIO pio) {
 
 }
 
+#ifdef GLOBAL_DMA_IRQ_HANDLER
+void global_dma_irq_handler(){
+    uint32_t global_dma_irq_status = dma_hw->ints0;
+
+    if((global_dma_irq_status&(1u << st_dma_channel))!=0){
+        st_dma_irq_handler();
+    }
+    if((global_dma_irq_status&(1u << ws_dma_channel))!=0){
+        ws_dma_irq_handler();
+    }
+}
+
+void init_global_dma_irq(){
+    irq_set_exclusive_handler(DMA_IRQ_1, global_dma_irq_handler);
+    irq_set_enabled(DMA_IRQ_1, true);
+}
+#endif
+
 
 void setup(){
 
@@ -113,7 +136,13 @@ void setup(){
 
     //bb_i2s_start();
 
-    //ledsWs2812Setup();
+    //ws_dma_channel=ledsWs2812Setup(ws2812_pio,WS2812_LED_PIN);
+
+    //st_dma_channel=st7789_setup(ST7789_SPI_SPEED);
+ 
+    #ifdef GLOBAL_DMA_IRQ_HANDLER
+    void init_global_dma_irq();
+    #endif
 
 }
 
