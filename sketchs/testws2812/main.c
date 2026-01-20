@@ -8,7 +8,7 @@
 #include "hardware/clocks.h"
 #include "ws2812.pio.h"
 
-#define PIN_WS2812 3   // GPIO3
+#define PIN_WS2812 0   // GPIO3
 
 uint32_t ledcnt=0;
 
