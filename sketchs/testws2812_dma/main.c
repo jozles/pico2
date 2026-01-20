@@ -43,9 +43,9 @@ void init_dma_ws() {
     channel_config_set_write_increment(&dma_cfg, false);
     channel_config_set_dreq(&dma_cfg, DREQ_PIO0_TX0);                   // voir commentaire dans main
 
-    dma_channel_set_irq0_enabled(ws_dma_chan, true);
-    irq_set_exclusive_handler(DMA_IRQ_0, ws_dma_irq_handler);
-    irq_set_enabled(DMA_IRQ_0, true);
+    dma_channel_set_irq1_enabled(ws_dma_chan, true);
+    irq_set_exclusive_handler(DMA_IRQ_1, ws_dma_irq_handler);
+    irq_set_enabled(DMA_IRQ_1, true);
 }
 
 void ws_dma_setup(PIO pio,int sm){
