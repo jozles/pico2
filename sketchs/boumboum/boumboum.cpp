@@ -52,15 +52,14 @@ int main() {
     coder1Counter=freq_lin;
     voices[0].frequency=calcFreq(coder1Counter);
 
-            //tft_fill_rect(0,0,TFT_H,TFT_W, 0xFFFF);
-            //tft_fill_rect(50, 50, 140, 140, 0x0000);
-            //tft_fill_rect(96,50,4,140, 0xFFFF);
-            //tft_draw_text_12x12_block_(50, 100, "ST7789", 0x0000, 0xFFFF,2);
-
     while(1){
-        sleep_ms(500);gpio_put(LED,HIGH);sleep_ms(500);gpio_put(LED,LOW);
-        //ledsWs2812Test(pioWs,smWs0,700);
-        test_st7789();
+        
+        ledsWs2812Test();print_diag();
+
+        //test_st7789();print_diag();
+
+        LEDBLINK
+       
     }
 
     while (true) {
@@ -78,7 +77,7 @@ int main() {
             
         }
 
-        ledsWs2812Test(700);
+        ledsWs2812Test();
 
 
     

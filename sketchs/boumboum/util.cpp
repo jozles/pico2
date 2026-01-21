@@ -41,18 +41,6 @@ bool millisTimerHandler(struct repeating_timer *t){
     return true;
 }
 
-void dump_pio_instr(PIO pio, const char *label) {
-    printf("%s pio#%p:\n", label, pio);
-    for (int i = 0; i < 32; i++) {
-        printf("instr[%02d] = 0x%04x\n", i, pio->instr_mem[i]);
-    }
-}
-
-void debug_gpio3_function(void) {
-    uint func = gpio_get_function(3);
-    printf("GPIO3 function = %u\n", func);
-}
-
 void pio_full_reset(PIO pio) {
 
     printf("pio#%p full reset\n",pio);
@@ -87,24 +75,56 @@ void pio_full_reset(PIO pio) {
 
 }
 
-#ifdef GLOBAL_DMA_IRQ_HANDLER
-void global_dma_irq_handler(){
-    uint32_t global_dma_irq_status = dma_hw->ints0;
+//#ifdef GLOBAL_DMA_IRQ_HANDLER
 
-    if((global_dma_irq_status&(1u << st_dma_channel))!=0){
-        st_dma_irq_handler();
-    }
-    if((global_dma_irq_status&(1u << ws_dma_channel))!=0){
-        ws_dma_irq_handler();
-    }
+uint32_t gdis=0;
+
+void global_dma_irq_handler() {
+    uint32_t global_dma_irq_status = dma_hw->ints0;
+gdis=global_dma_irq_status+256;
+    ws_dma_irq_handler();
+    //dma_hw->ints0 = 1u << ws_dma_channel;   // clear IRQ
+    //ws_dma_done = true;
+}
+
+void global_dma_irq_handler_(){
+    
+    uint32_t global_dma_irq_status = dma_hw->ints0;
+gdis=global_dma_irq_status+256;
+print_diag('I',gdis);
+    if((global_dma_irq_status & (1u << ws_dma_channel))!=0){
+        //ws_dma_irq_handler();
+    } 
+    if((global_dma_irq_status & (1u << st_dma_channel))!=0){
+        //st_dma_irq_handler();
+    } 
 }
 
 void init_global_dma_irq(){
-    irq_set_exclusive_handler(DMA_IRQ_1, global_dma_irq_handler);
+    irq_set_exclusive_handler(DMA_IRQ_1, global_dma_irq_handler_);
     irq_set_enabled(DMA_IRQ_1, true);
 }
-#endif
+//#endif  // GLOBAL_DMA_IRQ_HANDLER
 
+void pd0(){
+    printf("st_dma_chan=%d, st_dma_done=%d\n",st_dma_channel,get_st_dma_done());
+    printf("ws_dma_chan=%d, ws_dma_done=%d\n",ws_dma_channel,get_ws_dma_done());
+    printf("dma_irq_status %x\n",dma_hw->ints0);
+}
+
+void print_diag(char c,uint32_t gdis){
+    printf("%c status IRQ:%d,%d\n",c,gdis&0x000000ff,gdis>>8);
+    pd0();
+}
+
+void print_diag(){
+    print_diag(' ');
+}
+
+void print_diag(char c){
+    printf("%c\n",c);
+    pd0();
+}
 
 void setup(){
 
@@ -136,14 +156,18 @@ void setup(){
 
     //bb_i2s_start();
 
-    //ws_dma_channel=ledsWs2812Setup(ws2812_pio,WS2812_LED_PIN);
+    ws_dma_channel=ledsWs2812Setup(ws2812_pio,WS2812_LED_PIN);
+    if(ws_dma_channel<0){LEDBLINK_ERROR_DMA}
 
     //st_dma_channel=st7789_setup(ST7789_SPI_SPEED);
+    //if(st_dma_channel<0){LEDBLINK_ERROR_DMA}
  
     #ifdef GLOBAL_DMA_IRQ_HANDLER
     void init_global_dma_irq();
     #endif
 
+    printf("end setup \n",st_dma_channel,get_st_dma_done());
+    print_diag();
 }
 
     // exclusively called by void i2s_callback_func() in bb_i2s.cpp 

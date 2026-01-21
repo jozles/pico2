@@ -34,6 +34,8 @@ void dma_wait(){
 // DMA IRQ : remonte CS quand le transfert complet est fini
 // ---------------------------------------------------------
 
+volatile bool get_st_dma_done(){return st_dma_done;}
+
 void st_dma_irq_handler() {
     dma_hw->ints0 = 1u << st_dma_chan;   // clear IRQ
 
@@ -49,8 +51,9 @@ void st_dma_irq_handler() {
 // ---------------------------------------------------------
 // DMA init
 // ---------------------------------------------------------
-void init_dma_spi() {
+int init_dma_spi() {
     st_dma_chan = dma_claim_unused_channel(true);
+    if(st_dma_chan<0){return -1;}                   // no channel available
     dma_cfg = dma_channel_get_default_config(st_dma_chan);
 
     channel_config_set_transfer_data_size(&dma_cfg, DMA_SIZE_8);
@@ -63,9 +66,10 @@ void init_dma_spi() {
     irq_set_exclusive_handler(DMA_IRQ_1, st_dma_irq_handler);
     irq_set_enabled(DMA_IRQ_1, true);
 #endif
+    return st_dma_chan;
 }
 
-void st7789_setup(uint32_t spiSpeed)
+int st7789_setup(uint32_t spiSpeed)
 {
     gpio_init(TEST_PIN);gpio_set_dir(TEST_PIN,GPIO_OUT); gpio_put(TEST_PIN,LOW);
 
@@ -83,8 +87,10 @@ void st7789_setup(uint32_t spiSpeed)
     gpio_put(ST7789_PIN_BL, 1);
 
     tft_init();
-    init_dma_spi();
+    if(init_dma_spi()<0){printf("st7789_Setup: no spi dma channel available\n");return -1;}
+ 
     st_dma_done = true;
+    return st_dma_chan;
 }
 
 // ---------------------------------------------------------

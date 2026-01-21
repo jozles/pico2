@@ -40,7 +40,7 @@
 
 #define LEDBLINK  if((millisCounter-ledBlinker)>durOffOn[led]){ledBlinker=millisCounter;led=!led;gpio_put(LED,led);}
 #define LEDBLINK_ERROR      durOffOn[0]=2*durOffOn[1];LEDBLINK
-//#define LEDBLINK_ERROR_DMA  durOffOn[0]=3*durOffOn[1];LEDBLINK
+#define LEDBLINK_ERROR_DMA  durOffOn[0]=2*durOffOn[1];while(1){gpio_put(LED,led);sleep_ms(durOffOn[led]);gpio_put(LED,!led);sleep_ms(durOffOn[!led]);}
 #define LEDONDUR 60
 #define LEDOFFDUR 1000
 
@@ -49,7 +49,7 @@
 
 /* dma */
 
-#define GLOBAL_DMA_IRQ_HANDLER
+//#define GLOBAL_DMA_IRQ_HANDLER
 
 /* Ws2812 */
 
@@ -57,6 +57,9 @@
 #define ws2812_pio __CONCAT(pio, PICO_WS2812_PIO)
 #define WS2812_LED_PIN 0    // until 4 wS2812 ledschains on pico2 with the same pio 
                             // each one using a different state machine (return from ledsWs2812Setup())
+                            // voir commentaire dans main
+#define WS2812_DREQ_PIO __CONCAT(DREQ_PIO,PICO_WS2812_PIO)
+#define WS2812_DREQ_PIO_TX0 __CONCAT(WS2812_DREQ_PIO,_TX0)
 
 /* I2S */
 

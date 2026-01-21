@@ -3,7 +3,9 @@
 
 
 int ledsWs2812Setup(PIO pio,uint8_t ledPin);
-void ledsWs2812Test(uint32_t ms);
+void ledsWs2812Test();
+volatile bool get_ws_dma_done();
+void ws_dma_irq_handler();
 #ifdef GLOBAL_DMA_IRQ_HANDLER 
 void ws_dma_irq_handler();
 #endif

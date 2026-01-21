@@ -22,45 +22,48 @@ static volatile bool ws_dma_done = false;
 static PIO ws_pio;
 static int ws_sm;
 
+extern uint32_t gdis;
+
+volatile bool get_ws_dma_done(){return ws_dma_done;}
 
 void ws_dma_irq_handler() {
     dma_hw->ints0 = 1u << ws_dma_chan;   // clear IRQ
-
     ws_dma_done = true;
 }
 
-void init_dma_ws() {
+int init_dma_ws() {
     ws_dma_chan = dma_claim_unused_channel(true);
+    if(ws_dma_chan<0){return -1;}                   // no channel available
     //printf("dma_chan = %d\n", dma_chan);
     dma_cfg = dma_channel_get_default_config(ws_dma_chan);
 
     channel_config_set_transfer_data_size(&dma_cfg, DMA_SIZE_32);
     channel_config_set_read_increment(&dma_cfg, true);
     channel_config_set_write_increment(&dma_cfg, false);
-    channel_config_set_dreq(&dma_cfg, DREQ_PIO0_TX0);                   // voir commentaire dans main
+    channel_config_set_dreq(&dma_cfg,WS2812_DREQ_PIO_TX0);                   // voir commentaire dans main
 
     dma_channel_set_irq1_enabled(ws_dma_chan, true);
 #ifndef GLOBAL_DMA_IRQ_HANDLER
-    irq_set_exclusive_handler(DMA_IRQ_1, ws_dma_irq_handler);
+    irq_set_exclusive_handler(DMA_IRQ_1, global_dma_irq_handler);
     irq_set_enabled(DMA_IRQ_1, true);
-#endif    
+#endif
+    return ws_dma_chan;
 }
 
 int ledsWs2812Setup(PIO pio,uint8_t ledPin) {
 
     ws_pio=pio;
-    // réservation sm
+
+    // get sm
     ws_sm = pio_claim_unused_sm(pio, true); 
-    if(ws_sm<0){
-        printf("ledsWs2812Setup: no sm available\n");
-        return -1;
-    }
-    // Charger le programme PIO
+    if(ws_sm<0){printf("ledsWs2812Setup: no sm available\n");return -2;}
+
+    printf("ledsWs2812Setup pio:%d sm:%d\n",pio_get_index(pio),ws_sm);
     uint offset = pio_add_program(ws_pio, &ws2812_program);
 
-    // Configurer le state machine
+    // sm config
     pio_gpio_init(ws_pio, ledPin);                                     // attache le gpio au pio (si plusieurs gpio plusieurs inits)
-    pio_sm_set_consecutive_pindirs(ws_pio, ws_sm, ledPin, 1, true);       // 1er,nbre,direction des gpio de la sm (correspond pour le pilotage sm à "gpio_set_dir()" en pilotage processeur)
+    pio_sm_set_consecutive_pindirs(ws_pio, ws_sm, ledPin, 1, true);    // 1er,nbre,direction des gpio de la sm (correspond pour le pilotage sm à "gpio_set_dir()" en pilotage processeur)
 
     pio_sm_config c = ws2812_program_get_default_config(offset);    // créé la structure de la config de la sm
     sm_config_set_sideset_pins(&c, ledPin);                         // gpio de base de la sm qui sera associée à la structure                 
@@ -74,7 +77,9 @@ int ledsWs2812Setup(PIO pio,uint8_t ledPin) {
     pio_sm_clear_fifos(ws_pio, ws_sm);
     pio_sm_set_enabled(ws_pio, ws_sm, true);
 
-    init_dma_ws();
+    // dma init
+    if(init_dma_ws()<0){printf("ledsWs2812Setup: no dma channel available\n");return -1;}
+    
     ws_dma_done=true;
 
     printf("début ws2812\n");
@@ -88,14 +93,26 @@ void pio_sm_put_blocking_array(PIO pio, uint sm, const uint32_t *src, size_t len
 }
 
 void pio_sm_put_dma_array(PIO pio, uint sm, const uint32_t *src, size_t len) {
+    print_diag('1');
     while (!ws_dma_done) {tight_loop_contents();}
     ws_dma_done=false;
-    dma_channel_configure(ws_dma_chan,&dma_cfg,&pio->txf[sm],src,len,true);   
+    print_diag('2',gdis);
+    dma_channel_configure(ws_dma_chan,&dma_cfg,&pio->txf[sm],src,len,true);
+    print_diag('3',gdis);  
 }
 
 // ___________ seq test _____________
 
+void ledblink(uint16_t t)
+{
+    gpio_put(PICO_DEFAULT_LED_PIN, 1);
+    sleep_ms(t);
+    gpio_put(PICO_DEFAULT_LED_PIN, 0);
+}
+
 void perso(PIO pio, int sm){
+printf("test perso\n");
+
     uint32_t ms=700;
     uint8_t lbvrj=4;
     uint32_t bvrj[] = {0xF8000000,0x0000F000,0x00F80000,0x00F0F000,0xF8000000,0x0000F000,0x00F80000,0x00F0F000};
@@ -116,11 +133,16 @@ uint32_t reduc(uint32_t col,uint8_t reduc){
 }
 
 void perso2(PIO pio, int sm){
-    
+printf("test perso2_\n");    
+
+    uint8_t spec=16;
     uint16_t coloopmax=4;
     uint16_t nbLeds=70;
     uint8_t nbcol=24;
     uint8_t mincol=2;
+    uint8_t newcol=mincol;
+    uint8_t oldcol=mincol;
+    uint8_t ccur=mincol;
     uint32_t colbuf[]={0x00000000,0xffffff00,0xff000000,0x00ff0000,0x0000ff00,0xffff0000,0x00ffff00,
             0xff00ff00,0xff800000,0x8000ff00,0xff40a000,0x840ffe00,0x40a0ff00,0x40ff4000,0xffd00000,
             0xc0c0c000,0x80808000,0x80000000,0x80800000,0x00008000,0x00808000,0x4000a000,0xff007000,0x00a0ff00};
@@ -138,43 +160,51 @@ void perso2(PIO pio, int sm){
     pio_sm_put_dma_array(pio,sm,buf,nbLeds);sleep_ms(25);
     
     while(cnt<coloopmax*nbcol){     // nbre maxi de tours 
-                  
-            if(j==i){
-                for(uint16_t k=0;k<16;k++){
-                    // zone + lumineuse
-                    if(k<3 || k>12){buf[j]=reduc(colbuf[c],6);}
-                    else if(k<6 || k>8){buf[j]=reduc(colbuf[c],4);}
-                    else if(k!=7){buf[j]=reduc(colbuf[c],3);}
-                    else {buf[j]=reduc(colbuf[c],2);}
-                    j++;if(j>=nbLeds){j=0;};
-                    d++;
+            d++;      
+            if(j==i){           // zone + lumineuse
+                
+                for(int16_t k=0;k<spec;k++){
+                    ccur=c;if(j<i){ccur=newcol;}                                       
+                    if(k<spec/4 || k>spec-4){buf[j]=reduc(colbuf[ccur],6);}
+                    else if(k<(spec/2-1) || k>spec/2){buf[j]=reduc(colbuf[ccur],4);}
+                    else if(k!=(spec/2-1)){buf[j]=reduc(colbuf[ccur],3);}
+                    else {buf[j]=reduc(colbuf[ccur],2);}
+                    j++;if(j>=nbLeds){j=0;}
+                }
+                c=newcol;
+                if(i==nbLeds-spec){                         //  prod nlle couleur
+                    coloop++;                               
+                    if(coloop>=coloopmax){
+                        coloop=0;
+                        newcol=c+1;if(newcol>=nbcol){newcol=mincol;}
+                    }
+                    oldcol=c;
                 }
             }
-            else {buf[j]=reduc(colbuf[c],7);j++;if(j>=nbLeds){j=0;};d++;}
-            
+            else {
+                ccur=c;
+                if(j>i){ccur=oldcol;}
+                buf[j]=reduc(colbuf[ccur],7);j++;if(j>=nbLeds){j=0;};}
+
             if(d>=nbLeds){                // buffer full
-                pio_sm_put_dma_array(pio,sm,buf,nbLeds);
-                i++;if(i>=nbLeds){i=0;};
                 d=0;
+                pio_sm_put_dma_array(pio,sm,buf,nbLeds);
+                i++;if(i>=nbLeds){
+                    i=0;
+                }
                 j=i;
-                /*if((j&0x000f)==0){ledblink(50);}
-                else */
-                sleep_ms(50);
+                if((j&0x000f)==0){ledblink(50);}
+                else sleep_ms(50);
                 //printf(" i,j,cnt:%d %d %d\n",i,j,cnt);
         
                 if(i==0){    // tour terminé
-                    cnt++;
-                    coloop++;
-                    if(coloop>=coloopmax){
-                        coloop=0;
-                        c++;if(c>=nbcol){c=mincol;}
-                    }
+                    cnt++;                  
                 }
             }
         }
 }
 
-void ledsWs2812Test(uint32_t ms){    
+void ledsWs2812Test(){    
     while(1){
         perso(ws_pio,ws_sm);
         perso2(ws_pio,ws_sm);
