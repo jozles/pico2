@@ -75,36 +75,29 @@ void pio_full_reset(PIO pio) {
 
 }
 
-//#ifdef GLOBAL_DMA_IRQ_HANDLER
+#ifdef GLOBAL_DMA_IRQ_HANDLER
 
-uint32_t gdis=0;
+uint32_t gdis;
 
-void global_dma_irq_handler() {
-    uint32_t global_dma_irq_status = dma_hw->ints0;
-gdis=global_dma_irq_status+256;
-    ws_dma_irq_handler();
-    //dma_hw->ints0 = 1u << ws_dma_channel;   // clear IRQ
-    //ws_dma_done = true;
-}
-
-void global_dma_irq_handler_(){
+void global_dma_irq_handler(){
     
-    uint32_t global_dma_irq_status = dma_hw->ints0;
-gdis=global_dma_irq_status+256;
-print_diag('I',gdis);
+    uint32_t global_dma_irq_status = dma_hw->intr;
+gdis &= 0xffff0000;    
+gdis+=(global_dma_irq_status+256*256);
+
     if((global_dma_irq_status & (1u << ws_dma_channel))!=0){
-        //ws_dma_irq_handler();
+        ws_dma_irq_handler();
     } 
     if((global_dma_irq_status & (1u << st_dma_channel))!=0){
-        //st_dma_irq_handler();
+        st_dma_irq_handler();
     } 
 }
 
 void init_global_dma_irq(){
-    irq_set_exclusive_handler(DMA_IRQ_1, global_dma_irq_handler_);
+    irq_set_exclusive_handler(DMA_IRQ_1, global_dma_irq_handler);
     irq_set_enabled(DMA_IRQ_1, true);
 }
-//#endif  // GLOBAL_DMA_IRQ_HANDLER
+#endif  // GLOBAL_DMA_IRQ_HANDLER
 
 void pd0(){
     printf("st_dma_chan=%d, st_dma_done=%d\n",st_dma_channel,get_st_dma_done());
@@ -113,7 +106,7 @@ void pd0(){
 }
 
 void print_diag(char c,uint32_t gdis){
-    printf("%c status IRQ:%d,%d\n",c,gdis&0x000000ff,gdis>>8);
+    printf("%c status IRQ:%d,%d\n",c,gdis&0x0000ffff,gdis>>16);
     pd0();
 }
 
@@ -159,11 +152,11 @@ void setup(){
     ws_dma_channel=ledsWs2812Setup(ws2812_pio,WS2812_LED_PIN);
     if(ws_dma_channel<0){LEDBLINK_ERROR_DMA}
 
-    //st_dma_channel=st7789_setup(ST7789_SPI_SPEED);
-    //if(st_dma_channel<0){LEDBLINK_ERROR_DMA}
+    st_dma_channel=st7789_setup(ST7789_SPI_SPEED);
+    if(st_dma_channel<0){LEDBLINK_ERROR_DMA}
  
     #ifdef GLOBAL_DMA_IRQ_HANDLER
-    void init_global_dma_irq();
+    init_global_dma_irq();
     #endif
 
     printf("end setup \n",st_dma_channel,get_st_dma_done());

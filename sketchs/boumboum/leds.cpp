@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 #include "pico/stdlib.h"
 #include "hardware/pio.h"
 #include "hardware/clocks.h"
@@ -93,12 +94,10 @@ void pio_sm_put_blocking_array(PIO pio, uint sm, const uint32_t *src, size_t len
 }
 
 void pio_sm_put_dma_array(PIO pio, uint sm, const uint32_t *src, size_t len) {
-    print_diag('1');
+    //print_diag('1',gdis);
     while (!ws_dma_done) {tight_loop_contents();}
     ws_dma_done=false;
-    print_diag('2',gdis);
-    dma_channel_configure(ws_dma_chan,&dma_cfg,&pio->txf[sm],src,len,true);
-    print_diag('3',gdis);  
+    dma_channel_configure(ws_dma_chan,&dma_cfg,&pio->txf[sm],src,len,true);  
 }
 
 // ___________ seq test _____________
@@ -157,9 +156,9 @@ printf("test perso2_\n");
     //for(uint8_t x=0;x<nbcol;x++){colbuf[x]=0xff000000;}
 
     for(uint8_t v=0;v<nbLeds;v++){buf[v]=reduc(colbuf[c],7);}
-    pio_sm_put_dma_array(pio,sm,buf,nbLeds);sleep_ms(25);
+    pio_sm_put_dma_array(pio,sm,buf,nbLeds);sleep_ms(1000);
     
-    while(cnt<coloopmax*nbcol){     // nbre maxi de tours 
+    while(cnt<(coloopmax*nbcol)){     // nbre maxi de tours 
             d++;      
             if(j==i){           // zone + lumineuse
                 
@@ -189,27 +188,80 @@ printf("test perso2_\n");
             if(d>=nbLeds){                // buffer full
                 d=0;
                 pio_sm_put_dma_array(pio,sm,buf,nbLeds);
-                i++;if(i>=nbLeds){
-                    i=0;
-                }
+                i++;if(i>=nbLeds){i=0;}
                 j=i;
                 if((j&0x000f)==0){ledblink(50);}
                 else sleep_ms(50);
-                //printf(" i,j,cnt:%d %d %d\n",i,j,cnt);
-        
-                if(i==0){    // tour terminé
-                    cnt++;                  
-                }
             }
+            
+            if(i==0){cnt++;}   // tour terminé
         }
 }
 
-void ledsWs2812Test(){    
+static uint16_t cyclePos=0;
+static uint8_t colCycle=0;
+static uint8_t col=2;
+static uint8_t newCol=col;
+static uint32_t millis=0;
+
+void ws_show_3(uint32_t ms){
+
+    if((millis+ms)<millisCounter){
+   // while(1){
+        millis=millisCounter;
+
+        uint32_t colPal[]={0x00000000,0xffffff00,0xff000000,0x00ff0000,0x0000ff00,0xffff0000,0x00ffff00,
+                0xff00ff00,0xff800000,0x8000ff00,0xff40a000,0x840ffe00,0x40a0ff00,0x40ff4000,0xffd00000,
+                0xc0c0c000,0x80808000,0x80000000,0x80800000,0x00008000,0x00808000,0x4000a000,0xff007000,0x00a0ff00};
+        uint8_t colNb=24;
+        uint8_t minCol=2;
+        uint8_t colCycleNb=2;
+        uint16_t nbLeds=70;
+        uint16_t spec=16;
+
+        uint32_t buf[nbLeds];
+        uint16_t pos,curCol;    
+    
+        for(uint16_t pt=0;pt<nbLeds;pt++){
+            pos=pt+cyclePos;
+            if(pos>=nbLeds){pos-=nbLeds;}
+            curCol=col;
+            if((cyclePos==nbLeds-spec)&&pos==0){
+                if(curCol==newCol){col=newCol;}
+                if(pos<cyclePos){curCol=newCol;}
+            }
+            
+        //if(pos>(cyclePos+spec)){curCol=col;}
+        //else curCol=newCol;
+            if(pt<spec){
+                if(pt<spec/4 || pt>spec-4){buf[pos]=reduc(colPal[curCol],6);}
+                else if(pt<(spec/2-1) || pt>(spec/2)){buf[pos]=reduc(colPal[curCol],4);}
+                else if(pt!=(spec/2)){buf[pos]=reduc(colPal[curCol],3);}
+                else {buf[pos]=reduc(colPal[curCol],1);}
+            }
+            else {buf[pos]=reduc(colPal[col],7);}
+        }
+        pio_sm_put_dma_array(ws_pio,ws_sm,buf,nbLeds);sleep_ms(1);
+        cyclePos++;if(cyclePos>=nbLeds){
+            cyclePos=0;
+            colCycle++;
+            if(colCycle>=colCycleNb){
+                colCycle=0;
+                newCol=col+1;if(newCol>=colNb){newCol=minCol;}
+            }
+        }
+    //printf("millis %d,millisCounter %d, coul %d\n",millis,millisCounter,col);
+    }
+}
+
+void ledsWs2812Test(){ 
+    gdis=0;   
     while(1){
         perso(ws_pio,ws_sm);
         perso2(ws_pio,ws_sm);
     }    
 }
+
 
 
 

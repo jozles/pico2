@@ -49,13 +49,13 @@
 
 /* dma */
 
-//#define GLOBAL_DMA_IRQ_HANDLER
+#define GLOBAL_DMA_IRQ_HANDLER
 
 /* Ws2812 */
 
 #define PICO_WS2812_PIO 1
 #define ws2812_pio __CONCAT(pio, PICO_WS2812_PIO)
-#define WS2812_LED_PIN 0    // until 4 wS2812 ledschains on pico2 with the same pio 
+#define WS2812_LED_PIN 1    // until 4 wS2812 ledschains on pico2 with the same pio 
                             // each one using a different state machine (return from ledsWs2812Setup())
                             // voir commentaire dans main
 #define WS2812_DREQ_PIO __CONCAT(DREQ_PIO,PICO_WS2812_PIO)

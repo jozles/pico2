@@ -8,7 +8,7 @@
 
 int st7789_setup(uint32_t spiSpeed);
 volatile bool get_st_dma_done();
-void test_st7789();
+void test_st7789(uint32_t ms);
 void tft_fill(uint16_t color);
 void tft_fill_rect(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,uint16_t col_nb,uint16_t color);
 void tft_draw_text_12x12_block(uint16_t x,uint16_t y,const char *s,uint16_t fg,uint16_t bg);

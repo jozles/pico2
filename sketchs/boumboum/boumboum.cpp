@@ -54,9 +54,10 @@ int main() {
 
     while(1){
         
-        ledsWs2812Test();print_diag();
+        //ledsWs2812Test();//print_diag();
+        ws_show_3(500);
 
-        //test_st7789();print_diag();
+        test_st7789(1000);
 
         LEDBLINK
        

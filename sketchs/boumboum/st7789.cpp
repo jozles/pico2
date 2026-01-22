@@ -13,14 +13,13 @@
 
 #include "font12x12.h"
 
+extern uint32_t millisCounter;
 
 static int st_dma_chan;
 static dma_channel_config dma_cfg;
 static volatile bool st_dma_done = false;
 
 static uint8_t tft_frame[TFT_W * TFT_H * 2];
-
-static uint8_t testCnt=0;
 
 static void tft_init(void);
 
@@ -476,9 +475,15 @@ void tft_draw_text_12x12_block_(
     );
 }
 
-void test_st7789(){
+static uint8_t testCnt=0;
+static uint32_t millis=0;
 
-    switch (testCnt++){
+void test_st7789(uint32_t ms){
+
+    if((millis+ms)<millisCounter){
+      millis=millisCounter;
+
+      switch (testCnt++){
 
         case 0:
             tft_fill(0x0000); // écran noir
@@ -552,6 +557,7 @@ void test_st7789(){
         default:
             testCnt=0;
             break;
+      }
     }
     
 }
