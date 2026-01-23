@@ -143,7 +143,7 @@ void voiceInit(float freq,struct voice* v)
 
 void fillVoiceBuffer(int32_t* sampleBuffer,struct voice* v)
 {
-  gpio_put(TEST_PIN,ON);
+  //gpio_put(TEST_PIN,ON);
 
   uint32_t ech=0,prev_ech=0;  // ptr dans la table d'onde basique
   for(uint16_t i=0;i<v->sampleNbToFill;i++){
@@ -178,7 +178,7 @@ void fillVoiceBuffer(int32_t* sampleBuffer,struct voice* v)
   }
   if(v->currentSample>=SAMPLE_RATE*10 && ech>=BASIC_WAVE_TABLE_LEN-4){v->currentSample=0;}   // re-init to avoid phase error
 
-  gpio_put(TEST_PIN,OFF);
+  //gpio_put(TEST_PIN,OFF);
   
 }
 

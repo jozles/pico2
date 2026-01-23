@@ -125,9 +125,6 @@ void setup(){
     //pio_full_reset(pio1);
 
     gpio_init(LED);gpio_set_dir(LED,GPIO_OUT); gpio_put(LED,LOW);
-    //gpio_init(LED_BLUE);gpio_set_dir(LED_BLUE,GPIO_OUT);gpio_put(LED_BLUE,LOW);
-    //gpio_init(LED_RED);gpio_set_dir(LED_RED,GPIO_OUT);gpio_put(LED_RED,LOW);
-    //gpio_set_dir(LED_GREEN,GPIO_OUT);gpio_put(LED_GREEN,LOW);
 
     gpio_init(TEST_PIN);gpio_set_dir(TEST_PIN,GPIO_OUT); gpio_put(TEST_PIN,LOW);
 
@@ -147,7 +144,7 @@ void setup(){
 
     what=W_SINUS;
 
-    //bb_i2s_start();
+    bb_i2s_start();
 
     ws_dma_channel=ledsWs2812Setup(ws2812_pio,WS2812_LED_PIN);
     if(ws_dma_channel<0){LEDBLINK_ERROR_DMA}
@@ -158,6 +155,10 @@ void setup(){
     #ifdef GLOBAL_DMA_IRQ_HANDLER
     init_global_dma_irq();
     #endif
+
+    tft_fill(0x000000);
+    tft_draw_text_12x12_dma(20, 100, "ST7789", 0xFFFF, 0x0000,3);sleep_ms(2000);
+    tft_fill(0x000000);
 
     printf("end setup \n",st_dma_channel,get_st_dma_done());
     print_diag();

@@ -132,6 +132,7 @@ extern "C" {
 void i2s_callback_func()
 {
     if (decode_flg) {
+        //gpio_put(TEST_PIN,HIGH);            // 171uS
         audio_buffer_t *buffer = take_audio_buffer(ap, false);
 
         if (buffer == NULL) { return; } 
@@ -142,6 +143,7 @@ void i2s_callback_func()
 
         buffer->sample_count = buffer->max_sample_count;
         give_audio_buffer(ap, buffer);
+        //gpio_put(TEST_PIN,LOW);
     }
 }
 }

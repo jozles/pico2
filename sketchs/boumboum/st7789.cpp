@@ -70,8 +70,6 @@ int init_dma_spi() {
 
 int st7789_setup(uint32_t spiSpeed)
 {
-    gpio_init(TEST_PIN);gpio_set_dir(TEST_PIN,GPIO_OUT); gpio_put(TEST_PIN,LOW);
-
     spi_init(spi0, spiSpeed);
     gpio_set_function(ST7789_PIN_SCK,  GPIO_FUNC_SPI);
     gpio_set_function(ST7789_PIN_MOSI, GPIO_FUNC_SPI);
@@ -242,7 +240,7 @@ void tft_fill(uint16_t color) {
     gpio_put(ST7789_PIN_DC, 1);
     gpio_put(ST7789_PIN_CS, 0);
 
-    gpio_put(TEST_PIN,ON);
+    //gpio_put(TEST_PIN,ON);
 
     dma_channel_configure(
         st_dma_chan,
@@ -253,7 +251,7 @@ void tft_fill(uint16_t color) {
         true                 // start
     );
 
-    gpio_put(TEST_PIN,OFF);
+    //gpio_put(TEST_PIN,OFF);
 }
 
 // ---------------------------------------------------------
@@ -409,7 +407,7 @@ void tft_draw_text_12x12_block(
     );
 }
 
-void tft_draw_text_12x12_block_(
+void tft_draw_text_12x12_dma(
     uint16_t x,
     uint16_t y,
     const char *s,
@@ -418,7 +416,7 @@ void tft_draw_text_12x12_block_(
     int8_t mult)
 {
 
-       dma_wait();
+    dma_wait();
 
     if(mult<1){mult=1;}
 
@@ -504,18 +502,18 @@ void test_st7789(uint32_t ms){
             tft_draw_text_12x12_block(0, 80, "$+-*,/;:?\%&#()[]{}", 0xFFFF, 0x0000);
             break;
         case 6:            
-            tft_draw_text_12x12_block_(0, 108, "$+-*,/;:?", 0xFFFF, 0x0000,2);
+            tft_draw_text_12x12_dma(0, 108, "$+-*,/;:?", 0xFFFF, 0x0000,2);
             break;
         case 7:
-            tft_draw_text_12x12_block_(0, 134, "\%&#()[]{}", 0xFFFF, 0x0000,2);
+            tft_draw_text_12x12_dma(0, 134, "\%&#()[]{}", 0xFFFF, 0x0000,2);
             break;
         case 8:
-            //sleep_ms(100);  gpio_put(TEST_PIN, 1);
-            tft_draw_text_12x12_block_(0, 160, "0123456789", 0xFFFF, 0x0000,2);
+            //gpio_put(TEST_PIN, 1);  // 195uS env 11500 pixels 10*12*12*2*2*2 1440*8=11520
+            tft_draw_text_12x12_dma(0, 160, "0123456789", 0xFFFF, 0x0000,2);
             //gpio_put(TEST_PIN, 0);
             break;
         case 9:
-            tft_draw_text_12x12_block_(0, 200, "012345", 0xFFFF, 0x0000,3);
+            tft_draw_text_12x12_dma(0, 200, "012345", 0xFFFF, 0x0000,3);
             break;
         
 
@@ -529,14 +527,14 @@ void test_st7789(uint32_t ms){
             tft_fill_rect(96,50,4,140, 0x0000);
             break;
         case 13:
-            tft_draw_text_12x12_block_(50, 100, "ST7789", 0xFFFF, 0x0000,2);
+            tft_draw_text_12x12_dma(50, 100, "ST7789", 0xFFFF, 0x0000,2);
             break;
         
         case 14:
             tft_fill_rect(0,0,TFT_H,TFT_W, 0xFFFF);
             tft_fill_rect(50, 50, 140, 140, 0x0000);
             tft_fill_rect(96,50,4,140, 0xFFFF);
-            tft_draw_text_12x12_block_(50, 100, "ST7789", 0x0000, 0xFFFF,2);
+            tft_draw_text_12x12_dma(50, 100, "ST7789", 0x0000, 0xFFFF,2);
             break;
 
         case 15:
