@@ -13,7 +13,12 @@
 //#define CODER_TIMER_POOLING_INTERVAL_MS 5  // timer pooling interval in milliseconds
 // #define CODER_STROBE_NUMBER 3              // number of timer intervals for a valid strobe
 
-void coderInit(uint8_t pio_ck,uint8_t pio_d,uint8_t pio_sw,uint8_t pio_vp,uint16_t ctpi,uint8_t cstn);
+#ifndef MUXED_CODER
+void coderInit(uint8_t pio_ck,uint8_t pio_d,uint8_t pio_sw,uint16_t ctpi,uint8_t cstn);
+#endif // MUXED_CODER
+#ifdef MUXED_CODER
+coderInit(CODER_PIO_CLOCK,CODER_PIO_DATA,CODER_PIO_SW,CODER_PIO_SEL,CODER_SEL_NB,CODER_NB,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER);
+#endif // MUXED_CODER
 void coderSetup(volatile int32_t* cTC);
 bool coderTimerHandler();
 

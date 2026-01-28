@@ -9,10 +9,15 @@
 
 /* coder */
 
-#define PIO_CLOCK         10          
-#define PIO_DATA          11          
-#define PIO_SW            12          
-#define PIO_VPP           13    // vcc coder                         
+#define CODER_PIO_CLOCK         14          
+#define CODER_PIO_DATA          15          
+#define CODER_PIO_SW            16          
+
+#ifdef MUXED_CODER
+#define CODER_SEL_NB            4
+#define CODER_NB                6
+#define CODER_PIO_SEL0          9     // CODER_NB consecutive pins
+#endif // MUXED_CODER
 
 #define LOW 0
 #define OFF 0
