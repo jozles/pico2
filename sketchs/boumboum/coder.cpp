@@ -108,42 +108,42 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint16_t ctpi,uint8_t cstn){
 
 
 #ifdef MUXED_CODER
-bool coderTimerHandler(){
+bool coderTimerHandler(Coder* c){
 
     for(uint8_t coder=0;coder<coder_nb;coder++){
 
-        coderClock[coder]=gpio_get(pio_clock_pin);
+        c[coder]->coderClock=gpio_get(pio_clock_pin);
         gpio_put_masked(sel_gpio_mask, coder << gpio_base);         // sel current coder
     
-        if(coderClock[coder] == coderClock0[coder]){                // no change 
-            if(coderItStatus[coder]<coderStrobeNumber){             // wait for change after strobe delay
-                coderItStatus[coder]++;continue;}
-            if(coderItStatus[coder]>coderStrobeNumber){             // 2nd strobe fail
-                coderItStatus[coder]=0;continue;}
+        if(c[coder]->coderClock == c[coder]->coderClock0){                // no change 
+            if(c[coder]->coderItStatus<coderStrobeNumber){             // wait for change after strobe delay
+                c[coder]->coderItStatus++;continue;}
+            if(c[coder]->coderItStatus>coderStrobeNumber){             // 2nd strobe fail
+                c[coder]->coderItStatus=0;continue;}
             continue;
         }
         else{                                                       // clock change detected 
-            coderData[coder]=gpio_get(pio_data_pin);                // latch data
+            c[coder]->coderData=gpio_get(pio_data_pin);                // latch data
 
-            if(coderItStatus[coder]<coderStrobeNumber){             // change to close to previous valid one : ignore it
-                coderItStatus[coder]=0;continue;}
+            if(c[coder]->coderItStatus<coderStrobeNumber){             // change to close to previous valid one : ignore it
+                c[coder]->coderItStatus=0;continue;}
                                                             
-            if(coderItStatus[coder]==coderStrobeNumber){     
-                coderItStatus[coder]++;continue;}                   // 1st strobe passed wait next It
+            if(c[coder]->coderItStatus==coderStrobeNumber){     
+                c[coder]->coderItStatus++;continue;}                   // 1st strobe passed wait next It
         }
  
-        coderClock0[coder]=coderClock[coder];                       // valid clock change detected after 2 strobes delay
-        coderItStatus[coder]=0;
+        c[coder]->coderClock0=c[coder]->coderClock;                       // valid clock change detected after 2 strobes delay
+        c[coder]->coderItStatus=0;
 
         if(coderTimerCount!=nullptr){
 
             coderSwitch[coder]=gpio_get(pio_switch_pin);            // coder_switch used as speed multiplier
 
             if((!coderClock[coder])^coderData[coder]){
-                (*(coderTimerCount[coder]+coder))-=1+coderSwitch[coder];
+                (*(c[coder]->coderTimerCount+coder))-=1+c[coder]->coderSwitch;
             } 
             else {
-                (*(coderTimerCount[coder]+coder))+=1+coderSwitch[coder];
+                (*(c[coder]->coderTimerCount+coder))+=1+c[coder]->coderSwitch;
             }
         }
 
@@ -152,7 +152,7 @@ bool coderTimerHandler(){
     return true;    // relancer le timer
 }
 
-void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t sel0,uint8_t sel_nb,uint8_t nb,uint16_t ctpi,uint8_t cstn){
+void coderInit(Coders* c,uint8_t ck,uint8_t data,uint8_t sw,uint8_t sel0,uint8_t sel_nb,uint8_t nb,uint16_t ctpi,uint8_t cstn){
  
     gpio_clock_pin=ck;
     gpio_data_pin=data;
@@ -179,10 +179,10 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t sel0,uint8_t sel_nb,ui
         coderData0[coder]=gpio_get(ggpio_data_pin);             // get data
         coderSwitch0[coder]=gpio_get(gpio_switch_pin);          // get switch
         printf(" -coder#%d init d:%d c:%d s:%d\n",coder,coderData0[coder],coderClock0[coder],gpio_get(pio_switch_pin));
-        coderItStatus[coder]=0; 
-        coderClock[coder]=0;
-        coderClock0[coder]=0;
-        coderData[coder]=0;
+        c[coder]->coderItStatus=0; 
+        c[coder]->coderClock=0;
+        c[coder]->coderClock0=0;
+        c[coder]->coderData=0;
     }
 }
 

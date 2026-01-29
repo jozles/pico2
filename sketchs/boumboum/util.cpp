@@ -34,6 +34,9 @@ volatile uint32_t ledBlinker=0;
 struct repeating_timer millisTimer;
 
 extern volatile int32_t coder1Counter;
+#ifdef MUXED_CODER
+extern Coders ct[];
+#endif // MUXED_CODER
 
 bool millisTimerHandler(struct repeating_timer *t){
     millisCounter++;
