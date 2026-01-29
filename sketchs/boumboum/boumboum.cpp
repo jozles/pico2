@@ -22,8 +22,15 @@ volatile uint32_t millisCounter=0;
 
 // coder    
 
+#ifndef MUXED_CODER
 volatile int32_t coder1Counter=0;
 volatile int32_t coder1Counter0=0;
+#endif // MUXED_CODER
+#ifdef MUXED_CODER
+Coders ct[CODER_NB];
+volatile int32_t coderCounter[CODER_NB];
+volatile int32_t coderCounter0[CODER_NB];
+#endif // MUXED_CODER
 
 // frequence
 
@@ -67,15 +74,13 @@ int main() {
 
         LEDBLINK
 
+
         if(coder1Counter!=coder1Counter0){
 
             coder1Counter0=coder1Counter;
             voices[0].newFrequency=calcFreq(coder1Counter);
 
-            printf("freq:%5.3f ampl:%d   \r",voices[0].frequency,voices[0].genAmpl);
-            
-            //testSample(coder1Counter,amplitude);
-            
+            printf("freq:%5.3f ampl:%d   \r",voices[0].frequency,voices[0].genAmpl);           
         }
 
         

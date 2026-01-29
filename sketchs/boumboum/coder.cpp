@@ -8,9 +8,6 @@
 
 
 #ifndef MUXED_CODER
-uint16_t coderTimerPoolingInterval=1;       // delay betxeen Its (mS) changed by init
-uint8_t coderStrobeNumber=3;                // 1st strobe delay (2nd strobe delay is 1)
-volatile int32_t* coderTimerCount=nullptr;  // ptr to current value to be inc or dec
 uint8_t coderItStatus=0;                    // coder decoding status
 bool coderClock=0;                          // current physical coder clock value
 bool coderClock0=0;                         // previous physical coder clock value
@@ -18,17 +15,11 @@ bool coderData=0;                           // current physical coder data value
 bool coderData0=0;                          // previous physical coder data value
 bool coderSwitch=0;                         // current physical coder switch value
 #endif // MUXED_CODER
-#ifdef MUXED_CODER
+
 uint16_t coderTimerPoolingInterval=1;       // delay betxeen Its (mS) changed by init
 uint8_t coderStrobeNumber=3;                // 1st strobe delay (2nd strobe delay is 1)
 volatile int32_t* coderTimerCount=nullptr;  // ptr to current value to be inc or dec
-uint8_t coderItStatus[CODER_NB];                    // coder decoding status
-bool coderClock[CODER_NB];                  // current physical coder clock value
-bool coderClock0[CODER_NB];                 // previous physical coder clock value
-bool coderData[CODER_NB];                   // current physical coder data value
-bool coderData0[CODER_NB];                  // previous physical coder data value
-bool coderSwitch[CODER_NB];                 // current physical coder switch value
-#endif // MUXED_CODER
+
 
 // pico2_pins
 
@@ -149,10 +140,10 @@ bool coderTimerHandler(){
             coderSwitch[coder]=gpio_get(pio_switch_pin);            // coder_switch used as speed multiplier
 
             if((!coderClock[coder])^coderData[coder]){
-                (*(coderTimerCount+coder))-=1+coderSwitch[coder];
+                (*(coderTimerCount[coder]+coder))-=1+coderSwitch[coder];
             } 
             else {
-                (*(coderTimerCount+coder))+=1+coderSwitch[coder];
+                (*(coderTimerCount[coder]+coder))+=1+coderSwitch[coder];
             }
         }
 
@@ -161,13 +152,14 @@ bool coderTimerHandler(){
     return true;    // relancer le timer
 }
 
-void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t sel0,uint8_t sel_nb,uint16_t ctpi,uint8_t cstn){
-    
+void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t sel0,uint8_t sel_nb,uint8_t nb,uint16_t ctpi,uint8_t cstn){
+ 
     gpio_clock_pin=ck;
     gpio_data_pin=data;
     gpio_switch_pin=sw;
     gpio_base=sel0;
     coder_sel_nb=sel_nb;
+    coder_nb=nb;
 
     coderTimerPoolingInterval=ctpi;
     coderStrobeNumber=cstn;
@@ -193,6 +185,7 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t sel0,uint8_t sel_nb,ui
         coderData[coder]=0;
     }
 }
+
 #endif  // MUXED_CODER
 
 void coderSetup(volatile int32_t* cTC){
