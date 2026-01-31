@@ -27,21 +27,28 @@ volatile int32_t coder1Counter=0;
 volatile int32_t coder1Counter0=0;
 #endif // MUXED_CODER
 #ifdef MUXED_CODER
-Coders ct[CODER_NB];
-volatile int32_t coderCounter[CODER_NB];
-volatile int32_t coderCounter0[CODER_NB];
+Coders ct[CODER_NB];                            // cinematic
+
+uint8_t curFonc=0;
+volatile int32_t coderCounter[FONC_NB+MAX_FONC];        // datas
+volatile int32_t coderCounter0[FONC_NB+MAX_FONC];
 #endif // MUXED_CODER
+
+// voices 
+
+uint8_t currVoice=0;
+struct Voice voices[VOICES_NB];
 
 // frequence
 
 volatile int16_t freq_lin=0;
 volatile int16_t amplitude=0;   
 
-struct voice voices[VOICES_NB];
-
 // ws2812
 
 static PIO pioWs = ws2812_pio;   // pio0 used by i2s
+
+
 
 
 int main() {
@@ -52,6 +59,10 @@ int main() {
     
     setup();
 
+#ifdef BB_TEST_MODE
+
+    coderSetup(&coder1Counter);
+
     voices[0].basicWaveAmpl[WAVE_SINUS]=MAX_AMP_VAL;
     voices[0].genAmpl=6000;
     freq_lin=1943;      // 440Hz
@@ -59,8 +70,7 @@ int main() {
     coder1Counter=freq_lin;
     voices[0].frequency=calcFreq(coder1Counter);
 
-    while(1){
-        
+    while(1){       
 
         ws_show_3(30);
 
@@ -68,13 +78,13 @@ int main() {
 
         LEDBLINK
        
-    }
+    }    
 
     while (true) {
 
         LEDBLINK
 
-
+#ifndef MUXED_CODER
         if(coder1Counter!=coder1Counter0){
 
             coder1Counter0=coder1Counter;
@@ -82,9 +92,30 @@ int main() {
 
             printf("freq:%5.3f ampl:%d   \r",voices[0].frequency,voices[0].genAmpl);           
         }
-
-        
-    
     }
+#endif  // MUXED_CODER 
+
+#endif  // BB_TEST_MODE
+
+#ifndef BB_TEST_MODE
+
+        // inits 
+        for(uint8_t v=0;v<VOICES_NB_NB,v++){        
+            coderCounter[v]=0;                  // voices mixer loop
+        }
+        for(uint8_t f=0;f<=MAX_FONC,f++){
+            coderCounter[f+v]=0;                // voices params (spectrum_mixer, adsr, ...)
+        }
+        
+
+        currFonc=VOICE0_SPECTRUM_MIXER;
+        currVoice=0;
+
+        while(1){
+            tft_show(currFonc,currVoice);
+            coderSetup(&coderCounter[currFonc]);
+        }
+
+#endif  // BB_TEST_MODE
 
 }

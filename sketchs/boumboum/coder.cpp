@@ -140,10 +140,10 @@ bool coderTimerHandler(Coder* c){
             coderSwitch[coder]=gpio_get(pio_switch_pin);            // coder_switch used as speed multiplier
 
             if((!coderClock[coder])^coderData[coder]){
-                (*(c[coder]->coderTimerCount+coder))-=1+c[coder]->coderSwitch;
+                (*(c[coder]->(coderTimerCount+coder)))-=1+c[coder]->coderSwitch;
             } 
             else {
-                (*(c[coder]->coderTimerCount+coder))+=1+c[coder]->coderSwitch;
+                (*(c[coder]->(coderTimerCount+coder)))+=1+c[coder]->coderSwitch;
             }
         }
 

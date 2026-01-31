@@ -33,7 +33,9 @@ volatile uint32_t ledBlinker=0;
 
 struct repeating_timer millisTimer;
 
+#ifndef MUXED_CODER
 extern volatile int32_t coder1Counter;
+#endif // MUXED_CODER
 #ifdef MUXED_CODER
 extern Coders ct[];
 #endif // MUXED_CODER
@@ -140,7 +142,6 @@ void setup(){
     #ifdef MUXED_CODER
     coderInit(CODER_PIO_CLOCK,CODER_PIO_DATA,CODER_PIO_SW,CODER_PIO_SEL0,CODER_SEL_NB,CODER_NB,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER);
     #endif // MUXED_CODER
-    coderSetup(&coder1Counter);
     
     // irq timer
     add_repeating_timer_ms(1, millisTimerHandler, NULL, &millisTimer);

@@ -6,6 +6,7 @@
 
 #define PI 3.141592636
 
+#define BB_TEST_MODE
 
 /* coder */
 
@@ -36,6 +37,28 @@
 
 #define LEDONDURAT 20
 #define LEDOFFDURAT 2000
+
+/* Voices */
+
+#ifdef MUXED_CODER
+#define VOICES_NB CODER_NB
+#define FONC_NB 3
+/* fonc names */
+#define VOICES_MIXER 0              // VOICES_NB 
+#define VOICE0_SPECTRUM_MIXER 1
+#define VOICE1_SPECTRUM_MIXER 2
+#define VOICE2_SPECTRUM_MIXER 3
+#define VOICE3_SPECTRUM_MIXER 4
+#define VOICE4_SPECTRUM_MIXER 5
+#define VOICE5_SPECTRUM_MIXER 6
+#define VOICE0_ADSR 7
+#define VOICE1_ADSR 8
+#define VOICE2_ADSR 9 
+#define VOICE3_ADSR 10
+#define VOICE4_ADSR 11 
+#define VOICE5_ADSR 12
+#define MAX_FONC=12
+#endif // MUXED_CODER
 
 /* Test_Pin */
 

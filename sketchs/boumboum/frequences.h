@@ -29,7 +29,7 @@
 #define WAVE_PINKNOISE 5
 #define MAX_AMP_VAL 32767
 
-struct voice {
+struct Voice {
     //int32_t*    sampleBuffer;
     uint16_t    sampleNbToFill;    
     uint32_t    currentSample;
