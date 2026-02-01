@@ -17,4 +17,7 @@ void next_sound_feeding(int32_t* next_sound,uint32_t next_sound_size);
 
 void global_dma_irq_handler();
 
+void adsr(int32_t* ccb,int32_t ccb0);
+void autoMixer(int32_t* ccb,int32_t ccb0);
+
 #endif  //_UTIL_H_

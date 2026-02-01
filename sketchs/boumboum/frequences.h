@@ -43,6 +43,7 @@ struct Voice {
     uint8_t     moduloShift;      
 };
 
+void fillAmplIncr(float* amplIncr);
 void fillBasicWaveForms();
 void fillOctFreq();
 void showOctFreq(); 
@@ -52,7 +53,7 @@ float calcFreq(uint16_t val);
 void freq_start();
 void getEch(float freq,uint32_t sampleCounter,uint16_t sampleNbToFill,uint32_t* sampleBuffer);
 
-void voiceInit(float freq,struct voice* v);
-void fillVoiceBuffer(int32_t* sampleBuffer,struct voice* v);
+void voiceInit(float freq,Voice* v);
+void fillVoiceBuffer(int32_t* sampleBuffer,Voice* v);
 
 #endif  //_FREQUENCES_H_

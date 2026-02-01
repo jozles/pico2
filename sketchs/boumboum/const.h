@@ -42,7 +42,7 @@
 
 #ifdef MUXED_CODER
 #define VOICES_NB CODER_NB
-#define FONC_NB 3
+
 /* fonc names */
 #define VOICES_MIXER 0              // VOICES_NB 
 #define VOICE0_SPECTRUM_MIXER 1
@@ -57,7 +57,9 @@
 #define VOICE3_ADSR 10
 #define VOICE4_ADSR 11 
 #define VOICE5_ADSR 12
-#define MAX_FONC=12
+#define MAX_FONC 12
+
+#define CODER_COUNTERS MAX_FONC*CODER_NB
 #endif // MUXED_CODER
 
 /* Test_Pin */
@@ -98,6 +100,8 @@
 #define SAMPLE_RATE 44100
 #define FREQUENCY   440.0   // La 440 Hz
 #define AMPLITUDE   30000   // Amplitude max (16 bits signé)
+#define MAX_16B_LINEAR_VALUE 32 // 0 to 31 => 0,1,1.414,2,2.828,4,5.656,8,11.312,16,22.624 ... 8192,11583,16384,23167,32768,46334
+// #define MAX_16B_LINEAR_VALUE 64 // 0 to 63 => 0,1,1.189,1.414,3.234,4,4.757,5.656,6.727,8 ....
 
 //#define I2S_DATA_PIN  4     // DIN du MAX98357A
 //#define I2S_BCLK_PIN  2     // BCLK

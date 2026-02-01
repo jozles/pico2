@@ -29,9 +29,11 @@ volatile int32_t coder1Counter0=0;
 #ifdef MUXED_CODER
 Coders ct[CODER_NB];                            // cinematic
 
-uint8_t curFonc=0;
-volatile int32_t coderCounter[FONC_NB+MAX_FONC];        // datas
-volatile int32_t coderCounter0[FONC_NB+MAX_FONC];
+uint8_t currFonc=0;
+uint32_t* currCoderBank=nullptr;
+uint32_t* currCoderBank0=nullptr;
+volatile int32_t coderCounter[CODER_COUNTERS];        // datas
+volatile int32_t coderCounter0[CODER_COUNTERS];
 #endif // MUXED_CODER
 
 // voices 
@@ -100,20 +102,27 @@ int main() {
 #ifndef BB_TEST_MODE
 
         // inits 
-        for(uint8_t v=0;v<VOICES_NB_NB,v++){        
-            coderCounter[v]=0;                  // voices mixer loop
+
+        for(uint8_t f=0;f<CODER_NB,f++){
+            coderCounter[VOICES_MIXER*CODER_NB+f]=MAX_16B_LINEAR_VALUE/CODER_NB;
+            coderCounter[VOICE0_SPECTRUM_MIXER*CODER_NB+f]=MAX_16B_LINEAR_VALUE/CODER_NB;
+            coderCounter[VOICE0_ADSR*CODER_NB+f]=MAX_16B_LINEAR_VALUE/CODER_NB;
         }
-        for(uint8_t f=0;f<=MAX_FONC,f++){
-            coderCounter[f+v]=0;                // voices params (spectrum_mixer, adsr, ...)
-        }
-        
 
         currFonc=VOICE0_SPECTRUM_MIXER;
         currVoice=0;
 
         while(1){
             tft_show(currFonc,currVoice);
-            coderSetup(&coderCounter[currFonc]);
+
+            currCoderBank=&coderCounter[currFonc*CODER_NB];
+            currCoderBank0=&coderCounter0[currFonc*CODER_NB];
+
+            coderSetup(currCoderBank);
+            
+            if(currFonc==VOICES_MIXER){autoMixer(currCoderBank,currCoderBank0);}
+            if(currFonc<VOICE0_SPECTRUM_MIXER+VOICES_NB){autoMixer(currCoderBank,currCoderBank0);}
+            if(currFonc<VOICE0_ADSR+VOICES_NB){adsr(currCoderBank,currCoderBank0);}
         }
 
 #endif  // BB_TEST_MODE

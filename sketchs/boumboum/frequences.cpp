@@ -19,6 +19,21 @@ const uint16_t octIncrNb = 409;
 float octIncr[octIncrNb];
 
 
+void fillAmplIncr(float* amplIncr){
+
+  uint8_t step=MAX_16B_LINEAR_VALUE/16;
+  float f[step];f[0]=0;
+  for(uint8_t k=1;k<step;k++){f[k]+=1/k;}    // step=2 : f[0]=0,f[1]=0.5; step=4 : f[0]=0,f[1]=0.25,f[2]=0.50,f[3]=0.75
+  float z[step];z[0]=0;
+  for(uint8_t k=1;k<step;k++){z[k]=pow(2,f[k]);}
+  for(uint8_t i=0;i<MAX_16B_LINEAR_VALUE;i++){
+    for(uint8_t j=0;j<step;j++){
+      amplIncr[i]=pow(2,(i/step))*z[j]; //pow(2,f[j]);  //z[j];
+    }
+  }
+}
+
+
 void fillBasicWaveForms(){
     printf("  filling basic %d %d %d\n",(BASIC_WAVE_TABLE_LEN/4),(BASIC_WAVE_TABLE_LEN/2),BASIC_WAVE_TABLE_LEN-1);
     for(uint16_t i=0;i<BASIC_WAVE_TABLE_LEN/4;i++){
@@ -98,7 +113,7 @@ float calcFreq(uint16_t val) // from lin value (0-octIncrNb*OCTNB) to snd value 
   uint8_t oct = val/ octIncrNb;
   uint16_t incr = val % octIncrNb;
   float freq = octFreq[oct] +octIncr[incr]*(octFreq[oct+1]-octFreq[oct]);
- return freq;
+  return freq;
 }
 
 // initialisation des tableaux pour permettre calcFreq()
@@ -114,7 +129,7 @@ void freq_start()                //void setup()
 
 }
 
-void voiceInit(float freq,struct voice* v)
+void voiceInit(float freq,Voice* v)
 {
     v->sampleNbToFill=SAMPLE_BUFFER_SIZE;    
     v->currentSample=0;
@@ -141,7 +156,7 @@ void voiceInit(float freq,struct voice* v)
         v->frequency,v->freqCoeff,v->dhexFreq,v->moduloMask,v->moduloShift);
 }
 
-void fillVoiceBuffer(int32_t* sampleBuffer,struct voice* v)
+void fillVoiceBuffer(int32_t* sampleBuffer,Voice* v)
 {
   //gpio_put(TEST_PIN,ON);
 

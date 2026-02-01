@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdint.h>
 #include "pico/stdlib.h"
 #include "hardware/timer.h"
 #include "hardware/pio.h"
@@ -18,7 +19,7 @@
 static int st_dma_channel;
 static int ws_dma_channel;
 
-extern struct voice voices[];
+extern struct Voice voices[];
 
 volatile uint8_t what=0;
 
@@ -33,51 +34,49 @@ volatile uint32_t ledBlinker=0;
 
 struct repeating_timer millisTimer;
 
-#ifndef MUXED_CODER
-extern volatile int32_t coder1Counter;
-#endif // MUXED_CODER
-#ifdef MUXED_CODER
-extern Coders ct[];
-#endif // MUXED_CODER
+float amplIncr[MAX_16B_LINEAR_VALUE];
+
+
+// ******** coders functions handling ********
+
+#ifdef MUXED_CODERS
+int8_t ccbChanged(int32_t* ccb,int32_t ccb0){
+    for(uint8_t i=0;i<CODER_NB;i++){if(ccb[i]!=ccb0[i]){return i;}}
+    return -1;
+}
+
+void adsr(int32_t* ccb,int32_t ccb0){}
+
+// 16 bits values with constant sum
+void autoMixer(int32_t* ccb,uint32_t ccb0){
+    int8_t c=ccbChanged(int32_t* ccb,uint32_t ccb0);
+    if(c<0){return;}                                    // no change
+    int32_t v=ccb[i]-ccb0[i];
+    if(v>0){
+        for(uint8_t k=0;k<CODER_NB;k++){
+            if(ccb[k]>(MAX_16B_LINEAR_VALUE-1-v)){ccb[c]=ccb0[c];return;}      // no change : value in excess
+        }
+    }
+    else {
+        for(uint8_t k=0;k<CODER_NB;k++){
+            if(ccb[k]<=1+v){ccb[c]=ccb0[c];return;}               // no change : value in excess
+        }
+    }
+    for(uint8_t i=0;i<CODER_NB;i++){
+        if(i==c){ccb[i]=ccb0[i]+v*(CODER_NB-1);}
+        else ccb[i]+=v;
+    }
+    // ccb 16bits linear values to be changed to exponential (ie v*2^n)
+}
+#endif// MUXED_CODERS
+
+// ******** global setup ********
+
 
 bool millisTimerHandler(struct repeating_timer *t){
     millisCounter++;
     coderTimerHandler();
     return true;
-}
-
-void pio_full_reset(PIO pio) {
-
-    printf("pio#%p full reset\n",pio);
-
-    // 1. Désactiver toutes les SM
-    for (int sm = 0; sm < 4; sm++) {
-        pio_sm_set_enabled(pio, sm, false);
-    }
-
-    // 2. Libérer toutes les SM dans le SDK
-    for (int sm = 0; sm < 4; sm++) {
-        pio_sm_unclaim(pio, sm);
-    }
-
-    // 3. Effacer la mémoire d’instructions PIO
-    pio_clear_instruction_memory(pio);
-
-    // 4. Redémarrer les diviseurs de clock
-    for (int sm = 0; sm < 4; sm++) {
-        pio_sm_clkdiv_restart(pio, sm);
-    }
-
-    // 5. Reset interne complet des SM
-    for (int sm = 0; sm < 4; sm++) {
-        pio_sm_restart(pio, sm);
-    }
-
-    //printf("Dump PIO0:\n");
-    //for (int i = 0; i < 32; i++) {
-    //    printf("instr[%02d] = 0x%04x\n", i, pio0->instr_mem[i]);
-    //}
-
 }
 
 #ifdef GLOBAL_DMA_IRQ_HANDLER
@@ -103,26 +102,6 @@ void init_global_dma_irq(){
     irq_set_enabled(DMA_IRQ_1, true);
 }
 #endif  // GLOBAL_DMA_IRQ_HANDLER
-
-void pd0(){
-    printf("st_dma_chan=%d, st_dma_done=%d\n",st_dma_channel,get_st_dma_done());
-    printf("ws_dma_chan=%d, ws_dma_done=%d\n",ws_dma_channel,get_ws_dma_done());
-    printf("dma_irq_status %x\n",dma_hw->ints0);
-}
-
-void print_diag(char c,uint32_t gdis){
-    printf("%c status IRQ:%d,%d\n",c,gdis&0x0000ffff,gdis>>16);
-    pd0();
-}
-
-void print_diag(){
-    print_diag(' ');
-}
-
-void print_diag(char c){
-    printf("%c\n",c);
-    pd0();
-}
 
 void setup(){
 
@@ -174,6 +153,10 @@ void setup(){
     print_diag();
 }
 
+
+// ******** i2s feeding ********
+
+
     // exclusively called by void i2s_callback_func() in bb_i2s.cpp 
     // and dependancies _ see bb_i2s.cpp
 void next_sound_feeding(int32_t* next_sound,uint32_t next_sound_size){
@@ -199,6 +182,29 @@ void next_sound_feeding(int32_t* next_sound,uint32_t next_sound_size){
 }
 
 
+// ******** diags/debug ********
+
+
+void pd0(){
+    printf("st_dma_chan=%d, st_dma_done=%d\n",st_dma_channel,get_st_dma_done());
+    printf("ws_dma_chan=%d, ws_dma_done=%d\n",ws_dma_channel,get_ws_dma_done());
+    printf("dma_irq_status %x\n",dma_hw->ints0);
+}
+
+void print_diag(char c,uint32_t gdis){
+    printf("%c status IRQ:%d,%d\n",c,gdis&0x0000ffff,gdis>>16);
+    pd0();
+}
+
+void print_diag(){
+    print_diag(' ');
+}
+
+void print_diag(char c){
+    printf("%c\n",c);
+    pd0();
+}
+
 void dumpVal(uint32_t val){
     
     for(int i=0;i<4;i++){
@@ -207,7 +213,6 @@ void dumpVal(uint32_t val){
     }
     printf("\n");
 }
-
 
 void dumpStr16(int32_t* str){
     printf("%p    ",str);
@@ -231,4 +236,41 @@ void dumpStr(int32_t* str,uint32_t nb){
         dumpStr16(&str[i]);
     }
     printf("\n");
+}
+
+// ******** unused ********
+
+
+void pio_full_reset(PIO pio) {
+
+    printf("pio#%p full reset\n",pio);
+
+    // 1. Désactiver toutes les SM
+    for (int sm = 0; sm < 4; sm++) {
+        pio_sm_set_enabled(pio, sm, false);
+    }
+
+    // 2. Libérer toutes les SM dans le SDK
+    for (int sm = 0; sm < 4; sm++) {
+        pio_sm_unclaim(pio, sm);
+    }
+
+    // 3. Effacer la mémoire d’instructions PIO
+    pio_clear_instruction_memory(pio);
+
+    // 4. Redémarrer les diviseurs de clock
+    for (int sm = 0; sm < 4; sm++) {
+        pio_sm_clkdiv_restart(pio, sm);
+    }
+
+    // 5. Reset interne complet des SM
+    for (int sm = 0; sm < 4; sm++) {
+        pio_sm_restart(pio, sm);
+    }
+
+    //printf("Dump PIO0:\n");
+    //for (int i = 0; i < 32; i++) {
+    //    printf("instr[%02d] = 0x%04x\n", i, pio0->instr_mem[i]);
+    //}
+
 }
