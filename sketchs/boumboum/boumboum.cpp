@@ -76,13 +76,13 @@ int main() {
 
         ws_show_3(30);
 
-        //test_st7789(1000);
+        test_st7789(1000);
 
         LEDBLINK
        
     }    
 
-    while (true) {
+    while (1) {
 
         LEDBLINK
 

@@ -3,7 +3,6 @@
 #include <string.h>
 #include <stdint.h>
 #include "st7789.h"
-#include "../boumboum/const.h"
 #include "st7789_fonts.h"
 
 #include "pico/stdlib.h"
@@ -12,6 +11,9 @@
 #include "hardware/dma.h"
 
 #include "font12x12.h"
+
+#include "const.h"
+#include "util.h"
 
 extern uint32_t millisCounter;
 
@@ -70,23 +72,27 @@ int init_dma_spi() {
 
 int st7789_setup(uint32_t spiSpeed)
 {
+    gpio_init(ST7789_PIN_DC);  gpio_set_dir(ST7789_PIN_DC, GPIO_OUT);
+    gpio_init(ST7789_PIN_RST); gpio_set_dir(ST7789_PIN_RST, GPIO_OUT);
+    gpio_init(ST7789_PIN_CS);  gpio_set_dir(ST7789_PIN_CS, GPIO_OUT);
+    gpio_put(ST7789_PIN_CS, 1);
+    gpio_init(ST7789_PIN_BL);  gpio_set_dir(ST7789_PIN_BL, GPIO_OUT);
+    gpio_put(ST7789_PIN_BL, 0);
+
     spi_init(spi0, spiSpeed);
     gpio_set_function(ST7789_PIN_SCK,  GPIO_FUNC_SPI);
     gpio_set_function(ST7789_PIN_MOSI, GPIO_FUNC_SPI);
 
     spi_set_format(spi0, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
 
-    gpio_init(ST7789_PIN_DC);  gpio_set_dir(ST7789_PIN_DC, GPIO_OUT);
-    gpio_init(ST7789_PIN_RST); gpio_set_dir(ST7789_PIN_RST, GPIO_OUT);
-    gpio_init(ST7789_PIN_CS);  gpio_set_dir(ST7789_PIN_CS, GPIO_OUT);
-    gpio_put(ST7789_PIN_CS, 1);
-    gpio_init(ST7789_PIN_BL);  gpio_set_dir(ST7789_PIN_BL, GPIO_OUT);
-    gpio_put(ST7789_PIN_BL, 1);
+
 
     tft_init();
     if(init_dma_spi()<0){printf("st7789_Setup: no spi dma channel available\n");return -1;}
  
     st_dma_done = true;
+    tft_fill(0x0000);sleep_ms(100);
+    gpio_put(ST7789_PIN_BL, 1);
     return st_dma_chan;
 }
 
@@ -292,7 +298,7 @@ void tft_fill_rect(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,uint16_t
 }
 
 // ---------------------------------------------------------
-// CHARACTER 12x12
+// CHARACTER 12x12 dma
 // ---------------------------------------------------------
 void tft_draw_char_12x12(uint16_t y, uint16_t x,
                          char c,
@@ -339,7 +345,10 @@ void tft_draw_char_12x12(uint16_t y, uint16_t x,
     );
 }
 
-void tft_draw_text_12x12(uint16_t y, uint16_t x,
+// ---------------------------------------------------------
+// TEXTE 12x12 dma
+// ---------------------------------------------------------
+void tft_draw_text_12x12_dma(uint16_t y, uint16_t x,
                          const char *s,
                          uint16_t color_fg,
                          uint16_t color_bg)
@@ -353,6 +362,9 @@ void tft_draw_text_12x12(uint16_t y, uint16_t x,
     }
 }
 
+// ---------------------------------------------------------
+// TEXTE 12x12 pooling
+// ---------------------------------------------------------
 void tft_draw_text_12x12_block(
     uint16_t x,
     uint16_t y,
@@ -407,13 +419,10 @@ void tft_draw_text_12x12_block(
     );
 }
 
-void tft_draw_text_12x12_dma(
-    uint16_t x,
-    uint16_t y,
-    const char *s,
-    uint16_t fg,
-    uint16_t bg,
-    int8_t mult)
+// ---------------------------------------------------------
+// TEXTE multiple de 12x12 dma
+// ---------------------------------------------------------
+void tft_draw_text_12x12_dma_mult(uint16_t x,uint16_t y,const char *s,uint16_t fg,uint16_t bg,int8_t mult)
 {
 
     dma_wait();
@@ -473,6 +482,20 @@ void tft_draw_text_12x12_dma(
     );
 }
 
+void tft_draw_int_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_t bg,int8_t mult,int32_t num){
+    #define MAXL 32
+    char st[MAXL];
+    memset(st,0x00,MAXL);
+    convIntToString(st,num);
+    tft_draw_text_12x12_dma_mult(x,y,st,fg,bg,mult);
+}
+
+
+
+// -----------------------------------------------
+//  test : text et fillings
+// -----------------------------------------------
+
 static uint8_t testCnt=0;
 static uint32_t millis=0;
 
@@ -502,21 +525,17 @@ void test_st7789(uint32_t ms){
             tft_draw_text_12x12_block(0, 80, "$+-*,/;:?\%&#()[]{}", 0xFFFF, 0x0000);
             break;
         case 6:            
-            tft_draw_text_12x12_dma(0, 108, "$+-*,/;:?", 0xFFFF, 0x0000,2);
+            tft_draw_text_12x12_dma_mult(0, 108, "$+-*,/;:?", 0xFFFF, 0x0000,2);
             break;
         case 7:
-            tft_draw_text_12x12_dma(0, 134, "\%&#()[]{}", 0xFFFF, 0x0000,2);
+            tft_draw_text_12x12_dma_mult(0, 134, "\%&#()[]{}", 0xFFFF, 0x0000,2);
             break;
         case 8:
-            //gpio_put(TEST_PIN, 1);  // 195uS env 11500 pixels 10*12*12*2*2*2 1440*8=11520
-            tft_draw_text_12x12_dma(0, 160, "0123456789", 0xFFFF, 0x0000,2);
-            //gpio_put(TEST_PIN, 0);
+            tft_draw_text_12x12_dma_mult(0, 160, "0123456789", 0xFFFF, 0x0000,2);
             break;
         case 9:
-            tft_draw_text_12x12_dma(0, 200, "012345", 0xFFFF, 0x0000,3);
+            tft_draw_text_12x12_dma_mult(0, 200, "012345", 0xFFFF, 0x0000,3);
             break;
-        
-
         case 10:
             tft_fill_rect(0,0,TFT_H,TFT_W, 0x0000);
             break;
@@ -527,31 +546,26 @@ void test_st7789(uint32_t ms){
             tft_fill_rect(96,50,4,140, 0x0000);
             break;
         case 13:
-            tft_draw_text_12x12_dma(50, 100, "ST7789", 0xFFFF, 0x0000,2);
-            break;
-        
+            tft_draw_text_12x12_dma_mult(50, 100, "ST7789", 0xFFFF, 0x0000,2);
+            break;        
         case 14:
             tft_fill_rect(0,0,TFT_H,TFT_W, 0xFFFF);
             tft_fill_rect(50, 50, 140, 140, 0x0000);
             tft_fill_rect(96,50,4,140, 0xFFFF);
-            tft_draw_text_12x12_dma(50, 100, "ST7789", 0x0000, 0xFFFF,2);
+            tft_draw_text_12x12_dma_mult(50, 100, "ST7789", 0x0000, 0xFFFF,2);
             break;
-
         case 15:
             tft_fill_rect(0,0,TFT_W,TFT_H, 0x07E0); // vert
             tft_fill_rect(50, 50, 140, 140, 0x001F);
             break;
-
         case 16:
             tft_fill_rect(0,0,TFT_W,TFT_H, 0x001F); // rouge
             tft_fill_rect(50, 50, 140, 140, 0xF800);
             break;
-
         case 17:
             tft_fill_rect(0,0,TFT_W,TFT_H, 0xF800); // bleu
             tft_fill_rect(50, 50, 140, 140, 0x07E0);
             break;
-
         default:
             testCnt=0;
             break;
