@@ -435,16 +435,17 @@ void tft_draw_text_12x12_dma_mult(uint16_t x,uint16_t y,const char *s,uint16_t f
     int w = len * 12;
     int h = 12;
 
+    uint8_t st=0;//if(mult>1){st=1;}  // rétrécit la largeur des caractères en mode mult
     int idx = 0;
 
     for (int ligne = 0; ligne < 12; ligne++) {
 
-        for (int car = 0; car < len; car++) {
+        for (int car =0; car < len; car++) {
 
             const uint16_t *glyph = font12x12[(uint8_t)s[car]];
             uint16_t bits = glyph[ligne];
 
-            for (int bit = 0; bit < 12; bit++) {
+            for (int bit = st; bit < 12; bit++) {
 
                 uint16_t color =
                     (bits & (1 << (11 - bit))) ? fg : bg;
@@ -460,8 +461,8 @@ void tft_draw_text_12x12_dma_mult(uint16_t x,uint16_t y,const char *s,uint16_t f
         }
         uint16_t curr=idx;
         for(int8_t i=0;i<(mult-1);i++){
-            memcpy(&tft_frame[curr+(len*12*2*mult)*i], &tft_frame[curr - len * 12 * 2 * mult], len * 12 * 2 * mult);
-            idx+=len*12*2*mult;
+            memcpy(&tft_frame[curr+(len*(12-st)*2*mult)*i], &tft_frame[curr - len * (12-st) * 2 * mult], len * (12-st) * 2 * mult);
+            idx+=len*(12-st)*2*mult;
         }
     }
 
@@ -499,6 +500,8 @@ void tft_draw_int_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_t bg,i
 static uint8_t testCnt=0;
 static uint32_t millis=0;
 
+uint16_t beg=32,l=beg;
+
 void test_st7789(uint32_t ms){
 
     if((millis+ms)<millisCounter){
@@ -507,37 +510,46 @@ void test_st7789(uint32_t ms){
       switch (testCnt++){
 
         case 0:
-            tft_fill(0x0000); // écran noir
+            tft_fill_rect(beg,0,TFT_W-beg,TFT_H, 0x0000);   //tft_fill(0x0000); // écran noir
             break;
         case 1:
-            tft_draw_text_12x12_block(0, 16, "+HELLO World!", 0xFFFF, 0x0000);
+            l+=12;
+            tft_draw_text_12x12_block(0, l, "+HELLO World!", 0xFFFF, 0x0000);
             break;
         case 2:
-            tft_draw_text_12x12_block(0, 32, "AaBbCcDdEeFfGgHhIiJj", 0xFFFF, 0x0000);
+            l+=13;
+            tft_draw_text_12x12_block(0, l, "AaBbCcDdEeFfGgHhIiJj", 0xFFFF, 0x0000);
             break;
         case 3:
-            tft_draw_text_12x12_block(0, 48, "KkLlMmNnOoPpQqRrSsTt", 0xFFFF, 0x0000);
+            l+=13;    
+        tft_draw_text_12x12_block(0, l, "KkLlMmNnOoPpQqRrSsTt", 0xFFFF, 0x0000);
             break;
         case 4:
-            tft_draw_text_12x12_block(0, 64, "UuVvWwXxYyZz", 0xFFFF, 0x0000);
+            l+=13;
+            tft_draw_text_12x12_block(0, l, "UuVvWwXxYyZz", 0xFFFF, 0x0000);
             break;
         case 5:
-            tft_draw_text_12x12_block(0, 80, "$+-*,/;:?\%&#()[]{}", 0xFFFF, 0x0000);
+            l+=13;
+            tft_draw_text_12x12_block(0, l, "$+-*,/;:?\%&#()[]{}", 0xFFFF, 0x0000);
             break;
-        case 6:            
-            tft_draw_text_12x12_dma_mult(0, 108, "$+-*,/;:?", 0xFFFF, 0x0000,2);
+        case 6:
+            l+=12*2;            
+            tft_draw_text_12x12_dma_mult(0, l, "$+-*,/;:?", 0xFFFF, 0x0000,2);
             break;
         case 7:
-            tft_draw_text_12x12_dma_mult(0, 134, "\%&#()[]{}", 0xFFFF, 0x0000,2);
+            l+=12*2+2;
+            tft_draw_text_12x12_dma_mult(0, l, "\%&#()[]{}", 0xFFFF, 0x0000,2);
             break;
         case 8:
-            tft_draw_text_12x12_dma_mult(0, 160, "0123456789", 0xFFFF, 0x0000,2);
+            l+=12*2+2;
+            tft_draw_text_12x12_dma_mult(0, l, "0123456789", 0xFFFF, 0x0000,2);
             break;
         case 9:
-            tft_draw_text_12x12_dma_mult(0, 200, "012345", 0xFFFF, 0x0000,3);
+            l+=12*3-6;
+            tft_draw_text_12x12_dma_mult(0, l, "012345", 0xFFFF, 0x0000,3);
             break;
         case 10:
-            tft_fill_rect(0,0,TFT_H,TFT_W, 0x0000);
+            tft_fill_rect(beg,0,TFT_W-beg,TFT_H, 0x0000);
             break;
         case 11:
             tft_fill_rect(50, 50, 140, 140, 0xFFFF);
@@ -549,25 +561,26 @@ void test_st7789(uint32_t ms){
             tft_draw_text_12x12_dma_mult(50, 100, "ST7789", 0xFFFF, 0x0000,2);
             break;        
         case 14:
-            tft_fill_rect(0,0,TFT_H,TFT_W, 0xFFFF);
+            tft_fill_rect(beg,0,TFT_W-beg,TFT_H, 0xFFFF);
             tft_fill_rect(50, 50, 140, 140, 0x0000);
             tft_fill_rect(96,50,4,140, 0xFFFF);
             tft_draw_text_12x12_dma_mult(50, 100, "ST7789", 0x0000, 0xFFFF,2);
             break;
         case 15:
-            tft_fill_rect(0,0,TFT_W,TFT_H, 0x07E0); // vert
+            tft_fill_rect(beg,0,TFT_W-beg,TFT_H, 0x07E0); // vert
             tft_fill_rect(50, 50, 140, 140, 0x001F);
             break;
         case 16:
-            tft_fill_rect(0,0,TFT_W,TFT_H, 0x001F); // rouge
+            tft_fill_rect(beg,0,TFT_W-beg,TFT_H, 0x001F); // rouge
             tft_fill_rect(50, 50, 140, 140, 0xF800);
             break;
         case 17:
-            tft_fill_rect(0,0,TFT_W,TFT_H, 0xF800); // bleu
+            tft_fill_rect(beg,0,TFT_W-beg,TFT_H, 0xF800); // bleu
             tft_fill_rect(50, 50, 140, 140, 0x07E0);
             break;
         default:
             testCnt=0;
+            l=beg;
             break;
       }
     }

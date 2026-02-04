@@ -70,19 +70,13 @@ int main() {
     freq_lin=1943;      // 440Hz
 
     coder1Counter=freq_lin;
-    voices[0].frequency=calcFreq(coder1Counter);
+    voices[0].frequency=calcFreq(coder1Counter);   
 
-    while(1){       
+    while (1) {
 
         ws_show_3(30);
 
         test_st7789(1000);
-
-        LEDBLINK
-       
-    }    
-
-    while (1) {
 
         LEDBLINK
 
@@ -91,6 +85,9 @@ int main() {
 
             coder1Counter0=coder1Counter;
             voices[0].newFrequency=calcFreq(coder1Counter);
+
+            tft_draw_text_12x12_dma_mult(0,12,"coder:", 0xFFFF, 0x0000,1);
+            tft_draw_int_12x12_dma_mult(74,12,0xffff,0x0000,2,coder1Counter);
 
             printf("freq:%5.3f ampl:%d   \r",voices[0].frequency,voices[0].genAmpl);           
         }

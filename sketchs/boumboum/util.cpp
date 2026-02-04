@@ -147,7 +147,7 @@ void setup(){
     #endif
 
     tft_fill(0x000000);
-    tft_draw_text_12x12_dma_mult(20, 100, "ST7789", 0xFFFF, 0x0000,3);
+    tft_draw_text_12x12_dma_mult(16, 100, "ST7789", 0xFFFF, 0x0000,3);
     sleep_ms(5000);
     tft_fill(0x000000);
 
