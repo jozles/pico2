@@ -5,6 +5,7 @@
 #include "const.h"
 #include "coder.h"
 #include "util.h"
+#include "st7789.h"
 
 
 #ifndef MUXED_CODER
@@ -26,6 +27,7 @@ volatile int32_t* coderTimerCount=nullptr;  // ptr to current value to be inc or
 uint8_t gpio_clock_pin;
 uint8_t gpio_data_pin;
 uint8_t gpio_switch_pin;
+uint8_t gpio_vcc_pin;
 #ifdef MUXED_CODER
 uint8_t gpio_sel0_pin;
 uint8_t coder_nb;
@@ -34,6 +36,7 @@ uint32_t sel_gpio_mask=0;
 #endif  // MUXED_CODER
 
 extern volatile uint32_t millisCounter;
+extern volatile uint32_t dma_tfr_count;
 
 extern PIO pio;
 
@@ -43,6 +46,15 @@ bool coderTimerHandler(){
 
     coderClock=gpio_get(gpio_clock_pin);
     
+    if(millisCounter%1000==0){
+        coderData=gpio_get(gpio_data_pin);
+        char a[]={(char)(65+coderClock),(char)(coderData+65),(char)0x00};
+        //tft_draw_text_12x12_dma_mult(156,12,a,0xffff,0x0000,1);
+        //tft_draw_int_12x12_dma_mult(180,12,0xffff,0x0000,1,millisCounter/1000);
+        tft_draw_int_12x12_dma_mult(180,12,0xffff,0x0000,1,dma_tfr_count);
+    }
+
+
     if(coderClock == coderClock0){                                // no change 
         if(coderItStatus<coderStrobeNumber){                      // wait for change after strobe delay
             coderItStatus++;return true;}
@@ -81,11 +93,12 @@ bool coderTimerHandler(){
     return true;    // relancer le timer
 }
 
-void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint16_t ctpi,uint8_t cstn){
+void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint16_t ctpi,uint8_t cstn){
     
     gpio_clock_pin=ck;
     gpio_data_pin=data;
     gpio_switch_pin=sw;
+    gpio_vcc_pin=vc;
 
     coderTimerPoolingInterval=ctpi;
     coderStrobeNumber=cstn;
@@ -95,6 +108,8 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint16_t ctpi,uint8_t cstn){
     gpio_init(gpio_data_pin);gpio_set_dir(gpio_data_pin,GPIO_IN); 
     gpio_init(gpio_clock_pin);gpio_set_dir(gpio_clock_pin,GPIO_IN);
     gpio_init(gpio_switch_pin);gpio_set_dir(gpio_switch_pin,GPIO_IN);
+    gpio_init(gpio_vcc_pin);gpio_set_dir(gpio_vcc_pin,GPIO_OUT);gpio_put(gpio_vcc_pin,1);
+
 
     coderClock0=gpio_get(gpio_clock_pin);
     coderData0=gpio_get(gpio_data_pin);
@@ -152,11 +167,12 @@ bool coderTimerHandler(Coder* c){
     return true;    // relancer le timer
 }
 
-void coderInit(Coders* c,uint8_t ck,uint8_t data,uint8_t sw,uint8_t sel0,uint8_t sel_nb,uint8_t nb,uint16_t ctpi,uint8_t cstn){
+void coderInit(Coders* c,uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_t sel_nb,uint8_t nb,uint16_t ctpi,uint8_t cstn){
  
     gpio_clock_pin=ck;
     gpio_data_pin=data;
     gpio_switch_pin=sw;
+    gpio_vcc_pin=vc;
     gpio_base=sel0;
     coder_sel_nb=sel_nb;
     coder_nb=nb;
@@ -167,6 +183,7 @@ void coderInit(Coders* c,uint8_t ck,uint8_t data,uint8_t sw,uint8_t sel0,uint8_t
     gpio_init(pio_data_pin);gpio_set_dir(gpio_data_pin,GPIO_IN); 
     gpio_init(pio_clock_pin);gpio_set_dir(gpio_clock_pin,GPIO_IN);
     gpio_init(pio_switch_pin);gpio_set_dir(gpio_switch_pin,GPIO_IN);
+    gpio_init(gpio_vcc_pin);gpio_set_dir(gpio_vcc_pin,GPIO_OUT);gpio_put(gpio_vcc_pin,1);
 
     for(int pin=gpio_base;pin<pin+coder_sel_nb;pin++){
         sel_gpio_mask |=1u<<pin;

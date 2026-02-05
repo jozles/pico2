@@ -50,7 +50,9 @@ volatile int16_t amplitude=0;
 
 static PIO pioWs = ws2812_pio;   // pio0 used by i2s
 
+// debug
 
+volatile uint32_t dma_tfr_count=0;
 
 
 int main() {

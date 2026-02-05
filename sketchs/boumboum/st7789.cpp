@@ -9,6 +9,7 @@
 #include "hardware/spi.h"
 #include "hardware/gpio.h"
 #include "hardware/dma.h"
+#include "hardware/sync.h"
 
 #include "font12x12.h"
 
@@ -16,6 +17,7 @@
 #include "util.h"
 
 extern uint32_t millisCounter;
+extern uint32_t dma_tfr_count;
 
 static int st_dma_chan;
 static dma_channel_config dma_cfg;
@@ -25,9 +27,33 @@ static uint8_t tft_frame[TFT_W * TFT_H * 2];
 
 static void tft_init(void);
 
-void dma_wait(){
+/*void dma_wait(){
+
     while (!st_dma_done) {
         tight_loop_contents();
+    }
+}*/
+
+/*void dma_wait(){
+    bool ok=false;
+    while(!ok){
+        uint32_t save = save_and_disable_interrupts();
+        if(st_dma_done) {st_dma_done=false;ok=true;}
+        restore_interrupts(save);
+        if(!ok){sleep_us(500);}
+    }
+}*/
+
+void dma_wait(){                        // wait for end of current st dma usage 
+    uint32_t save;                      // and set st_dma_done false
+    while(true){
+        save = save_and_disable_interrupts();
+        if(st_dma_done) {
+            st_dma_done=false;
+            restore_interrupts(save);
+            return;}
+        restore_interrupts(save);
+        sleep_us(500);
     }
 }
 
@@ -38,8 +64,6 @@ void dma_wait(){
 volatile bool get_st_dma_done(){return st_dma_done;}
 
 void st_dma_irq_handler() {
-    dma_hw->ints0 = 1u << st_dma_chan;   // clear IRQ
-
     // attendre que le SPI ait vidé son FIFO
     while (spi_is_busy(spi0)) {
         tight_loop_contents();
@@ -47,6 +71,10 @@ void st_dma_irq_handler() {
 
     gpio_put(ST7789_PIN_CS, 1);              // FIN du transfert complet
     st_dma_done = true;
+
+    dma_tfr_count++;
+    
+    dma_hw->ints0 = 1u << st_dma_chan;   // clear IRQ
 }
 
 // ---------------------------------------------------------
@@ -241,8 +269,6 @@ void tft_fill(uint16_t color) {
 
     tft_set_window(0, 0, TFT_W - 1, TFT_H - 1);
 
-    st_dma_done = false;
-
     gpio_put(ST7789_PIN_DC, 1);
     gpio_put(ST7789_PIN_CS, 0);
 
@@ -282,8 +308,6 @@ void tft_fill_rect(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,uint16_t
     tft_set_window(beg_col,beg_line,beg_col+col_nb-1,beg_line+lines_nb-1);
 
     // 4) lancer un seul DMA pour tout le pavé
-    st_dma_done = false;
-
     gpio_put(ST7789_PIN_DC, 1);
     gpio_put(ST7789_PIN_CS, 0);
 
@@ -331,7 +355,6 @@ void tft_draw_char_12x12(uint16_t y, uint16_t x,
     // fenêtre exacte
     tft_set_window(x, y, x + w - 1, y + h - 1);
 
-    st_dma_done = false;
     gpio_put(ST7789_PIN_DC, 1);
     gpio_put(ST7789_PIN_CS, 0);
 
@@ -405,7 +428,6 @@ void tft_draw_text_12x12_block(
     // fenêtre = position réelle sur l'écran
     tft_set_window(x, y, x + w - 1, y + h - 1);
 
-    st_dma_done = false;
     gpio_put(ST7789_PIN_DC, 1);
     gpio_put(ST7789_PIN_CS, 0);
 
@@ -430,36 +452,36 @@ void tft_draw_text_12x12_dma_mult(uint16_t x,uint16_t y,const char *s,uint16_t f
     if(mult<1){mult=1;}
 
     int len = 0;
-    while (s[len]) len++;
+    while (s[len]) len++;if(len>31){while(1){sleep_ms(250);gpio_put(LED,0);sleep_ms(250);gpio_put(LED,1);}};
 
-    int w = len * 12;
-    int h = 12;
-
-    uint8_t st=0;//if(mult>1){st=1;}  // rétrécit la largeur des caractères en mode mult
+    uint8_t st=0;if(mult>1){st=2;}  // rétrécit la largeur/hauteur des caractères en mode mult
     int idx = 0;
 
-    for (int ligne = 0; ligne < 12; ligne++) {
+    int w = len * (12-st);
+    int h = 12-st;
+
+    for (int ligne = 0; ligne < (12-st); ligne++) {
 
         for (int car =0; car < len; car++) {
 
             const uint16_t *glyph = font12x12[(uint8_t)s[car]];
             uint16_t bits = glyph[ligne];
 
-            for (int bit = st; bit < 12; bit++) {
+            for (int bit = 0; bit < (12-st); bit++) {           // la fonte est 12x12 on utilise 11x11 en mult
 
                 uint16_t color =
-                    (bits & (1 << (11 - bit))) ? fg : bg;
+                    (bits & (1 << (11 - bit-st))) ? fg : bg;
 
                 tft_frame[idx++] = color >> 8;
                 tft_frame[idx++] = color & 0xFF;
-                for(int8_t i=0;i<mult-1;i++){
+                for(int8_t i=0;i<mult-1;i++){               // duplic horizontale
                     tft_frame[idx] = tft_frame[idx-2];
                     tft_frame[idx+1] = tft_frame[idx-1];
                     idx+=2;                    
                 }
             }
         }
-        uint16_t curr=idx;
+        uint16_t curr=idx;                                  // duplic verticale
         for(int8_t i=0;i<(mult-1);i++){
             memcpy(&tft_frame[curr+(len*(12-st)*2*mult)*i], &tft_frame[curr - len * (12-st) * 2 * mult], len * (12-st) * 2 * mult);
             idx+=len*(12-st)*2*mult;
@@ -469,7 +491,6 @@ void tft_draw_text_12x12_dma_mult(uint16_t x,uint16_t y,const char *s,uint16_t f
     // fenêtre = position réelle sur l'écran
     tft_set_window(x, y, x + w*mult - 1, y + h*mult - 1);
 
-    st_dma_done = false;
     gpio_put(ST7789_PIN_DC, 1);
     gpio_put(ST7789_PIN_CS, 0);
 
@@ -483,12 +504,22 @@ void tft_draw_text_12x12_dma_mult(uint16_t x,uint16_t y,const char *s,uint16_t f
     );
 }
 
-void tft_draw_int_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_t bg,int8_t mult,int32_t num){
+uint16_t tft_draw_int_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_t bg,int8_t mult,int32_t num){
     #define MAXL 32
     char st[MAXL];
     memset(st,0x00,MAXL);
     convIntToString(st,num);
     tft_draw_text_12x12_dma_mult(x,y,st,fg,bg,mult);
+    return strstr(st,"\0")-st;
+}
+
+uint16_t tft_draw_float_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_t bg,int8_t mult,float num){
+    #define MAXL 32
+    char st[MAXL];
+    memset(st,0x00,MAXL);
+    convNumToString(st,num);
+    tft_draw_text_12x12_dma_mult(x,y,st,fg,bg,mult);
+    return strstr(st,"\0")-st;
 }
 
 
@@ -500,7 +531,7 @@ void tft_draw_int_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_t bg,i
 static uint8_t testCnt=0;
 static uint32_t millis=0;
 
-uint16_t beg=32,l=beg;
+uint16_t beg=32,l=beg,m=2;
 
 void test_st7789(uint32_t ms){
 
@@ -546,7 +577,7 @@ void test_st7789(uint32_t ms){
             break;
         case 9:
             l+=12*3-6;
-            tft_draw_text_12x12_dma_mult(0, l, "012345", 0xFFFF, 0x0000,3);
+            tft_draw_text_12x12_dma_mult(0, l, "01234567", 0xFFFF, 0x0000,3);
             break;
         case 10:
             tft_fill_rect(beg,0,TFT_W-beg,TFT_H, 0x0000);
@@ -555,16 +586,16 @@ void test_st7789(uint32_t ms){
             tft_fill_rect(50, 50, 140, 140, 0xFFFF);
             break;
         case 12:
-            tft_fill_rect(96,50,4,140, 0x0000);
+            tft_fill_rect(50+beg-4,(TFT_W-(6*10*m))/2,4,(6*10*m), 0x0000);
             break;
         case 13:
-            tft_draw_text_12x12_dma_mult(50, 100, "ST7789", 0xFFFF, 0x0000,2);
+            tft_draw_text_12x12_dma_mult((TFT_W-(6*10*m))/2,50+beg,"ST7789", 0xFFFF, 0x0000,m);
             break;        
         case 14:
             tft_fill_rect(beg,0,TFT_W-beg,TFT_H, 0xFFFF);
             tft_fill_rect(50, 50, 140, 140, 0x0000);
-            tft_fill_rect(96,50,4,140, 0xFFFF);
-            tft_draw_text_12x12_dma_mult(50, 100, "ST7789", 0x0000, 0xFFFF,2);
+            tft_fill_rect(50+beg-4,(TFT_W-(6*10*m))/2,4,(6*10*m), 0xffff);
+            tft_draw_text_12x12_dma_mult((TFT_W-(6*10*m))/2,50+beg, "ST7789", 0x0000, 0xFFFF,m);
             break;
         case 15:
             tft_fill_rect(beg,0,TFT_W-beg,TFT_H, 0x07E0); // vert

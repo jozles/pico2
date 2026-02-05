@@ -77,6 +77,8 @@ void autoMixer(int32_t* ccb,uint32_t ccb0){
 bool millisTimerHandler(struct repeating_timer *t){
     millisCounter++;
     coderTimerHandler();
+//    if(millisCounter%1000==0){
+//        tft_draw_int_12x12_dma_mult(165,12,0xffff,0x0000,1,millisCounter/1000);}
     return true;
 }
 
@@ -117,10 +119,10 @@ void setup(){
     gpio_put(PIN_DCDC_PSM_CTRL, 1); // PWM mode for less Audio noise
     
     #ifndef MUXED_CODER
-    coderInit(CODER_PIO_CLOCK,CODER_PIO_DATA,CODER_PIO_SW,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER);
+    coderInit(CODER_GPIO_CLOCK,CODER_GPIO_DATA,CODER_GPIO_SW,CODER_GPIO_VCC,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER);
     #endif  // MUXED_CODER
     #ifdef MUXED_CODER
-    coderInit(CODER_PIO_CLOCK,CODER_PIO_DATA,CODER_PIO_SW,CODER_PIO_SEL0,CODER_SEL_NB,CODER_NB,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER);
+    coderInit(CODER_GPIO_CLOCK,CODER_GPIO_DATA,CODER_GPIO_SW,CODER_GPIO_VCC,CODER_PIO_SEL0,CODER_SEL_NB,CODER_NB,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER);
     #endif // MUXED_CODER
     
     // irq timer
@@ -147,7 +149,12 @@ void setup(){
     #endif
 
     tft_fill(0x000000);
-    tft_draw_text_12x12_dma_mult(16, 100, "ST7789", 0xFFFF, 0x0000,3);
+    uint8_t m=3;
+    tft_draw_text_12x12_dma_mult((TFT_W-(6*10*m))/2,(TFT_H-m*10)/2, "ST7789", 0xFFFF, 0x0000,m);
+    uint8_t ls=16;
+    char s[ls];memset(s,0x00,ls);
+    convIntToString(s,TFT_W);s[3]='x';convIntToString(s+4,TFT_H);
+    tft_draw_text_12x12_dma_mult((TFT_W-(7*10))/2,TFT_H/2+14,s, 0xFFFF, 0x0000,1);
     sleep_ms(5000);
     tft_fill(0x000000);
 
@@ -310,7 +317,7 @@ uint16_t ato64(char* srce,char* dest,uint32_t len)   // len dest >= len srce*(1,
   return j-1;
 }
 
-int convIntToString(char* str,int num,uint8_t len)
+int convIntToString(char* str,int32_t num,uint8_t len)
 {
   int i=0,t=0,num0=num;
   if(num<0){i=1;str[0]='-';}
@@ -323,7 +330,7 @@ int convIntToString(char* str,int num,uint8_t len)
   return t;
 }
 
-int convIntToString(char* str,int num)
+int convIntToString(char* str,int32_t num)
 {
   return convIntToString(str,num,0);
 }

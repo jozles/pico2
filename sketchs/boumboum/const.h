@@ -10,14 +10,33 @@
 
 /* coder */
 
-#define CODER_PIO_CLOCK         14          
-#define CODER_PIO_DATA          15          
-#define CODER_PIO_SW            16          
+#define CODER_GPIO_CLOCK         10          
+#define CODER_GPIO_DATA          11          
+#define CODER_GPIO_SW            12
+#define CODER_GPIO_VCC           13
 
 #ifdef MUXED_CODER
 #define CODER_SEL_NB            4
-#define CODER_NB                6
-#define CODER_PIO_SEL0          9     // CODER_NB consecutive pins
+#define CODER_NB                8
+#define CODER_PIO_SEL0          6       // CODER_NB consecutive pins
+
+// *** coders actions ***
+
+#define SIN_LEV                 2       // sinus coder
+#define SQR_LEV                 3       // sqare coder
+#define TRI_LEV                 4       // triangle level
+#define SAW_LEV                 5       // sawtooth level
+#define WHI_LEV                 6       // white noise level
+#define PIN_LEV                 7       // pink noise level
+
+#define FREQUENCY               0       // voice frequency in every function 
+
+#define ATTACK                  2       // attack duration 
+#define DECAY                   3       // decay duration 
+#define SUSTAIN                 4       // sustain duration
+#define RELEASE                 5       // realease duration
+#define SUSTAIN_LEVEL           6       // sustain level
+
 #endif // MUXED_CODER
 
 #define LOW 0
@@ -117,10 +136,10 @@
 #define SAMPLES_PER_BUFFER 1024 //1156     // Samples / channel   
 #define SAMPLE_BUFFER_SIZE SAMPLES_PER_BUFFER  // nombre d'échantillons par buffer (doit être multiple de 4 pour le dma i2s)
 
-#define BASIC_WAVE_TABLE_POW 11      // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
+#define BASIC_WAVE_TABLE_POW 11     // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
 #define BASIC_WAVE_TABLE_LEN 2048   // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
-//#define SINE_WAVE_TABLE_POW 11      // ***** POWER OF 2 *****  nombre d'échantillons dans la table d'onde sinus
-//#define SINE_WAVE_TABLE_LEN 2048    // ***** POWER OF 2 *****  nombre d'échantillons dans la table d'onde sinus
+//#define SINE_WAVE_TABLE_POW 11    // ***** POWER OF 2 *****  nombre d'échantillons dans la table d'onde sinus
+//#define SINE_WAVE_TABLE_LEN 2048  // ***** POWER OF 2 *****  nombre d'échantillons dans la table d'onde sinus
 
 #define VOICES_NB 4                 // nombre de voix simultanées
 
