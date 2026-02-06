@@ -7,6 +7,8 @@
 #include "hardware/pio.h"
 #include "hardware/clocks.h"
 #include "hardware/dma.h"
+#include "hardware/sync.h"
+
 #include "ws2812.pio.h"
 #include "const.h"
 #include "st7789.h"
@@ -20,6 +22,7 @@ extern volatile uint32_t millisCounter;
 static int ws_dma_chan;
 static dma_channel_config dma_cfg;
 static volatile bool ws_dma_done = false;
+static spin_lock_t *ws_dma_lock;
 
 static PIO ws_pio;
 static int ws_sm;
@@ -28,9 +31,22 @@ extern uint32_t gdis;
 
 volatile bool get_ws_dma_done(){return ws_dma_done;}
 
+void ws_dma_wait(){                     // wait for end of current st dma usage 
+    uint32_t save;                      // and set st_dma_done false
+    while(true){
+        uint32_t f = spin_lock_blocking(ws_dma_lock); //save = save_and_disable_interrupts();
+        if(ws_dma_done) {
+            ws_dma_done=false;
+            spin_unlock(ws_dma_lock, f);                  // restore_interrupts(save);
+            return;}
+        spin_unlock(ws_dma_lock, f);                  // restore_interrupts(save);
+        sleep_us(100);
+    }
+}
+
 void ws_dma_irq_handler() {
-    dma_hw->ints0 = 1u << ws_dma_chan;   // clear IRQ
     ws_dma_done = true;
+    dma_hw->ints0 = 1u << ws_dma_chan;   // clear IRQ
 }
 
 int init_dma_ws() {
@@ -83,6 +99,7 @@ int ledsWs2812Setup(PIO pio,uint8_t ledPin) {
     if(init_dma_ws()<0){printf("ledsWs2812Setup: no dma channel available\n");return -1;}
     
     ws_dma_done=true;
+    ws_dma_lock = spin_lock_init(WS_LOCK);
 
     printf("début ws2812\n");
     return ws_dma_chan;
@@ -95,9 +112,8 @@ void pio_sm_put_blocking_array(PIO pio, uint sm, const uint32_t *src, size_t len
 }
 
 void pio_sm_put_dma_array(PIO pio, uint sm, const uint32_t *src, size_t len) {
-    //print_diag('1',gdis);
-    while (!ws_dma_done) {tight_loop_contents();}
-    ws_dma_done=false;
+
+    ws_dma_wait();
     dma_channel_configure(ws_dma_chan,&dma_cfg,&pio->txf[sm],src,len,true);  
 }
 

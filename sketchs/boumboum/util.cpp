@@ -33,7 +33,7 @@ volatile uint32_t durOffOn[]={LEDOFFDUR,LEDONDUR};
 volatile bool led=false;
 volatile uint32_t ledBlinker=0;
 
-struct repeating_timer millisTimer;
+static repeating_timer millisTimer;
 
 float amplIncr[MAX_16B_LINEAR_VALUE];
 
@@ -74,23 +74,20 @@ void autoMixer(int32_t* ccb,uint32_t ccb0){
 // ******** global setup ********
 
 
-bool millisTimerHandler(struct repeating_timer *t){
+bool millisTimerHandler(repeating_timer *t){
     millisCounter++;
     coderTimerHandler();
 //    if(millisCounter%1000==0){
 //        tft_draw_int_12x12_dma_mult(165,12,0xffff,0x0000,1,millisCounter/1000);}
+//        tft_draw_int_12x12_dma_mult(180,12,0xffff,0x0000,1,dma_tfr_count);}
     return true;
 }
 
 #ifdef GLOBAL_DMA_IRQ_HANDLER
 
-uint32_t gdis;
-
 void global_dma_irq_handler(){
     
     uint32_t global_dma_irq_status = dma_hw->intr;
-gdis &= 0xffff0000;    
-gdis+=(global_dma_irq_status+256*256);
 
     if((global_dma_irq_status & (1u << ws_dma_channel))!=0){
         ws_dma_irq_handler();
@@ -107,9 +104,6 @@ void init_global_dma_irq(){
 #endif  // GLOBAL_DMA_IRQ_HANDLER
 
 void setup(){
-
-    //pio_full_reset(pio0);
-    //pio_full_reset(pio1);
 
     gpio_init(LED);gpio_set_dir(LED,GPIO_OUT); gpio_put(LED,LOW);
 
@@ -163,9 +157,9 @@ void setup(){
 
 }
 
-
+// -----------------------------
 // ******** i2s feeding ********
-
+// -----------------------------
 
     // exclusively called by void i2s_callback_func() in bb_i2s.cpp 
     // and dependancies _ see bb_i2s.cpp
@@ -193,7 +187,6 @@ void next_sound_feeding(int32_t* next_sound,uint32_t next_sound_size){
 
 
 // ******** diags/debug ********
-
 
 void pd0(){
     printf("st_dma_chan=%d, st_dma_done=%d\n",st_dma_channel,get_st_dma_done());
@@ -250,7 +243,6 @@ void dumpStr(int32_t* str,uint32_t nb){
 
 // ******** unused ********
 
-
 void pio_full_reset(PIO pio) {
 
     printf("pio#%p full reset\n",pio);
@@ -285,9 +277,10 @@ void pio_full_reset(PIO pio) {
 
 }
 
+// ----------------------------------
+//             conversions
 // ******** from shutil2.cpp ********
-
-
+// ----------------------------------
 
 const char* chexa="0123456789ABCDEFabcdef\0";
 
@@ -663,3 +656,14 @@ uint8_t getNumCh(char min,char max)
 }
 
 
+void show_cnt(uint32_t cnt,uint16_t x,uint16_t y){
+    if(millisCounter%1000==0){
+        int v10=(cnt%10);
+        int v100=((cnt/10)%10);
+        int v1000=((cnt/100)%10);
+        int v10000=((cnt/1000)%10);
+        int v100000=((cnt/10000)%10);
+        char a[]={(char)(v100000+48),(char)(v10000+48),(char)(v1000+48),(char)(v100+48),(char)(v10+48),(char)0x00};
+        tft_draw_text_12x12_dma_mult(x,y,a,0xffff,0x0000,1);
+    }
+}

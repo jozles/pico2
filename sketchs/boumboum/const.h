@@ -8,6 +8,11 @@
 
 #define BB_TEST_MODE
 
+/* spin_locks */
+
+#define DMA_LOCK 2
+#define WS_LOCK  3
+
 /* coder */
 
 #define CODER_GPIO_CLOCK         10          

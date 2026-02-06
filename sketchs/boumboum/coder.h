@@ -22,6 +22,8 @@ struct Coders{
 
 void coderSetup(volatile int32_t* cTC);
 
+void show_cnt();
+
 
 
 #endif /* CODER_H_ */

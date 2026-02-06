@@ -52,8 +52,7 @@ static PIO pioWs = ws2812_pio;   // pio0 used by i2s
 
 // debug
 
-volatile uint32_t dma_tfr_count=0;
-
+volatile uint32_t st_dma_tfr_count=0;
 
 int main() {
     stdio_init_all();
@@ -90,9 +89,10 @@ int main() {
 
             tft_draw_text_12x12_dma_mult(0,12,"coder:", 0xFFFF, 0x0000,1);
             tft_draw_int_12x12_dma_mult(74,12,0xffff,0x0000,2,coder1Counter);
-
+            
             printf("freq:%5.3f ampl:%d   \r",voices[0].frequency,voices[0].genAmpl);           
         }
+        show_cnt(st_dma_tfr_count,180,12);
     }
 #endif  // MUXED_CODER 
 

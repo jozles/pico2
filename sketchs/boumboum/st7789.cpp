@@ -17,62 +17,44 @@
 #include "util.h"
 
 extern uint32_t millisCounter;
-extern uint32_t dma_tfr_count;
+extern uint32_t st_dma_tfr_count;
 
 static int st_dma_chan;
 static dma_channel_config dma_cfg;
 static volatile bool st_dma_done = false;
+static spin_lock_t *st_dma_lock;
 
 static uint8_t tft_frame[TFT_W * TFT_H * 2];
 
 static void tft_init(void);
 
-/*void dma_wait(){
+// ---------------------------------------------------------
+// DMA IRQ : gestion dma_done
+// ---------------------------------------------------------
 
-    while (!st_dma_done) {
-        tight_loop_contents();
-    }
-}*/
-
-/*void dma_wait(){
-    bool ok=false;
-    while(!ok){
-        uint32_t save = save_and_disable_interrupts();
-        if(st_dma_done) {st_dma_done=false;ok=true;}
-        restore_interrupts(save);
-        if(!ok){sleep_us(500);}
-    }
-}*/
-
-void dma_wait(){                        // wait for end of current st dma usage 
-    uint32_t save;                      // and set st_dma_done false
+void st_dma_wait(){                     // wait for end of current st dma usage 
     while(true){
-        save = save_and_disable_interrupts();
+        uint32_t f = spin_lock_blocking(st_dma_lock); //protège dma_done contre un accès asynchrone
         if(st_dma_done) {
             st_dma_done=false;
-            restore_interrupts(save);
+            spin_unlock(st_dma_lock, f);
+            st_dma_tfr_count++;
             return;}
-        restore_interrupts(save);
-        sleep_us(500);
+        spin_unlock(st_dma_lock, f);
+        sleep_us(100);
     }
 }
-
-// ---------------------------------------------------------
-// DMA IRQ : remonte CS quand le transfert complet est fini
-// ---------------------------------------------------------
 
 volatile bool get_st_dma_done(){return st_dma_done;}
 
 void st_dma_irq_handler() {
-    // attendre que le SPI ait vidé son FIFO
+
     while (spi_is_busy(spi0)) {
         tight_loop_contents();
     }
 
-    gpio_put(ST7789_PIN_CS, 1);              // FIN du transfert complet
-    st_dma_done = true;
-
-    dma_tfr_count++;
+    gpio_put(ST7789_PIN_CS, 1);          // FIN du transfert complet
+    st_dma_done=true;
     
     dma_hw->ints0 = 1u << st_dma_chan;   // clear IRQ
 }
@@ -119,6 +101,8 @@ int st7789_setup(uint32_t spiSpeed)
     if(init_dma_spi()<0){printf("st7789_Setup: no spi dma channel available\n");return -1;}
  
     st_dma_done = true;
+    st_dma_lock = spin_lock_init(DMA_LOCK);
+
     tft_fill(0x0000);sleep_ms(100);
     gpio_put(ST7789_PIN_BL, 1);
     return st_dma_chan;
@@ -257,7 +241,7 @@ static void tft_set_window(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) {
 // ---------------------------------------------------------
 void tft_fill(uint16_t color) {
 
-    dma_wait();
+    st_dma_wait();
 
     static uint8_t frame[TFT_W * TFT_H * 2];
 
@@ -292,7 +276,7 @@ void tft_fill(uint16_t color) {
 void tft_fill_rect(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,uint16_t col_nb,uint16_t color)
 {
 
-    dma_wait();
+    st_dma_wait();
 
     // 1) buffer EXACT de la taille du pavé
     size_t total_pixels = lines_nb * col_nb;
@@ -330,7 +314,7 @@ void tft_draw_char_12x12(uint16_t y, uint16_t x,
                          uint16_t color_bg)
 {
     
-    dma_wait();
+    st_dma_wait();
     
     const uint16_t *glyph = font12x12[(uint8_t)c];
 
@@ -376,7 +360,7 @@ void tft_draw_text_12x12_dma(uint16_t y, uint16_t x,
                          uint16_t color_fg,
                          uint16_t color_bg)
 {
-    dma_wait();
+    st_dma_wait();
     
     while (*s) {
         tft_draw_char_12x12(y, x, *s, color_fg, color_bg);
@@ -395,7 +379,7 @@ void tft_draw_text_12x12_block(
     uint16_t fg,
     uint16_t bg)
 {
-    dma_wait();
+    st_dma_wait();
 
     int len = 0;
     while (s[len]) len++;
@@ -447,7 +431,7 @@ void tft_draw_text_12x12_block(
 void tft_draw_text_12x12_dma_mult(uint16_t x,uint16_t y,const char *s,uint16_t fg,uint16_t bg,int8_t mult)
 {
 
-    dma_wait();
+    st_dma_wait();
 
     if(mult<1){mult=1;}
 

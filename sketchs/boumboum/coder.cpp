@@ -45,15 +45,6 @@ extern PIO pio;
 bool coderTimerHandler(){
 
     coderClock=gpio_get(gpio_clock_pin);
-    
-    if(millisCounter%1000==0){
-        coderData=gpio_get(gpio_data_pin);
-        char a[]={(char)(65+coderClock),(char)(coderData+65),(char)0x00};
-        //tft_draw_text_12x12_dma_mult(156,12,a,0xffff,0x0000,1);
-        //tft_draw_int_12x12_dma_mult(180,12,0xffff,0x0000,1,millisCounter/1000);
-        tft_draw_int_12x12_dma_mult(180,12,0xffff,0x0000,1,dma_tfr_count);
-    }
-
 
     if(coderClock == coderClock0){                                // no change 
         if(coderItStatus<coderStrobeNumber){                      // wait for change after strobe delay
