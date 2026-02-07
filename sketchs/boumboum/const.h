@@ -159,6 +159,9 @@
 
 /* st7789 */
 
+#define TFT_W 240
+#define TFT_H 240
+
 // le dma utilise l'irq1 ; l'irq 0 est utilisée par le dma de l'i2s
 
 #define ST7789_PIN_SCK   18

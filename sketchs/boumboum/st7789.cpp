@@ -24,7 +24,7 @@ static dma_channel_config dma_cfg;
 static volatile bool st_dma_done = false;
 static spin_lock_t *st_dma_lock;
 
-static uint8_t tft_frame[TFT_W * TFT_H * 2];
+static uint8_t tft_frame[TFT_W * TFT_H * 2];    // 2bytes/pixel
 
 static void tft_init(void);
 
@@ -306,6 +306,32 @@ void tft_fill_rect(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,uint16_t
 }
 
 // ---------------------------------------------------------
+// DRAW : 1 DMA = un rectangle dans l'écran
+// ---------------------------------------------------------
+void tft_draw_rect(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,uint16_t col_nb,uint8_t* buffer)
+{
+
+    st_dma_wait();
+
+    size_t total_pixels = lines_nb * col_nb;
+    size_t total_bytes  = total_pixels * 2;
+
+    tft_set_window(beg_col,beg_line,beg_col+col_nb-1,beg_line+lines_nb-1);
+
+    gpio_put(ST7789_PIN_DC, 1);
+    gpio_put(ST7789_PIN_CS, 0);
+
+    dma_channel_configure(
+        st_dma_chan,
+        &dma_cfg,
+        &spi0_hw->dr,
+        buffer,
+        total_bytes,
+        true
+    );
+}
+
+// ---------------------------------------------------------
 // CHARACTER 12x12 dma
 // ---------------------------------------------------------
 void tft_draw_char_12x12(uint16_t y, uint16_t x,
@@ -514,10 +540,15 @@ uint16_t tft_draw_float_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_
 
 static uint8_t testCnt=0;
 static uint32_t millis=0;
+uint32_t ms=1000;
 
-uint16_t beg=32,l=beg,m=2;
+uint16_t beg=32,l=beg,lbeg=0,m=2;
 
-void test_st7789(uint32_t ms){
+void init_test_7789(uint32_t mss,uint16_t l0,uint16_t c0,uint16_t ln,uint16_t cn,uint8_t m0){
+    beg=l0;lbeg=l0,l=l0;m=m0;ms=mss;
+}
+
+void test_st7789(){
 
     if((millis+ms)<millisCounter){
       millis=millisCounter;
@@ -598,6 +629,40 @@ void test_st7789(uint32_t ms){
             l=beg;
             break;
       }
+    }   
+}
+
+
+
+void test_st7789_2(){
+    if((millis+ms)<millisCounter){
+      millis=millisCounter;
+
+      if(l==TFT_H){
+        for(uint16_t i=l*TFT_W;i<(l+1)*TFT_W;i++){      // effacement dernière ligne 
+            tft_frame[TFT_H-2]=0x00;
+            tft_frame[TFT_H-1]=0x00;
+        }
+        tft_draw_rect(TFT_H-1,0,1,TFT_W,&tft_frame[(TFT_H-1)*TFT_W]);
+        l++;return;  
+      }
+      
+      if(l>TFT_H){l=lbeg;}
+
+      for(uint16_t i=l*TFT_W*2;i<(l+1)*TFT_W*2;i++){    // trace ligne courante
+            tft_frame[i]=0xff;
+            tft_frame[i+1]=0xff;
+      }
+      tft_draw_rect(TFT_H-1,0,1,TFT_W,&tft_frame[(TFT_H-1)*TFT_W]);        
+        
+      if(l>lbeg) {
+        for(uint16_t i=l*TFT_W;i<(l+1)*TFT_W;i++){      // effacement ligne précédente
+            tft_frame[i*2-2]=0x00;
+            tft_frame[i*2-1]=0x00;
+        }
+        tft_draw_rect(l,0,2,TFT_W,&tft_frame[(l-1)*TFT_W]);
+        l++;
+      }
+
     }
-    
 }

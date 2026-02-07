@@ -70,16 +70,18 @@ int main() {
     *coderCounter=freq_lin;
     voices[0].frequency=calcFreq(coderCounter[CODER_FREQUENCY]);
    
+#ifndef MUXED_CODER
+
+    init_test_7789(1000,32,0,TFT_W,TFT_H,2);
 
     while (1) {
 
         ws_show_3(30);
 
-        test_st7789(1000);
-
         LEDBLINK
 
-#ifndef MUXED_CODER
+        test_st7789();
+
         if(*coderCounter!=*coderCounter0){
 
             *coderCounter0=*coderCounter;
@@ -92,8 +94,38 @@ int main() {
         }
         show_cnt(st_dma_tfr_count,180,12);
     
-#endif  // MUXED_CODER 
     }
+        #endif  // MUXED_CODER
+
+
+#ifdef MUXED_CODER
+
+    init_test_7789(100,12*8,0,TFT_W,TFT_H,2);
+
+    while (1) {
+
+        ws_show_3(30);
+
+        LEDBLINK
+
+        test_st7789_2();
+
+        for(uint8_t coder=0;coder<CODER_NB;coder++){
+            uint32_t cc=*(coderCounter+coder);
+            if(cc!=*(coderCounter0+coder)){
+
+                *(coderCounter0+coder)=cc;
+                voices[0].newFrequency=calcFreq(cc);
+
+                tft_draw_int_12x12_dma_mult(0,coder*12,0xFFFF, 0x0000,1,coder);
+                tft_draw_int_12x12_dma_mult(74,coder*12,0xffff,0x0000,1,cc);
+            
+                printf("freq:%5.3f ampl:%d   \r",voices[0].frequency,voices[0].genAmpl);           
+            }
+        }
+    }
+#endif  // MUXED_CODER
+
 
 #endif  // BB_TEST_MODE
 
