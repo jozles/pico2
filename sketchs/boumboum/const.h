@@ -15,7 +15,7 @@
 
 /* coder */
 
-#define MUXED_CODER
+//#define MUXED_CODER
 
 #define CODER_GPIO_CLOCK         10          
 #define CODER_GPIO_DATA          11          

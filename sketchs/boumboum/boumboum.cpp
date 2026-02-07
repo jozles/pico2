@@ -67,6 +67,7 @@ int main() {
     voices[0].genAmpl=6000;
     freq_lin=1943;      // 440Hz
 
+    for(uint8_t f=0;f<CODER_COUNTERS;f++){coderCounter[f]=0;coderCounter0[f]=coderCounter[f];}
     *coderCounter=freq_lin;
     voices[0].frequency=calcFreq(coderCounter[CODER_FREQUENCY]);
    
@@ -100,7 +101,7 @@ int main() {
 
 #ifdef MUXED_CODER
 
-    init_test_7789(100,12*8,0,TFT_W,TFT_H,2);
+    init_test_7789(100,12*8,0,TFT_H-12*8,TFT_H,1);
 
     while (1) {
 

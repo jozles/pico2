@@ -120,9 +120,9 @@ bool coderTimerHandler(){
 
     for(uint8_t coder=0;coder<coder_nb;coder++){
 
-        c[coder].coderClock=gpio_get(gpio_clock_pin);
         gpio_put_masked(sel_gpio_mask, coder << gpio_sel0_pin);     // sel current coder
-    
+        c[coder].coderClock=gpio_get(gpio_clock_pin);
+        
         if(c[coder].coderClock == c[coder].coderClock0){            // no change 
             if(c[coder].coderItStatus<coderStrobeNumber){           // wait for change after strobe delay
                 c[coder].coderItStatus++;continue;}
