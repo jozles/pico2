@@ -8,21 +8,22 @@ bool coderTimerHandler();
 #endif // MUXED_CODER
 #ifdef MUXED_CODER
 
-void coderInit(Coders* c,uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_t sel_nb,uint8_t nb,uint16_t ctpi,uint8_t cstn);
-bool coderTimerHandler(Coders* c);
 struct Coders{
-    uint8_t coderItStatus[CODER_NB];            // coder decoding status
-    bool coderClock[CODER_NB];                  // current physical coder clock value
-    bool coderClock0[CODER_NB];                 // previous physical coder clock value
-    bool coderData[CODER_NB];                   // current physical coder data value
-    bool coderData0[CODER_NB];                  // previous physical coder data value
-    bool coderSwitch[CODER_NB];                 // current physical coder switch value
-}
+    uint8_t coderItStatus;            // coder decoding status
+    bool coderClock;                  // current physical coder clock value
+    bool coderClock0;                 // previous physical coder clock value
+    bool coderData;                   // current physical coder data value
+    bool coderData0;                  // previous physical coder data value
+    bool coderSwitch;                 // current physical coder switch value
+    bool coderSwitch0;                // previous physical coder switch value
+};
+
+void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_t sel_nb,uint8_t nb,uint16_t ctpi,uint8_t cstn);
+bool coderTimerHandler();
+
 #endif // MUXED_CODER
 
 void coderSetup(volatile int32_t* cTC);
-
-void show_cnt();
 
 
 

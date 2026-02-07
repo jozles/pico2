@@ -15,6 +15,8 @@
 
 /* coder */
 
+#define MUXED_CODER
+
 #define CODER_GPIO_CLOCK         10          
 #define CODER_GPIO_DATA          11          
 #define CODER_GPIO_SW            12
@@ -34,7 +36,7 @@
 #define WHI_LEV                 6       // white noise level
 #define PIN_LEV                 7       // pink noise level
 
-#define FREQUENCY               0       // voice frequency in every function 
+#define CODER_FREQUENCY         0       // voice frequency coder in all functions 
 
 #define ATTACK                  2       // attack duration 
 #define DECAY                   3       // decay duration 
@@ -86,6 +88,12 @@
 #define CODER_COUNTERS MAX_FONC*CODER_NB
 #endif // MUXED_CODER
 
+#ifndef MUXED_CODER
+#define CODER_FREQUENCY 0
+#define VOICES_NB 1
+#define CODER_COUNTERS 1
+#endif  // MUXED_CODER
+
 /* Test_Pin */
 
 #define TEST_PIN 22
@@ -122,7 +130,6 @@
 #define PICO_AUDIO_I2S_DATA_PIN 2 // 18
 
 #define SAMPLE_RATE 44100
-#define FREQUENCY   440.0   // La 440 Hz
 #define AMPLITUDE   30000   // Amplitude max (16 bits signé)
 #define MAX_16B_LINEAR_VALUE 32 // 0 to 31 => 0,1,1.414,2,2.828,4,5.656,8,11.312,16,22.624 ... 8192,11583,16384,23167,32768,46334
 // #define MAX_16B_LINEAR_VALUE 64 // 0 to 63 => 0,1,1.189,1.414,3.234,4,4.757,5.656,6.727,8 ....
@@ -146,7 +153,7 @@
 //#define SINE_WAVE_TABLE_POW 11    // ***** POWER OF 2 *****  nombre d'échantillons dans la table d'onde sinus
 //#define SINE_WAVE_TABLE_LEN 2048  // ***** POWER OF 2 *****  nombre d'échantillons dans la table d'onde sinus
 
-#define VOICES_NB 4                 // nombre de voix simultanées
+//#define VOICES_NB 4                 // nombre de voix simultanées
 
 #define PIN_DCDC_PSM_CTRL 23        // to set the DCDC in PSM mode for less audio noise
 

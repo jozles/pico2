@@ -20,20 +20,17 @@ extern volatile uint32_t ledBlinker;
 
 volatile uint32_t millisCounter=0;
 
-// coder    
+// coder 
 
-#ifndef MUXED_CODER
-volatile int32_t coder1Counter=0;
-volatile int32_t coder1Counter0=0;
-#endif // MUXED_CODER
+volatile int32_t coderCounter[CODER_COUNTERS];        // datas
+volatile int32_t coderCounter0[CODER_COUNTERS];
+
 #ifdef MUXED_CODER
 Coders ct[CODER_NB];                            // cinematic
 
 uint8_t currFonc=0;
 uint32_t* currCoderBank=nullptr;
 uint32_t* currCoderBank0=nullptr;
-volatile int32_t coderCounter[CODER_COUNTERS];        // datas
-volatile int32_t coderCounter0[CODER_COUNTERS];
 #endif // MUXED_CODER
 
 // voices 
@@ -64,14 +61,15 @@ int main() {
 
 #ifdef BB_TEST_MODE
 
-    coderSetup(&coder1Counter);
+    coderSetup(coderCounter);
 
     voices[0].basicWaveAmpl[WAVE_SINUS]=MAX_AMP_VAL;
     voices[0].genAmpl=6000;
     freq_lin=1943;      // 440Hz
 
-    coder1Counter=freq_lin;
-    voices[0].frequency=calcFreq(coder1Counter);   
+    *coderCounter=freq_lin;
+    voices[0].frequency=calcFreq(coderCounter[CODER_FREQUENCY]);
+   
 
     while (1) {
 
@@ -82,19 +80,20 @@ int main() {
         LEDBLINK
 
 #ifndef MUXED_CODER
-        if(coder1Counter!=coder1Counter0){
+        if(*coderCounter!=*coderCounter0){
 
-            coder1Counter0=coder1Counter;
-            voices[0].newFrequency=calcFreq(coder1Counter);
+            *coderCounter0=*coderCounter;
+            voices[0].newFrequency=calcFreq(*coderCounter);
 
             tft_draw_text_12x12_dma_mult(0,12,"coder:", 0xFFFF, 0x0000,1);
-            tft_draw_int_12x12_dma_mult(74,12,0xffff,0x0000,2,coder1Counter);
+            tft_draw_int_12x12_dma_mult(74,12,0xffff,0x0000,2,*coderCounter);
             
             printf("freq:%5.3f ampl:%d   \r",voices[0].frequency,voices[0].genAmpl);           
         }
         show_cnt(st_dma_tfr_count,180,12);
-    }
+    
 #endif  // MUXED_CODER 
+    }
 
 #endif  // BB_TEST_MODE
 

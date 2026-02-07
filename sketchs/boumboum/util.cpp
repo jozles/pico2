@@ -655,8 +655,7 @@ uint8_t getNumCh(char min,char max)
     c-=48;return c;
 }
 
-
-void show_cnt(uint32_t cnt,uint16_t x,uint16_t y){
+void show_cnt(uint32_t cnt,uint16_t x,uint16_t y,uint8_t mult){
     if(millisCounter%1000==0){
         int v10=(cnt%10);
         int v100=((cnt/10)%10);
@@ -664,6 +663,10 @@ void show_cnt(uint32_t cnt,uint16_t x,uint16_t y){
         int v10000=((cnt/1000)%10);
         int v100000=((cnt/10000)%10);
         char a[]={(char)(v100000+48),(char)(v10000+48),(char)(v1000+48),(char)(v100+48),(char)(v10+48),(char)0x00};
-        tft_draw_text_12x12_dma_mult(x,y,a,0xffff,0x0000,1);
+        tft_draw_text_12x12_dma_mult(x,y,a,0xffff,0x0000,mult);
     }
+}
+
+void show_cnt(uint32_t cnt,uint16_t x,uint16_t y){
+    show_cnt(cnt,x,y,1);
 }

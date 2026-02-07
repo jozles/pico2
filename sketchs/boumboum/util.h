@@ -14,6 +14,7 @@ void dumpStr(int32_t* str,uint32_t nb);
 void dumpStr16(int32_t* str);
 void dumpfield(char* fd,uint8_t ll);
 void show_cnt(uint32_t cnt,uint16_t x,uint16_t y);
+void show_cnt(uint32_t cnt,uint16_t x,uint16_t y,uint8_t mult);
 
 char getCh();
 uint8_t getNumCh(char min,char max);
