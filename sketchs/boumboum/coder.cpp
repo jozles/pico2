@@ -19,7 +19,7 @@ bool coderSwitch=0;                         // current physical coder switch val
 
 uint16_t coderTimerPoolingInterval=1;       // delay betxeen Its (mS) changed by init
 uint8_t coderStrobeNumber=3;                // 1st strobe delay (2nd strobe delay is 1)
-volatile int32_t* coderTimerCount=nullptr;  // ptr to current value to be inc or dec
+volatile int16_t* coderTimerCount=nullptr;  // ptr to current value to be inc or dec
 
 
 // pico2_pins
@@ -38,7 +38,6 @@ static Coders c[CODER_NB];
 #endif  // MUXED_CODER
 
 extern volatile uint32_t millisCounter;
-extern volatile uint32_t dma_tfr_count;
 
 extern PIO pio;
 
@@ -201,5 +200,5 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_
 
 #endif  // MUXED_CODER
 
-void coderSetup(volatile int32_t* cTC){
+void coderSetup(volatile int16_t* cTC){
     coderTimerCount=cTC;}

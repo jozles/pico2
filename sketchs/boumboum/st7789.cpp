@@ -38,7 +38,6 @@ void st_dma_wait(){                     // wait for end of current st dma usage
         if(st_dma_done) {
             st_dma_done=false;
             spin_unlock(st_dma_lock, f);
-            st_dma_tfr_count++;
             return;}
         spin_unlock(st_dma_lock, f);
         sleep_us(100);
@@ -540,12 +539,12 @@ uint16_t tft_draw_float_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_
 
 static uint8_t testCnt=0;
 static uint32_t millis=0;
-uint32_t ms=1000;
+uint32_t ms=0,ms0=0;
 
-uint16_t beg=32,l=beg,lbeg=0,m=2;
+uint16_t beg=0,l=beg,lbeg=0,m=0;
 
 void init_test_7789(uint32_t mss,uint16_t l0,uint16_t c0,uint16_t ln,uint16_t cn,uint8_t m0){
-    beg=l0;lbeg=l0,l=l0;m=m0;ms=mss;
+    beg=l0;lbeg=l0,l=l0;m=m0;ms=mss;ms0=mss;
 }
 
 void test_st7789(){
@@ -635,34 +634,23 @@ void test_st7789(){
 
 
 void test_st7789_2(){
-    if((millis+ms)<millisCounter){
+    if((millis+ms0)<millisCounter){
       millis=millisCounter;
 
-      if(l==TFT_H){
-        for(uint16_t i=l*TFT_W;i<(l+1)*TFT_W;i++){      // effacement dernière ligne 
-            tft_frame[TFT_H-2]=0x00;
-            tft_frame[TFT_H-1]=0x00;
-        }
-        tft_draw_rect(TFT_H-1,0,1,TFT_W,&tft_frame[(TFT_H-1)*TFT_W]);
-        l++;return;  
+      if(l>lbeg && ms0>2){                           // effacement ligne précédente 
+        ms0=2;
+        uint32_t bgad=(l-1)*TFT_W*2;
+        memset(&tft_frame[bgad],0x00,TFT_W*2);
+        tft_draw_rect(l-1,0,1,TFT_W,&tft_frame[bgad]);
+        return;  
       }
       
-      if(l>TFT_H){l=lbeg;}
+      if(l>=TFT_H){l=lbeg;}
 
-      for(uint16_t i=l*TFT_W*2;i<(l+1)*TFT_W*2;i++){    // trace ligne courante
-            tft_frame[i]=0xff;
-            tft_frame[i+1]=0xff;
-      }
-      tft_draw_rect(TFT_H-1,0,1,TFT_W,&tft_frame[(TFT_H-1)*TFT_W]);        
-        
-      if(l>lbeg) {
-        for(uint16_t i=l*TFT_W;i<(l+1)*TFT_W;i++){      // effacement ligne précédente
-            tft_frame[i*2-2]=0x00;
-            tft_frame[i*2-1]=0x00;
-        }
-        tft_draw_rect(l,0,2,TFT_W,&tft_frame[(l-1)*TFT_W]);
-        l++;
-      }
-
+      ms0=ms;
+      uint32_t bgad=l*TFT_W*2;                      // trace ligne courante
+      memset(&tft_frame[bgad],0xff,TFT_W*2);
+      tft_draw_rect(l,0,1,TFT_W,&tft_frame[bgad]);          
+      l++;
     }
 }

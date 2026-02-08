@@ -332,9 +332,9 @@ int convNumToString(char* str,float num)    // retour string terminée par '\0' 
 {
   int i=0,v=0,t=0;
 
-  t=convIntToString(str,(int)num);
+  t=convIntToString(str,(int)num);          // conv -> nbre chiffres partie entière
 
-  num=num-(int)num;
+  num=num-(int)num;                         // décimales
   str[t]='.';
   for(i=0;i<2;i++){num=num*10;v=(int)num;num=num-v;str[t+1+i]=chexa[v];}
   t+=3;

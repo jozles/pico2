@@ -15,14 +15,16 @@
 
 /* coder */
 
-//#define MUXED_CODER
+#define MUXED_CODER
 
-#define CODER_GPIO_CLOCK         10          
-#define CODER_GPIO_DATA          11          
-#define CODER_GPIO_SW            12
-#define CODER_GPIO_VCC           13
+#define CODER_GPIO_CLOCK       10          
+#define CODER_GPIO_DATA        11          
+#define CODER_GPIO_SW          12
+#define CODER_GPIO_VCC         13
 
 #ifdef MUXED_CODER
+
+#define CODER_BANK_NB           6
 #define CODER_SEL_NB            4
 #define CODER_NB                8
 #define CODER_PIO_SEL0          6       // CODER_NB consecutive pins
@@ -91,6 +93,8 @@
 #ifndef MUXED_CODER
 #define CODER_FREQUENCY 0
 #define VOICES_NB 1
+#define CODER_NB  1
+#define CODER_BANK_NB  1
 #define CODER_COUNTERS 1
 #endif  // MUXED_CODER
 

@@ -1,6 +1,7 @@
 #ifndef _FREQUENCES_H_
 #define _FREQUENCES_H_ 
 
+#include "const.h"
 
 /* générateur de fréquences discrètes à partir de valeurs linéaires
 
@@ -13,6 +14,10 @@
   on a donc 2 tables : les fréquences d'octaves et les ratios d'incréments 
   ainsi le calcul est minimisé 
   Quand on dispose d'une grande mémoire et que l'on est très pressé on peut faire une table avec les 2^n valeurs 
+
+
+  Les données des différentes voix sont dans le tableau Voice voices[VOICES_NB]
+  qui contient les paramètres et les valeurs courantes de chaque voix
 
 */
 
@@ -40,7 +45,10 @@ struct Voice {
     uint8_t     freqCoeff;
     uint32_t    dhexFreq;
     uint32_t    moduloMask;
-    uint8_t     moduloShift;      
+    uint8_t     moduloShift;
+    uint16_t    soundsCc[CODER_BANK_NB];
+    uint16_t    adsrlCc[CODER_BANK_NB];
+    uint16_t    frequencyCc;
 };
 
 void fillAmplIncr(float* amplIncr);

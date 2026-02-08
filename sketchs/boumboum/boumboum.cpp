@@ -22,8 +22,8 @@ volatile uint32_t millisCounter=0;
 
 // coder 
 
-volatile int32_t coderCounter[CODER_COUNTERS];        // datas
-volatile int32_t coderCounter0[CODER_COUNTERS];
+volatile int16_t coderCounter[CODER_NB];
+volatile int16_t coderCounter0[CODER_NB];
 
 #ifdef MUXED_CODER
 Coders ct[CODER_NB];                            // cinematic
@@ -36,26 +36,21 @@ uint32_t* currCoderBank0=nullptr;
 // voices 
 
 uint8_t currVoice=0;
-struct Voice voices[VOICES_NB];
+Voice voices[VOICES_NB];
 
 // frequence
 
-volatile int16_t freq_lin=0;
 volatile int16_t amplitude=0;   
 
 // ws2812
 
 static PIO pioWs = ws2812_pio;   // pio0 used by i2s
 
-// debug
-
-volatile uint32_t st_dma_tfr_count=0;
+// --------
 
 int main() {
     stdio_init_all();
     sleep_ms(10000);printf("\n+boumboum \n");
-
-    gpio_init(LED);gpio_set_dir(LED,GPIO_OUT); gpio_put(LED,LOW);
     
     setup();
 
@@ -63,17 +58,19 @@ int main() {
 
     coderSetup(coderCounter);
 
+    for(uint8_t f=0;f<CODER_BANK_NB;f++){coderCounter[f]=0;coderCounter0[f]=coderCounter[f]+1;} 
+
     voices[0].basicWaveAmpl[WAVE_SINUS]=MAX_AMP_VAL;
     voices[0].genAmpl=6000;
-    freq_lin=1943;      // 440Hz
-
-    for(uint8_t f=0;f<CODER_COUNTERS;f++){coderCounter[f]=0;coderCounter0[f]=coderCounter[f];}
-    *coderCounter=freq_lin;
-    voices[0].frequency=calcFreq(coderCounter[CODER_FREQUENCY]);
+    voices[0].frequencyCc=1943;      // 440Hz
+    voices[0].frequency=calcFreq(voices[0].frequencyCc);
+    voices[0].newFrequency=voices[0].frequency;
    
 #ifndef MUXED_CODER
 
     init_test_7789(1000,32,0,TFT_W,TFT_H,2);
+
+    *coderCounter=voices[0].frequencyCc;
 
     while (1) {
 
@@ -86,22 +83,23 @@ int main() {
         if(*coderCounter!=*coderCounter0){
 
             *coderCounter0=*coderCounter;
-            voices[0].newFrequency=calcFreq(*coderCounter);
+            voices[0].frequencyCc=*coderCounter;
+            voices[0].newFrequency=calcFreq(voices[0].frequencyCc);
 
-            tft_draw_text_12x12_dma_mult(0,12,"coder:", 0xFFFF, 0x0000,1);
-            tft_draw_int_12x12_dma_mult(74,12,0xffff,0x0000,2,*coderCounter);
+            tft_draw_int_12x12_dma_mult(0,12,0xffff,0x0000,1,voices[0].frequencyCc);
+
+            tft_draw_text_12x12_dma_mult(50,12,"->", 0xFFFF, 0x0000,1);
+            tft_draw_float_12x12_dma_mult(80,12,0xffff,0x0000,2,voices[0].newFrequency);
             
             printf("freq:%5.3f ampl:%d   \r",voices[0].frequency,voices[0].genAmpl);           
         }
-        show_cnt(st_dma_tfr_count,180,12);
-    
     }
         #endif  // MUXED_CODER
 
 
 #ifdef MUXED_CODER
 
-    init_test_7789(100,12*8,0,TFT_H-12*8,TFT_H,1);
+    init_test_7789(20,25*8,0,TFT_H-12*8,TFT_H,1);
 
     while (1) {
 
@@ -113,13 +111,14 @@ int main() {
 
         for(uint8_t coder=0;coder<CODER_NB;coder++){
             uint32_t cc=*(coderCounter+coder);
+            uint8_t mul=2;
             if(cc!=*(coderCounter0+coder)){
 
                 *(coderCounter0+coder)=cc;
                 voices[0].newFrequency=calcFreq(cc);
 
-                tft_draw_int_12x12_dma_mult(0,coder*12,0xFFFF, 0x0000,1,coder);
-                tft_draw_int_12x12_dma_mult(74,coder*12,0xffff,0x0000,1,cc);
+                tft_draw_int_12x12_dma_mult(0,coder*(12*mul+1),0xFFFF, 0x0000,mul,coder);
+                tft_draw_int_12x12_dma_mult(74,coder*(12*mul+1),0xffff,0x0000,mul,cc);
             
                 printf("freq:%5.3f ampl:%d   \r",voices[0].frequency,voices[0].genAmpl);           
             }
