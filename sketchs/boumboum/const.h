@@ -20,14 +20,14 @@
 #define CODER_GPIO_CLOCK       10          
 #define CODER_GPIO_DATA        11          
 #define CODER_GPIO_SW          12
-#define CODER_GPIO_VCC         13
+#define CODER_GPIO_VCC         22
 
 #ifdef MUXED_CODER
 
 #define CODER_BANK_NB           6
 #define CODER_SEL_NB            4
 #define CODER_NB                8
-#define CODER_PIO_SEL0          6       // CODER_NB consecutive pins
+#define CODER_PIO_SEL0          2       // CODER_SEL_NB consecutive pins
 
 // *** coders actions ***
 
@@ -130,8 +130,8 @@
 /* I2S */
 
 //#define PICO_AUDIO_I2S_PIO 0   dans pico_audio_i2s.h
-#define PICO_AUDIO_I2S_CLOCK_PIN_BASE 4 // 16        // 2 consecutive gpios
-#define PICO_AUDIO_I2S_DATA_PIN 2 // 18
+#define PICO_AUDIO_I2S_CLOCK_PIN_BASE 13 // 16        // 2 consecutive gpios
+#define PICO_AUDIO_I2S_DATA_PIN 15 // 18
 
 #define SAMPLE_RATE 44100
 #define AMPLITUDE   30000   // Amplitude max (16 bits signé)

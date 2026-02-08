@@ -119,6 +119,7 @@ void setup(){
     coderInit(CODER_GPIO_CLOCK,CODER_GPIO_DATA,CODER_GPIO_SW,CODER_GPIO_VCC,CODER_PIO_SEL0,CODER_SEL_NB,CODER_NB,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER);
     #endif // MUXED_CODER
     
+    
     // irq timer
     add_repeating_timer_ms(1, millisTimerHandler, NULL, &millisTimer);
 

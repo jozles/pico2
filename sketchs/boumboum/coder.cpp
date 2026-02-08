@@ -34,7 +34,7 @@ uint8_t coder_nb;
 uint8_t coder_sel_nb;
 uint32_t sel_gpio_mask=0;
 
-static Coders c[CODER_NB];
+Coders c[CODER_NB];
 #endif  // MUXED_CODER
 
 extern volatile uint32_t millisCounter;
@@ -119,8 +119,13 @@ bool coderTimerHandler(){
 
     for(uint8_t coder=0;coder<coder_nb;coder++){
 
-        gpio_put_masked(sel_gpio_mask, coder << gpio_sel0_pin);     // sel current coder
+        uint8_t selc=coder | 0x08;  // *********************************** force 4051 enable haut ******************** 
+
+        gpio_put_masked(sel_gpio_mask, selc << gpio_sel0_pin);     // sel current coder
+        sleep_us(1);
         c[coder].coderClock=gpio_get(gpio_clock_pin);
+        c[coder].coderData=gpio_get(gpio_data_pin);
+        c[coder].coderSwitch=gpio_get(gpio_switch_pin);
         
         if(c[coder].coderClock == c[coder].coderClock0){            // no change 
             if(c[coder].coderItStatus<coderStrobeNumber){           // wait for change after strobe delay
@@ -185,6 +190,19 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_
     }
     gpio_set_dir_out_masked(sel_gpio_mask);
 
+    /*gpio_put(2,0);gpio_put(3,0);gpio_put(4,0);gpio_put(5,0);
+    while(1){
+        for(uint8_t coder=0;coder<coder_nb;coder++){
+
+            
+
+        //uint8_t selc=coder | 0x08;  // *********************************** force 4051 enable haut ******************** 
+
+        //gpio_put_masked(sel_gpio_mask, selc << gpio_sel0_pin);     // sel current coder
+        sleep_us(1);
+        }
+    }*/
+
     for(uint8_t coder=0;coder<coder_nb;coder++){
         gpio_put_masked(sel_gpio_mask,coder<<gpio_sel0_pin);     // sel one coder
         c[coder].coderClock0=gpio_get(gpio_clock_pin);           // get clock
@@ -192,9 +210,6 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_
         c[coder].coderSwitch0=gpio_get(gpio_switch_pin);         // get switch
         printf(" -coder#%d init d:%d c:%d s:%d\n",coder,c[coder].coderData0,c[coder].coderClock0,gpio_get(gpio_switch_pin));
         c[coder].coderItStatus=0; 
-        c[coder].coderClock=0;
-        c[coder].coderClock0=0;
-        c[coder].coderData=0;
     }
 }
 

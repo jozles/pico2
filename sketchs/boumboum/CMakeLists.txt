@@ -62,6 +62,7 @@ pico_set_program_version(boumboum "0.1")
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(boumboum 0)
 pico_enable_stdio_usb(boumboum 1)
+pico_set_binary_type(boumboum no_flash)
 
 # Add the standard library to the build
 target_link_libraries(boumboum

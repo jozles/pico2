@@ -26,6 +26,9 @@ volatile int16_t coderCounter[CODER_NB];
 volatile int16_t coderCounter0[CODER_NB];
 
 #ifdef MUXED_CODER
+
+extern Coders c[];
+
 Coders ct[CODER_NB];                            // cinematic
 
 uint8_t currFonc=0;
@@ -52,13 +55,17 @@ int main() {
     stdio_init_all();
     sleep_ms(10000);printf("\n+boumboum \n");
     
+
+//gpio_init(13);gpio_set_dir(13,GPIO_OUT); gpio_put(13,1);
+//while(1){gpio_put(13,0);sleep_ms(1);gpio_put(13,1);sleep_ms(1000);}
+
     setup();
 
 #ifdef BB_TEST_MODE
 
     coderSetup(coderCounter);
 
-    for(uint8_t f=0;f<CODER_BANK_NB;f++){coderCounter[f]=0;coderCounter0[f]=coderCounter[f]+1;} 
+    for(uint8_t f=0;f<CODER_NB;f++){coderCounter[f]=0;coderCounter0[f]=coderCounter[f]+1;} 
 
     voices[0].basicWaveAmpl[WAVE_SINUS]=MAX_AMP_VAL;
     voices[0].genAmpl=6000;
@@ -110,8 +117,13 @@ int main() {
         test_st7789_2();
 
         for(uint8_t coder=0;coder<CODER_NB;coder++){
-            uint32_t cc=*(coderCounter+coder);
+            
             uint8_t mul=2;
+            char s[]={(char)(48+c[coder].coderSwitch),(char)(48+c[coder].coderClock),(char)(48+c[coder].coderData),0x00};
+            tft_draw_text_12x12_dma_mult(160,coder*(12*mul+1),s,0xffff,0x0000,mul);            
+
+            uint32_t cc=*(coderCounter+coder);
+            
             if(cc!=*(coderCounter0+coder)){
 
                 *(coderCounter0+coder)=cc;
