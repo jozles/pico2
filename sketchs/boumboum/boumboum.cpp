@@ -54,7 +54,8 @@ static PIO pioWs = ws2812_pio;   // pio0 used by i2s
 int main() {
     stdio_init_all();
     sleep_ms(10000);printf("\n+boumboum \n");
-    
+
+//while(1){slow_coder_test(1000);}
 
 //gpio_init(13);gpio_set_dir(13,GPIO_OUT); gpio_put(13,1);
 //while(1){gpio_put(13,0);sleep_ms(1);gpio_put(13,1);sleep_ms(1000);}
@@ -65,7 +66,7 @@ int main() {
 
     coderSetup(coderCounter);
 
-    for(uint8_t f=0;f<CODER_NB;f++){coderCounter[f]=0;coderCounter0[f]=coderCounter[f]+1;} 
+    for(uint8_t f=0;f<CODER_NB;f++){coderCounter[f]=100;coderCounter0[f]=coderCounter[f]+1;} 
 
     voices[0].basicWaveAmpl[WAVE_SINUS]=MAX_AMP_VAL;
     voices[0].genAmpl=6000;
@@ -117,27 +118,26 @@ int main() {
         test_st7789_2();
 
         for(uint8_t coder=0;coder<CODER_NB;coder++){
-            
+        
             uint8_t mul=2;
             char s[]={(char)(48+c[coder].coderSwitch),(char)(48+c[coder].coderClock),(char)(48+c[coder].coderData),0x00};
-            tft_draw_text_12x12_dma_mult(160,coder*(12*mul+1),s,0xffff,0x0000,mul);            
+            tft_draw_text_12x12_dma_mult(140,coder*(12*mul+1),s,0xffff,0x0000,mul);            
 
-            uint32_t cc=*(coderCounter+coder);
+            uint32_t cc=coderCounter[coder];            //*(coderCounter+coder);
             
-            if(cc!=*(coderCounter0+coder)){
+            if(cc!=coderCounter0[coder]){               //*(coderCounter0+coder)){
 
                 *(coderCounter0+coder)=cc;
-                voices[0].newFrequency=calcFreq(cc);
+                voices[0].newFrequency=calcFreq(cc);    // tous les coders agissent sur la fréquence (mode test)
 
-                tft_draw_int_12x12_dma_mult(0,coder*(12*mul+1),0xFFFF, 0x0000,mul,coder);
-                tft_draw_int_12x12_dma_mult(74,coder*(12*mul+1),0xffff,0x0000,mul,cc);
+                tft_draw_int_12x12_dma_mult(0,coder*(12*mul+1)+2,0xFFFF, 0x0000,mul,coder);
+                tft_draw_int_12x12_dma_mult(40,coder*(12*mul+1)+2,0xffff,0x0000,mul,cc,4);
             
                 printf("freq:%5.3f ampl:%d   \r",voices[0].frequency,voices[0].genAmpl);           
             }
         }
     }
 #endif  // MUXED_CODER
-
 
 #endif  // BB_TEST_MODE
 

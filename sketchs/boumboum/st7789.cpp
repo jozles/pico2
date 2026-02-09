@@ -513,22 +513,32 @@ void tft_draw_text_12x12_dma_mult(uint16_t x,uint16_t y,const char *s,uint16_t f
     );
 }
 
-uint16_t tft_draw_int_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_t bg,int8_t mult,int32_t num){
+uint16_t tft_draw_int_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_t bg,int8_t mult,int32_t num,uint8_t len){
     #define MAXL 32
     char st[MAXL];
     memset(st,0x00,MAXL);
-    convIntToString(st,num);
+    uint8_t l=convIntToString(st,num);
+    if(len>l && len!=0){memset(st+l,' ',len-l);}
+    tft_draw_text_12x12_dma_mult(x,y,st,fg,bg,mult);
+    return strstr(st,"\0")-st;
+}
+
+uint16_t tft_draw_int_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_t bg,int8_t mult,int32_t num){
+    return tft_draw_int_12x12_dma_mult(x,y,fg,bg,mult,num,0);
+}
+
+uint16_t tft_draw_float_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_t bg,int8_t mult,float num,uint8_t len){
+    #define MAXL 32
+    char st[MAXL];
+    memset(st,0x00,MAXL);
+    uint8_t l=convNumToString(st,num);
+    if(len>l && len!=0){memset(st+l,' ',len-l);}
     tft_draw_text_12x12_dma_mult(x,y,st,fg,bg,mult);
     return strstr(st,"\0")-st;
 }
 
 uint16_t tft_draw_float_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_t bg,int8_t mult,float num){
-    #define MAXL 32
-    char st[MAXL];
-    memset(st,0x00,MAXL);
-    convNumToString(st,num);
-    tft_draw_text_12x12_dma_mult(x,y,st,fg,bg,mult);
-    return strstr(st,"\0")-st;
+    return tft_draw_float_12x12_dma_mult(x,y,fg,bg,mult,num,0);
 }
 
 

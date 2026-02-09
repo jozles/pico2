@@ -119,12 +119,12 @@ bool coderTimerHandler(){
 
     for(uint8_t coder=0;coder<coder_nb;coder++){
 
-        uint8_t selc=coder | 0x08;  // *********************************** force 4051 enable haut ******************** 
+        //uint8_t selc=coder | 0x08;  // *********************************** force 4051 enable haut ******************** 
 
-        gpio_put_masked(sel_gpio_mask, selc << gpio_sel0_pin);     // sel current coder
+        gpio_put_masked(sel_gpio_mask, coder << gpio_sel0_pin);     // sel current coder
         sleep_us(1);
         c[coder].coderClock=gpio_get(gpio_clock_pin);
-        c[coder].coderData=gpio_get(gpio_data_pin);
+        //c[coder].coderData=gpio_get(gpio_data_pin);
         c[coder].coderSwitch=gpio_get(gpio_switch_pin);
         
         if(c[coder].coderClock == c[coder].coderClock0){            // no change 
@@ -152,10 +152,10 @@ bool coderTimerHandler(){
             c[coder].coderSwitch=gpio_get(gpio_switch_pin);         // coder_switch used as speed multiplier
 
             if((!c[coder].coderClock)^c[coder].coderData){
-                (*(coderTimerCount+coder))-=1+c[coder].coderSwitch;
+                (*(coderTimerCount+coder))-=1;              //+c[coder].coderSwitch;
             } 
             else {
-                (*(coderTimerCount+coder))+=1+c[coder].coderSwitch;
+                (*(coderTimerCount+coder))+=1;              //+c[coder].coderSwitch;
             }
         }
 
@@ -182,6 +182,8 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_
     gpio_init(gpio_switch_pin);gpio_set_dir(gpio_switch_pin,GPIO_IN);
     gpio_init(gpio_vcc_pin);gpio_set_dir(gpio_vcc_pin,GPIO_OUT);gpio_put(gpio_vcc_pin,1);
 
+    sleep_ms(1);
+
     sel_gpio_mask=0;
     for(int pin=gpio_sel0_pin;pin<gpio_sel0_pin+coder_sel_nb;pin++){
         gpio_init(pin);
@@ -190,21 +192,9 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_
     }
     gpio_set_dir_out_masked(sel_gpio_mask);
 
-    /*gpio_put(2,0);gpio_put(3,0);gpio_put(4,0);gpio_put(5,0);
-    while(1){
-        for(uint8_t coder=0;coder<coder_nb;coder++){
-
-            
-
-        //uint8_t selc=coder | 0x08;  // *********************************** force 4051 enable haut ******************** 
-
-        //gpio_put_masked(sel_gpio_mask, selc << gpio_sel0_pin);     // sel current coder
-        sleep_us(1);
-        }
-    }*/
-
     for(uint8_t coder=0;coder<coder_nb;coder++){
         gpio_put_masked(sel_gpio_mask,coder<<gpio_sel0_pin);     // sel one coder
+        sleep_us(1);
         c[coder].coderClock0=gpio_get(gpio_clock_pin);           // get clock
         c[coder].coderData0=gpio_get(gpio_data_pin);             // get data
         c[coder].coderSwitch0=gpio_get(gpio_switch_pin);         // get switch
@@ -213,7 +203,24 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_
     }
 }
 
+uint32_t test_cnt=1;
+void slow_coder_test(uint32_t ms){
+    
+    coderInit(CODER_GPIO_CLOCK,CODER_GPIO_DATA,CODER_GPIO_SW,CODER_GPIO_VCC,CODER_PIO_SEL0,CODER_SEL_NB,CODER_NB,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER);
+    for(uint8_t coder=0;coder<coder_nb;coder++){
+
+        //uint8_t selc=coder | 0x08;  // *********************************** force 4051 enable haut ******************** 
+
+        gpio_put_masked(sel_gpio_mask, coder << gpio_sel0_pin);     // sel current coder
+        sleep_us(1);
+        printf("coder:%d Ck:%d Da:%d Sw:%d\n",coder,gpio_get(CODER_GPIO_CLOCK),gpio_get(CODER_GPIO_DATA),gpio_get(CODER_GPIO_SW));
+        sleep_ms(ms);//printf("%d\n",test_cnt++);
+    }
+}
+
 #endif  // MUXED_CODER
 
 void coderSetup(volatile int16_t* cTC){
     coderTimerCount=cTC;}
+
+
