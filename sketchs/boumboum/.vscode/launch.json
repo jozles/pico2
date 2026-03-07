@@ -43,7 +43,8 @@
             // Also works fine for flash binaries
             "overrideLaunchCommands": [
                 "monitor reset init",
-                "load \"${command:raspberry-pi-pico.launchTargetPath}\""
+                "load \"${command:raspberry-pi-pico.launchTargetPath}\" verify"
+
             ]
         },
     ]

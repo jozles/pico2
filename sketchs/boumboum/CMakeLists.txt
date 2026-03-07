@@ -2,6 +2,7 @@
 
 cmake_minimum_required(VERSION 3.13)
 
+set(PICO_PLATFORM rp2350)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -62,7 +63,7 @@ pico_set_program_version(boumboum "0.1")
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(boumboum 0)
 pico_enable_stdio_usb(boumboum 1)
-pico_set_binary_type(boumboum no_flash)
+#pico_set_binary_type(boumboum no_flash)
 
 # Add the standard library to the build
 target_link_libraries(boumboum

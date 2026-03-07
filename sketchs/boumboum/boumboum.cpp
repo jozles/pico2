@@ -19,6 +19,8 @@ extern volatile uint32_t ledBlinker;
 // millis
 
 volatile uint32_t millisCounter=0;
+volatile uint32_t probe=0;
+uint32_t probeBlinker=0;
 
 // coder 
 
@@ -53,7 +55,11 @@ static PIO pioWs = ws2812_pio;   // pio0 used by i2s
 
 int main() {
     stdio_init_all();
-    sleep_ms(10000);printf("\n+boumboum \n");
+    sleep_ms(1000);
+    
+    gpio_init(LED);gpio_set_dir(LED,GPIO_OUT); gpio_put(LED,LOW);
+    delayBlk(10);        
+    printf("\n+boumboum= \n");
 
 //while(1){slow_coder_test(1000);}
 
@@ -107,7 +113,7 @@ int main() {
 
 #ifdef MUXED_CODER
 
-    init_test_7789(20,25*8,0,TFT_H-12*8,TFT_H,1);
+    init_test_7789(20,25*8,0,TFT_H-12*8,TFT_H,1);               // init animation
 
     while (1) {
 
@@ -115,13 +121,15 @@ int main() {
 
         LEDBLINK
 
-        test_st7789_2();
+        test_st7789_2();    // animation balayage de lignes
+
+        //if((millisCounter-probeBlinker)>1000){probeBlinker=millisCounter;printf("%d\n",probe);}
 
         for(uint8_t coder=0;coder<CODER_NB;coder++){
         
             uint8_t mul=2;
-            char s[]={(char)(48+c[coder].coderSwitch),(char)(48+c[coder].coderClock),(char)(48+c[coder].coderData),0x00};
-            tft_draw_text_12x12_dma_mult(140,coder*(12*mul+1),s,0xffff,0x0000,mul);            
+            char s[]={(char)(48+c[coder].coderSwitch),(char)(48+c[coder].coderClock),(char)(48+c[coder].coderData),0x00};   // s=switch/clock/data du codeur courant
+            tft_draw_text_12x12_dma_mult(140,coder*(12*mul+1),s,0xffff,0x0000,mul);                                         // display s           
 
             uint32_t cc=coderCounter[coder];            //*(coderCounter+coder);
             
@@ -133,7 +141,7 @@ int main() {
                 tft_draw_int_12x12_dma_mult(0,coder*(12*mul+1)+2,0xFFFF, 0x0000,mul,coder);
                 tft_draw_int_12x12_dma_mult(40,coder*(12*mul+1)+2,0xffff,0x0000,mul,cc,4);
             
-                printf("freq:%5.3f ampl:%d   \r",voices[0].frequency,voices[0].genAmpl);           
+                printf(":freq:%5.3f ampl:%d   \r",voices[0].frequency,voices[0].genAmpl);           
             }
         }
     }

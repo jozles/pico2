@@ -83,6 +83,11 @@ bool millisTimerHandler(repeating_timer *t){
     return true;
 }
 
+void delayBlk(uint8_t sec){
+    for(uint8_t i=0;i<sec;i++){
+    sleep_ms(950);gpio_put(LED,HIGH);sleep_ms(50);gpio_put(LED,LOW);}
+}
+
 #ifdef GLOBAL_DMA_IRQ_HANDLER
 
 void global_dma_irq_handler(){
@@ -118,8 +123,7 @@ void setup(){
     #ifdef MUXED_CODER
     coderInit(CODER_GPIO_CLOCK,CODER_GPIO_DATA,CODER_GPIO_SW,CODER_GPIO_VCC,CODER_PIO_SEL0,CODER_SEL_NB,CODER_NB,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER);
     #endif // MUXED_CODER
-    
-    
+       
     // irq timer
     add_repeating_timer_ms(1, millisTimerHandler, NULL, &millisTimer);
 
@@ -150,7 +154,7 @@ void setup(){
     char s[ls];memset(s,0x00,ls);
     convIntToString(s,TFT_W);s[3]='x';convIntToString(s+4,TFT_H);
     tft_draw_text_12x12_dma_mult((TFT_W-(7*10))/2,TFT_H/2+14,s, 0xFFFF, 0x0000,1);
-    sleep_ms(5000);
+    delayBlk(5);
     tft_fill(0x000000);
 
     printf("end setup \n",st_dma_channel,get_st_dma_done());

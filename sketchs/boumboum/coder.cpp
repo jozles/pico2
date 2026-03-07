@@ -38,6 +38,7 @@ Coders c[CODER_NB];
 #endif  // MUXED_CODER
 
 extern volatile uint32_t millisCounter;
+extern volatile uint32_t probe;
 
 extern PIO pio;
 
@@ -117,6 +118,8 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint16_t ctpi,uint8
 #ifdef MUXED_CODER
 bool coderTimerHandler(){
 
+    probe=millisCounter;
+
     for(uint8_t coder=0;coder<coder_nb;coder++){
 
         //uint8_t selc=coder | 0x08;  // *********************************** force 4051 enable haut ******************** 
@@ -182,7 +185,7 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_
     gpio_init(gpio_switch_pin);gpio_set_dir(gpio_switch_pin,GPIO_IN);
     gpio_init(gpio_vcc_pin);gpio_set_dir(gpio_vcc_pin,GPIO_OUT);gpio_put(gpio_vcc_pin,1);
 
-    sleep_ms(1);
+    sleep_ms(10);
 
     sel_gpio_mask=0;
     for(int pin=gpio_sel0_pin;pin<gpio_sel0_pin+coder_sel_nb;pin++){
@@ -194,12 +197,46 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_
 
     for(uint8_t coder=0;coder<coder_nb;coder++){
         gpio_put_masked(sel_gpio_mask,coder<<gpio_sel0_pin);     // sel one coder
-        sleep_us(1);
+        sleep_us(10);
         c[coder].coderClock0=gpio_get(gpio_clock_pin);           // get clock
         c[coder].coderData0=gpio_get(gpio_data_pin);             // get data
         c[coder].coderSwitch0=gpio_get(gpio_switch_pin);         // get switch
         printf(" -coder#%d init d:%d c:%d s:%d\n",coder,c[coder].coderData0,c[coder].coderClock0,gpio_get(gpio_switch_pin));
         c[coder].coderItStatus=0; 
+
+        
+        gpio_put(2,0);
+        gpio_put(3,0);
+        gpio_put(4,0);
+        printf("clkpin:%d ",gpio_get(gpio_clock_pin));
+        gpio_put(2,1);
+        gpio_put(3,0);
+        gpio_put(4,0);
+        printf("%d ",gpio_get(gpio_clock_pin));
+        gpio_put(2,0);
+        gpio_put(3,1);
+        gpio_put(4,0);
+        printf("%d ",gpio_get(gpio_clock_pin)); 
+        gpio_put(2,1);
+        gpio_put(3,1);
+        gpio_put(4,0);
+        printf("%d ",gpio_get(gpio_clock_pin));         
+        gpio_put(2,0);
+        gpio_put(3,0);
+        gpio_put(4,1);
+        printf("%d ",gpio_get(gpio_clock_pin)); 
+        gpio_put(2,1);
+        gpio_put(3,0);
+        gpio_put(4,1);
+        printf("%d ",gpio_get(gpio_clock_pin));
+        gpio_put(2,0);
+        gpio_put(3,1);
+        gpio_put(4,1);
+        printf("%d ",gpio_get(gpio_clock_pin));  
+        gpio_put(2,1);
+        gpio_put(3,1);
+        gpio_put(4,1);
+        printf("%d\n",gpio_get(gpio_clock_pin));                                     
     }
 }
 

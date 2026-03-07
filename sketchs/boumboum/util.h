@@ -38,4 +38,6 @@ void global_dma_irq_handler();
 void adsr(int32_t* ccb,int32_t ccb0);
 void autoMixer(int32_t* ccb,int32_t ccb0);
 
+void delayBlk(uint8_t sec);
+
 #endif  //_UTIL_H_

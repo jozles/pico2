@@ -647,7 +647,7 @@ void test_st7789_2(){
     if((millis+ms0)<millisCounter){
       millis=millisCounter;
 
-      if(l>lbeg && ms0>2){                           // effacement ligne précédente 
+      if(l>lbeg && ms0>2){                          // effacement ligne précédente 
         ms0=2;
         uint32_t bgad=(l-1)*TFT_W*2;
         memset(&tft_frame[bgad],0x00,TFT_W*2);
