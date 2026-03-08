@@ -26,6 +26,7 @@ uint32_t probeBlinker=0;
 
 volatile int16_t coderCounter[CODER_NB];
 volatile int16_t coderCounter0[CODER_NB];
+extern int8_t cOT[];
 
 #ifdef MUXED_CODER
 
@@ -43,9 +44,10 @@ uint32_t* currCoderBank0=nullptr;
 uint8_t currVoice=0;
 Voice voices[VOICES_NB];
 
-// frequence
+// frequence/ampl
 
-volatile int16_t amplitude=0;   
+volatile int16_t amplitude=0;
+extern uint16_t amplLevel[];
 
 // ws2812
 
@@ -116,32 +118,41 @@ int main() {
     init_test_7789(20,25*8,0,TFT_H-12*8,TFT_H,1);               // init animation
 
     while (1) {
-
+        uint16_t ccAmpl=0;
         ws_show_3(30);
 
         LEDBLINK
 
         test_st7789_2();    // animation balayage de lignes
 
-        //if((millisCounter-probeBlinker)>1000){probeBlinker=millisCounter;printf("%d\n",probe);}
+        //if((millisCounter-probeBlinker)>1000){probeBlinker=millisCounter;printf("%d\n",probe);}  // test existence coderTimerHandler()
 
-        for(uint8_t coder=0;coder<CODER_NB;coder++){
+        for(uint8_t cod=0;cod<CODER_NB;cod++){    // 1 coder/voice
+
+            uint8_t coder=cOT[cod];
         
             uint8_t mul=2;
-            char s[]={(char)(48+c[coder].coderSwitch),(char)(48+c[coder].coderClock),(char)(48+c[coder].coderData),0x00};   // s=switch/clock/data du codeur courant
-            tft_draw_text_12x12_dma_mult(140,coder*(12*mul+1),s,0xffff,0x0000,mul);                                         // display s           
+            //char s[]={(char)(48+c[coder].coderSwitch),(char)(48+c[coder].coderClock),(char)(48+c[coder].coderData),0x00};   // s=switch/clock/data du codeur courant
+            //tft_draw_text_12x12_dma_mult(140,coder*(12*mul+1),s,0xffff,0x0000,mul);                                         // display s           
 
             uint32_t cc=coderCounter[coder];            //*(coderCounter+coder);
             
             if(cc!=coderCounter0[coder]){               //*(coderCounter0+coder)){
 
-                *(coderCounter0+coder)=cc;
-                voices[0].newFrequency=calcFreq(cc);    // tous les coders agissent sur la fréquence (mode test)
+                tft_fill_rect(coder*(12*mul+1)+2,0,TFT_W,12*mul,0xffff);
 
-                tft_draw_int_12x12_dma_mult(0,coder*(12*mul+1)+2,0xFFFF, 0x0000,mul,coder);
-                tft_draw_int_12x12_dma_mult(40,coder*(12*mul+1)+2,0xffff,0x0000,mul,cc,4);
+                tft_draw_int_12x12_dma_mult(0,coder*(12*mul+1)+2,0xFFFF, 0x0000,1,coder);     // numéro codeur
+                tft_draw_int_12x12_dma_mult(30,coder*(12*mul+1)+2,0xffff,0x0000,1,cc,4);      // valeur courante codeur
+
+                *(coderCounter0+coder)=cc;
+                voices[coder].newFrequency=calcFreq(cc);    
+                tft_draw_int_12x12_dma_mult(120,coder*(12*mul+1)+5,0xffff,0x0000,1,voices[coder].newFrequency,4);        // valeur fréquence pour valeur codeur
+
+                ccAmpl=cc;if(ccAmpl>MAX_16B_LINEAR_VALUE-1){ccAmpl=MAX_16B_LINEAR_VALUE-1;}
+                voices[coder].genAmpl=amplLevel[ccAmpl];         
+                tft_draw_int_12x12_dma_mult(180,coder*(12*mul+1)+5,0xffff,0x0000,1,voices[coder].genAmpl,4);             // valeur ampl pour valeur codeur
             
-                printf(":freq:%5.3f ampl:%d   \r",voices[0].frequency,voices[0].genAmpl);           
+                printf("coder:%d cc:%d :freq:%5.3f ampl:%d   \n",coder,cc,voices[coder].newFrequency,voices[coder].genAmpl);           
             }
         }
     }

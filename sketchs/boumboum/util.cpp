@@ -130,6 +130,8 @@ void setup(){
     fillBasicWaveForms();
     freq_start();
 
+    amplStart();
+
     uint8_t channel=0;
     voiceInit(440,&voices[channel]);
 

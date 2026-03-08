@@ -21,6 +21,7 @@ uint16_t coderTimerPoolingInterval=1;       // delay betxeen Its (mS) changed by
 uint8_t coderStrobeNumber=3;                // 1st strobe delay (2nd strobe delay is 1)
 volatile int16_t* coderTimerCount=nullptr;  // ptr to current value to be inc or dec
 
+uint8_t cOT[CODER_NB]={0,1,2,5,4,3,6,7};    // CODER ORDER TABLE ordre physique
 
 // pico2_pins
 

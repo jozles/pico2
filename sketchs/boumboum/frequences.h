@@ -51,7 +51,7 @@ struct Voice {
     uint16_t    frequencyCc;
 };
 
-void fillAmplIncr(float* amplIncr);
+
 void fillBasicWaveForms();
 void fillOctFreq();
 void showOctFreq(); 
@@ -60,7 +60,7 @@ void showOctIncr(float octF,float octF1);
 float calcFreq(uint16_t val);
 void freq_start();
 void getEch(float freq,uint32_t sampleCounter,uint16_t sampleNbToFill,uint32_t* sampleBuffer);
-
+void amplStart();
 void voiceInit(float freq,Voice* v);
 void fillVoiceBuffer(int32_t* sampleBuffer,Voice* v);
 

@@ -18,21 +18,32 @@ int16_t whiteNoiseWaveform[BASIC_WAVE_TABLE_LEN];
 const uint16_t octIncrNb = 409;
 float octIncr[octIncrNb];
 
+uint8_t stepAmpl=2;     // nbre d'intervalles / 3db
+uint16_t amplLevel[MAX_16B_LINEAR_VALUE];
 
-void fillAmplIncr(float* amplIncr){
+void fillAmplIncr(){
 
-  uint8_t step=MAX_16B_LINEAR_VALUE/16;
-  float f[step];f[0]=0;
-  for(uint8_t k=1;k<step;k++){f[k]+=1/k;}    // step=2 : f[0]=0,f[1]=0.5; step=4 : f[0]=0,f[1]=0.25,f[2]=0.50,f[3]=0.75
-  float z[step];z[0]=0;
-  for(uint8_t k=1;k<step;k++){z[k]=pow(2,f[k]);}
-  for(uint8_t i=0;i<MAX_16B_LINEAR_VALUE;i++){
-    for(uint8_t j=0;j<step;j++){
-      amplIncr[i]=pow(2,(i/step))*z[j]; //pow(2,f[j]);  //z[j];
+  for(uint8_t i=1;i<((MAX_16B_LINEAR_VALUE/stepAmpl));i++){
+    amplLevel[0]=0;
+    for(uint8_t j=0;j<stepAmpl;j++){
+      amplLevel[i*stepAmpl+j]=(uint16_t)roundf(pow(2,((float)i+((float)j/stepAmpl)))); //  1,2,3,4...14,15...30,31 _ 0,0.5,1,1.5,2...7,7.5...15,15.5 _ 1,1.414;2,2.828,4,5.657...128,181.02...32768,46341
     }
   }
 }
 
+void showAmplIncr(){
+  printf("  intervalles d'amplitude\n");
+  for(uint8_t i=0;i<MAX_16B_LINEAR_VALUE;i++){
+      printf("%d %d\n",i,amplLevel[i]);
+  }
+  printf("\n");
+}
+
+void amplStart()
+{
+  fillAmplIncr();
+  showAmplIncr();
+}
 
 void fillBasicWaveForms(){
     printf("  filling basic %d %d %d\n",(BASIC_WAVE_TABLE_LEN/4),(BASIC_WAVE_TABLE_LEN/2),BASIC_WAVE_TABLE_LEN-1);
@@ -127,6 +138,15 @@ void freq_start()                //void setup()
   fillOctIncr();
   showOctIncr(0,1);
 
+}
+
+// calcul du coefficient d'amplitude à partir de la valeur linéaire
+uint16_t calcAmpl(uint16_t val)
+{
+  uint8_t dbA = val/ octIncrNb;
+  uint16_t incr = val % octIncrNb;
+  float db = octFreq[dbA] +octIncr[incr]*(octFreq[dbA+1]-octFreq[dbA]);
+  return (uint16_t)db;
 }
 
 void voiceInit(float freq,Voice* v)
