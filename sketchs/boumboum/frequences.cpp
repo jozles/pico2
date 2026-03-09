@@ -23,11 +23,14 @@ uint16_t amplLevel[MAX_16B_LINEAR_VALUE];
 
 void fillAmplIncr(){
 
-  for(uint8_t i=1;i<((MAX_16B_LINEAR_VALUE/stepAmpl));i++){
-    amplLevel[0]=0;
-    for(uint8_t j=0;j<stepAmpl;j++){
-      amplLevel[i*stepAmpl+j]=(uint16_t)roundf(pow(2,((float)i+((float)j/stepAmpl)))); //  1,2,3,4...14,15...30,31 _ 0,0.5,1,1.5,2...7,7.5...15,15.5 _ 1,1.414;2,2.828,4,5.657...128,181.02...32768,46341
-    }
+  amplLevel[0]=0;
+
+  uint8_t j=1;
+  uint8_t i=1;
+  while(i<MAX_16B_LINEAR_VALUE){
+    amplLevel[i]=(uint16_t)roundf(pow(2,((float)((int)(i/stepAmpl))+((float)j/stepAmpl))));
+    j++;if(j>=stepAmpl){j=0;}
+    i++;     
   }
 }
 

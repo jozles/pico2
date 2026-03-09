@@ -135,22 +135,23 @@ int main() {
             //char s[]={(char)(48+c[coder].coderSwitch),(char)(48+c[coder].coderClock),(char)(48+c[coder].coderData),0x00};   // s=switch/clock/data du codeur courant
             //tft_draw_text_12x12_dma_mult(140,coder*(12*mul+1),s,0xffff,0x0000,mul);                                         // display s           
 
+            
             uint32_t cc=coderCounter[coder];            //*(coderCounter+coder);
             
             if(cc!=coderCounter0[coder]){               //*(coderCounter0+coder)){
 
-                tft_fill_rect(coder*(12*mul+1)+2,0,TFT_W,12*mul,0xffff);
+                tft_fill_rect(coder*(12*mul+1)+2,0,12*mul,TFT_W,0x0000);
 
                 tft_draw_int_12x12_dma_mult(0,coder*(12*mul+1)+2,0xFFFF, 0x0000,1,coder);     // numéro codeur
-                tft_draw_int_12x12_dma_mult(30,coder*(12*mul+1)+2,0xffff,0x0000,1,cc,4);      // valeur courante codeur
+                tft_draw_int_12x12_dma_mult(20,coder*(12*mul+1)+2,0xffff,0x0000,1,cc,4);      // valeur courante codeur
 
-                *(coderCounter0+coder)=cc;
+                coderCounter0[coder]=cc;
                 voices[coder].newFrequency=calcFreq(cc);    
-                tft_draw_int_12x12_dma_mult(120,coder*(12*mul+1)+5,0xffff,0x0000,1,voices[coder].newFrequency,4);        // valeur fréquence pour valeur codeur
+                tft_draw_float_12x12_dma_mult(80,coder*(12*mul+1)+5,0xffff,0x0000,1,voices[coder].newFrequency,4);        // valeur fréquence pour valeur codeur
 
                 ccAmpl=cc;if(ccAmpl>MAX_16B_LINEAR_VALUE-1){ccAmpl=MAX_16B_LINEAR_VALUE-1;}
                 voices[coder].genAmpl=amplLevel[ccAmpl];         
-                tft_draw_int_12x12_dma_mult(180,coder*(12*mul+1)+5,0xffff,0x0000,1,voices[coder].genAmpl,4);             // valeur ampl pour valeur codeur
+                tft_draw_int_12x12_dma_mult(150,coder*(12*mul+1)+5,0xffff,0x0000,1,voices[coder].genAmpl,4);             // valeur ampl pour valeur codeur
             
                 printf("coder:%d cc:%d :freq:%5.3f ampl:%d   \n",coder,cc,voices[coder].newFrequency,voices[coder].genAmpl);           
             }

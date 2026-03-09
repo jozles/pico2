@@ -156,10 +156,16 @@ bool coderTimerHandler(){
             c[coder].coderSwitch=gpio_get(gpio_switch_pin);         // coder_switch used as speed multiplier
 
             if((!c[coder].coderClock)^c[coder].coderData){
-                (*(coderTimerCount+coder))-=1;              //+c[coder].coderSwitch;
+                if(*(coderTimerCount+coder)>0){
+                    (*(coderTimerCount+coder))-=1;                  //+c[coder].coderSwitch;
+                }
+                else *(coderTimerCount+coder)=0;
             } 
             else {
-                (*(coderTimerCount+coder))+=1;              //+c[coder].coderSwitch;
+                (*(coderTimerCount+coder))+=1;                      //+c[coder].coderSwitch;
+                if(*(coderTimerCount+coder)==0){
+                    (*(coderTimerCount+coder))-=1;
+                }  
             }
         }
 
