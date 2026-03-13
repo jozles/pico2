@@ -20,6 +20,7 @@ bool coderSwitch=0;                         // current physical coder switch val
 uint16_t coderTimerPoolingInterval=1;       // delay betxeen Its (mS) changed by init
 uint8_t coderStrobeNumber=3;                // 1st strobe delay (2nd strobe delay is 1)
 volatile int16_t* coderTimerCount=nullptr;  // ptr to current value to be inc or dec
+volatile bool* coderTimerSwitch=0;          // switchs values
 
 uint8_t cOT[CODER_NB]={0,1,2,5,4,3,6,7};    // CODER ORDER TABLE ordre physique
 
@@ -153,20 +154,25 @@ bool coderTimerHandler(){
 
         if(coderTimerCount!=nullptr){
 
-            c[coder].coderSwitch=gpio_get(gpio_switch_pin);         // coder_switch used as speed multiplier
-
             if((!c[coder].coderClock)^c[coder].coderData){
                 if(*(coderTimerCount+coder)>0){
-                    (*(coderTimerCount+coder))-=1;                  //+c[coder].coderSwitch;
+                    (*(coderTimerCount+coder))-=1;
                 }
                 else *(coderTimerCount+coder)=0;
             } 
             else {
-                (*(coderTimerCount+coder))+=1;                      //+c[coder].coderSwitch;
+                (*(coderTimerCount+coder))+=1; 
                 if(*(coderTimerCount+coder)==0){
                     (*(coderTimerCount+coder))-=1;
                 }  
             }
+        }
+
+        if(c[coder].coderSwitch!=gpio_get(gpio_switch_pin)){
+          if((probe-c[coder].coderSwitchTime)>CODER_SW_STROBE_MS){
+            c[coder].coderSwitch=!c[coder].coderSwitch;
+            c[coder].coderSwitchTime=probe;
+          }
         }
 
     // here accelerator management could be added
@@ -207,7 +213,8 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_
         sleep_us(10);
         c[coder].coderClock0=gpio_get(gpio_clock_pin);           // get clock
         c[coder].coderData0=gpio_get(gpio_data_pin);             // get data
-        c[coder].coderSwitch0=gpio_get(gpio_switch_pin);         // get switch
+        c[coder].coderSwitch=0;
+        c[coder].coderSwitchTime=0;                              // init debouncer
         printf(" -coder#%d init d:%d c:%d s:%d\n",coder,c[coder].coderData0,c[coder].coderClock0,gpio_get(gpio_switch_pin));
         c[coder].coderItStatus=0; 
 
@@ -264,7 +271,9 @@ void slow_coder_test(uint32_t ms){
 
 #endif  // MUXED_CODER
 
-void coderSetup(volatile int16_t* cTC){
-    coderTimerCount=cTC;}
+void coderSetup(volatile int16_t* cTC,volatile bool* cTS){
+    coderTimerCount=cTC;
+    coderTimerSwitch=cTS;
+}
 
 

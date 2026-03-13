@@ -36,11 +36,13 @@
 
 struct Voice {
     //int32_t*    sampleBuffer;
-    uint16_t    sampleNbToFill;    
-    uint32_t    currentSample;
-    float       frequency;
-    float       newFrequency;    
+    uint16_t    sampleNbToFill;                 // sample Nb for 1 period    
+    uint32_t    currentSample;                  
+    float       frequency;                      // current freq
+    float       newFrequency;                   
+    int16_t     coderFreq;                      // last coder value for freq  
     uint16_t    basicWaveAmpl[BASIC_WAVES_NB];
+    int16_t     coderAmpl[BASIC_WAVES_NB];      // last coder value for ampl
     uint16_t    genAmpl;
     uint8_t     freqCoeff;
     uint32_t    dhexFreq;
@@ -48,7 +50,8 @@ struct Voice {
     uint8_t     moduloShift;
     uint16_t    soundsCc[CODER_BANK_NB];
     uint16_t    adsrlCc[CODER_BANK_NB];
-    uint16_t    frequencyCc;
+    uint16_t    frequencyCc;                    // last coder value used in unmuxed coder test
+    bool        coderSw[BASIC_WAVES_NB];        // last Switch
 };
 
 

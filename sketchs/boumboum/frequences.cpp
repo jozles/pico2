@@ -52,25 +52,20 @@ void amplStart()
 // Les amplitudes sont des valeurs 16 bits positives utilisées pour multiplier
 // les échantillons et former des 32 bits signés pour le CODEC
 // les coders d'amplitude ont un nombre d'incréments limité à MAX_16B_LINEAR_VALUE
-// MAX_16B_LINEAR_VALUE / 16 (les 16 bits des valeurs d'amplitude) donne le nombre d'intervalles stepAmpl
+// MAX_16B_LINEAR_VALUE / 16 (les 16 bits des valeurs d'amplitude) donne le nombre d'intervalles stepAmpl entre 2 incréments
 // la valeur d'amplitude est : 2 ^ ( (n° d'incr / stepAmpl) + (1/stepAmpl) )
-// soit 0 à 46341 avec stepAmpl=2 : 0=>0 1=>1 2=>2 3=>3 4=>4 5=>6 6=>8 7=>11 8=>16 9=>23 10=>32... 30=>32768 31=>46341
+// soit 0 à 46341 avec stepAmpl=2 : 0=>0 1=>1 2=>2 3=>3 4=>4 5=>6 6=>8 7=>11 8=>16 9=>23 10=>32... 30=>32768 31=>46341 (si 33 incréments 32=65536)
 //
-// les amplitudes sont stockées en valeur d'amplitude 16 bits
+// les amplitudes sont stockées en valeur d'amplitude 16 bits et en valeur linéaire de coder
 //
 // lorsque les amplitudes proviennent d'une balance (mode automixer), 
 // l'intervalle des coders est :
 // fact(nb-1)/2 (PPCM) et les valeurs 0->MAX_16B_LINEAR_VALUE-1 deviennent 0->(MAX_16B_LINEAR_VALUE-1)*fact(nb-1)/2
 // pour utiliser ces amplitudes, 
-// diviser la valeur par fact(nb-1)/2 pour obtenir le n° d'incrément 0-MAX_16B_LINEAR_VALUE-1
-// le reste vaut 0-fact(nb-1)/2 ; une table des proportions permet de faire (delta incr)*proportion pour obtenir l'ampl exacte
+// diviser la valeur par fact(nb-1)/2 pour obtenir le n° d'incrément 0->MAX_16B_LINEAR_VALUE-1
+// le reste vaut 0->fact(nb-1)/2 ; une table des proportions permet de faire (delta incr)*proportion pour obtenir l'ampl exacte
 // comme l'inverse est pénible à effectuer, les 2 valeurs sont stockées : 
 // la valeur codeur 0->(MAX_16B_LINEAR_VALUE-1)*fact(nb-1)/2 et la valeur 16 bits de sortie
-//
-// chaque pas augmente l'ampl linéaire de fact(nb-1)/2 jusqu'à atteindre le maxi (MAX_16B_LINEAR_VALUE-1)*fact(nb-1)/2
-// quand le maxi est atteint, l'augmentation divisée par le nombre de canaux dont l'ampl est !=0 
-// est soustraite de chacun ainsi il n'y a pas de saturation ; 
-// à l'inverse la diminution provoque l'augmentation de ceux qui n'atteignent pas la saturation
 //
 //
 void automixer(uint8_t nb,uint16_t* ampl,uint8_t chgd){
@@ -81,6 +76,7 @@ void automixer(uint8_t nb,uint16_t* ampl,uint8_t chgd){
 
 }
 
+// production des valeurs d'échantillon pour les différentes formes d'onde
 void fillBasicWaveForms(){
     printf("  filling basic %d %d %d\n",(BASIC_WAVE_TABLE_LEN/4),(BASIC_WAVE_TABLE_LEN/2),BASIC_WAVE_TABLE_LEN-1);
     for(uint16_t i=0;i<BASIC_WAVE_TABLE_LEN/4;i++){

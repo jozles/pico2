@@ -6,7 +6,7 @@
 
 #define PI 3.141592636
 
-#define BB_TEST_MODE
+//#define BB_TEST_MODE
 
 /* spin_locks */
 
@@ -62,6 +62,8 @@
 
 #define CODER_TIMER_POOLING_INTERVAL_MS 1  // timer pooling interval in milliseconds            
 #define CODER_STROBE_NUMBER 3              // minimal timer intervals for a valid new change
+
+#define CODER_SW_STROBE_MS 50              // minimal delay for switch valid change (debouncer);
 
 #define LEDONDURAT 20
 #define LEDOFFDURAT 2000

@@ -26,6 +26,7 @@ uint32_t probeBlinker=0;
 
 volatile int16_t coderCounter[CODER_NB];
 volatile int16_t coderCounter0[CODER_NB];
+volatile bool coderSwitchs[CODER_NB];
 extern int8_t cOT[];
 
 #ifdef MUXED_CODER
@@ -117,6 +118,8 @@ int main() {
 
     init_test_7789(20,25*8,0,TFT_H-12*8,TFT_H,1);               // init animation
 
+
+
     while (1) {
         uint16_t ccAmpl=0;
         ws_show_3(30);
@@ -163,6 +166,54 @@ int main() {
 
 #ifndef BB_TEST_MODE
 
+uint8_t menuLevel=0 ; // 0=frequence des 6 voices
+bool init=true;
+bool sw=0;
+
+while(1){
+
+    // **** menu ****
+    #define VOICESFREQ 0
+
+    switch(menuLevel){
+
+        case VOICESFREQ:
+            if(init){
+                init==false;
+                coderSetup(coderCounter,coderSwitchs);
+                for(uint8_t cod=0;cod<VOICES_NB;cod++){
+                    uint8_t coder=cOT[cod];
+                    coderCounter[coder]=voices[coder].coderFreq;
+                }
+            }  
+            
+            for(uint8_t cod=0;cod<VOICES_NB;cod++){    // 1 coder/voice
+                uint8_t coder=cOT[cod];
+                
+                if(coderCounter[coder]!=voices[coder].coderFreq){        // dernière valeur acquise pour le codeur changée ?
+                    uint32_t cc=coderCounter[coder];        
+                    uint8_t mul=2;
+                    tft_fill_rect(coder*(12*mul+1)+2,0,12*mul,TFT_W,0x0000);
+
+                    tft_draw_int_12x12_dma_mult(0,coder*(12*mul+1)+2,0xFFFF, 0x0000,1,coder);     // numéro codeur
+                    tft_draw_int_12x12_dma_mult(20,coder*(12*mul+1)+2,0xffff,0x0000,1,cc,4);      // valeur courante codeur
+
+                    voices[coder].coderFreq=cc;
+                    voices[coder].newFrequency=calcFreq(cc);    
+                    tft_draw_float_12x12_dma_mult(80,coder*(12*mul+1)+5,0xffff,0x0000,1,voices[coder].newFrequency,4);        // freq value for current voice
+                }
+                if((coderSwitchs[coder]!=voices[coder].coderSw[0])){
+                    voices[coder].coderSw[0]=coderSwitchs[coder];
+                    if(voices[coder].coderSw[0]!=0){menuLevel++;init=true;sw=coder;}
+                }
+            }
+            break;
+
+
+        default :break;
+    }
+}
+/*
         // inits 
 
         for(uint8_t f=0;f<CODER_NB,f++){
@@ -186,7 +237,7 @@ int main() {
             if(currFonc<VOICE0_SPECTRUM_MIXER+VOICES_NB){autoMixer(currCoderBank,currCoderBank0);}
             if(currFonc<VOICE0_ADSR+VOICES_NB){adsr(currCoderBank,currCoderBank0);}
         }
-
+*/
 #endif  // BB_TEST_MODE
 
 }
