@@ -1,0 +1,6 @@
+r
+h
+loadbin build/boumboum.bin, 0x10000000
+r
+g
+q

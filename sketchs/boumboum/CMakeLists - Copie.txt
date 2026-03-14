@@ -2,10 +2,15 @@
 
 cmake_minimum_required(VERSION 3.13)
 
-set(PICO_PLATFORM rp2350)
+
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+set(PICO_SDK_PATH "C:/pico-sdk-2")
+include(${PICO_SDK_PATH}/pico_sdk_init.cmake)
+
+
 
 # Initialise pico_sdk from installed location
 # (note this can come from environment, CMake cache etc)
@@ -19,11 +24,14 @@ endif()
 set(sdkVersion 2.2.0)
 set(toolchainVersion 14_2_Rel1)
 set(picotoolVersion 2.2.0-a4)
+#set(picotoolVersion 2.1.2)
+
 set(picoVscode ${USERHOME}/.pico-sdk/cmake/pico-vscode.cmake)
 if (EXISTS ${picoVscode})
     include(${picoVscode})
 endif()
 # ====================================================================================
+set(PICO_PLATFORM rp2350)
 set(PICO_BOARD pico2 CACHE STRING "Board type")
 
 # Pull in Raspberry Pi Pico SDK (must be before project)
@@ -60,10 +68,8 @@ pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/ws2812.pio)
 pico_set_program_name(boumboum "boumboum")
 pico_set_program_version(boumboum "0.1")
 
-# Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(boumboum 0)
 pico_enable_stdio_usb(boumboum 1)
-#pico_set_binary_type(boumboum no_flash)
 
 # Add the standard library to the build
 target_link_libraries(boumboum
@@ -81,29 +87,7 @@ target_include_directories(boumboum PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
 )
 
-# Lien avec les bibliothèques nécessaires
-#target_link_libraries(boumboum pico_stdlib hardware_pio hardware_clocks audio)
-
 pico_add_extra_outputs(boumboum)
-
-# add_executable(coder coder.cpp)
-# target_link_libraries(coder pico_stdlib hardware_timer)
-
-# pico_add_extra_outputs(coder)
-
-# --- Flash via J-Link ---
-add_custom_target(flash-jlink
-    COMMAND JLink.exe -device RP2350 -if SWD -speed 4000 -autoconnect 1 -CommanderScript ${CMAKE_CURRENT_BINARY_DIR}/flash.jlink
-    DEPENDS boumboum.elf
-)
-
-file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/flash.jlink
-"r
-loadfile ${CMAKE_CURRENT_BINARY_DIR}/boumboum.elf
-r
-g
-q
-")
 
 
 

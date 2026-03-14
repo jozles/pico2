@@ -1,0 +1,20 @@
+
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Pico2 J-Link Flash + Debug",
+            "type": "cortex-debug",
+            "request": "launch",
+            "servertype": "jlink",
+            "device": "RP2350_M33_0",
+            "interface": "swd",
+            "runToMain": true,
+            "svdFile": "${workspaceFolder}/pico-sdk/src/rp2350/hardware_regs/rp2350.svd",
+            "executable": "${workspaceFolder}/build/mon_programme.elf",
+            "preLaunchTask": "Flash Pico2 via J-Link",
+            "cwd": "${workspaceFolder}",
+            "showDevDebugOutput": "raw"
+        }
+    ]
+}
