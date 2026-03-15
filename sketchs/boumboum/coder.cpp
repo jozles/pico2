@@ -20,7 +20,7 @@ bool coderSwitch=0;                         // current physical coder switch val
 uint16_t coderTimerPoolingInterval=1;       // delay betxeen Its (mS) changed by init
 uint8_t coderStrobeNumber=3;                // 1st strobe delay (2nd strobe delay is 1)
 volatile int16_t* coderTimerCount=nullptr;  // ptr to current value to be inc or dec
-volatile bool* coderTimerSwitch=0;          // switchs values
+volatile bool* coderTimerSwitch=nullptr;    // switchs values
 
 uint8_t cOT[CODER_NB]={0,1,2,5,4,3,6,7};    // CODER ORDER TABLE ordre physique
 
@@ -167,11 +167,14 @@ bool coderTimerHandler(){
                 }  
             }
         }
-
+        
         if(c[coder].coderSwitch!=gpio_get(gpio_switch_pin)){
           if((probe-c[coder].coderSwitchTime)>CODER_SW_STROBE_MS){
             c[coder].coderSwitch=!c[coder].coderSwitch;
             c[coder].coderSwitchTime=probe;
+          }
+          if(coderTimerSwitch!=nullptr){
+            (*(coderTimerSwitch+coder))=c[coder].coderSwitch;
           }
         }
 

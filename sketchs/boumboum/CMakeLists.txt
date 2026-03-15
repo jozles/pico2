@@ -37,6 +37,11 @@ project(boumboum C CXX ASM)
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
+# protection SysTick
+if (DEFINED PICO_USE_RAM_VECTOR_TABLE AND PICO_USE_RAM_VECTOR_TABLE)
+    message(FATAL_ERROR "RAM vector table detected — aborting build")
+endif()
+
 add_subdirectory(pico_audio_i2s_32b/src/pico_audio_32b pico_audio_32b)
 add_subdirectory(pico_audio_i2s_32b pico_audio_i2s_32b)
 
@@ -72,6 +77,7 @@ target_link_libraries(boumboum
 		hardware_dma
 		hardware_pio
 		hardware_spi
+		hardware_pwm
     	pico_audio_32b
     	pico_audio_i2s_32b
 )
@@ -91,7 +97,7 @@ pico_add_extra_outputs(boumboum)
 
 # pico_add_extra_outputs(coder)
 
-# --- Flash via J-Link ---
+#--- Flash via J-Link ---
 add_custom_target(flash-jlink
     COMMAND JLink.exe -device RP2350 -if SWD -speed 4000 -autoconnect 1 -CommanderScript ${CMAKE_CURRENT_BINARY_DIR}/flash.jlink
     DEPENDS boumboum.elf

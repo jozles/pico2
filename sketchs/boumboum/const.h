@@ -6,7 +6,7 @@
 
 #define PI 3.141592636
 
-//#define BB_TEST_MODE
+#define BB_TEST_MODE
 
 /* spin_locks */
 

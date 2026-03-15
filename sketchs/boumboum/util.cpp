@@ -6,6 +6,9 @@
 #include "hardware/pio.h"
 #include "hardware/clocks.h"
 #include "hardware/dma.h"
+#include "hardware/irq.h"
+#include "hardware/pwm.h"
+
 #include "bb_i2s.h"
 #include "const.h"
 #include "util.h"
@@ -14,6 +17,14 @@
 #include "test.h"
 #include "leds.h"
 #include "st7789.h"
+
+#define SYSTICK_BASE 0xE000E010UL
+
+#define SYST_CSR  (*(volatile uint32_t *)(SYSTICK_BASE + 0x00))
+#define SYST_RVR  (*(volatile uint32_t *)(SYSTICK_BASE + 0x04))
+#define SYST_CVR  (*(volatile uint32_t *)(SYSTICK_BASE + 0x08))
+#define SYST_CALIB (*(volatile uint32_t *)(SYSTICK_BASE + 0x0C))
+
 
 // boumboum
 
@@ -29,8 +40,11 @@ volatile uint8_t what=0;
 
 extern volatile uint32_t millisCounter;
 
-volatile uint32_t durOffOn[]={LEDOFFDUR,LEDONDUR};
-volatile bool led=false;
+#define R1 6
+#define R2 8
+#define MAXBLK 5
+volatile uint32_t durOffOn[]={LEDOFFDUR,LEDONDUR/R1,LEDOFFDUR/R2,LEDONDUR/R1,LEDOFFDUR/R2,LEDONDUR/R1,LEDOFFDUR/R2,LEDONDUR/R1,LEDOFFDUR/R2,LEDONDUR/R1,LEDOFFDUR/R2,LEDONDUR/R1};
+volatile uint8_t led=0;
 volatile uint32_t ledBlinker=0;
 
 static repeating_timer millisTimer;
@@ -73,10 +87,52 @@ void autoMixer(int32_t* ccb,uint32_t ccb0){
 
 // ******** global setup ********
 
+void timer1_irq_handler() {
 
-bool millisTimerHandler(repeating_timer *t){
+    if (timer_hw->intr & (1u << 3)) {
+        millisCounter++;
+        timer_hw->alarm[3] = timer_hw->timerawl + 1000; // 1 ms
+        timer_hw->intr = 1u << 3; // clear
+    }
+}
+
+void init_timer_1khz() {
+    // Armer la première alarme dans 1 ms
+    timer_hw->alarm[3] = timer_hw->timerawl + 1000;
+
+    // Associer l’IRQ à notre handler
+    irq_set_exclusive_handler(TIMER1_IRQ_0, timer1_irq_handler);
+    irq_set_enabled(TIMER1_IRQ_0, true);
+}
+
+void pwm_irq_handler() {
+    // Clear IRQ
+    pwm_clear_irq(0); // slice 0
+
     millisCounter++;
-    coderTimerHandler();
+}
+
+void init_pwm_timer_1khz() {
+    uint slice = 0; // slice 0, tu peux choisir un autre
+
+    pwm_config cfg = pwm_get_default_config();
+
+    // 125 MHz / 125 = 1 MHz → wrap = 1000 → 1 kHz
+    pwm_config_set_clkdiv(&cfg, 31.25f);
+    pwm_config_set_wrap(&cfg, 1000);
+
+    pwm_init(slice, &cfg, true);
+
+    pwm_clear_irq(slice);
+    pwm_set_irq_enabled(slice, true);
+
+    irq_set_exclusive_handler(PWM_IRQ_WRAP, pwm_irq_handler);
+    irq_set_enabled(PWM_IRQ_WRAP, true);
+}
+
+static bool __not_in_flash_func(millisTimerHandler)(repeating_timer *t){
+    millisCounter++;
+    //coderTimerHandler();
 //    if(millisCounter%1000==0){
 //        tft_draw_int_12x12_dma_mult(165,12,0xffff,0x0000,1,millisCounter/1000);}
 //        tft_draw_int_12x12_dma_mult(180,12,0xffff,0x0000,1,dma_tfr_count);}
@@ -110,23 +166,26 @@ void init_global_dma_irq(){
 
 void setup(){
 
-    gpio_init(LED);gpio_set_dir(LED,GPIO_OUT); gpio_put(LED,LOW);
+    gpio_init(LED);gpio_set_dir(LED,GPIO_OUT); gpio_put(LED,LOW);    
 
     gpio_init(TEST_PIN);gpio_set_dir(TEST_PIN,GPIO_OUT); gpio_put(TEST_PIN,LOW);
 
     gpio_init(PIN_DCDC_PSM_CTRL);gpio_set_dir(PIN_DCDC_PSM_CTRL, GPIO_OUT);
-    gpio_put(PIN_DCDC_PSM_CTRL, 1); // PWM mode for less Audio noise
-    
+    gpio_put(PIN_DCDC_PSM_CTRL, 1); // PWM mode for less Audio noise   
+
     #ifndef MUXED_CODER
     coderInit(CODER_GPIO_CLOCK,CODER_GPIO_DATA,CODER_GPIO_SW,CODER_GPIO_VCC,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER);
     #endif  // MUXED_CODER
     #ifdef MUXED_CODER
     coderInit(CODER_GPIO_CLOCK,CODER_GPIO_DATA,CODER_GPIO_SW,CODER_GPIO_VCC,CODER_PIO_SEL0,CODER_SEL_NB,CODER_NB,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER);
     #endif // MUXED_CODER
-       
-    // irq timer
-    add_repeating_timer_ms(1, millisTimerHandler, NULL, &millisTimer);
+ 
+sleep_ms(1000);delayBlk(5);     
 
+    // irq timer
+    init_pwm_timer_1khz();
+    //add_repeating_timer_ms(10, millisTimerHandler, NULL, &millisTimer);
+sleep_ms(1000);delayBlk(5); 
     fillBasicWaveForms();
     freq_start();
 
@@ -156,7 +215,6 @@ void setup(){
     char s[ls];memset(s,0x00,ls);
     convIntToString(s,TFT_W);s[3]='x';convIntToString(s+4,TFT_H);
     tft_draw_text_12x12_dma_mult((TFT_W-(7*10))/2,TFT_H/2+14,s, 0xFFFF, 0x0000,1);
-    delayBlk(5);
     tft_fill(0x000000);
 
     printf("end setup \n",st_dma_channel,get_st_dma_done());
@@ -676,4 +734,26 @@ void show_cnt(uint32_t cnt,uint16_t x,uint16_t y,uint8_t mult){
 
 void show_cnt(uint32_t cnt,uint16_t x,uint16_t y){
     show_cnt(cnt,x,y,1);
+}
+
+void ledblinkn(uint8_t n){
+    if(
+        (led==0 && (millisCounter-ledBlinker)>(durOffOn[led]-durOffOn[led+1]-(n-1)*(durOffOn[led+2]+durOffOn[led+3]))) 
+        || 
+        ((millisCounter-ledBlinker)>(durOffOn[led]))
+    )
+    {
+/*        
+        led++;led&=0x01;
+        gpio_put(LED,led);
+        ledBlinker=millisCounter;
+*/        
+///*
+        if(n>MAXBLK){n=MAXBLK;}
+        ledBlinker=millisCounter;
+        if(led<((2*n)-1)){led++;}
+        else {led=0; printf("%d\n",millisCounter);}
+        gpio_put(LED,led&0x01);
+//*/        
+    }
 }

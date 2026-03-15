@@ -36,12 +36,13 @@
             }
         },
 */
+
         {
             "label": "Run Project",
             "type": "process",
             "command": "C:/Program Files/SEGGER/JLink_V926/JLink.exe",
             "args": [
-                "-device", "RP2350",
+                "-device", "RP2350_M33_0",
                 "-if", "SWD",
                 "-speed", "4000",
                 "-autoconnect", "1",
@@ -115,13 +116,14 @@
             "windows": {
                 "command": "${env:USERPROFILE}/.pico-sdk/openocd/0.12.0+dev/openocd.exe",
             }
-        },
+        }
+        ,
         {
             "label": "Flash J-Link",
             "type": "process",
             "command": "JLink.exe",
             "args": [
-                "-device", "RP2350",
+                "-device", "RP2350_M33_0",
                 "-if", "SWD",
                 "-speed", "4000",
                 "-autoconnect", "1",

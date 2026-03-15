@@ -57,6 +57,7 @@ static PIO pioWs = ws2812_pio;   // pio0 used by i2s
 // --------
 
 int main() {
+
     stdio_init_all();
     sleep_ms(1000);
     
@@ -73,7 +74,7 @@ int main() {
 
 #ifdef BB_TEST_MODE
 
-    coderSetup(coderCounter);
+    coderSetup(coderCounter,coderSwitchs);
 
     for(uint8_t f=0;f<CODER_NB;f++){coderCounter[f]=100;coderCounter0[f]=coderCounter[f]+1;} 
 
@@ -124,7 +125,7 @@ int main() {
         uint16_t ccAmpl=0;
         ws_show_3(30);
 
-        LEDBLINK
+        ledblinkn(2);
 
         test_st7789_2();    // animation balayage de lignes
 

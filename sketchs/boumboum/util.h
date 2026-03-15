@@ -39,5 +39,6 @@ void adsr(int32_t* ccb,int32_t ccb0);
 void autoMixer(int32_t* ccb,int32_t ccb0);
 
 void delayBlk(uint8_t sec);
+void ledblinkn(uint8_t n);
 
 #endif  //_UTIL_H_
