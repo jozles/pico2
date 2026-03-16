@@ -10,7 +10,7 @@
 
 /* spin_locks */
 
-#define DMA_LOCK 2
+#define DMA_LOCK 5
 #define WS_LOCK  3
 
 /* coder */

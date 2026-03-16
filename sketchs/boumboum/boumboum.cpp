@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include "pico/stdlib.h"
 #include "const.h"
 #include "coder.h"
@@ -62,7 +63,7 @@ int main() {
     sleep_ms(1000);
     
     gpio_init(LED);gpio_set_dir(LED,GPIO_OUT); gpio_put(LED,LOW);
-    delayBlk(10);        
+    delayBlk(3);        
     printf("\n+boumboum= \n");
 
 //while(1){slow_coder_test(1000);}
@@ -73,8 +74,6 @@ int main() {
     setup();
 
 #ifdef BB_TEST_MODE
-
-    coderSetup(coderCounter,coderSwitchs);
 
     for(uint8_t f=0;f<CODER_NB;f++){coderCounter[f]=100;coderCounter0[f]=coderCounter[f]+1;} 
 
@@ -119,7 +118,7 @@ int main() {
 
     init_test_7789(20,25*8,0,TFT_H-12*8,TFT_H,1);               // init animation
 
-
+    coderSetup(coderCounter,coderSwitchs);
 
     while (1) {
         uint16_t ccAmpl=0;
@@ -131,33 +130,31 @@ int main() {
 
         //if((millisCounter-probeBlinker)>1000){probeBlinker=millisCounter;printf("%d\n",probe);}  // test existence coderTimerHandler()
 
-        for(uint8_t cod=0;cod<CODER_NB;cod++){    // 1 coder/voice
+        for(uint8_t cod=0;cod<CODER_NB;cod++){      // 1 coder/voice
 
-            uint8_t coder=cOT[cod];
-        
-            uint8_t mul=2;
-            //char s[]={(char)(48+c[coder].coderSwitch),(char)(48+c[coder].coderClock),(char)(48+c[coder].coderData),0x00};   // s=switch/clock/data du codeur courant
-            //tft_draw_text_12x12_dma_mult(140,coder*(12*mul+1),s,0xffff,0x0000,mul);                                         // display s           
-
+            uint8_t coder=cOT[cod];                 // ordre physique des coders
             
-            uint32_t cc=coderCounter[coder];            //*(coderCounter+coder);
+            uint32_t cc=coderCounter[coder];
             
-            if(cc!=coderCounter0[coder]){               //*(coderCounter0+coder)){
+            if(cc!=coderCounter0[coder]){
 
-                tft_fill_rect(coder*(12*mul+1)+2,0,12*mul,TFT_W,0x0000);
+                #define LINE_LEN TFT_W/12+1
+                char buf[LINE_LEN];memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
 
-                tft_draw_int_12x12_dma_mult(0,coder*(12*mul+1)+2,0xFFFF, 0x0000,1,coder);     // numéro codeur
-                tft_draw_int_12x12_dma_mult(20,coder*(12*mul+1)+2,0xffff,0x0000,1,cc,4);      // valeur courante codeur
-
+                buf[0]=coder+48;
+                sprintf(buf+2,"%4d ",cc);             // valeur courante coder
+; 
                 coderCounter0[coder]=cc;
-                voices[coder].newFrequency=calcFreq(cc);    
-                tft_draw_float_12x12_dma_mult(80,coder*(12*mul+1)+5,0xffff,0x0000,1,voices[coder].newFrequency,4);        // valeur fréquence pour valeur codeur
+                voices[coder].newFrequency=calcFreq(cc);               
+                sprintf(buf+7,"%4.2f  ",voices[coder].newFrequency); // valeur fréquence pour valeur codeur     
 
                 ccAmpl=cc;if(ccAmpl>MAX_16B_LINEAR_VALUE-1){ccAmpl=MAX_16B_LINEAR_VALUE-1;}
                 voices[coder].genAmpl=amplLevel[ccAmpl];         
-                tft_draw_int_12x12_dma_mult(150,coder*(12*mul+1)+5,0xffff,0x0000,1,voices[coder].genAmpl,4);             // valeur ampl pour valeur codeur
-            
-                printf("coder:%d cc:%d :freq:%5.3f ampl:%d   \n",coder,cc,voices[coder].newFrequency,voices[coder].genAmpl);           
+                sprintf(buf+14,"%5d",voices[coder].genAmpl);        // valeur ampl pour valeur codeur
+          
+                tft_draw_text_12x12_dma_mult(0,coder*(12*2+1),buf,0xffff,0x0000,1);
+
+                printf("coder:%d cc:%d :freq:%5.3f ampl:%d  %s\n",coder,cc,voices[coder].newFrequency,voices[coder].genAmpl,buf);       
             }
         }
     }

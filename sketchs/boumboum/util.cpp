@@ -110,6 +110,7 @@ void pwm_irq_handler() {
     pwm_clear_irq(0); // slice 0
 
     millisCounter++;
+    //coderTimerHandler();
 }
 
 void init_pwm_timer_1khz() {
@@ -178,14 +179,12 @@ void setup(){
     #endif  // MUXED_CODER
     #ifdef MUXED_CODER
     coderInit(CODER_GPIO_CLOCK,CODER_GPIO_DATA,CODER_GPIO_SW,CODER_GPIO_VCC,CODER_PIO_SEL0,CODER_SEL_NB,CODER_NB,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER);
-    #endif // MUXED_CODER
- 
-sleep_ms(1000);delayBlk(5);     
+    #endif // MUXED_CODER   
 
-    // irq timer
+    // irq timer -- coderInit() doit etre avant !
     init_pwm_timer_1khz();
     //add_repeating_timer_ms(10, millisTimerHandler, NULL, &millisTimer);
-sleep_ms(1000);delayBlk(5); 
+ 
     fillBasicWaveForms();
     freq_start();
 
@@ -208,14 +207,17 @@ sleep_ms(1000);delayBlk(5);
     init_global_dma_irq();
     #endif
 
-    tft_fill(0x000000);
+    tft_fill_rect_blank(0,0,TFT_H,TFT_W);
+    
     uint8_t m=3;
     tft_draw_text_12x12_dma_mult((TFT_W-(6*10*m))/2,(TFT_H-m*10)/2, "ST7789", 0xFFFF, 0x0000,m);
     uint8_t ls=16;
     char s[ls];memset(s,0x00,ls);
     convIntToString(s,TFT_W);s[3]='x';convIntToString(s+4,TFT_H);
     tft_draw_text_12x12_dma_mult((TFT_W-(7*10))/2,TFT_H/2+14,s, 0xFFFF, 0x0000,1);
-    tft_fill(0x000000);
+    
+    delayBlk(5);
+    tft_fill_rect_blank(0,0,TFT_H,TFT_W);
 
     printf("end setup \n",st_dma_channel,get_st_dma_done());
     print_diag();
@@ -740,7 +742,7 @@ void ledblinkn(uint8_t n){
     if(
         (led==0 && (millisCounter-ledBlinker)>(durOffOn[led]-durOffOn[led+1]-(n-1)*(durOffOn[led+2]+durOffOn[led+3]))) 
         || 
-        ((millisCounter-ledBlinker)>(durOffOn[led]))
+        (led!=0 && (millisCounter-ledBlinker)>(durOffOn[led]))
     )
     {
 /*        
@@ -752,7 +754,9 @@ void ledblinkn(uint8_t n){
         if(n>MAXBLK){n=MAXBLK;}
         ledBlinker=millisCounter;
         if(led<((2*n)-1)){led++;}
-        else {led=0; printf("%d\n",millisCounter);}
+        else {
+            led=0; //printf("%d\n",millisCounter);
+        }
         gpio_put(LED,led&0x01);
 //*/        
     }

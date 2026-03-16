@@ -129,7 +129,6 @@ bool coderTimerHandler(){
         gpio_put_masked(sel_gpio_mask, coder << gpio_sel0_pin);     // sel current coder
         sleep_us(1);
         c[coder].coderClock=gpio_get(gpio_clock_pin);
-        //c[coder].coderData=gpio_get(gpio_data_pin);
         c[coder].coderSwitch=gpio_get(gpio_switch_pin);
         
         if(c[coder].coderClock == c[coder].coderClock0){            // no change 
@@ -177,14 +176,17 @@ bool coderTimerHandler(){
             (*(coderTimerSwitch+coder))=c[coder].coderSwitch;
           }
         }
-
     // here accelerator management could be added
     }
     return true;    // relancer le timer
 }
 
 void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_t sel_nb,uint8_t nb,uint16_t ctpi,uint8_t cstn){
- 
+
+    // ********************* doit absolument etre fait avant la mise en route du timer *******************
+    coderTimerCount=nullptr;
+    coderTimerSwitch=nullptr;
+
     gpio_clock_pin=ck;
     gpio_data_pin=data;
     gpio_switch_pin=sw;
@@ -221,7 +223,7 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_
         printf(" -coder#%d init d:%d c:%d s:%d\n",coder,c[coder].coderData0,c[coder].coderClock0,gpio_get(gpio_switch_pin));
         c[coder].coderItStatus=0; 
 
-        
+/*
         gpio_put(2,0);
         gpio_put(3,0);
         gpio_put(4,0);
@@ -253,7 +255,8 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_
         gpio_put(2,1);
         gpio_put(3,1);
         gpio_put(4,1);
-        printf("%d\n",gpio_get(gpio_clock_pin));                                     
+        printf("%d\n",gpio_get(gpio_clock_pin)); 
+*/                                            
     }
 }
 

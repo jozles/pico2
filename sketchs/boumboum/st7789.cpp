@@ -23,8 +23,23 @@ static int st_dma_chan;
 static dma_channel_config dma_cfg;
 static volatile bool st_dma_done = false;
 static spin_lock_t *st_dma_lock;
+static volatile bool st_dma_done_blank = false;
 
-static uint8_t tft_frame[TFT_W * TFT_H * 2];    // 2bytes/pixel
+static volatile bool st_dma_done_sched = true;
+static uint8_t* sched_frame;
+static size_t sched_size;
+
+// --------------------------------------------------------
+// accélérateur uc après effacement écran :
+// le flag_dma prend une valeur particulière,
+// les valeurs du dma pending sont stockées
+// à la fin du tfr pour effacement elles sont executées
+// (mini scheduler)
+// --------------------------------------------------------
+
+#define FRAME_SIZE TFT_W * TFT_H * 2
+static uint8_t tft_frame[FRAME_SIZE];    // 2bytes/pixel
+static uint8_t tft_frame_blk[FRAME_SIZE];    // 2bytes/pixel
 
 static void tft_init(void);
 
@@ -32,13 +47,69 @@ static void tft_init(void);
 // DMA IRQ : gestion dma_done
 // ---------------------------------------------------------
 
-void st_dma_wait(){                     // wait for end of current st dma usage 
+void st_dma_wait(){                     // wait for end of current st dma usage ; if blank en cours run
+    while(true){
+        uint32_t f = spin_lock_blocking(st_dma_lock); //protège dma_done_xxx contre un accès asynchrone
+
+        // on continue si dma_done free (rien en cours) ou blank busy et sched free (blank en cours)
+        // c-a-d si le buffer est dispo
+
+        if(st_dma_done) {
+            st_dma_done=false;
+            spin_unlock(st_dma_lock, f);
+            return;}                            // st_dma_done ne peut etre modifié par l'irq : pas de dma en cours
+        if(!st_dma_done && !st_dma_done_blank && st_dma_done_sched){
+            st_dma_done_sched=false;
+            spin_unlock(st_dma_lock, f);
+            return;                             // st_dma_done peut etre modifié par l'irq : dma en cours
+        }
+        spin_unlock(st_dma_lock, f);            
+        sleep_us(100);
+    }
+}
+
+void st_dma_launch(uint8_t* frame,size_t total_bytes){       // wait for end of current st dma usage ; if blank en cours store values and run
+bool k=true;
+
+        uint32_t f = spin_lock_blocking(st_dma_lock); //protège st_dma_done_xxx et sched_xxx contre un accès asynchrone
+
+        // si launch s'éxécute c'est que le buffer était dispo 
+        // st_dma_wait a mis st_dma_done false et éventuellement st_dma_done_sched
+        // si blank est false ; blank en cours
+        // st_dma_done_blank peut avoir été libéré par l'irq depuis st_dma_wait     
+        
+        if(st_dma_done_blank){          // pas blank -> launch & run 
+            st_dma_done_sched=false;    // st_dma_done_blank peut avoir été libéré par l'irq depuis st_dma_wait
+            dma_channel_configure(
+                st_dma_chan,
+                &dma_cfg,
+                &spi0_hw->dr,
+                frame,
+                total_bytes,
+                true
+            );
+            spin_unlock(st_dma_lock, f);          
+            return;}
+
+        // donc dma busy by blank & schedule dispo (réservée dans st_dma_wait) -> store & run
+        // l'irq ne doit pas tester st_dma_done_sched avant le unlock : l'irq est masquée par le spinlock
+        sched_frame=frame;
+        sched_size=total_bytes;
+        st_dma_done_sched=false;
+        spin_unlock(st_dma_lock, f);
+
+        sleep_us(100);
+
+}
+
+void st_dma_wait_blank(){                // wait for end of current st dma usage -- spec pour blank : attente obligatoire
     while(true){
         uint32_t f = spin_lock_blocking(st_dma_lock); //protège dma_done contre un accès asynchrone
         if(st_dma_done) {
             st_dma_done=false;
+            st_dma_done_blank=false;
             spin_unlock(st_dma_lock, f);
-            return;}
+            return;}          
         spin_unlock(st_dma_lock, f);
         sleep_us(100);
     }
@@ -52,7 +123,24 @@ void st_dma_irq_handler() {
         tight_loop_contents();
     }
 
-    gpio_put(ST7789_PIN_CS, 1);          // FIN du transfert complet
+    if(!st_dma_done_blank){
+        st_dma_done_blank=true;
+    }
+    if(!st_dma_done_sched){                  
+        
+        dma_channel_configure(          // launch pending
+            st_dma_chan,
+            &dma_cfg,
+            &spi0_hw->dr,
+            sched_frame,
+            sched_size,
+            true
+        );
+        st_dma_done_sched=true; 
+    }
+
+    gpio_put(ST7789_PIN_CS, 1);         // fin transfert
+
     st_dma_done=true;
     
     dma_hw->ints0 = 1u << st_dma_chan;   // clear IRQ
@@ -81,12 +169,12 @@ int init_dma_spi() {
 
 int st7789_setup(uint32_t spiSpeed)
 {
+    gpio_init(ST7789_PIN_BL);  gpio_set_dir(ST7789_PIN_BL, GPIO_OUT);
+    gpio_put(ST7789_PIN_BL, 0);
     gpio_init(ST7789_PIN_DC);  gpio_set_dir(ST7789_PIN_DC, GPIO_OUT);
     gpio_init(ST7789_PIN_RST); gpio_set_dir(ST7789_PIN_RST, GPIO_OUT);
     gpio_init(ST7789_PIN_CS);  gpio_set_dir(ST7789_PIN_CS, GPIO_OUT);
     gpio_put(ST7789_PIN_CS, 1);
-    gpio_init(ST7789_PIN_BL);  gpio_set_dir(ST7789_PIN_BL, GPIO_OUT);
-    gpio_put(ST7789_PIN_BL, 0);
 
     spi_init(spi0, spiSpeed);
     gpio_set_function(ST7789_PIN_SCK,  GPIO_FUNC_SPI);
@@ -100,9 +188,14 @@ int st7789_setup(uint32_t spiSpeed)
     if(init_dma_spi()<0){printf("st7789_Setup: no spi dma channel available\n");return -1;}
  
     st_dma_done = true;
-    st_dma_lock = spin_lock_init(DMA_LOCK);
+    spin_lock_init(DMA_LOCK);
+    st_dma_lock = spin_lock_instance(DMA_LOCK);
+    st_dma_done_blank = true;
+    st_dma_done_sched = true;
 
-    tft_fill(0x0000);sleep_ms(100);
+    memset(tft_frame_blk,0x00,FRAME_SIZE);
+
+    tft_fill_rect_blank(0,0,TFT_H,TFT_W);sleep_ms(50);
     gpio_put(ST7789_PIN_BL, 1);
     return st_dma_chan;
 }
@@ -240,6 +333,7 @@ static void tft_set_window(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) {
 // ---------------------------------------------------------
 void tft_fill(uint16_t color) {
 
+    printf("done:%d blank:%d sched:%d",st_dma_done,st_dma_done_blank,st_dma_done_sched);
     st_dma_wait();
 
     static uint8_t frame[TFT_W * TFT_H * 2];
@@ -257,15 +351,9 @@ void tft_fill(uint16_t color) {
 
     //gpio_put(TEST_PIN,ON);
 
-    dma_channel_configure(
-        st_dma_chan,
-        &dma_cfg,
-        &spi0_hw->dr,        // destination = SPI TX FIFO
-        frame,               // source = buffer complet
-        sizeof(frame),       // 115200 octets
-        true                 // start
-    );
+    st_dma_launch(frame,sizeof(frame));    
 
+    printf(" tft_fill\n");
     //gpio_put(TEST_PIN,OFF);
 }
 
@@ -294,11 +382,40 @@ void tft_fill_rect(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,uint16_t
     gpio_put(ST7789_PIN_DC, 1);
     gpio_put(ST7789_PIN_CS, 0);
 
+    st_dma_launch(tft_frame,total_bytes);     
+
+}
+
+// ---------------------------------------------------------
+// BLANK : 1 DMA = un rectangle dans l'écran
+// ---------------------------------------------------------
+void tft_fill_rect_blank(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,uint16_t col_nb)
+{
+
+    st_dma_wait_blank();
+
+    // 1) buffer EXACT de la taille du pavé
+    size_t total_pixels = lines_nb * col_nb;
+    size_t total_bytes  = total_pixels * 2;
+
+    // 2) remplir le buffer
+    //for (int i = 0; i < total_pixels; i++) {
+    //    tft_frame[2*i]     = color >> 8;
+    //    tft_frame[2*i + 1] = color & 0xFF;
+    //}
+
+    // 3) définir la fenêtre EXACTE
+    tft_set_window(beg_col,beg_line,beg_col+col_nb-1,beg_line+lines_nb-1);
+
+    // 4) lancer un seul DMA pour tout le pavé
+    gpio_put(ST7789_PIN_DC, 1);
+    gpio_put(ST7789_PIN_CS, 0);
+    
     dma_channel_configure(
         st_dma_chan,
         &dma_cfg,
         &spi0_hw->dr,
-        tft_frame,
+        tft_frame_blk,
         total_bytes,
         true
     );
@@ -320,14 +437,8 @@ void tft_draw_rect(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,uint16_t
     gpio_put(ST7789_PIN_DC, 1);
     gpio_put(ST7789_PIN_CS, 0);
 
-    dma_channel_configure(
-        st_dma_chan,
-        &dma_cfg,
-        &spi0_hw->dr,
-        buffer,
-        total_bytes,
-        true
-    );
+    st_dma_launch(buffer,total_bytes);     
+
 }
 
 // ---------------------------------------------------------
@@ -367,14 +478,8 @@ void tft_draw_char_12x12(uint16_t y, uint16_t x,
     gpio_put(ST7789_PIN_DC, 1);
     gpio_put(ST7789_PIN_CS, 0);
 
-    dma_channel_configure(
-        st_dma_chan,
-        &dma_cfg,
-        &spi0_hw->dr,
-        tft_frame,
-        w * h * 2,   // 12×12×2 = 288 octets
-        true
-    );
+    st_dma_launch(tft_frame,w * h * 2);     
+
 }
 
 // ---------------------------------------------------------
@@ -439,15 +544,9 @@ void tft_draw_text_12x12_block(
 
     gpio_put(ST7789_PIN_DC, 1);
     gpio_put(ST7789_PIN_CS, 0);
+    
+    st_dma_launch(tft_frame,w * h * 2);    
 
-    dma_channel_configure(
-        st_dma_chan,
-        &dma_cfg,
-        &spi0_hw->dr,
-        tft_frame,
-        w * h * 2,
-        true
-    );
 }
 
 // ---------------------------------------------------------
@@ -503,14 +602,8 @@ void tft_draw_text_12x12_dma_mult(uint16_t x,uint16_t y,const char *s,uint16_t f
     gpio_put(ST7789_PIN_DC, 1);
     gpio_put(ST7789_PIN_CS, 0);
 
-    dma_channel_configure(
-        st_dma_chan,
-        &dma_cfg,
-        &spi0_hw->dr,
-        tft_frame,
-        w * h * 2 * mult * mult, 
-        true
-    );
+    st_dma_launch(tft_frame,w * h * 2 * mult * mult);    
+
 }
 
 uint16_t tft_draw_int_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_t bg,int8_t mult,int32_t num,uint8_t len){
