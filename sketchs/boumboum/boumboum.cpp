@@ -20,8 +20,9 @@ extern volatile uint32_t ledBlinker;
 // millis
 
 volatile uint32_t millisCounter=0;
-volatile uint32_t probe=0;
+volatile uint32_t probe=0;      // pour debouncer
 uint32_t probeBlinker=0;
+uint32_t ticker10=0;
 
 // coder 
 
@@ -128,6 +129,8 @@ int main() {
 
         test_st7789_2();    // animation balayage de lignes
 
+        if((millisCounter-ticker10)>10000){printf(".");ticker10=millisCounter;}
+
         //if((millisCounter-probeBlinker)>1000){probeBlinker=millisCounter;printf("%d\n",probe);}  // test existence coderTimerHandler()
 
         for(uint8_t cod=0;cod<CODER_NB;cod++){      // 1 coder/voice
@@ -154,7 +157,7 @@ int main() {
           
                 tft_draw_text_12x12_dma_mult(0,coder*(12*2+1),buf,0xffff,0x0000,1);
 
-                printf("coder:%d cc:%d :freq:%5.3f ampl:%d  %s\n",coder,cc,voices[coder].newFrequency,voices[coder].genAmpl,buf);       
+                printf("\ncoder:%d cc:%d :freq:%5.3f ampl:%d  %s",coder,cc,voices[coder].newFrequency,voices[coder].genAmpl,buf);       
             }
         }
     }

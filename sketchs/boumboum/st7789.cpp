@@ -21,19 +21,22 @@ extern uint32_t st_dma_tfr_count;
 
 static int st_dma_chan;
 static dma_channel_config dma_cfg;
-static volatile bool st_dma_done = false;
+//static 
+volatile bool st_dma_done = false;
 static spin_lock_t *st_dma_lock;
-static volatile bool st_dma_done_blank = false;
+//static 
+volatile bool st_dma_done_blank = false;
 
-static volatile bool st_dma_done_sched = true;
+//static 
+volatile bool st_dma_done_sched = true;
 static uint8_t* sched_frame;
 static size_t sched_size;
 
 // --------------------------------------------------------
-// accélérateur uc après effacement écran :
-// le flag_dma prend une valeur particulière,
+// accélérateur uc pendant effacement écran :
+// buffer réservé pour effacement (on profite d'avoir plein de mémoire)
 // les valeurs du dma pending sont stockées
-// à la fin du tfr pour effacement elles sont executées
+// à la fin du dma d'effacement elles sont executées
 // (mini scheduler)
 // --------------------------------------------------------
 
@@ -62,14 +65,15 @@ void st_dma_wait(){                     // wait for end of current st dma usage 
             st_dma_done_sched=false;
             spin_unlock(st_dma_lock, f);
             return;                             // st_dma_done peut etre modifié par l'irq : dma en cours
-        }
+            }
+            
         spin_unlock(st_dma_lock, f);            
         sleep_us(100);
     }
 }
 
-void st_dma_launch(uint8_t* frame,size_t total_bytes){       // wait for end of current st dma usage ; if blank en cours store values and run
-bool k=true;
+void st_dma_launch(uint8_t* frame,size_t total_bytes){      // wait for end of current st dma usage ; 
+                                                            // if blank running -> store values and run
 
         uint32_t f = spin_lock_blocking(st_dma_lock); //protège st_dma_done_xxx et sched_xxx contre un accès asynchrone
 
@@ -78,8 +82,12 @@ bool k=true;
         // si blank est false ; blank en cours
         // st_dma_done_blank peut avoir été libéré par l'irq depuis st_dma_wait     
         
-        if(st_dma_done_blank){          // pas blank -> launch & run 
-            st_dma_done_sched=false;    // st_dma_done_blank peut avoir été libéré par l'irq depuis st_dma_wait
+        if(st_dma_done_blank){          // not blank -> launch & run 
+            st_dma_done_sched=true;     // si st_dma_done_blank a été libéré par l'irq depuis st_dma_wait
+            
+            gpio_put(ST7789_PIN_DC, 1);
+            gpio_put(ST7789_PIN_CS, 0);
+
             dma_channel_configure(
                 st_dma_chan,
                 &dma_cfg,
@@ -89,20 +97,19 @@ bool k=true;
                 true
             );
             spin_unlock(st_dma_lock, f);          
-            return;}
+            return;
+        }
 
         // donc dma busy by blank & schedule dispo (réservée dans st_dma_wait) -> store & run
-        // l'irq ne doit pas tester st_dma_done_sched avant le unlock : l'irq est masquée par le spinlock
+        // l'irq ne peut pas tester st_dma_done_sched avant le unlock : elle est masquée par le spinlock
         sched_frame=frame;
         sched_size=total_bytes;
         st_dma_done_sched=false;
         spin_unlock(st_dma_lock, f);
 
-        sleep_us(100);
-
 }
 
-void st_dma_wait_blank(){                // wait for end of current st dma usage -- spec pour blank : attente obligatoire
+void st_dma_wait_blank(){       // wait for end of current st dma usage -- special pour blank : attente obligatoire
     while(true){
         uint32_t f = spin_lock_blocking(st_dma_lock); //protège dma_done contre un accès asynchrone
         if(st_dma_done) {
@@ -118,7 +125,7 @@ void st_dma_wait_blank(){                // wait for end of current st dma usage
 volatile bool get_st_dma_done(){return st_dma_done;}
 
 void st_dma_irq_handler() {
-
+//printf(">) d:%d b:%d s:%d\n",st_dma_done,st_dma_done_blank,st_dma_done_sched);
     while (spi_is_busy(spi0)) {
         tight_loop_contents();
     }
@@ -126,7 +133,11 @@ void st_dma_irq_handler() {
     if(!st_dma_done_blank){
         st_dma_done_blank=true;
     }
+
     if(!st_dma_done_sched){                  
+        
+        gpio_put(ST7789_PIN_DC, 1);
+        gpio_put(ST7789_PIN_CS, 0);
         
         dma_channel_configure(          // launch pending
             st_dma_chan,
@@ -136,13 +147,15 @@ void st_dma_irq_handler() {
             sched_size,
             true
         );
-        st_dma_done_sched=true; 
+        st_dma_done_sched=true;
     }
 
-    gpio_put(ST7789_PIN_CS, 1);         // fin transfert
+    else {
+        gpio_put(ST7789_PIN_CS, 1);      // fin transfert si pas de sched
+        st_dma_done=true;
+    }
 
-    st_dma_done=true;
-    
+//printf("<) d:%d b:%d s:%d\n",st_dma_done,st_dma_done_blank,st_dma_done_sched);    
     dma_hw->ints0 = 1u << st_dma_chan;   // clear IRQ
 }
 
@@ -195,7 +208,7 @@ int st7789_setup(uint32_t spiSpeed)
 
     memset(tft_frame_blk,0x00,FRAME_SIZE);
 
-    tft_fill_rect_blank(0,0,TFT_H,TFT_W);sleep_ms(50);
+    tft_fill_rect_blank(0,0,TFT_H,TFT_W);//sleep_ms(50);
     gpio_put(ST7789_PIN_BL, 1);
     return st_dma_chan;
 }
@@ -346,15 +359,10 @@ void tft_fill(uint16_t color) {
 
     tft_set_window(0, 0, TFT_W - 1, TFT_H - 1);
 
-    gpio_put(ST7789_PIN_DC, 1);
-    gpio_put(ST7789_PIN_CS, 0);
-
-    //gpio_put(TEST_PIN,ON);
-
     st_dma_launch(frame,sizeof(frame));    
 
     printf(" tft_fill\n");
-    //gpio_put(TEST_PIN,OFF);
+
 }
 
 // ---------------------------------------------------------
@@ -375,12 +383,7 @@ void tft_fill_rect(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,uint16_t
         tft_frame[2*i + 1] = color & 0xFF;
     }
 
-    // 3) définir la fenêtre EXACTE
     tft_set_window(beg_col,beg_line,beg_col+col_nb-1,beg_line+lines_nb-1);
-
-    // 4) lancer un seul DMA pour tout le pavé
-    gpio_put(ST7789_PIN_DC, 1);
-    gpio_put(ST7789_PIN_CS, 0);
 
     st_dma_launch(tft_frame,total_bytes);     
 
@@ -404,13 +407,11 @@ void tft_fill_rect_blank(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,ui
     //    tft_frame[2*i + 1] = color & 0xFF;
     //}
 
-    // 3) définir la fenêtre EXACTE
     tft_set_window(beg_col,beg_line,beg_col+col_nb-1,beg_line+lines_nb-1);
 
-    // 4) lancer un seul DMA pour tout le pavé
     gpio_put(ST7789_PIN_DC, 1);
     gpio_put(ST7789_PIN_CS, 0);
-    
+
     dma_channel_configure(
         st_dma_chan,
         &dma_cfg,
@@ -419,6 +420,8 @@ void tft_fill_rect_blank(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,ui
         total_bytes,
         true
     );
+    //st_dma_launch(tft_frame_blk,total_bytes); 
+
 }
 
 // ---------------------------------------------------------
@@ -433,9 +436,6 @@ void tft_draw_rect(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,uint16_t
     size_t total_bytes  = total_pixels * 2;
 
     tft_set_window(beg_col,beg_line,beg_col+col_nb-1,beg_line+lines_nb-1);
-
-    gpio_put(ST7789_PIN_DC, 1);
-    gpio_put(ST7789_PIN_CS, 0);
 
     st_dma_launch(buffer,total_bytes);     
 
@@ -472,11 +472,7 @@ void tft_draw_char_12x12(uint16_t y, uint16_t x,
         }
     }
 
-    // fenêtre exacte
     tft_set_window(x, y, x + w - 1, y + h - 1);
-
-    gpio_put(ST7789_PIN_DC, 1);
-    gpio_put(ST7789_PIN_CS, 0);
 
     st_dma_launch(tft_frame,w * h * 2);     
 
@@ -537,14 +533,8 @@ void tft_draw_text_12x12_block(
         }
     }
 
-  
-
-    // fenêtre = position réelle sur l'écran
     tft_set_window(x, y, x + w - 1, y + h - 1);
 
-    gpio_put(ST7789_PIN_DC, 1);
-    gpio_put(ST7789_PIN_CS, 0);
-    
     st_dma_launch(tft_frame,w * h * 2);    
 
 }
@@ -596,11 +586,7 @@ void tft_draw_text_12x12_dma_mult(uint16_t x,uint16_t y,const char *s,uint16_t f
         }
     }
 
-    // fenêtre = position réelle sur l'écran
     tft_set_window(x, y, x + w*mult - 1, y + h*mult - 1);
-
-    gpio_put(ST7789_PIN_DC, 1);
-    gpio_put(ST7789_PIN_CS, 0);
 
     st_dma_launch(tft_frame,w * h * 2 * mult * mult);    
 

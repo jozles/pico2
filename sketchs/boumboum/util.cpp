@@ -25,6 +25,8 @@
 #define SYST_CVR  (*(volatile uint32_t *)(SYSTICK_BASE + 0x08))
 #define SYST_CALIB (*(volatile uint32_t *)(SYSTICK_BASE + 0x0C))
 
+extern bool st_dma_done,st_dma_done_blank,st_dma_done_sched;
+
 
 // boumboum
 
@@ -206,18 +208,27 @@ void setup(){
     #ifdef GLOBAL_DMA_IRQ_HANDLER
     init_global_dma_irq();
     #endif
-
+//printf("0) d:%d b:%d s:%d\n",st_dma_done,st_dma_done_blank,st_dma_done_sched);
     tft_fill_rect_blank(0,0,TFT_H,TFT_W);
     
     uint8_t m=3;
-    tft_draw_text_12x12_dma_mult((TFT_W-(6*10*m))/2,(TFT_H-m*10)/2, "ST7789", 0xFFFF, 0x0000,m);
+
+//printf("1) d:%d b:%d s:%d\n",st_dma_done,st_dma_done_blank,st_dma_done_sched);
+//sleep_ms(20);
+    tft_draw_text_12x12_dma_mult((TFT_W-(6*10*m))/2,(TFT_H-m*10)/2, "ST7789", 0xFFFF, 0x0000,m); // ST7789
+//printf("2) d:%d b:%d s:%d\n",st_dma_done,st_dma_done_blank,st_dma_done_sched);
     uint8_t ls=16;
     char s[ls];memset(s,0x00,ls);
     convIntToString(s,TFT_W);s[3]='x';convIntToString(s+4,TFT_H);
+    sleep_ms(25);
+//printf("3) d:%d b:%d s:%d\n",st_dma_done,st_dma_done_blank,st_dma_done_sched);
     tft_draw_text_12x12_dma_mult((TFT_W-(7*10))/2,TFT_H/2+14,s, 0xFFFF, 0x0000,1);
     
     delayBlk(5);
+
     tft_fill_rect_blank(0,0,TFT_H,TFT_W);
+
+    //sleep_ms(10);
 
     printf("end setup \n",st_dma_channel,get_st_dma_done());
     print_diag();
