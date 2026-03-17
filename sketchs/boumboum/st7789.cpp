@@ -22,15 +22,16 @@ extern uint32_t st_dma_tfr_count;
 static int st_dma_chan;
 static dma_channel_config dma_cfg;
 //static 
-volatile bool st_dma_done = false;
+volatile bool st_dma_free = true;      // false busy : dma en cours sur buffer
 static spin_lock_t *st_dma_lock;
 //static 
 volatile bool st_dma_done_blank = false;
-
 //static 
-volatile bool st_dma_done_sched = true;
+volatile bool st_sched_free = true;
 static uint8_t* sched_frame;
 static size_t sched_size;
+static volatile bool st_buffer_free = true; // false busy : load buffer running
+
 
 // --------------------------------------------------------
 // accélérateur uc pendant effacement écran :
@@ -50,40 +51,42 @@ static void tft_init(void);
 // DMA IRQ : gestion dma_done
 // ---------------------------------------------------------
 
-void st_dma_wait(){                     // wait for end of current st dma usage ; if blank en cours run
+void st_dma_wait(){                     // wait for end of current st buffer usage ; if blank en cours run
     while(true){
         uint32_t f = spin_lock_blocking(st_dma_lock); //protège dma_done_xxx contre un accès asynchrone
 
         // on continue si dma_done free (rien en cours) ou blank busy et sched free (blank en cours)
         // c-a-d si le buffer est dispo
 
-        if(st_dma_done) {
-            st_dma_done=false;
+        if(st_buffer_free) {
+            st_buffer_free=false;
             spin_unlock(st_dma_lock, f);
-            return;}                            // st_dma_done ne peut etre modifié par l'irq : pas de dma en cours
-        if(!st_dma_done && !st_dma_done_blank && st_dma_done_sched){
-            st_dma_done_sched=false;
-            spin_unlock(st_dma_lock, f);
-            return;                             // st_dma_done peut etre modifié par l'irq : dma en cours
-            }
-            
+            return;
+        } 
+
         spin_unlock(st_dma_lock, f);            
         sleep_us(100);
     }
 }
 
 void st_dma_launch(uint8_t* frame,size_t total_bytes){      // wait for end of current st dma usage ; 
-                                                            // if blank running -> store values and run
+                                                            // if blank running -> load sched and run
 
-        uint32_t f = spin_lock_blocking(st_dma_lock); //protège st_dma_done_xxx et sched_xxx contre un accès asynchrone
-
-        // si launch s'éxécute c'est que le buffer était dispo 
-        // st_dma_wait a mis st_dma_done false et éventuellement st_dma_done_sched
-        // si blank est false ; blank en cours
-        // st_dma_done_blank peut avoir été libéré par l'irq depuis st_dma_wait     
+    while(1){ 
         
-        if(st_dma_done_blank){          // not blank -> launch & run 
-            st_dma_done_sched=true;     // si st_dma_done_blank a été libéré par l'irq depuis st_dma_wait
+        uint32_t f = spin_lock_blocking(st_dma_lock); //protège st_dma_done_xxx et sched_xxx contre un accès asynchrone
+    
+        // si launch s'éxécute c'est que le buffer était dispo et 
+        // st_dma_wait a mis st_buffer_free false pour bloquer d'autres demandes
+        //
+        // si st_dma_free run
+        // sinon si st_dma_done_blank est false (blank en cours)
+        // si sched dispo store and run
+        // sinon wait    
+        
+        if(st_dma_free){            // dma free -> launch & run
+            st_dma_free=false; 
+            st_sched_free=true;     
             
             gpio_put(ST7789_PIN_DC, 1);
             gpio_put(ST7789_PIN_CS, 0);
@@ -100,20 +103,28 @@ void st_dma_launch(uint8_t* frame,size_t total_bytes){      // wait for end of c
             return;
         }
 
-        // donc dma busy by blank & schedule dispo (réservée dans st_dma_wait) -> store & run
-        // l'irq ne peut pas tester st_dma_done_sched avant le unlock : elle est masquée par le spinlock
-        sched_frame=frame;
-        sched_size=total_bytes;
-        st_dma_done_sched=false;
+        // donc dma busy 
+        // if busy by blank & schedule dispo (réservée dans st_dma_wait) -> store & run
+        // sinon wait
+        else if (!st_dma_done_blank && st_sched_free){
+            sched_frame=frame;
+            sched_size=total_bytes;
+            st_sched_free=false;
+            spin_unlock(st_dma_lock, f);
+            return;
+        }
+
         spin_unlock(st_dma_lock, f);
+        sleep_us(100);
+    }
 
 }
 
 void st_dma_wait_blank(){       // wait for end of current st dma usage -- special pour blank : attente obligatoire
     while(true){
         uint32_t f = spin_lock_blocking(st_dma_lock); //protège dma_done contre un accès asynchrone
-        if(st_dma_done) {
-            st_dma_done=false;
+        if(st_dma_free) {
+            st_dma_free=false;
             st_dma_done_blank=false;
             spin_unlock(st_dma_lock, f);
             return;}          
@@ -122,10 +133,10 @@ void st_dma_wait_blank(){       // wait for end of current st dma usage -- speci
     }
 }
 
-volatile bool get_st_dma_done(){return st_dma_done;}
+volatile bool get_st_dma_free(){return st_dma_free;}
 
 void st_dma_irq_handler() {
-//printf(">) d:%d b:%d s:%d\n",st_dma_done,st_dma_done_blank,st_dma_done_sched);
+//printf(">) d:%d b:%d s:%d\n",st_dma_free,st_dma_done_blank,st_sched_free);
     while (spi_is_busy(spi0)) {
         tight_loop_contents();
     }
@@ -134,12 +145,12 @@ void st_dma_irq_handler() {
         st_dma_done_blank=true;
     }
 
-    if(!st_dma_done_sched){                  
+    if(!st_sched_free){                  
         
         gpio_put(ST7789_PIN_DC, 1);
         gpio_put(ST7789_PIN_CS, 0);
         
-        dma_channel_configure(          // launch pending
+        dma_channel_configure(         // launch pending
             st_dma_chan,
             &dma_cfg,
             &spi0_hw->dr,
@@ -147,15 +158,16 @@ void st_dma_irq_handler() {
             sched_size,
             true
         );
-        st_dma_done_sched=true;
+        st_sched_free=true;
     }
 
     else {
-        gpio_put(ST7789_PIN_CS, 1);      // fin transfert si pas de sched
-        st_dma_done=true;
+        gpio_put(ST7789_PIN_CS, 1);     // fin transfert si pas de sched
+        st_buffer_free=true;           
+        st_dma_free=true;
     }
 
-//printf("<) d:%d b:%d s:%d\n",st_dma_done,st_dma_done_blank,st_dma_done_sched);    
+//printf("<) d:%d b:%d s:%d\n",st_dma_free,st_dma_done_blank,st_sched_free);    
     dma_hw->ints0 = 1u << st_dma_chan;   // clear IRQ
 }
 
@@ -200,11 +212,11 @@ int st7789_setup(uint32_t spiSpeed)
     tft_init();
     if(init_dma_spi()<0){printf("st7789_Setup: no spi dma channel available\n");return -1;}
  
-    st_dma_done = true;
+    st_dma_free = true;
     spin_lock_init(DMA_LOCK);
     st_dma_lock = spin_lock_instance(DMA_LOCK);
     st_dma_done_blank = true;
-    st_dma_done_sched = true;
+    st_sched_free = true;
 
     memset(tft_frame_blk,0x00,FRAME_SIZE);
 
@@ -346,7 +358,7 @@ static void tft_set_window(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) {
 // ---------------------------------------------------------
 void tft_fill(uint16_t color) {
 
-    printf("done:%d blank:%d sched:%d",st_dma_done,st_dma_done_blank,st_dma_done_sched);
+    //printf("done:%d blank:%d sched:%d",st_dma_free,st_dma_done_blank,st_sched_free);
     st_dma_wait();
 
     static uint8_t frame[TFT_W * TFT_H * 2];
@@ -361,7 +373,7 @@ void tft_fill(uint16_t color) {
 
     st_dma_launch(frame,sizeof(frame));    
 
-    printf(" tft_fill\n");
+    //printf(" tft_fill\n");
 
 }
 
