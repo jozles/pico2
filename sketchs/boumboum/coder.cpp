@@ -44,6 +44,9 @@ extern volatile uint32_t probe;
 
 extern PIO pio;
 
+extern volatile uint32_t int_counter;
+extern volatile bool one_time;
+
 
 #ifndef MUXED_CODER
 bool coderTimerHandler(){
@@ -115,22 +118,35 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint16_t ctpi,uint8
 }
 #endif // MUXED_CODER
 
-
-
 #ifdef MUXED_CODER
 bool coderTimerHandler(){
+    
+    int_counter++;
 
     probe=millisCounter;
 
     for(uint8_t coder=0;coder<coder_nb;coder++){
+        gpio_put_masked(sel_gpio_mask, coder << gpio_sel0_pin);     // sel current coder ; env 6uS le pas de boucle + les traitements
+    }
 
-        //uint8_t selc=coder | 0x08;  // *********************************** force 4051 enable haut ******************** 
+    quick_delay(0);
 
-        gpio_put_masked(sel_gpio_mask, coder << gpio_sel0_pin);     // sel current coder
-        sleep_us(1);
-        c[coder].coderClock=gpio_get(gpio_clock_pin);
-        c[coder].coderSwitch=gpio_get(gpio_switch_pin);
-        
+    return true;
+}
+    /*
+        // traitement switch (en premier pour ne pas être zappé par les "continue")
+        if(c[coder].coderSwitch!=gpio_get(gpio_switch_pin)){
+          if((probe-c[coder].coderSwitchTime)>CODER_SW_STROBE_MS){
+            c[coder].coderSwitch=!c[coder].coderSwitch;
+            c[coder].coderSwitchTime=probe;
+          }
+          if(coderTimerSwitch!=nullptr){
+            (*(coderTimerSwitch+coder))=c[coder].coderSwitch;
+          }
+        }
+
+        // détection coder
+        c[coder].coderClock=gpio_get(gpio_clock_pin);                      
         if(c[coder].coderClock == c[coder].coderClock0){            // no change 
             if(c[coder].coderItStatus<coderStrobeNumber){           // wait for change after strobe delay
                 c[coder].coderItStatus++;continue;}
@@ -145,12 +161,13 @@ bool coderTimerHandler(){
                 c[coder].coderItStatus=0;continue;}
                                                             
             if(c[coder].coderItStatus==coderStrobeNumber){     
-                c[coder].coderItStatus++;continue;}                 // 1st strobe passed wait next It
+                c[coder].coderItStatus++;continue;}                 // 1st strobe passed wait next Int
         }
  
         c[coder].coderClock0=c[coder].coderClock;                   // valid clock change detected after 2 strobes delay
         c[coder].coderItStatus=0;
 
+        // traitement coder
         if(coderTimerCount!=nullptr){
 
             if((!c[coder].coderClock)^c[coder].coderData){
@@ -165,21 +182,10 @@ bool coderTimerHandler(){
                     (*(coderTimerCount+coder))-=1;
                 }  
             }
-        }
-        
-        if(c[coder].coderSwitch!=gpio_get(gpio_switch_pin)){
-          if((probe-c[coder].coderSwitchTime)>CODER_SW_STROBE_MS){
-            c[coder].coderSwitch=!c[coder].coderSwitch;
-            c[coder].coderSwitchTime=probe;
-          }
-          if(coderTimerSwitch!=nullptr){
-            (*(coderTimerSwitch+coder))=c[coder].coderSwitch;
-          }
-        }
-    // here accelerator management could be added
+        }        
     }
     return true;    // relancer le timer
-}
+}*/
 
 void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_t sel_nb,uint8_t nb,uint16_t ctpi,uint8_t cstn){
 
@@ -212,6 +218,8 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_
         sel_gpio_mask |=1u<<pin;
     }
     gpio_set_dir_out_masked(sel_gpio_mask);
+
+    printf("coders sel gpio mask:%X sel0 pin:%d\n sel_nb:%d",sel_gpio_mask,gpio_sel0_pin,coder_sel_nb);
 
     for(uint8_t coder=0;coder<coder_nb;coder++){
         gpio_put_masked(sel_gpio_mask,coder<<gpio_sel0_pin);     // sel one coder

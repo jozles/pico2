@@ -30,8 +30,12 @@ volatile bool st_dma_done_blank = false;
 volatile bool st_sched_free = true;
 static uint8_t* sched_frame;
 static size_t sched_size;
-static volatile bool st_buffer_free = true; // false busy : load buffer running
-
+//static 
+volatile bool st_buffer_free = true; // false busy : load buffer running
+static volatile uint16_t sched_x;
+static volatile uint16_t sched_y;
+static volatile uint16_t sched_w;
+static volatile uint16_t sched_h;
 
 // --------------------------------------------------------
 // accélérateur uc pendant effacement écran :
@@ -69,7 +73,47 @@ void st_dma_wait(){                     // wait for end of current st buffer usa
     }
 }
 
-void st_dma_launch(uint8_t* frame,size_t total_bytes){      // wait for end of current st dma usage ; 
+// ---------------------------------------------------------
+// SPI helpers
+// ---------------------------------------------------------
+static inline void tft_cmd(uint8_t c) {
+    gpio_put(ST7789_PIN_DC, 0);
+    gpio_put(ST7789_PIN_CS, 0);
+    spi_write_blocking(spi0, &c, 1);
+    gpio_put(ST7789_PIN_CS, 1);
+}
+
+static inline void tft_data(const uint8_t *d, size_t len) {
+    gpio_put(ST7789_PIN_DC, 1);
+    gpio_put(ST7789_PIN_CS, 0);
+    spi_write_blocking(spi0, d, len);
+    gpio_put(ST7789_PIN_CS, 1);
+}
+
+static void tft_reset(void) {
+    gpio_put(ST7789_PIN_RST, 0);
+    sleep_ms(20);
+    gpio_put(ST7789_PIN_RST, 1);
+    sleep_ms(120);
+}
+
+// ---------------------------------------------------------
+// WINDOW
+// ---------------------------------------------------------
+static void tft_set_window(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) {
+    uint8_t caset[] = { (uint8_t)(x0>>8), (uint8_t)(x0&0xFF), (uint8_t)(x1>>8), (uint8_t)(x1&0xFF) };
+    uint8_t raset[] = { (uint8_t)(y0>>8), (uint8_t)(y0&0xFF), (uint8_t)(y1>>8), (uint8_t)(y1&0xFF) };
+
+    tft_cmd(0x2A);
+    tft_data(caset, 4);
+
+    tft_cmd(0x2B);
+    tft_data(raset, 4);
+
+    tft_cmd(0x2C);
+}
+
+void st_dma_launch(uint8_t* frame,uint16_t x,uint16_t y,uint16_t w,uint16_t h){      // wait for end of current st dma usage ; 
                                                             // if blank running -> load sched and run
 
     while(1){ 
@@ -86,7 +130,9 @@ void st_dma_launch(uint8_t* frame,size_t total_bytes){      // wait for end of c
         
         if(st_dma_free){            // dma free -> launch & run
             st_dma_free=false; 
-            st_sched_free=true;     
+            st_sched_free=true;
+            
+            tft_set_window(x, y, x + w - 1, y + h - 1);
             
             gpio_put(ST7789_PIN_DC, 1);
             gpio_put(ST7789_PIN_CS, 0);
@@ -96,7 +142,7 @@ void st_dma_launch(uint8_t* frame,size_t total_bytes){      // wait for end of c
                 &dma_cfg,
                 &spi0_hw->dr,
                 frame,
-                total_bytes,
+                w*h*2,
                 true
             );
             spin_unlock(st_dma_lock, f);          
@@ -108,7 +154,11 @@ void st_dma_launch(uint8_t* frame,size_t total_bytes){      // wait for end of c
         // sinon wait
         else if (!st_dma_done_blank && st_sched_free){
             sched_frame=frame;
-            sched_size=total_bytes;
+            sched_size=w*h*2;
+            sched_x=x;
+            sched_y=y;
+            sched_w=w;
+            sched_h=h;
             st_sched_free=false;
             spin_unlock(st_dma_lock, f);
             return;
@@ -129,7 +179,7 @@ void st_dma_wait_blank(){       // wait for end of current st dma usage -- speci
             spin_unlock(st_dma_lock, f);
             return;}          
         spin_unlock(st_dma_lock, f);
-        sleep_us(100);
+        //sleep_us(100);
     }
 }
 
@@ -141,16 +191,18 @@ void st_dma_irq_handler() {
         tight_loop_contents();
     }
 
-    if(!st_dma_done_blank){
+    if(!st_dma_done_blank){             // fin de blank
         st_dma_done_blank=true;
     }
 
-    if(!st_sched_free){                  
+    if(!st_sched_free){                 // sched en attente 
+        
+        tft_set_window(sched_x, sched_y, sched_x + sched_w - 1, sched_y + sched_h - 1);
         
         gpio_put(ST7789_PIN_DC, 1);
         gpio_put(ST7789_PIN_CS, 0);
         
-        dma_channel_configure(         // launch pending
+        dma_channel_configure(          // launch pending
             st_dma_chan,
             &dma_cfg,
             &spi0_hw->dr,
@@ -160,9 +212,8 @@ void st_dma_irq_handler() {
         );
         st_sched_free=true;
     }
-
-    else {
-        gpio_put(ST7789_PIN_CS, 1);     // fin transfert si pas de sched
+    else {                              // sched free ; nothing to launch
+        gpio_put(ST7789_PIN_CS, 1);     // fin transfert 
         st_buffer_free=true;           
         st_dma_free=true;
     }
@@ -225,29 +276,6 @@ int st7789_setup(uint32_t spiSpeed)
     return st_dma_chan;
 }
 
-// ---------------------------------------------------------
-// SPI helpers
-// ---------------------------------------------------------
-static inline void tft_cmd(uint8_t c) {
-    gpio_put(ST7789_PIN_DC, 0);
-    gpio_put(ST7789_PIN_CS, 0);
-    spi_write_blocking(spi0, &c, 1);
-    gpio_put(ST7789_PIN_CS, 1);
-}
-
-static inline void tft_data(const uint8_t *d, size_t len) {
-    gpio_put(ST7789_PIN_DC, 1);
-    gpio_put(ST7789_PIN_CS, 0);
-    spi_write_blocking(spi0, d, len);
-    gpio_put(ST7789_PIN_CS, 1);
-}
-
-static void tft_reset(void) {
-    gpio_put(ST7789_PIN_RST, 0);
-    sleep_ms(20);
-    gpio_put(ST7789_PIN_RST, 1);
-    sleep_ms(120);
-}
 
 // ---------------------------------------------------------
 // INIT SCREEN ST7789
@@ -337,21 +365,6 @@ static void tft_init(void) {
     sleep_ms(100);
 }
 
-// ---------------------------------------------------------
-// WINDOW
-// ---------------------------------------------------------
-static void tft_set_window(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) {
-    uint8_t caset[] = { (uint8_t)(x0>>8), (uint8_t)(x0&0xFF), (uint8_t)(x1>>8), (uint8_t)(x1&0xFF) };
-    uint8_t raset[] = { (uint8_t)(y0>>8), (uint8_t)(y0&0xFF), (uint8_t)(y1>>8), (uint8_t)(y1&0xFF) };
-
-    tft_cmd(0x2A);
-    tft_data(caset, 4);
-
-    tft_cmd(0x2B);
-    tft_data(raset, 4);
-
-    tft_cmd(0x2C);
-}
 
 // ---------------------------------------------------------
 // FILL : 1 DMA = tout l'écran
@@ -361,20 +374,13 @@ void tft_fill(uint16_t color) {
     //printf("done:%d blank:%d sched:%d",st_dma_free,st_dma_done_blank,st_sched_free);
     st_dma_wait();
 
-    static uint8_t frame[TFT_W * TFT_H * 2];
-
     // remplir le buffer complet
     for (int i = 0; i < TFT_W * TFT_H; i++) {
-        frame[2*i]     = color >> 8;
-        frame[2*i + 1] = color & 0xFF;
+        tft_frame[2*i]     = color >> 8;
+        tft_frame[2*i + 1] = color & 0xFF;
     }
 
-    tft_set_window(0, 0, TFT_W - 1, TFT_H - 1);
-
-    st_dma_launch(frame,sizeof(frame));    
-
-    //printf(" tft_fill\n");
-
+    st_dma_launch(tft_frame,0,0,TFT_W,TFT_H);    
 }
 
 // ---------------------------------------------------------
@@ -387,7 +393,6 @@ void tft_fill_rect(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,uint16_t
 
     // 1) buffer EXACT de la taille du pavé
     size_t total_pixels = lines_nb * col_nb;
-    size_t total_bytes  = total_pixels * 2;
 
     // 2) remplir le buffer
     for (int i = 0; i < total_pixels; i++) {
@@ -397,7 +402,7 @@ void tft_fill_rect(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,uint16_t
 
     tft_set_window(beg_col,beg_line,beg_col+col_nb-1,beg_line+lines_nb-1);
 
-    st_dma_launch(tft_frame,total_bytes);     
+    st_dma_launch(tft_frame,beg_col,beg_line,col_nb,lines_nb);     
 
 }
 
@@ -432,7 +437,6 @@ void tft_fill_rect_blank(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,ui
         total_bytes,
         true
     );
-    //st_dma_launch(tft_frame_blk,total_bytes); 
 
 }
 
@@ -444,12 +448,7 @@ void tft_draw_rect(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,uint16_t
 
     st_dma_wait();
 
-    size_t total_pixels = lines_nb * col_nb;
-    size_t total_bytes  = total_pixels * 2;
-
-    tft_set_window(beg_col,beg_line,beg_col+col_nb-1,beg_line+lines_nb-1);
-
-    st_dma_launch(buffer,total_bytes);     
+    st_dma_launch(tft_frame,beg_col,beg_line,col_nb,lines_nb);      
 
 }
 
@@ -484,9 +483,7 @@ void tft_draw_char_12x12(uint16_t y, uint16_t x,
         }
     }
 
-    tft_set_window(x, y, x + w - 1, y + h - 1);
-
-    st_dma_launch(tft_frame,w * h * 2);     
+    st_dma_launch(tft_frame,x,y,w,h);      
 
 }
 
@@ -545,9 +542,7 @@ void tft_draw_text_12x12_block(
         }
     }
 
-    tft_set_window(x, y, x + w - 1, y + h - 1);
-
-    st_dma_launch(tft_frame,w * h * 2);    
+    st_dma_launch(tft_frame,x,y,w,h);         
 
 }
 
@@ -577,7 +572,7 @@ void tft_draw_text_12x12_dma_mult(uint16_t x,uint16_t y,const char *s,uint16_t f
             const uint16_t *glyph = font12x12[(uint8_t)s[car]];
             uint16_t bits = glyph[ligne];
 
-            for (int bit = 0; bit < (12-st); bit++) {           // la fonte est 12x12 on utilise 11x11 en mult
+            for (int bit = 0; bit < (12-st); bit++) {       // la fonte est 12x12 on utilise 10x10 en mult
 
                 uint16_t color =
                     (bits & (1 << (11 - bit-st))) ? fg : bg;
@@ -598,9 +593,8 @@ void tft_draw_text_12x12_dma_mult(uint16_t x,uint16_t y,const char *s,uint16_t f
         }
     }
 
-    tft_set_window(x, y, x + w*mult - 1, y + h*mult - 1);
-
-    st_dma_launch(tft_frame,w * h * 2 * mult * mult);    
+    printf("dt12dmam x:%d y:%d w:%d h:%d\n",x,y,w*mult,h*mult);
+    st_dma_launch(tft_frame,x,y,w*mult,h*mult);    
 
 }
 
@@ -735,14 +729,12 @@ void test_st7789(){
 
 
 void test_st7789_2(){
-    if((millis+ms0)<millisCounter){
-      millis=millisCounter;
+    if((millis+ms0)<millisCounter){     
+        millis=millisCounter;
 
       if(l>lbeg && ms0>2){                          // effacement ligne précédente 
         ms0=2;
-        uint32_t bgad=(l-1)*TFT_W*2;
-        memset(&tft_frame[bgad],0x00,TFT_W*2);
-        tft_draw_rect(l-1,0,1,TFT_W,&tft_frame[bgad]);
+        tft_fill_rect_blank(l-1,0,1,TFT_W);
         return;  
       }
       
@@ -752,6 +744,6 @@ void test_st7789_2(){
       uint32_t bgad=l*TFT_W*2;                      // trace ligne courante
       memset(&tft_frame[bgad],0xff,TFT_W*2);
       tft_draw_rect(l,0,1,TFT_W,&tft_frame[bgad]);          
-      l++;
+      l++;     
     }
 }

@@ -8,6 +8,12 @@
 
 #define BB_TEST_MODE
 
+#define TST_PIN 0
+
+/* slices */
+
+#define PWM_IRQ_SLICE 0
+
 /* spin_locks */
 
 #define DMA_LOCK 5
@@ -24,9 +30,9 @@
 
 #ifdef MUXED_CODER
 
-#define CODER_BANK_NB           6
-#define CODER_SEL_NB            4
 #define CODER_NB                8
+#define CODER_BANK_NB           6
+#define CODER_SEL_NB            4       // bits to sel
 #define CODER_PIO_SEL0          2       // CODER_SEL_NB consecutive pins
 
 // *** coders actions ***
@@ -99,10 +105,6 @@
 #define CODER_BANK_NB  1
 #define CODER_COUNTERS 1
 #endif  // MUXED_CODER
-
-/* Test_Pin */
-
-#define TEST_PIN 22
 
 /* led */
 

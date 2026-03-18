@@ -166,8 +166,7 @@ static uint32_t millis=0;
 void ws_show_3(uint32_t ms){
 
     if((millis+ms)<millisCounter){
-
-        //gpio_put(TEST_PIN,HIGH);    // 170uS @70leds + calculs
+        //gpio_put(TEST_PIN,HIGH);    // 970uS @70leds + calculs
 
         millis=millisCounter;
 
@@ -207,6 +206,7 @@ void ws_show_3(uint32_t ms){
             }
             else col=newCol;
         }
+         
         //gpio_put(TEST_PIN,LOW);
     }
 }

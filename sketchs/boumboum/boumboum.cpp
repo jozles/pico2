@@ -11,6 +11,11 @@
 #include "leds.h"
 #include "st7789.h"
 
+// debug
+
+volatile uint32_t int_counter=0;
+volatile bool one_time=false;
+
 // leds
 
 extern volatile uint32_t durOffOn[];
@@ -62,7 +67,8 @@ int main() {
 
     stdio_init_all();
     sleep_ms(1000);
-    
+
+    gpio_init(TST_PIN);gpio_set_dir(TST_PIN,GPIO_OUT); gpio_put(TST_PIN,LOW);    
     gpio_init(LED);gpio_set_dir(LED,GPIO_OUT); gpio_put(LED,LOW);
     delayBlk(3);        
     printf("\n+boumboum= \n");
@@ -123,13 +129,14 @@ int main() {
 
     while (1) {
         uint16_t ccAmpl=0;
+        
         ws_show_3(30);
 
         ledblinkn(2);
 
         test_st7789_2();    // animation balayage de lignes
 
-        if((millisCounter-ticker10)>10000){printf(".");ticker10=millisCounter;}
+        if((millisCounter-ticker10)>10000){printf("int_counter:%d\n",int_counter);ticker10=millisCounter;}
 
         //if((millisCounter-probeBlinker)>1000){probeBlinker=millisCounter;printf("%d\n",probe);}  // test existence coderTimerHandler()
 
@@ -148,16 +155,17 @@ int main() {
                 sprintf(buf+2,"%4d ",cc);             // valeur courante coder
 ; 
                 coderCounter0[coder]=cc;
-                voices[coder].newFrequency=calcFreq(cc);               
+                voices[coder].newFrequency=calcFreq(cc);
+                voices[coder].newFreqRateRatio=(voices[coder].newFrequency/SAMPLE_RATE);               
                 sprintf(buf+7,"%4.2f  ",voices[coder].newFrequency); // valeur fréquence pour valeur codeur     
 
                 ccAmpl=cc;if(ccAmpl>MAX_16B_LINEAR_VALUE-1){ccAmpl=MAX_16B_LINEAR_VALUE-1;}
                 voices[coder].genAmpl=amplLevel[ccAmpl];         
                 sprintf(buf+14,"%5d",voices[coder].genAmpl);        // valeur ampl pour valeur codeur
-          
+        
                 tft_draw_text_12x12_dma_mult(0,coder*(12*2+1),buf,0xffff,0x0000,1);
 
-                printf("\ncoder:%d cc:%d :freq:%5.3f ampl:%d  %s",coder,cc,voices[coder].newFrequency,voices[coder].genAmpl,buf);       
+                printf("coder:%d cc:%d :freq:%5.3f ampl:%d  %s\n",coder,cc,voices[coder].newFrequency,voices[coder].genAmpl,buf);       
             }
         }
     }

@@ -143,6 +143,7 @@ void i2s_callback_func()
 
         buffer->sample_count = buffer->max_sample_count;
         give_audio_buffer(ap, buffer);
+        
         //gpio_put(TEST_PIN,LOW);
     }
 }

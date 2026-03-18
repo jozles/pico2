@@ -39,7 +39,9 @@ struct Voice {
     uint16_t    sampleNbToFill;                 // sample Nb for 1 period    
     uint32_t    currentSample;                  
     float       frequency;                      // current freq
-    float       newFrequency;                   
+    float       newFrequency;
+    float       freqRateRatio;
+    float       newFreqRateRatio;                   
     int16_t     coderFreq;                      // last coder value for freq  
     uint16_t    basicWaveAmpl[BASIC_WAVES_NB];
     int16_t     coderAmpl[BASIC_WAVES_NB];      // last coder value for ampl

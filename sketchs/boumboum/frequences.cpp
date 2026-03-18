@@ -185,7 +185,9 @@ void voiceInit(float freq,Voice* v)
 {
     v->sampleNbToFill=SAMPLE_BUFFER_SIZE;    
     v->currentSample=0;
-    v->newFrequency=freq;    
+    v->newFrequency=freq;
+    v->freqRateRatio=1;
+    v->newFreqRateRatio=1;
     for(uint8_t i=0;i<BASIC_WAVES_NB;i++){v->basicWaveAmpl[i]=0;}  // all waves off
     v->freqCoeff=0;
     v->dhexFreq=0;
@@ -217,18 +219,23 @@ void fillVoiceBuffer(int32_t* sampleBuffer,Voice* v)
     float int_part;
 
     prev_ech=ech;
-    ech=(uint32_t)(modff(v->currentSample*v->frequency/SAMPLE_RATE,&int_part)*BASIC_WAVE_TABLE_LEN); // ech nbr 
-    
+//gpio_put(TST_PIN,HIGH);
+    // modff ~ 50% du temps de boucle avec une seule forme d'onde (5.6uS/10.5)  
+    ech=(uint32_t)(modff(v->currentSample*v->freqRateRatio,&int_part)*BASIC_WAVE_TABLE_LEN); // ech nbr
+    uint32_t ech1=v->currentSample*(uint32_t)(v->freqRateRatio)*BASIC_WAVE_TABLE_LEN; // ech nbr 
+//gpio_put(TST_PIN,LOW);
+//printf("ech:%d ech1:%d\n",ech,ech1);    
     // si changement de fréquence, synchro sur début table d'onde pour éviter les défauts de forme d'onde
     if((v->newFrequency!=0)&&(prev_ech>ech)){ 
       v->frequency=v->newFrequency;
+      v->freqRateRatio=v->newFreqRateRatio;
       v->newFrequency=0;
       ech=0;
       v->currentSample=0;
     }
 
-    sampleBuffer[i*2]=     //sineWaveform[ech]*v->genAmpl;
-    
+    sampleBuffer[i*2]=sineWaveform[ech]*v->genAmpl; // 11.6mS 
+/*    
     ((sineWaveform[ech]*v->basicWaveAmpl[WAVE_SINUS]
       + squareWaveform[ech]*v->basicWaveAmpl[WAVE_SQUARE]
       + triangleWaveform[ech]*v->basicWaveAmpl[WAVE_TRIANGLE]
@@ -238,7 +245,7 @@ void fillVoiceBuffer(int32_t* sampleBuffer,Voice* v)
       )
       /MAX_AMP_VAL
     )*v->genAmpl;
-
+*/
     sampleBuffer[i*2+1]=sampleBuffer[i*2]; // stereo
 
     v->currentSample++;

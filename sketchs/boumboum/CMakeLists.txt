@@ -73,6 +73,7 @@ pico_enable_stdio_usb(boumboum 1)
 # Add the standard library to the build
 target_link_libraries(boumboum
         pico_stdlib
+		pico_time
 		hardware_clocks
 		hardware_dma
 		hardware_pio

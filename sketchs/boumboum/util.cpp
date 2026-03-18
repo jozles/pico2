@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <string.h>
 #include "pico/stdlib.h"
+#include "pico/time.h"
 #include "hardware/timer.h"
 #include "hardware/pio.h"
 #include "hardware/clocks.h"
@@ -25,8 +26,9 @@
 #define SYST_CVR  (*(volatile uint32_t *)(SYSTICK_BASE + 0x08))
 #define SYST_CALIB (*(volatile uint32_t *)(SYSTICK_BASE + 0x0C))
 
-extern bool st_dma_free,st_dma_done_blank,st_sched_free;
+extern bool st_buffer_free,st_dma_free,st_dma_done_blank,st_sched_free;
 
+extern uint32_t int_counter;
 
 // boumboum
 
@@ -89,6 +91,7 @@ void autoMixer(int32_t* ccb,uint32_t ccb0){
 
 // ******** global setup ********
 
+/*
 void timer1_irq_handler() {
 
     if (timer_hw->intr & (1u << 3)) {
@@ -106,33 +109,39 @@ void init_timer_1khz() {
     irq_set_exclusive_handler(TIMER1_IRQ_0, timer1_irq_handler);
     irq_set_enabled(TIMER1_IRQ_0, true);
 }
+*/
+uint pwm_irq_slice=PWM_IRQ_SLICE;
 
 void pwm_irq_handler() {
-    // Clear IRQ
-    pwm_clear_irq(0); // slice 0
+
+    pwm_clear_irq(pwm_irq_slice);   // slice 0 cli
 
     millisCounter++;
-    //coderTimerHandler();
+    coderTimerHandler();
+
 }
 
 void init_pwm_timer_1khz() {
-    uint slice = 0; // slice 0, tu peux choisir un autre
-
+gpio_put(TST_PIN,HIGH);
     pwm_config cfg = pwm_get_default_config();
 
-    // 125 MHz / 125 = 1 MHz → wrap = 1000 → 1 kHz
-    pwm_config_set_clkdiv(&cfg, 31.25f);
+    // 150 MHz / 150 = 1 MHz → wrap = 1000 → 1 kHz
+    pwm_config_set_clkdiv(&cfg,150.0f);
     pwm_config_set_wrap(&cfg, 1000);
 
-    pwm_init(slice, &cfg, true);
+    pwm_init(pwm_irq_slice, &cfg, true);
 
-    pwm_clear_irq(slice);
-    pwm_set_irq_enabled(slice, true);
+    pwm_clear_irq(pwm_irq_slice);
+    pwm_set_irq_enabled(pwm_irq_slice, true);
 
     irq_set_exclusive_handler(PWM_IRQ_WRAP, pwm_irq_handler);
+//printf("**\n");sleep_ms(10);
+gpio_put(TST_PIN,LOW); 
     irq_set_enabled(PWM_IRQ_WRAP, true);
+//printf("++\n");sleep_ms(10);    
 }
 
+/*
 static bool __not_in_flash_func(millisTimerHandler)(repeating_timer *t){
     millisCounter++;
     //coderTimerHandler();
@@ -140,6 +149,18 @@ static bool __not_in_flash_func(millisTimerHandler)(repeating_timer *t){
 //        tft_draw_int_12x12_dma_mult(165,12,0xffff,0x0000,1,millisCounter/1000);}
 //        tft_draw_int_12x12_dma_mult(180,12,0xffff,0x0000,1,dma_tfr_count);}
     return true;
+}
+*/
+
+
+void quick_delay(uint32_t us){           // 0-> 2.33uS 5->8.33 10->14.25  env 1.2uS par step +2.25 init
+    for(uint32_t i=0;i<us;i++){
+        __asm volatile("nop");
+    }
+}
+
+static inline void delay_ms(uint32_t ms) {
+    for(uint32_t i=0;i<ms;i++){quick_delay(1000);}
 }
 
 void delayBlk(uint8_t sec){
@@ -171,8 +192,6 @@ void setup(){
 
     gpio_init(LED);gpio_set_dir(LED,GPIO_OUT); gpio_put(LED,LOW);    
 
-    gpio_init(TEST_PIN);gpio_set_dir(TEST_PIN,GPIO_OUT); gpio_put(TEST_PIN,LOW);
-
     gpio_init(PIN_DCDC_PSM_CTRL);gpio_set_dir(PIN_DCDC_PSM_CTRL, GPIO_OUT);
     gpio_put(PIN_DCDC_PSM_CTRL, 1); // PWM mode for less Audio noise   
 
@@ -183,10 +202,12 @@ void setup(){
     coderInit(CODER_GPIO_CLOCK,CODER_GPIO_DATA,CODER_GPIO_SW,CODER_GPIO_VCC,CODER_PIO_SEL0,CODER_SEL_NB,CODER_NB,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER);
     #endif // MUXED_CODER   
 
+
+//printf("%d--\n",int_counter);
     // irq timer -- coderInit() doit etre avant !
     init_pwm_timer_1khz();
     //add_repeating_timer_ms(10, millisTimerHandler, NULL, &millisTimer);
- 
+//printf("==%d\n",int_counter); 
     fillBasicWaveForms();
     freq_start();
 
@@ -197,7 +218,7 @@ void setup(){
 
     what=W_SINUS;
 
-    bb_i2s_start();
+    //bb_i2s_start();
 
     ws_dma_channel=ledsWs2812Setup(ws2812_pio,WS2812_LED_PIN);
     if(ws_dma_channel<0){LEDBLINK_ERROR_DMA}
@@ -208,20 +229,36 @@ void setup(){
     #ifdef GLOBAL_DMA_IRQ_HANDLER
     init_global_dma_irq();
     #endif
-//printf("0) d:%d b:%d s:%d\n",st_dma_free,st_dma_done_blank,st_sched_free);
+//printf("0)%d b:%d d:%d b:%d s:%d\n",millisCounter,st_buffer_free,st_dma_free,st_dma_done_blank,st_sched_free);
     tft_fill_rect_blank(0,0,TFT_H,TFT_W);
     
     uint8_t m=3;
 
-//printf("1) d:%d b:%d s:%d\n",st_dma_free,st_dma_done_blank,st_sched_free);
-//sleep_ms(20);
+uint32_t mc=millisCounter;
+printf("1)%d b:%d d:%d b:%d s:%d\n",mc,st_buffer_free,st_dma_free,st_dma_done_blank,st_sched_free);
+
+
+//gpio_put(TST_PIN,HIGH);
+//sleep_ms(1);
+//gpio_put(TST_PIN,LOW);
+//sleep_ms(1);
+//gpio_put(TST_PIN,HIGH);
+sleep_ms(10);
+//gpio_put(TST_PIN,LOW);
+
+mc=millisCounter;
+printf("2)%d b:%d d:%d b:%d s:%d\n",mc,st_buffer_free,st_dma_free,st_dma_done_blank,st_sched_free);
+mc=millisCounter;
+printf("2>%d b:%d d:%d b:%d s:%d\n",mc,st_buffer_free,st_dma_free,st_dma_done_blank,st_sched_free);    
     tft_draw_text_12x12_dma_mult((TFT_W-(6*10*m))/2,(TFT_H-m*10)/2, "ST7789", 0xFFFF, 0x0000,m); // ST7789
-//printf("2) d:%d b:%d s:%d\n",st_dma_free,st_dma_done_blank,st_sched_free);
+mc=millisCounter;
+printf("3)%d b:%d d:%d b:%d s:%d\n",mc,st_buffer_free,st_dma_free,st_dma_done_blank,st_sched_free);
     uint8_t ls=16;
     char s[ls];memset(s,0x00,ls);
     convIntToString(s,TFT_W);s[3]='x';convIntToString(s+4,TFT_H);
-    sleep_ms(25);
-//printf("3) d:%d b:%d s:%d\n",st_dma_free,st_dma_done_blank,st_sched_free);
+    sleep_ms(250);
+mc=millisCounter;
+printf("4)%d b:%d d:%d b:%d s:%d\n",mc,st_buffer_free,st_dma_free,st_dma_done_blank,st_sched_free);
     tft_draw_text_12x12_dma_mult((TFT_W-(7*10))/2,TFT_H/2+14,s, 0xFFFF, 0x0000,1);
     
     delayBlk(5);
@@ -255,7 +292,9 @@ void next_sound_feeding(int32_t* next_sound,uint32_t next_sound_size){
             break;
 
         case W_SINUS:
+        
         fillVoiceBuffer(next_sound,&voices[0]);
+       
             break;
         
         default:
