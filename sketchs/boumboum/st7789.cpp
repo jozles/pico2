@@ -448,7 +448,7 @@ void tft_draw_rect(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,uint16_t
 
     st_dma_wait();
 
-    st_dma_launch(tft_frame,beg_col,beg_line,col_nb,lines_nb);      
+    st_dma_launch(buffer,beg_col,beg_line,col_nb,lines_nb);      
 
 }
 
