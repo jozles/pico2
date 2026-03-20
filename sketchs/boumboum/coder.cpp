@@ -122,70 +122,69 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint16_t ctpi,uint8
 bool coderTimerHandler(){
     
     int_counter++;
+    if(int_counter>=coderTimerPoolingInterval){
+        int_counter=0;
 
-    probe=millisCounter;
+        Coders* cp;
+        probe=millisCounter;
 
-    for(uint8_t coder=0;coder<coder_nb;coder++){
-        gpio_put_masked(sel_gpio_mask, coder << gpio_sel0_pin);     // sel current coder ; env 6uS le pas de boucle + les traitements
-    }
+        for(uint8_t coder=0;coder<coder_nb;coder++){
+            gpio_put_masked(sel_gpio_mask, coder << gpio_sel0_pin);     // sel current coder ; env 6uS le pas de boucle + les traitements
 
-    quick_delay(0);
+            cp=&c[coder];
 
-    return true;
-}
-    /*
-        // traitement switch (en premier pour ne pas être zappé par les "continue")
-        if(c[coder].coderSwitch!=gpio_get(gpio_switch_pin)){
-          if((probe-c[coder].coderSwitchTime)>CODER_SW_STROBE_MS){
-            c[coder].coderSwitch=!c[coder].coderSwitch;
-            c[coder].coderSwitchTime=probe;
-          }
-          if(coderTimerSwitch!=nullptr){
-            (*(coderTimerSwitch+coder))=c[coder].coderSwitch;
-          }
-        }
-
-        // détection coder
-        c[coder].coderClock=gpio_get(gpio_clock_pin);                      
-        if(c[coder].coderClock == c[coder].coderClock0){            // no change 
-            if(c[coder].coderItStatus<coderStrobeNumber){           // wait for change after strobe delay
-                c[coder].coderItStatus++;continue;}
-            if(c[coder].coderItStatus>coderStrobeNumber){           // 2nd strobe fail
-                c[coder].coderItStatus=0;continue;}
-            continue;
-        }
-        else{                                                       // clock change detected 
-            c[coder].coderData=gpio_get(gpio_data_pin);             // latch data
-
-            if(c[coder].coderItStatus<coderStrobeNumber){           // change too close to previous valid one : ignore it
-                c[coder].coderItStatus=0;continue;}
-                                                            
-            if(c[coder].coderItStatus==coderStrobeNumber){     
-                c[coder].coderItStatus++;continue;}                 // 1st strobe passed wait next Int
-        }
- 
-        c[coder].coderClock0=c[coder].coderClock;                   // valid clock change detected after 2 strobes delay
-        c[coder].coderItStatus=0;
-
-        // traitement coder
-        if(coderTimerCount!=nullptr){
-
-            if((!c[coder].coderClock)^c[coder].coderData){
-                if(*(coderTimerCount+coder)>0){
-                    (*(coderTimerCount+coder))-=1;
-                }
-                else *(coderTimerCount+coder)=0;
-            } 
-            else {
-                (*(coderTimerCount+coder))+=1; 
-                if(*(coderTimerCount+coder)==0){
-                    (*(coderTimerCount+coder))-=1;
-                }  
+            // traitement switch (en premier pour ne pas être zappé par les "continue")
+            if(cp->coderSwitch!=gpio_get(gpio_switch_pin)){
+            if((probe-cp->coderSwitchTime)>CODER_SW_STROBE_MS){
+                cp->coderSwitch=!cp->coderSwitch;
+                cp->coderSwitchTime=probe;
             }
-        }        
+            if(coderTimerSwitch!=nullptr){
+                (*(coderTimerSwitch+coder))=cp->coderSwitch;
+            }
+            }
+        
+        
+            // détection coder
+            cp->coderClock=gpio_get(gpio_clock_pin);                      
+            if(cp->coderClock == cp->coderClock0){                 // no change 
+                if(cp->coderItStatus<coderStrobeNumber){           // wait for change after strobe delay
+                    cp->coderItStatus++;continue;}
+                //if(cp->coderItStatus>coderStrobeNumber){           // 2nd strobe fail
+                //    cp->coderItStatus=0;continue;}
+                continue;
+            }
+            else{                                                  // clock change detected 
+                cp->coderData=gpio_get(gpio_data_pin);             // latch data
+                if(cp->coderItStatus<coderStrobeNumber){           // change too close to previous valid one : ignore it
+                    cp->coderItStatus=0;continue;}                                                         
+                if(cp->coderItStatus==coderStrobeNumber){     
+                    cp->coderItStatus++;continue;}                 // 1st strobe passed wait next Int
+            }
+        
+            cp->coderClock0=cp->coderClock;                   // valid clock change detected after 2 strobes delay
+            cp->coderItStatus=0;
+        
+            // traitement coder
+            if(coderTimerCount!=nullptr){
+
+                if((!cp->coderClock)^cp->coderData){
+                    if(*(coderTimerCount+coder)>0){
+                        (*(coderTimerCount+coder))-=1;
+                    }
+                    else *(coderTimerCount+coder)=0;
+                } 
+                else {
+                    (*(coderTimerCount+coder))+=1; 
+                    if(*(coderTimerCount+coder)==0){
+                        (*(coderTimerCount+coder))-=1;
+                    }  
+                }
+            }        
+        }
     }
     return true;    // relancer le timer
-}*/
+}
 
 void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_t sel_nb,uint8_t nb,uint16_t ctpi,uint8_t cstn){
 

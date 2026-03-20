@@ -114,15 +114,18 @@ uint pwm_irq_slice=PWM_IRQ_SLICE;
 
 void pwm_irq_handler() {
 
-    pwm_clear_irq(pwm_irq_slice);   // slice 0 cli
+    gpio_put(TST_PIN,HIGH);
+
+    pwm_hw->intr = 1u << pwm_irq_slice; // pwm_clear_irq(pwm_irq_slice);   // slice 0 (clear irq)
 
     millisCounter++;
-    coderTimerHandler();
 
+    coderTimerHandler();
+    gpio_put(TST_PIN,LOW);
 }
 
 void init_pwm_timer_1khz() {
-gpio_put(TST_PIN,HIGH);
+
     pwm_config cfg = pwm_get_default_config();
 
     // 150 MHz / 150 = 1 MHz → wrap = 1000 → 1 kHz
@@ -135,10 +138,8 @@ gpio_put(TST_PIN,HIGH);
     pwm_set_irq_enabled(pwm_irq_slice, true);
 
     irq_set_exclusive_handler(PWM_IRQ_WRAP, pwm_irq_handler);
-//printf("**\n");sleep_ms(10);
-gpio_put(TST_PIN,LOW); 
+
     irq_set_enabled(PWM_IRQ_WRAP, true);
-//printf("++\n");sleep_ms(10);    
 }
 
 /*
@@ -171,6 +172,8 @@ void delayBlk(uint8_t sec){
 #ifdef GLOBAL_DMA_IRQ_HANDLER
 
 void global_dma_irq_handler(){
+
+    gpio_put(TST_PIN,HIGH);    
     
     uint32_t global_dma_irq_status = dma_hw->intr;
 
@@ -179,7 +182,9 @@ void global_dma_irq_handler(){
     } 
     if((global_dma_irq_status & (1u << st_dma_channel))!=0){
         st_dma_irq_handler();
-    } 
+    }
+    
+    gpio_put(TST_PIN,LOW);     
 }
 
 void init_global_dma_irq(){
@@ -234,31 +239,30 @@ void setup(){
     
     uint8_t m=3;
 
-uint32_t mc=millisCounter;
-printf("1)%d b:%d d:%d b:%d s:%d\n",mc,st_buffer_free,st_dma_free,st_dma_done_blank,st_sched_free);
-
+//uint32_t mc=millisCounter;
+//printf("1)%d b:%d d:%d b:%d s:%d\n",mc,st_buffer_free,st_dma_free,st_dma_done_blank,st_sched_free);
 
 //gpio_put(TST_PIN,HIGH);
 //sleep_ms(1);
 //gpio_put(TST_PIN,LOW);
 //sleep_ms(1);
 //gpio_put(TST_PIN,HIGH);
-sleep_ms(10);
+//sleep_ms(10);
 //gpio_put(TST_PIN,LOW);
 
-mc=millisCounter;
-printf("2)%d b:%d d:%d b:%d s:%d\n",mc,st_buffer_free,st_dma_free,st_dma_done_blank,st_sched_free);
-mc=millisCounter;
-printf("2>%d b:%d d:%d b:%d s:%d\n",mc,st_buffer_free,st_dma_free,st_dma_done_blank,st_sched_free);    
+//mc=millisCounter;
+//printf("2)%d b:%d d:%d b:%d s:%d\n",mc,st_buffer_free,st_dma_free,st_dma_done_blank,st_sched_free);
+//mc=millisCounter;
+//printf("2>%d b:%d d:%d b:%d s:%d\n",mc,st_buffer_free,st_dma_free,st_dma_done_blank,st_sched_free);    
     tft_draw_text_12x12_dma_mult((TFT_W-(6*10*m))/2,(TFT_H-m*10)/2, "ST7789", 0xFFFF, 0x0000,m); // ST7789
-mc=millisCounter;
-printf("3)%d b:%d d:%d b:%d s:%d\n",mc,st_buffer_free,st_dma_free,st_dma_done_blank,st_sched_free);
+//mc=millisCounter;
+//printf("3)%d b:%d d:%d b:%d s:%d\n",mc,st_buffer_free,st_dma_free,st_dma_done_blank,st_sched_free);
     uint8_t ls=16;
     char s[ls];memset(s,0x00,ls);
     convIntToString(s,TFT_W);s[3]='x';convIntToString(s+4,TFT_H);
-    sleep_ms(250);
-mc=millisCounter;
-printf("4)%d b:%d d:%d b:%d s:%d\n",mc,st_buffer_free,st_dma_free,st_dma_done_blank,st_sched_free);
+//    sleep_ms(250);
+//mc=millisCounter;
+//printf("4)%d b:%d d:%d b:%d s:%d\n",mc,st_buffer_free,st_dma_free,st_dma_done_blank,st_sched_free);
     tft_draw_text_12x12_dma_mult((TFT_W-(7*10))/2,TFT_H/2+14,s, 0xFFFF, 0x0000,1);
     
     delayBlk(5);
