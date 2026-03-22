@@ -254,7 +254,7 @@ void setup(){
 //printf("2)%d b:%d d:%d b:%d s:%d\n",mc,st_buffer_free,st_dma_free,st_dma_done_blank,st_sched_free);
 //mc=millisCounter;
 //printf("2>%d b:%d d:%d b:%d s:%d\n",mc,st_buffer_free,st_dma_free,st_dma_done_blank,st_sched_free);    
-    tft_draw_text_12x12_dma_mult((TFT_W-(6*10*m))/2,(TFT_H-m*10)/2, "ST7789", 0xFFFF, 0x0000,m); // ST7789
+    tft_draw_text_12x12_dma_mult((TFT_W-(6*10*m))/2,(TFT_H-m*10)/2, "ST7789", 0xF80F, 0x0000,m); // ST7789
 //mc=millisCounter;
 //printf("3)%d b:%d d:%d b:%d s:%d\n",mc,st_buffer_free,st_dma_free,st_dma_done_blank,st_sched_free);
     uint8_t ls=16;
@@ -263,8 +263,10 @@ void setup(){
 //    sleep_ms(250);
 //mc=millisCounter;
 //printf("4)%d b:%d d:%d b:%d s:%d\n",mc,st_buffer_free,st_dma_free,st_dma_done_blank,st_sched_free);
-    tft_draw_text_12x12_dma_mult((TFT_W-(7*10))/2,TFT_H/2+14,s, 0xFFFF, 0x0000,1);
-    
+    tft_draw_text_12x12_dma_mult((TFT_W-(7*10))/2,TFT_H/2+14,s, 0xF81F, 0x0000,1);
+    const char* v="v1.1";
+    tft_draw_text_12x12_dma_mult((TFT_W-(4*10))/2,TFT_H/2+25,v, 0xFFE0, 0x0000,1);
+
     delayBlk(5);
 
     tft_fill_rect_blank(0,0,TFT_H,TFT_W);

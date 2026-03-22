@@ -1,0 +1,50 @@
+.program i2s
+
+.side_set 2
+
+.wrap_target
+left:
+    mov x, 32
+bitloop_left:
+    out pins, 1       	 side 0b00 [1]  ; BCLK=0, LRCLK=0
+    jmp x-- bitloop_left side 0b01 [6]  ; BCLK=1, LRCLK=0
+    jmp right
+
+right:
+    mov x, 32
+bitloop_right:
+    out pins, 1           side 0b10 [1]  ; BCLK=0, LRCLK=1
+    jmp x-- bitloop_right side 0b11 [6]  ; BCLK=1, LRCLK=1
+    jmp left
+.wrap
+
+; clkdiv=5.859 
+; sm_config_set_clkdiv(&c, 5.859f);
+
+%
+// méthode dds
+#include <stdint.h>
+
+float fsample = 44100.0f;   // fréquence d'échantillonnage
+float fout    = 1000.0f;    // par exemple : 1 kHz
+
+uint32_t compute_step(float fout, float fsample) {
+    double ratio = (double)fout / (double)fsample;   // f_out / f_sample
+    double step  = ratio * 4294967296.0;             // 2^32 = 4294967296
+    if (step < 0.0)
+        step = 0.0;
+    if (step > 4294967295.0)
+        step = 4294967295.0;
+    return (uint32_t)(step + 0.5);                   // arrondi
+}
+
+uint32_t phase = 0;
+uint32_t step  = compute_step(fout, fsample);
+
+for (;;) {
+    phase += step;
+    uint32_t index = phase >> (32 - LOG2_N);  // LOG2_N pour ta table (ex: 8 pour 256)
+    int16_t sample = table[index];
+    // envoyer sample vers ton I2S...
+}
+%

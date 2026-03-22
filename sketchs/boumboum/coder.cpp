@@ -22,7 +22,7 @@ uint8_t coderStrobeNumber=3;                // 1st strobe delay (2nd strobe dela
 volatile int16_t* coderTimerCount=nullptr;  // ptr to current value to be inc or dec
 volatile bool* coderTimerSwitch=nullptr;    // switchs values
 
-uint8_t cOT[CODER_NB]={0,1,2,5,4,3,6,7};    // CODER ORDER TABLE ordre physique
+uint8_t cOT[CODER_NB]={0,1,2,3,4,7,6,5};    // CODER ORDER TABLE ordre physique
 
 // pico2_pins
 
