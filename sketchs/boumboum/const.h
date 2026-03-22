@@ -130,9 +130,10 @@
 
 /* I2S */
 
-//#define PICO_AUDIO_I2S_PIO 0   dans pico_audio_i2s.h
-#define PICO_AUDIO_I2S_CLOCK_PIN_BASE 13 // 16        // 2 consecutive gpios
-#define PICO_AUDIO_I2S_DATA_PIN 15 // 18
+#define PICO_I2S_PIO 0
+#define _i2s_pio __CONCAT(pio, PICO_I2S_PIO)   
+//#define PICO_AUDIO_I2S_CLOCK_PIN_BASE 13 // 16        // 2 consecutive gpios
+#define PICO_AUDIO_I2S_DATA_PIN 13 // 18
 
 #define SAMPLE_RATE 44100
 #define AMPLITUDE   30000   // Amplitude max (16 bits signé)
@@ -150,8 +151,8 @@
 //#define FREQUENCY_DECIM 1000      // pour travailler en milliHz
 #define NUMBER_OF_OCTAVES 10
 #define OCTAVE0_FREQ SAMPLE_F/SAMPLE_BUFFER_SIZE
-#define SAMPLES_PER_BUFFER 1024 //1156     // Samples / channel   
-#define SAMPLE_BUFFER_SIZE SAMPLES_PER_BUFFER  // nombre d'échantillons par buffer (doit être multiple de 4 pour le dma i2s)
+#define SAMPLES_PER_BUFFER 1024     // nombre d'échantillons (L+R) par buffer   
+#define SAMPLE_BUFFER_SIZE SAMPLES_PER_BUFFER  // taille du buffer (doit être multiple de 4 pour le dma i2s)
 
 #define BASIC_WAVE_TABLE_POW 11     // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
 #define BASIC_WAVE_TABLE_LEN 2048   // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes

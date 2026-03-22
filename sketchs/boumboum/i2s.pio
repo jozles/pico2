@@ -3,26 +3,33 @@
 .side_set 2
 
 .wrap_target
-left:
-    mov x, 32
+
+left_chan:
+    ;set x, 31
+    set x, 0		 side 0b00 [0]
+    in null, 5 	 	 side 0b00 [0]
+	
 bitloop_left:
     out pins, 1       	 side 0b00 [1]  ; BCLK=0, LRCLK=0
     jmp x-- bitloop_left side 0b01 [6]  ; BCLK=1, LRCLK=0
-    jmp right
+    jmp right_chan       side 0b01 [0]
 
-right:
-    mov x, 32
+right_chan:
+    ;set x, 32
+    set x, 0		 side 0b10 [0]
+    in null, 5	 	 side 0b10 [0]
+
 bitloop_right:
     out pins, 1           side 0b10 [1]  ; BCLK=0, LRCLK=1
     jmp x-- bitloop_right side 0b11 [6]  ; BCLK=1, LRCLK=1
-    jmp left
+    jmp left_chan         side 0b11 [0]
 .wrap
 
 ; clkdiv=5.859 
 ; sm_config_set_clkdiv(&c, 5.859f);
 
-%
-// méthode dds
+
+/* méthode dds
 #include <stdint.h>
 
 float fsample = 44100.0f;   // fréquence d'échantillonnage
@@ -47,4 +54,4 @@ for (;;) {
     int16_t sample = table[index];
     // envoyer sample vers ton I2S...
 }
-%
+*/

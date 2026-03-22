@@ -5,7 +5,7 @@
 #include "coder.h"
 #include "util.h"
 #include "hardware/pio.h"
-
+#include "bb_i2s.h"
 #include "test.h"
 #include "frequences.h"
 #include "leds.h"
@@ -73,11 +73,6 @@ int main() {
     delayBlk(3);        
     printf("\n+boumboum= \n");
 
-//while(1){slow_coder_test(1000);}
-
-//gpio_init(13);gpio_set_dir(13,GPIO_OUT); gpio_put(13,1);
-//while(1){gpio_put(13,0);sleep_ms(1);gpio_put(13,1);sleep_ms(1000);}
-
     setup();
 
 #ifdef BB_TEST_MODE
@@ -127,6 +122,8 @@ int main() {
 
     coderSetup(coderCounter,coderSwitchs);
 
+    //i2s_start();
+
     while (1) {
         uint16_t ccAmpl=0;
         
@@ -136,7 +133,7 @@ int main() {
 
         test_st7789_2();    // animation balayage de lignes
 
-        if((millisCounter-ticker10)>10000){printf("int_counter:%d\n",int_counter);ticker10=millisCounter;}
+        if((millisCounter-ticker10)>10000){printf("10sec_counter:%d\n",millisCounter/10000);ticker10=millisCounter;}
 
         //if((millisCounter-probeBlinker)>1000){probeBlinker=millisCounter;printf("%d\n",probe);}  // test existence coderTimerHandler()
 
@@ -155,8 +152,8 @@ int main() {
                 sprintf(buf+2,"%4d ",cc);             // valeur courante coder
 ; 
                 coderCounter0[cod]=cc;
-                voices[cod].newFrequency=calcFreq(cc);
-                voices[cod].newFreqRateRatio=(voices[cod].newFrequency/SAMPLE_RATE);               
+                float f=calcFreq(cc);
+                setNewFrequency(f,&voices[cod]);               
                 sprintf(buf+7,"%4.2f  ",voices[cod].newFrequency); // valeur fréquence pour valeur codeur     
 
                 ccAmpl=cc;if(ccAmpl>MAX_16B_LINEAR_VALUE-1){ccAmpl=MAX_16B_LINEAR_VALUE-1;}

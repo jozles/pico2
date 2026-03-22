@@ -61,6 +61,7 @@ add_executable(boumboum
 	)
 
 pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/ws2812.pio)
+pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/i2s.pio)
 
 pico_set_program_name(boumboum "boumboum")
 pico_set_program_version(boumboum "0.1")

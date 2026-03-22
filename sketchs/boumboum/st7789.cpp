@@ -92,9 +92,9 @@ static inline void tft_data(const uint8_t *d, size_t len) {
 
 static void tft_reset(void) {
     gpio_put(ST7789_PIN_RST, 0);
-    sleep_ms(20);
+    delay_ms(20);
     gpio_put(ST7789_PIN_RST, 1);
-    sleep_ms(120);
+    delay_ms(120);
 }
 
 // ---------------------------------------------------------
@@ -258,8 +258,6 @@ int st7789_setup(uint32_t spiSpeed)
 
     spi_set_format(spi0, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
 
-
-
     tft_init();
     if(init_dma_spi()<0){printf("st7789_Setup: no spi dma channel available\n");return -1;}
  
@@ -273,6 +271,8 @@ int st7789_setup(uint32_t spiSpeed)
 
     tft_fill_rect_blank(0,0,TFT_H,TFT_W);//sleep_ms(50);
     gpio_put(ST7789_PIN_BL, 1);
+    printf("st7789_Setup done\n");
+    delay_ms(100);
     return st_dma_chan;
 }
 
@@ -281,13 +281,13 @@ int st7789_setup(uint32_t spiSpeed)
 // INIT SCREEN ST7789
 // ---------------------------------------------------------
 static void tft_init(void) {
-    tft_reset();
+    tft_reset();   
 
     tft_cmd(0x01); // SWRESET
-    sleep_ms(150);
+    delay_ms(150);
 
     tft_cmd(0x11); // SLPOUT
-    sleep_ms(150);
+    delay_ms(150);
 
     // Color mode : 16 bits
     tft_cmd(0x3A);
@@ -362,7 +362,7 @@ static void tft_init(void) {
 
     tft_cmd(0x21); // INVON
     tft_cmd(0x29); // DISPON
-    sleep_ms(100);
+    delay_ms(100);
 }
 
 
@@ -593,7 +593,7 @@ void tft_draw_text_12x12_dma_mult(uint16_t x,uint16_t y,const char *s,uint16_t f
         }
     }
 
-    printf("dt12dmam x:%d y:%d w:%d h:%d\n",x,y,w*mult,h*mult);
+    printf("dt12dmam x:%d y:%d w:%d h:%d s:%s\n",x,y,w*mult,h*mult,s);
     st_dma_launch(tft_frame,x,y,w*mult,h*mult);    
 
 }

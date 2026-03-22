@@ -34,22 +34,30 @@
 #define WAVE_PINKNOISE 5
 #define MAX_AMP_VAL 32767
 
+#define MAX_STEP_FRA 10000  // décimales ratio sampleFreq/currFreq
+
 struct Voice {
     //int32_t*    sampleBuffer;
     uint16_t    sampleNbToFill;                 // sample Nb for 1 period    
-    uint32_t    currentSample;                  
+    uint32_t    currentSample;                  // last value pushed in i2s buffer                  
     float       frequency;                      // current freq
-    float       newFrequency;
-    float       freqRateRatio;
-    float       newFreqRateRatio;                   
+    uint16_t    stepInt;                        // partie entière du step
+    uint32_t    stepFra;                        // partie fractionnaire du step
+    uint16_t    currEch;                        // dernier N° d'ech utilisé
+    uint32_t    currEchFra;                     // dernière valeur fractionnaire de n° d'ech calculée  
+    float       newFrequency;     
+    uint16_t    newStepInt;
+    uint32_t    newStepFra; 
+    //float       freqRateRatio;
+    //float       newFreqRateRatio;                   
     int16_t     coderFreq;                      // last coder value for freq  
     uint16_t    basicWaveAmpl[BASIC_WAVES_NB];
     int16_t     coderAmpl[BASIC_WAVES_NB];      // last coder value for ampl
     uint16_t    genAmpl;
-    uint8_t     freqCoeff;
-    uint32_t    dhexFreq;
-    uint32_t    moduloMask;
-    uint8_t     moduloShift;
+    //uint8_t     freqCoeff;
+    //uint32_t    dhexFreq;
+    //uint32_t    moduloMask;
+    //uint8_t     moduloShift;
     uint16_t    soundsCc[CODER_BANK_NB];
     uint16_t    adsrlCc[CODER_BANK_NB];
     uint16_t    frequencyCc;                    // last coder value used in unmuxed coder test
@@ -64,9 +72,10 @@ void fillOctIncr();
 void showOctIncr(float octF,float octF1);
 float calcFreq(uint16_t val);
 void freq_start();
-void getEch(float freq,uint32_t sampleCounter,uint16_t sampleNbToFill,uint32_t* sampleBuffer);
+//void getEch(float freq,uint32_t sampleCounter,uint16_t sampleNbToFill,uint32_t* sampleBuffer);
 void amplStart();
 void voiceInit(float freq,Voice* v);
 void fillVoiceBuffer(int32_t* sampleBuffer,Voice* v);
+void setNewFrequency(float freq,Voice* v);
 
 #endif  //_FREQUENCES_H_

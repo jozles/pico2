@@ -185,32 +185,77 @@ void voiceInit(float freq,Voice* v)
 {
     v->sampleNbToFill=SAMPLE_BUFFER_SIZE;    
     v->currentSample=0;
-    v->newFrequency=freq;
-    v->freqRateRatio=1;
-    v->newFreqRateRatio=1;
+    v->currEch=0;
+    v->currEchFra=0;
+    setNewFrequency(freq,v);
+    //v->freqRateRatio=1;
+    //v->newFreqRateRatio=1;
     for(uint8_t i=0;i<BASIC_WAVES_NB;i++){v->basicWaveAmpl[i]=0;}  // all waves off
-    v->freqCoeff=0;
-    v->dhexFreq=0;
-    v->moduloMask=0;
-    v->moduloShift=0;
+    //v->freqCoeff=0;
+    //v->dhexFreq=0;
+    //v->moduloMask=0;
+    //v->moduloShift=0;
     
-    uint32_t fr=(uint16_t)freq;
-    v->freqCoeff=32;
-    while(fr!=0){                   
-        fr>>=1;v->freqCoeff--;      // @16KHz maxi, coeff min=18 ; @16hz mini, coeff max=27
-    }
+    //uint32_t fr=(uint16_t)freq;
+    //v->freqCoeff=32;
+    //while(fr!=0){                   
+    //    fr>>=1;v->freqCoeff--;      // @16KHz maxi, coeff min=18 ; @16hz mini, coeff max=27
+    //}
 
-    v->dhexFreq=(uint32_t)(freq*(1<<v->freqCoeff))/SAMPLE_RATE;
+    //v->dhexFreq=(uint32_t)(freq*(1<<v->freqCoeff))/SAMPLE_RATE;
 
-    v->moduloMask=(1<<(v->freqCoeff+1))-1;
+    //v->moduloMask=(1<<(v->freqCoeff+1))-1;
 
-    v->moduloShift=v->freqCoeff-BASIC_WAVE_TABLE_POW;
+    //v->moduloShift=v->freqCoeff-BASIC_WAVE_TABLE_POW;
 
-    printf("voice init freq:%5.2f freqCoeff:%d dhexFreq:%08x moduloMask:%08x moduloShift:%d\n",
-        v->frequency,v->freqCoeff,v->dhexFreq,v->moduloMask,v->moduloShift);
+    //printf("voice init freq:%5.2f freqCoeff:%d dhexFreq:%08x moduloMask:%08x moduloShift:%d\n",
+    //    v->frequency,v->freqCoeff,v->dhexFreq,v->moduloMask,v->moduloShift);
 }
 
-void fillVoiceBuffer(int32_t* sampleBuffer,Voice* v)
+void setNewFrequency(float freq,Voice* v){
+    v->newFrequency=freq;
+
+    float k=(uint32_t)SAMPLE_RATE/v->newFrequency;
+    v->newStepInt=(uint32_t)k;
+    v->newStepFra=(uint32_t)((k-v->newStepInt)*MAX_STEP_FRA);
+}
+
+void fillVoiceBuffer(int32_t* vBuffer,Voice* v){
+
+  gpio_put(TST_PIN,HIGH);
+
+  int16_t lastEch=0;
+
+
+  uint16_t s;
+
+  for(s=0;s<v->sampleNbToFill;s++){
+    v->currEch+=v->stepInt;
+    v->currEchFra+=v->stepFra;
+    if(v->currEchFra>MAX_STEP_FRA){v->currEchFra-=MAX_STEP_FRA;v->currEch++;}
+    if(v->currEch>BASIC_WAVES_NB){v->currEch-=BASIC_WAVES_NB;}
+
+    lastEch=sineWaveform[v->currEch];
+    vBuffer[s*2]=lastEch*v->genAmpl;
+    vBuffer[s*2+1]=vBuffer[s*2];
+
+    if(v->newFrequency!=0){
+      if(v->currentSample<=0 && lastEch<=0){    // freq change when wave between 180-360° (next ech value 0)
+        v->stepInt=v->newStepInt;
+        v->stepFra=v->newStepFra;
+        v->frequency=v->newFrequency;
+        v->newFrequency=0;
+        v->currEch=0;      
+      }
+    }
+    v->currentSample=lastEch;
+  }
+
+  gpio_put(TST_PIN,LOW); 
+
+}
+
+/*void _fillVoiceBuffer(int32_t* sampleBuffer,Voice* v)
 {
   //gpio_put(TEST_PIN,ON);
 
@@ -234,8 +279,7 @@ void fillVoiceBuffer(int32_t* sampleBuffer,Voice* v)
       v->currentSample=0;
     }
 
-    sampleBuffer[i*2]=sineWaveform[ech]*v->genAmpl; // 11.6mS 
-/*    
+    sampleBuffer[i*2]=sineWaveform[ech]*v->genAmpl; // 11.6mS     
     ((sineWaveform[ech]*v->basicWaveAmpl[WAVE_SINUS]
       + squareWaveform[ech]*v->basicWaveAmpl[WAVE_SQUARE]
       + triangleWaveform[ech]*v->basicWaveAmpl[WAVE_TRIANGLE]
@@ -245,7 +289,7 @@ void fillVoiceBuffer(int32_t* sampleBuffer,Voice* v)
       )
       /MAX_AMP_VAL
     )*v->genAmpl;
-*/
+
     sampleBuffer[i*2+1]=sampleBuffer[i*2]; // stereo
 
     v->currentSample++;
@@ -254,5 +298,5 @@ void fillVoiceBuffer(int32_t* sampleBuffer,Voice* v)
 
   //gpio_put(TEST_PIN,OFF);
   
-}
+}*/
 

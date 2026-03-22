@@ -13,10 +13,6 @@
 #include "const.h"
 #include "st7789.h"
 
-//static PIO pio = ws2812_pio;   // pio0 used by i2s
-//static uint sm;
-//static uint offset;
-
 extern volatile uint32_t millisCounter;
 
 static int ws_dma_chan;

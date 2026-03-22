@@ -1,150 +1,105 @@
-/**
- * Copyright (c) 2020 Raspberry Pi (Trading) Ltd.
- *
- * SPDX-License-Identifier: BSD-3-Clause
- */
+/* bb_i2s.cpp */
 
 #include <stdio.h>
-#include <math.h>
-
-#include "bb_i2s.h"
-#include "const.h"
-#include "util.h"
-
-#include "hardware/pll.h"
-#include "hardware/clocks.h"
-#include "hardware/structs/clocks.h"
-#include "hardware/pio.h"
-
+#include <string.h>
+#include <stdint.h>
 #include "pico/stdlib.h"
-#include "pico/audio.h"
-#include "pico/audio_i2s.h"
+#include "hardware/pio.h"
+#include "hardware/clocks.h"
+#include "hardware/dma.h"
+#include "hardware/sync.h"
 
-uint32_t i2s_error=0xffffffff;
+#include "i2s.pio.h"
+#include "const.h"
 
+extern volatile uint32_t millisCounter;
 
+static int i2s_dma_chan0;
+static int i2s_dma_chan1;
+static dma_channel_config dma_cfg0;
+static dma_channel_config dma_cfg1;
 
+int32_t* i2s_buffer[2];
 
+static PIO i2s_pio;
+static int i2s_sm;
 
+int init_dma_i2s() {
+    i2s_dma_chan0 = dma_claim_unused_channel(true);
+    if(i2s_dma_chan0<0){return -1;}                      // no channel available
 
-audio_buffer_pool_t *ap;
-static bool decode_flg = false;
-static constexpr int32_t DAC_ZERO = 1;
+    i2s_dma_chan1 = dma_claim_unused_channel(true);
+    if(i2s_dma_chan1<0){return -2;}                      // no channel available
 
-#define audio_pio __CONCAT(pio, PICO_AUDIO_I2S_PIO)
+    dma_cfg0 = dma_channel_get_default_config(i2s_dma_chan0);
+    dma_cfg1 = dma_channel_get_default_config(i2s_dma_chan1);    
 
-static audio_format_t audio_format = {
-    .sample_freq = SAMPLE_RATE,
-    .pcm_format = AUDIO_PCM_FORMAT_S32,
-    .channel_count = AUDIO_CHANNEL_STEREO
-};
+    channel_config_set_transfer_data_size(&dma_cfg0, DMA_SIZE_32);
+    channel_config_set_transfer_data_size(&dma_cfg1, DMA_SIZE_32);
 
-static audio_buffer_format_t producer_format = {
-    .format = &audio_format,
-    .sample_stride = 8
-};
+    channel_config_set_read_increment(&dma_cfg0, true);
+    channel_config_set_read_increment(&dma_cfg1, true);    
 
-static audio_i2s_config_t i2s_config = {
-    .data_pin = PICO_AUDIO_I2S_DATA_PIN,
-    .clock_pin_base = PICO_AUDIO_I2S_CLOCK_PIN_BASE,
-    .dma_channel0 = 0,
-    .dma_channel1 = 1,
-    .pio_sm = 0
-};
+    channel_config_set_write_increment(&dma_cfg0, false);
+    channel_config_set_write_increment(&dma_cfg1, false);    
 
-void i2s_audio_deinit()
-{
-    decode_flg = false;
+    channel_config_set_dreq(&dma_cfg0,pio_get_dreq(i2s_pio, i2s_sm, true));                   // voir commentaire dans main
+    channel_config_set_dreq(&dma_cfg1,pio_get_dreq(i2s_pio, i2s_sm, true));                   // voir commentaire dans main    
 
-    audio_i2s_set_enabled(false);
-    audio_i2s_end();
+    channel_config_set_chain_to(&dma_cfg0, i2s_dma_chan1);
+    channel_config_set_chain_to(&dma_cfg1, i2s_dma_chan0);
 
-    audio_buffer_t* ab;
-    ab = take_audio_buffer(ap, false);
-    while (ab != nullptr) {
-        free(ab->buffer->bytes);
-        free(ab->buffer);
-        ab = take_audio_buffer(ap, false);
-    }
-    ab = get_free_audio_buffer(ap, false);
-    while (ab != nullptr) {
-        free(ab->buffer->bytes);
-        free(ab->buffer);
-        ab = get_free_audio_buffer(ap, false);
-    }
-    ab = get_full_audio_buffer(ap, false);
-    while (ab != nullptr) {
-        free(ab->buffer->bytes);
-        free(ab->buffer);
-        ab = get_full_audio_buffer(ap, false);
-    }
-    free(ap);
-    ap = nullptr;
+    return 1;
 }
 
-audio_buffer_pool_t *i2s_audio_init(uint32_t sample_freq)
-{
-    audio_format.sample_freq = sample_freq;
+void i2s_start(){
 
-    audio_buffer_pool_t *producer_pool = audio_new_producer_pool(&producer_format, 3, SAMPLES_PER_BUFFER);
-    ap = producer_pool;
+    dma_channel_configure(i2s_dma_chan0, &dma_cfg0,&i2s_pio->txf[i2s_sm], i2s_buffer[0], SAMPLE_BUFFER_SIZE,false);
+    dma_channel_configure(i2s_dma_chan1, &dma_cfg1,&i2s_pio->txf[i2s_sm], i2s_buffer[1], SAMPLE_BUFFER_SIZE,true);
 
-    bool __unused ok;
-    const audio_format_t *output_format;
-
-    output_format = audio_i2s_setup(&audio_format, &audio_format, &i2s_config);
-    if (!output_format) {
-        panic("PicoAudio: Unable to open audio device.\n");
-    }
-
-    ok = audio_i2s_connect(producer_pool);
-    assert(ok);
-    { // initial buffer data
-        audio_buffer_t *ab = take_audio_buffer(producer_pool, true);
-        int32_t *samples = (int32_t *) ab->buffer->bytes;
-        for (uint i = 0; i < ab->max_sample_count; i++) {
-            samples[i*2+0] = DAC_ZERO;
-            samples[i*2+1] = DAC_ZERO;
-        }
-        ab->sample_count = ab->max_sample_count;
-        give_audio_buffer(producer_pool, ab);
-    }
-    audio_i2s_set_enabled(true);
-
-    decode_flg = true;
-    return producer_pool;
 }
 
-int bb_i2s_start(){
+int i2sSetup(PIO pio,uint8_t i2sDataPin,int32_t* buf[2]) {
 
-    //stdio_init_all();
+    i2s_pio=pio;
+    i2s_buffer[0]=buf[0];
+    i2s_buffer[1]=buf[1];
 
-    ap = i2s_audio_init(SAMPLE_RATE);
+    // get sm
+    i2s_sm = pio_claim_unused_sm(pio, true); 
+    if(i2s_sm<0){printf("i2sSetup: no sm available\n");return -3;}
 
+    printf("i2sSetup pio:%d sm:%d\n",pio_get_index(pio),i2s_sm);
+    uint offset = pio_add_program(i2s_pio, &i2s_program);
+
+    // sm config
+    pio_gpio_init(i2s_pio, i2sDataPin);                                       // attache le gpio au pio (si plusieurs gpio plusieurs inits)
+    pio_gpio_init(i2s_pio, i2sDataPin+1);                                     // bclk
+    pio_gpio_init(i2s_pio, i2sDataPin+2);                                     // lrclk
+    pio_sm_set_consecutive_pindirs(i2s_pio, i2s_sm, i2sDataPin, 3, true);     // 1er,nbre,direction des gpio de la sm (correspond pour le pilotage sm à "gpio_set_dir()" en pilotage processeur)
+
+    pio_sm_config c = i2s_program_get_default_config(offset);       // créé la structure de la config de la sm
+    sm_config_set_sideset_pins(&c, i2sDataPin);                     // gpio de base de la sm qui sera associée à la structure                 
+    sm_config_set_out_pins(&c, i2sDataPin, 1);                      // direction des GPIOs de la sm (pas compris pourquoi il y a 2 couches de direction avec pio_sm_consecutive_pindirs)                 
+    sm_config_set_out_shift(&c, false, true, 32);                   // controle du shift register alimenté par le TX FIFO (,right,autopull,threshpld)
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);                  // concatène FIFO TX et RX (8 bytes)
+   
+    sm_config_set_clkdiv(&c, 5.839f);                               // 0.3540*150/9.09375=5.839 (9+3/32=9.09375 cycles/bit)
+    pio_sm_init(i2s_pio, i2s_sm, offset, &c);                       // attache le programme et la structure à la sm                 
+    
+    pio_sm_clear_fifos(i2s_pio, i2s_sm);
+    pio_sm_set_enabled(i2s_pio, i2s_sm, true);
+
+    // dma init
+    int v=init_dma_i2s();
+    if(v<0){printf("i2sSetup: no dma channel available\n");return v;}   // -1 ou -2
+
+    printf("début i2s\n");
     return 0;
 }
 
-extern "C" {
-// callback from:
-//   void __isr __time_critical_func(audio_i2s_dma_irq_handler)()
-//   defined at my_pico_audio_i2s/audio_i2s.c
-//   where i2s_callback_func() is declared with __attribute__((weak))
-void i2s_callback_func()
-{
-    if (decode_flg) {
-        //gpio_put(TEST_PIN,HIGH);            // 171uS
-        audio_buffer_t *buffer = take_audio_buffer(ap, false);
-
-        if (buffer == NULL) { return; } 
-        int32_t *samples = (int32_t *) buffer->buffer->bytes;
-
-        next_sound_feeding(samples,buffer->max_sample_count);
-        //memcpy(samples,(int32_t*)audio_data,(buffer->max_sample_count)*2*4); // 4 bytes per sample, 2 channels    
-
-        buffer->sample_count = buffer->max_sample_count;
-        give_audio_buffer(ap, buffer);
-        
-        //gpio_put(TEST_PIN,LOW);
-    }
-}
+int i2s_active_dma(){
+    if(dma_channel_is_busy(i2s_dma_chan0)){return 0;};
+    if(dma_channel_is_busy(i2s_dma_chan1)){return 1;};
+    return -1;
 }
