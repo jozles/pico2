@@ -132,7 +132,7 @@ bool coderTimerHandler(){
             gpio_put_masked(sel_gpio_mask, coder << gpio_sel0_pin);     // sel current coder ; env 6uS le pas de boucle + les traitements
 
             cp=&c[coder];
-
+            quick_delay(10);
             // traitement switch (en premier pour ne pas être zappé par les "continue")
             if(cp->coderSwitch!=gpio_get(gpio_switch_pin)){
             if((probe-cp->coderSwitchTime)>CODER_SW_STROBE_MS){

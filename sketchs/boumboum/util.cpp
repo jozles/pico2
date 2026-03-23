@@ -222,12 +222,12 @@ void setup(){
     voiceInit(fr0,&voices[channel]);    //689
     voices[channel].genAmpl=0x7fff;
 
-    i2s_dma_buffers[0]=i2s_buf0;
-    i2s_dma_buffers[1]=i2s_buf1;
-    what=W_SINUS;
-    next_sound_feeding(i2s_dma_buffers[0],SAMPLES_PER_BUFFER);
-    next_sound_feeding(i2s_dma_buffers[1],SAMPLES_PER_BUFFER);
-    i2sSetup(_i2s_pio,PICO_AUDIO_I2S_DATA_PIN,i2s_dma_buffers);
+    //i2s_dma_buffers[0]=i2s_buf0;
+    //i2s_dma_buffers[1]=i2s_buf1;
+    //what=W_SINUS;
+    //next_sound_feeding(i2s_dma_buffers[0],SAMPLES_PER_BUFFER);
+    //next_sound_feeding(i2s_dma_buffers[1],SAMPLES_PER_BUFFER);
+    //i2sSetup(_i2s_pio,PICO_AUDIO_I2S_DATA_PIN,i2s_dma_buffers);
 
     ws_dma_channel=ledsWs2812Setup(ws2812_pio,WS2812_LED_PIN);
     if(ws_dma_channel<0){LEDBLINK_ERROR_DMA}
@@ -239,8 +239,8 @@ void setup(){
     init_global_dma_irq();
     #endif
 
-    scope(i2s_buf0,SAMPLES_PER_BUFFER,voices[channel].frequency);
-    while(gpio_get(CODER_GPIO_SW)==1){}
+    //scope(i2s_buf0,SAMPLES_PER_BUFFER,voices[channel].frequency);
+    //while(gpio_get(CODER_GPIO_SW)==1){}
 
     //delayBlk(10);
 

@@ -148,9 +148,9 @@ int main() {
                 #define LINE_LEN TFT_W/12+1
                 char buf[LINE_LEN];memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
 
-                buf[0]=coder+48;
+                buf[0]=cod+48;
                 sprintf(buf+2,"%4d ",cc);             // valeur courante coder
-; 
+ 
                 coderCounter0[cod]=cc;
                 float f=calcFreq(cc);
                 setNewFrequency(f,&voices[cod]);               
@@ -160,9 +160,9 @@ int main() {
                 voices[cod].genAmpl=amplLevel[ccAmpl];         
                 sprintf(buf+14,"%5d",voices[cod].genAmpl);        // valeur ampl pour valeur codeur
         
-                tft_draw_text_12x12_dma_mult(0,coder*(12*2+1),buf,0x07EF,0x0000,1);
+                tft_draw_text_12x12_dma_mult(0,cod*(12*2+1),buf,0x07EF,0x0000,1);
 
-                printf("coder:%d cc:%d sw:%d :freq:%5.3f ampl:%d  %s\n",coder,cc,coderSwitchs[cod],voices[cod].newFrequency,voices[cod].genAmpl,buf);       
+                printf("coder:%d cc:%d sw:%d :freq:%5.3f ampl:%d  %s\n",cod,cc,coderSwitchs[cod],voices[cod].newFrequency,voices[cod].genAmpl,buf);       
             }
             //if(coderSwitchs[cod] && cod==2){soft_reset_wdt();}
         }
