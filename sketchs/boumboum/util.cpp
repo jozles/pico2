@@ -218,7 +218,9 @@ void setup(){
     amplStart();
 
     uint8_t channel=0;
-    voiceInit(689,&voices[channel]);
+    float fr0=440;
+    voiceInit(fr0,&voices[channel]);    //689
+    voices[channel].genAmpl=0x7fff;
 
     i2s_dma_buffers[0]=i2s_buf0;
     i2s_dma_buffers[1]=i2s_buf1;
@@ -236,6 +238,11 @@ void setup(){
     #ifdef GLOBAL_DMA_IRQ_HANDLER
     init_global_dma_irq();
     #endif
+
+    scope(i2s_buf0,SAMPLES_PER_BUFFER,voices[channel].frequency);
+    while(gpio_get(CODER_GPIO_SW)==1){}
+
+    //delayBlk(10);
 
     tft_fill_rect_blank(0,0,TFT_H,TFT_W);
     

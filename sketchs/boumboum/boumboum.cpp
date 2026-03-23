@@ -162,8 +162,9 @@ int main() {
         
                 tft_draw_text_12x12_dma_mult(0,coder*(12*2+1),buf,0x07EF,0x0000,1);
 
-                printf("coder:%d cc:%d :freq:%5.3f ampl:%d  %s\n",coder,cc,voices[cod].newFrequency,voices[cod].genAmpl,buf);       
+                printf("coder:%d cc:%d sw:%d :freq:%5.3f ampl:%d  %s\n",coder,cc,coderSwitchs[cod],voices[cod].newFrequency,voices[cod].genAmpl,buf);       
             }
+            //if(coderSwitchs[cod] && cod==2){soft_reset_wdt();}
         }
     }
 #endif  // MUXED_CODER

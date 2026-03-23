@@ -400,7 +400,7 @@ void tft_fill_rect(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,uint16_t
         tft_frame[2*i + 1] = color & 0xFF;
     }
 
-    tft_set_window(beg_col,beg_line,beg_col+col_nb-1,beg_line+lines_nb-1);
+    //tft_set_window(beg_col,beg_line,beg_col+col_nb-1,beg_line+lines_nb-1);
 
     st_dma_launch(tft_frame,beg_col,beg_line,col_nb,lines_nb);     
 
@@ -626,6 +626,33 @@ uint16_t tft_draw_float_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_
     return tft_draw_float_12x12_dma_mult(x,y,fg,bg,mult,num,0);
 }
 
+void scope(int32_t* buf,uint32_t len,float f){
+    uint32_t x;
+    uint16_t bgcolor=0x0000;
+    uint16_t fgcolor=0x07ef;
+    int32_t yy;
+
+    st_dma_wait();
+
+    for (int i = 0; i < TFT_H*TFT_W ; i++) {
+        tft_frame[2*i]     = bgcolor >> 8;
+        tft_frame[2*i + 1] = bgcolor & 0xFF;
+    }
+  
+    for(uint32_t i=0;i<TFT_W;i++){
+        yy=(int32_t)(((float)buf[i*2]/(float)0x3fffffff)*(TFT_H/2));///0x7fffffff;
+        x=i;
+        tft_frame[2*((TFT_H/2-yy)*TFT_W+x)]=fgcolor;
+        //printf("%3d  b:%9d  yy:%3d  h:%3d\n",i,buf[i*2],yy,(TFT_H/2-yy));
+    }
+
+    for(uint8_t i=0;i<TFT_W;i+=3){tft_frame[2*((TFT_H/2)*TFT_W+i)]=fgcolor;}
+
+    st_dma_launch(tft_frame,0,0,TFT_W,TFT_H);
+
+    tft_draw_float_12x12_dma_mult(TFT_W*2/3,0,0xf81f,0,1,f,6);
+
+}
 
 
 // -----------------------------------------------

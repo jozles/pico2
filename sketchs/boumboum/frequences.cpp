@@ -215,7 +215,7 @@ void voiceInit(float freq,Voice* v)
 void setNewFrequency(float freq,Voice* v){
     v->newFrequency=freq;
 
-    float k=(uint32_t)SAMPLE_RATE/v->newFrequency;
+    float k=(uint32_t)BASIC_WAVE_TABLE_LEN*v->newFrequency/SAMPLE_RATE;
     v->newStepInt=(uint32_t)k;
     v->newStepFra=(uint32_t)((k-v->newStepInt)*MAX_STEP_FRA);
 }
@@ -233,20 +233,22 @@ void fillVoiceBuffer(int32_t* vBuffer,Voice* v){
     v->currEch+=v->stepInt;
     v->currEchFra+=v->stepFra;
     if(v->currEchFra>MAX_STEP_FRA){v->currEchFra-=MAX_STEP_FRA;v->currEch++;}
-    if(v->currEch>BASIC_WAVES_NB){v->currEch-=BASIC_WAVES_NB;}
+    if(v->currEch>BASIC_WAVE_TABLE_LEN){v->currEch-=BASIC_WAVE_TABLE_LEN;}
 
     lastEch=sineWaveform[v->currEch];
     vBuffer[s*2]=lastEch*v->genAmpl;
     vBuffer[s*2+1]=vBuffer[s*2];
 
+    //printf("s:%4d  f:%f nf:%f sti:%2d stf:%4d  echi:%4d echf:%4d  sin:%4d buf:%10i\n",s,v->frequency,v->newFrequency,v->stepInt,v->stepFra,v->currEch,v->currEchFra,sineWaveform[v->currEch],vBuffer[s*2]);
+
     if(v->newFrequency!=0){
-      if(v->currentSample<=0 && lastEch<=0){    // freq change when wave between 180-360° (next ech value 0)
+      //if(v->currentSample<=0 && lastEch<=0){    // freq change when wave between 180-360° (next ech value 0)
         v->stepInt=v->newStepInt;
         v->stepFra=v->newStepFra;
         v->frequency=v->newFrequency;
         v->newFrequency=0;
-        v->currEch=0;      
-      }
+        //v->currEch=0;      
+      //}
     }
     v->currentSample=lastEch;
   }
