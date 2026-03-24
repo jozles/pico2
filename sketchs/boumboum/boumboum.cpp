@@ -133,7 +133,10 @@ int main() {
 
         test_st7789_2();    // animation balayage de lignes
 
-        if((millisCounter-ticker10)>10000){printf("10sec_counter:%d\n",millisCounter/10000);ticker10=millisCounter;}
+        if((millisCounter-ticker10)>10000){
+            printf("10sec_counter:%d\n",millisCounter/10000);ticker10=millisCounter;
+            tft_draw_int_12x12_dma_mult(0,190, 0x001f,0x0000,1,millisCounter/10000);    //f800 bleu ; f81f rose ; 07ff jaune ; 07e0 vert ; 001f rouge
+        }
 
         //if((millisCounter-probeBlinker)>1000){probeBlinker=millisCounter;printf("%d\n",probe);}  // test existence coderTimerHandler()
 

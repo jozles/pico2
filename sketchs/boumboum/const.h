@@ -66,7 +66,7 @@
 // shortly there's 2 strobes : no change after change and no change before next change
 // It's possible to reach 2mS between 2 changes but who cares
 
-#define CODER_TIMER_POOLING_INTERVAL_MS 1  // timer pooling interval in milliseconds            
+#define CODER_TIMER_POOLING_INTERVAL_MS 8  // timer pooling interval in milliseconds            
 #define CODER_STROBE_NUMBER 3              // minimal timer intervals for a valid new change
 
 #define CODER_SW_STROBE_MS 50              // minimal delay for switch valid change (debouncer);

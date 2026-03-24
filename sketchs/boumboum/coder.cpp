@@ -132,7 +132,10 @@ bool coderTimerHandler(){
             gpio_put_masked(sel_gpio_mask, coder << gpio_sel0_pin);     // sel current coder ; env 6uS le pas de boucle + les traitements
 
             cp=&c[coder];
-            quick_delay(10);
+            //gpio_put(TST_PIN,1);
+            quick_delay(8);         // 9uS semble nécessaire pour stabiliser les coders et 4051 sinon ca fait nimporte quoi
+                                    // temps total du step 19uS ! avec 8mS d'intervalle ça semble ok (v1.2)
+            //gpio_put(TST_PIN,0);
             // traitement switch (en premier pour ne pas être zappé par les "continue")
             if(cp->coderSwitch!=gpio_get(gpio_switch_pin)){
             if((probe-cp->coderSwitchTime)>CODER_SW_STROBE_MS){
