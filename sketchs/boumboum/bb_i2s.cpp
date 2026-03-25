@@ -24,12 +24,26 @@ int32_t* i2s_buffer[2];
 static PIO i2s_pio;
 static int i2s_sm;
 
+void dma_i2s_handler() {
+    uint32_t status = dma_hw->intr;
+
+    if (status & (1u << i2s_dma_chan0)) {
+        dma_channel_set_read_addr(i2s_dma_chan0, i2s_buffer[0], false);
+        dma_hw->ints0 = (1u << i2s_dma_chan0);
+    }
+    if (status & (1u << i2s_dma_chan1)) {
+        dma_channel_set_read_addr(i2s_dma_chan1, i2s_buffer[1], false);
+        dma_hw->ints0 = (1u << i2s_dma_chan1);
+    }
+}
+
+
 int init_dma_i2s() {
     i2s_dma_chan0 = dma_claim_unused_channel(true);
-    if(i2s_dma_chan0<0){return -1;}                      // no channel available
+    if(i2s_dma_chan0<0){return -1;}                     // no channel available           
 
     i2s_dma_chan1 = dma_claim_unused_channel(true);
-    if(i2s_dma_chan1<0){return -2;}                      // no channel available
+    if(i2s_dma_chan1<0){return -2;}                     // no channel available
 
     dma_cfg0 = dma_channel_get_default_config(i2s_dma_chan0);
     dma_cfg1 = dma_channel_get_default_config(i2s_dma_chan1);    
@@ -48,6 +62,12 @@ int init_dma_i2s() {
 
     channel_config_set_chain_to(&dma_cfg0, i2s_dma_chan1);
     channel_config_set_chain_to(&dma_cfg1, i2s_dma_chan0);
+
+    dma_channel_set_irq0_enabled(i2s_dma_chan0, true);
+    dma_channel_set_irq0_enabled(i2s_dma_chan1, true);
+    irq_set_exclusive_handler(DMA_IRQ_0, dma_i2s_handler);
+    irq_set_enabled(DMA_IRQ_0, true);
+
 
     return 1;
 }
@@ -79,12 +99,12 @@ int i2sSetup(PIO pio,uint8_t i2sDataPin,int32_t* buf[2]) {
     pio_sm_set_consecutive_pindirs(i2s_pio, i2s_sm, i2sDataPin, 3, true);     // 1er,nbre,direction des gpio de la sm (correspond pour le pilotage sm à "gpio_set_dir()" en pilotage processeur)
 
     pio_sm_config c = i2s_program_get_default_config(offset);       // créé la structure de la config de la sm
-    sm_config_set_sideset_pins(&c, i2sDataPin);                     // gpio de base de la sm qui sera associée à la structure                 
+    sm_config_set_sideset_pins(&c, i2sDataPin+1);                     // gpio de base de la sm qui sera associée à la structure                 
     sm_config_set_out_pins(&c, i2sDataPin, 1);                      // direction des GPIOs de la sm (pas compris pourquoi il y a 2 couches de direction avec pio_sm_consecutive_pindirs)                 
-    sm_config_set_out_shift(&c, false, true, 32);                   // controle du shift register alimenté par le TX FIFO (,right,autopull,threshpld)
+    sm_config_set_out_shift(&c, false, true, 32);                   // controle du shift register alimenté par le TX FIFO (,right,autopull,threshold)
     sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);                  // concatène FIFO TX et RX (8 bytes)
    
-    sm_config_set_clkdiv(&c, 5.839f);                               // 0.3540*150/9.09375=5.839 (9+3/32=9.09375 cycles/bit)
+    sm_config_set_clkdiv(&c, 5.2816f);                             // (31*10+1*12)*2=644 ; 150000/44.1/644=5.2816  voir i2s.pio
     pio_sm_init(i2s_pio, i2s_sm, offset, &c);                       // attache le programme et la structure à la sm                 
     
     pio_sm_clear_fifos(i2s_pio, i2s_sm);

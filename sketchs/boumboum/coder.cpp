@@ -135,6 +135,7 @@ bool coderTimerHandler(){
             //gpio_put(TST_PIN,1);
             quick_delay(8);         // 9uS semble nécessaire pour stabiliser les coders et 4051 sinon ca fait nimporte quoi
                                     // temps total du step 19uS ! avec 8mS d'intervalle ça semble ok (v1.2)
+                                    // mesure 2.5uS total avec le delay !!! incompréhensible ... et ça marche
             //gpio_put(TST_PIN,0);
             // traitement switch (en premier pour ne pas être zappé par les "continue")
             if(cp->coderSwitch!=gpio_get(gpio_switch_pin)){

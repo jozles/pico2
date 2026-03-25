@@ -30,7 +30,6 @@ extern bool st_buffer_free,st_dma_free,st_dma_done_blank,st_sched_free;
 
 // boumboum
 
-static int i2s_dma_channel;
 static int st_dma_channel;
 static int ws_dma_channel;
 
@@ -203,6 +202,7 @@ void setup(){
     gpio_init(PIN_DCDC_PSM_CTRL);gpio_set_dir(PIN_DCDC_PSM_CTRL, GPIO_OUT);
     gpio_put(PIN_DCDC_PSM_CTRL, 1); // PWM mode for less Audio noise   
 
+    // ****** coders ******
     #ifndef MUXED_CODER
     coderInit(CODER_GPIO_CLOCK,CODER_GPIO_DATA,CODER_GPIO_SW,CODER_GPIO_VCC,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER);
     #endif  // MUXED_CODER
@@ -210,8 +210,21 @@ void setup(){
     coderInit(CODER_GPIO_CLOCK,CODER_GPIO_DATA,CODER_GPIO_SW,CODER_GPIO_VCC,CODER_PIO_SEL0,CODER_SEL_NB,CODER_NB,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER);
     #endif // MUXED_CODER   
 
-    init_pwm_timer_1khz();
+    init_pwm_timer_1khz();  // millitimers+coders
 
+    // ****** ws2812 ******
+    ws_dma_channel=ledsWs2812Setup(ws2812_pio,WS2812_LED_PIN);
+    if(ws_dma_channel<0){LEDBLINK_ERROR_DMA}
+
+    // ****** st7789 ******
+    st_dma_channel=st7789_setup(ST7789_SPI_SPEED);
+    if(st_dma_channel<0){LEDBLINK_ERROR_DMA}
+
+    #ifdef GLOBAL_DMA_IRQ_HANDLER
+    init_global_dma_irq();
+    #endif
+
+    // ****** sound ******
     fillBasicWaveForms();
     freq_start();
 
@@ -229,46 +242,32 @@ void setup(){
     next_sound_feeding(i2s_dma_buffers[1],SAMPLES_PER_BUFFER);
     i2sSetup(_i2s_pio,PICO_AUDIO_I2S_DATA_PIN,i2s_dma_buffers);
 
-    ws_dma_channel=ledsWs2812Setup(ws2812_pio,WS2812_LED_PIN);
-    if(ws_dma_channel<0){LEDBLINK_ERROR_DMA}
-
-    st_dma_channel=st7789_setup(ST7789_SPI_SPEED);
-    if(st_dma_channel<0){LEDBLINK_ERROR_DMA}
-
-    #ifdef GLOBAL_DMA_IRQ_HANDLER
-    init_global_dma_irq();
-    #endif
-
     scope(i2s_buf0,SAMPLES_PER_BUFFER,voices[channel].frequency);
-    while(gpio_get(CODER_GPIO_SW)==1){}
+    while(gpio_get(CODER_GPIO_SW)==1){
+        debug_ticker();
+    }
 
-    //delayBlk(10);
-
+    // ****** hello ******
     tft_fill_rect_blank(0,0,TFT_H,TFT_W);
     
     uint8_t m=3;
-  
     tft_draw_text_12x12_dma_mult((TFT_W-(6*10*m))/2,(TFT_H-m*10)/2, "ST7789", 0xF80F, 0x0000,m); // ST7789
-//mc=millisCounter;
-//printf("3)%d b:%d d:%d b:%d s:%d\n",mc,st_buffer_free,st_dma_free,st_dma_done_blank,st_sched_free);
+
     uint8_t ls=16;
     char s[ls];memset(s,0x00,ls);
-    convIntToString(s,TFT_W);s[3]='x';convIntToString(s+4,TFT_H);
+    int t=convIntToString(s,TFT_W);s[t]='x';convIntToString(s+t+1,TFT_H);
 
-//mc=millisCounter;
-//printf("4)%d b:%d d:%d b:%d s:%d\n",mc,st_buffer_free,st_dma_free,st_dma_done_blank,st_sched_free);
     tft_draw_text_12x12_dma_mult((TFT_W-(7*10))/2,TFT_H/2+14,s, 0xF81F, 0x0000,1); 
 
-    const char* v="v1.2";
+    const char* v="v1.3";
     tft_draw_text_12x12_dma_mult((TFT_W-(4*10))/2,TFT_H/2+25,v, 0xFFE0, 0x0000,1);
 
     delayBlk(5);
 
     tft_fill_rect_blank(0,0,TFT_H,TFT_W);
 
-    printf("end setup \n",st_dma_channel,get_st_dma_free());
-    print_diag();
-
+    printf("end setup \n");
+    //print_diag();
 }
 
 // -----------------------------
@@ -289,8 +288,7 @@ void next_sound_feeding(int32_t* next_sound,uint32_t next_sound_size){
         test_next_sound_feeding(next_sound,next_sound_size);
             break;
 
-        case W_SINUS:
-        
+        case W_SINUS:        
         fillVoiceBuffer(next_sound,&voices[0]);
        
             break;
@@ -793,19 +791,10 @@ void ledblinkn(uint8_t n){
         (led!=0 && (millisCounter-ledBlinker)>(durOffOn[led]))
     )
     {
-/*        
-        led++;led&=0x01;
-        gpio_put(LED,led);
-        ledBlinker=millisCounter;
-*/        
-///*
         if(n>MAXBLK){n=MAXBLK;}
         ledBlinker=millisCounter;
         if(led<((2*n)-1)){led++;}
-        else {
-            led=0; //printf("%d\n",millisCounter);
-        }
+        else led=0;
         gpio_put(LED,led&0x01);
-//*/        
     }
 }

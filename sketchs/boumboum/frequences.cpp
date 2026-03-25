@@ -45,7 +45,7 @@ void showAmplIncr(){
 void amplStart()
 {
   fillAmplIncr();
-  showAmplIncr();
+  //showAmplIncr();
 }
 
 //
@@ -166,9 +166,9 @@ void freq_start()                //void setup()
   printf(" -calcul fréquences\n");
   
   fillOctFreq();
-  showOctFreq();
+  //showOctFreq();
   fillOctIncr();
-  showOctIncr(0,1);
+  //showOctIncr(0,1);
 
 }
 

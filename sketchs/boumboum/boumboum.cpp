@@ -5,6 +5,11 @@
 #include "coder.h"
 #include "util.h"
 #include "hardware/pio.h"
+#include "hardware/dma.h"
+#include "hardware/pwm.h"
+#include "hardware/watchdog.h"
+
+
 #include "bb_i2s.h"
 #include "test.h"
 #include "frequences.h"
@@ -27,7 +32,6 @@ extern volatile uint32_t ledBlinker;
 volatile uint32_t millisCounter=0;
 volatile uint32_t probe=0;      // pour debouncer
 uint32_t probeBlinker=0;
-uint32_t ticker10=0;
 
 // coder 
 
@@ -49,6 +53,9 @@ uint32_t* currCoderBank0=nullptr;
 
 // voices 
 
+extern int32_t i2s_buf0[];
+extern int32_t i2s_buf1[];
+
 uint8_t currVoice=0;
 Voice voices[VOICES_NB];
 
@@ -66,12 +73,19 @@ static PIO pioWs = ws2812_pio;   // pio0 used by i2s
 int main() {
 
     stdio_init_all();
+
     sleep_ms(1000);
 
     gpio_init(TST_PIN);gpio_set_dir(TST_PIN,GPIO_OUT); gpio_put(TST_PIN,LOW);    
     gpio_init(LED);gpio_set_dir(LED,GPIO_OUT); gpio_put(LED,LOW);
     delayBlk(3);        
     printf("\n+boumboum= \n");
+    
+if (watchdog_caused_reboot()) {
+    printf("RESET = WATCHDOG\n");
+} else {
+    printf("RESET = NORMAL\n");
+}
 
     setup();
 
@@ -122,21 +136,21 @@ int main() {
 
     coderSetup(coderCounter,coderSwitchs);
 
-    //i2s_start();
+    i2s_start();
 
     while (1) {
         uint16_t ccAmpl=0;
         
         ws_show_3(30);
 
+    //while(1){debug_ticker();}
+    //}/*        
+
         ledblinkn(2);
 
         test_st7789_2();    // animation balayage de lignes
 
-        if((millisCounter-ticker10)>10000){
-            printf("10sec_counter:%d\n",millisCounter/10000);ticker10=millisCounter;
-            tft_draw_int_12x12_dma_mult(0,190, 0x001f,0x0000,1,millisCounter/10000);    //f800 bleu ; f81f rose ; 07ff jaune ; 07e0 vert ; 001f rouge
-        }
+        debug_ticker();
 
         //if((millisCounter-probeBlinker)>1000){probeBlinker=millisCounter;printf("%d\n",probe);}  // test existence coderTimerHandler()
 
@@ -169,7 +183,7 @@ int main() {
             }
             //if(coderSwitchs[cod] && cod==2){soft_reset_wdt();}
         }
-    }
+    }//*/
 #endif  // MUXED_CODER
 
 #endif  // BB_TEST_MODE

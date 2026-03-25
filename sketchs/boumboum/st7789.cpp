@@ -16,6 +16,8 @@
 #include "const.h"
 #include "util.h"
 
+uint32_t ticker10=0;
+
 extern uint32_t millisCounter;
 extern uint32_t st_dma_tfr_count;
 
@@ -593,7 +595,7 @@ void tft_draw_text_12x12_dma_mult(uint16_t x,uint16_t y,const char *s,uint16_t f
         }
     }
 
-    printf("dt12dmam x:%d y:%d w:%d h:%d s:%s\n",x,y,w*mult,h*mult,s);
+    //printf("dt12dmam x:%d y:%d w:%d h:%d s:%s\n",x,y,w*mult,h*mult,s);
     st_dma_launch(tft_frame,x,y,w*mult,h*mult);    
 
 }
@@ -652,6 +654,13 @@ void scope(int32_t* buf,uint32_t len,float f){
 
     tft_draw_float_12x12_dma_mult(TFT_W*2/3,0,0xf81f,0,1,f,6);
 
+}
+
+void debug_ticker(){
+    if((millisCounter-ticker10)>10000){
+        printf("10sec_counter:%d\n",millisCounter/10000);ticker10=millisCounter;
+        tft_draw_int_12x12_dma_mult(0,190, 0x001f,0x0000,1,millisCounter/10000);    //f800 bleu ; f81f rose ; 07ff jaune ; 07e0 vert ; 001f rouge
+    }
 }
 
 
