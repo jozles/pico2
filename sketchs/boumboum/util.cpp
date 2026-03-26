@@ -41,9 +41,6 @@ extern struct Voice voices[];
 
 volatile uint8_t what=0;
 
-#define W_TEST 1    // test simple ; sinus continu depuis buffer rempli une fois (1/32)
-#define W_SINUS 2   // sinus continu calculé à la volée
-
 extern volatile uint32_t millisCounter;
 
 #define R1 6
@@ -225,14 +222,11 @@ void setup(){
     #endif
 
     // ****** sound ******
-    fillBasicWaveForms();
-    freq_start();
-
-    amplStart();
+    sound_tables_init();
 
     uint8_t channel=0;
     float fr0=440;
-    voiceInit(fr0,&voices[channel]);    //689
+    voiceInit(fr0,&voices[channel]);
     voices[channel].genAmpl=0x7fff;
 
     i2s_dma_buffers[0]=i2s_buf0;
@@ -259,8 +253,8 @@ void setup(){
 
     tft_draw_text_12x12_dma_mult((TFT_W-(7*10))/2,TFT_H/2+14,s, 0xF81F, 0x0000,1); 
 
-    const char* v="v1.3";
-    tft_draw_text_12x12_dma_mult((TFT_W-(4*10))/2,TFT_H/2+25,v, 0xFFE0, 0x0000,1);
+    const char* v="v1.3a";
+    tft_draw_text_12x12_dma_mult((TFT_W-(strlen(v)*10))/2,TFT_H/2+25,v, 0xFFE0, 0x0000,1);
 
     delayBlk(5);
 
@@ -283,19 +277,8 @@ void next_sound_feeding(int32_t* next_sound,uint32_t next_sound_size){
             return;
         }
 
-    switch (what){
-        case W_TEST:    
-        test_next_sound_feeding(next_sound,next_sound_size);
-            break;
-
-        case W_SINUS:        
-        fillVoiceBuffer(next_sound,&voices[0]);
-       
-            break;
-        
-        default:
-            break;
-    }
+    if(what==W_TEST){test_next_sound_feeding(next_sound,next_sound_size);return;}
+    else fillVoiceBuffer(next_sound,&voices[0],what);
 }
 
 

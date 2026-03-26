@@ -42,12 +42,6 @@ void showAmplIncr(){
   printf("\n");
 }
 
-void amplStart()
-{
-  fillAmplIncr();
-  //showAmplIncr();
-}
-
 //
 // Les amplitudes sont des valeurs 16 bits positives utilisées pour multiplier
 // les échantillons et former des 32 bits signés pour le CODEC
@@ -76,6 +70,54 @@ void automixer(uint8_t nb,uint16_t* ampl,uint8_t chgd){
 
 }
 
+#define N 4093
+int16_t noise_table[N];
+
+uint32_t phase = 0;           // Q16.16
+uint32_t step  = 60817408;    // Q16.16
+
+const int32_t alpha = 32113;  // 0.98 en Q15
+
+int32_t pink_state = 0;       // Q15 interne
+
+static uint32_t seed = 0xA5C3412F;
+
+static inline uint32_t xrnd() {
+    seed ^= seed << 13;
+    seed ^= seed >> 17;
+    seed ^= seed << 5;
+    return seed;
+}
+
+void init_noise(){
+  for (int i = 0; i < N; i++)
+    noise_table[i] =  (int16_t)(xrnd() >> 16);
+        
+        /*// option
+        int32_t a = (int16_t)(xrnd() >> 16);
+        int32_t b = (int16_t)(xrnd() >> 16);
+        int32_t c = (int16_t)(xrnd() >> 16);
+        noise_table[i] = (int16_t)((a + b + c) / 3);*/
+}
+
+static inline void get_noise(int16_t *white, int16_t *pink)
+{
+    // --- Bruit blanc bande limitée ---
+    phase += step;
+    uint32_t limit = (uint32_t)N << 16;
+
+    // branchless wrap using subtraction and conditional negation
+    uint32_t tmp = phase - limit;
+    phase = tmp + ((tmp >> 31) & limit);
+
+    *white = noise_table[phase>>16];
+
+    // bruit rose 1-pôle branchless
+    pink_state=(alpha * pink_state + (32768 - alpha) * (*white)) >> 15;
+    *pink = (int16_t)pink_state;
+
+}
+
 // production des valeurs d'échantillon pour les différentes formes d'onde
 void fillBasicWaveForms(){
     printf("  filling basic %d %d %d\n",(BASIC_WAVE_TABLE_LEN/4),(BASIC_WAVE_TABLE_LEN/2),BASIC_WAVE_TABLE_LEN-1);
@@ -84,7 +126,6 @@ void fillBasicWaveForms(){
         sineWaveform[((BASIC_WAVE_TABLE_LEN/2)-1)-i]=sineWaveform[i];
         sineWaveform[i+(BASIC_WAVE_TABLE_LEN/2)]=-sineWaveform[i];
         sineWaveform[BASIC_WAVE_TABLE_LEN-1-i]=-sineWaveform[i];
-        //printf("%d %5.4f %8x \n",i,sin(((float)i)/SINE_WAVE_TABLE_LEN*2*PI),sineWaveform[i]);
         
         squareWaveform[i]=MAX_AMP_VAL;
         squareWaveform[i+(BASIC_WAVE_TABLE_LEN/4)]=MAX_AMP_VAL;
@@ -109,6 +150,7 @@ void fillOctFreq() {
   for (uint8_t i = 0; i <= octNb; i++) {
     octFreq[i] = baseFreq * (1<<i); 
   }
+  //showOctFreq();  
 }
 
 void showOctFreq() 
@@ -126,6 +168,7 @@ void fillOctIncr()
   for (uint16_t i = 0; i < octIncrNb; i++) {
     octIncr[i] = (float)(powf((float)2,(float)i/(float)octIncrNb))-1; 
   }
+  //showOctIncr(0,1);
 }                        
 
 void showOctIncr(float oct0,float octn)
@@ -160,25 +203,15 @@ float calcFreq(uint16_t val) // from lin value (0-octIncrNb*OCTNB) to snd value 
 }
 
 // initialisation des tableaux pour permettre calcFreq()
-void freq_start()                //void setup() 
+void sound_tables_init()        
 {  
-  //Serial.begin(115200);
-  printf(" -calcul fréquences\n");
+  printf(" sound_tables_init\n");
   
   fillOctFreq();
-  //showOctFreq();
   fillOctIncr();
-  //showOctIncr(0,1);
-
-}
-
-// calcul du coefficient d'amplitude à partir de la valeur linéaire
-uint16_t calcAmpl(uint16_t val)
-{
-  uint8_t dbA = val/ octIncrNb;
-  uint16_t incr = val % octIncrNb;
-  float db = octFreq[dbA] +octIncr[incr]*(octFreq[dbA+1]-octFreq[dbA]);
-  return (uint16_t)db;
+  fillBasicWaveForms();
+  init_noise();
+  fillAmplIncr();
 }
 
 void voiceInit(float freq,Voice* v)
@@ -188,28 +221,7 @@ void voiceInit(float freq,Voice* v)
     v->currEch=0;
     v->currEchFra=0;
     setNewFrequency(freq,v);
-    //v->freqRateRatio=1;
-    //v->newFreqRateRatio=1;
     for(uint8_t i=0;i<BASIC_WAVES_NB;i++){v->basicWaveAmpl[i]=0;}  // all waves off
-    //v->freqCoeff=0;
-    //v->dhexFreq=0;
-    //v->moduloMask=0;
-    //v->moduloShift=0;
-    
-    //uint32_t fr=(uint16_t)freq;
-    //v->freqCoeff=32;
-    //while(fr!=0){                   
-    //    fr>>=1;v->freqCoeff--;      // @16KHz maxi, coeff min=18 ; @16hz mini, coeff max=27
-    //}
-
-    //v->dhexFreq=(uint32_t)(freq*(1<<v->freqCoeff))/SAMPLE_RATE;
-
-    //v->moduloMask=(1<<(v->freqCoeff+1))-1;
-
-    //v->moduloShift=v->freqCoeff-BASIC_WAVE_TABLE_POW;
-
-    //printf("voice init freq:%5.2f freqCoeff:%d dhexFreq:%08x moduloMask:%08x moduloShift:%d\n",
-    //    v->frequency,v->freqCoeff,v->dhexFreq,v->moduloMask,v->moduloShift);
 }
 
 void setNewFrequency(float freq,Voice* v){
@@ -220,13 +232,69 @@ void setNewFrequency(float freq,Voice* v){
     v->newStepFra=(uint32_t)((k-v->newStepInt)*MAX_STEP_FRA);
 }
 
-void fillVoiceBuffer(int32_t* vBuffer,Voice* v){
+void fillVoiceBuffer(int32_t* vBuffer,Voice* v,uint8_t what){   // 3.7mS pour sinus ; 3.2mS pour 2 noises  ; <8mS pour les 6 ; @1024 samples (23mS@44100Hz)
+gpio_put(TST_PIN,HIGH);
 
-  gpio_put(TST_PIN,HIGH);
+    uint32_t currEch    = v->currEch;
+    uint32_t currEchFra = v->currEchFra;
+    uint32_t stepInt    = v->stepInt;
+    uint32_t stepFra    = v->stepFra;
+    int32_t  genAmpl    = v->genAmpl;
 
+    if(what>=FIRST_WAVE && what<=LAST_WAVE){
+      for(uint32_t s = 0; s < v->sampleNbToFill; s++)
+      {
+        // avance DDS (branchless)
+        currEchFra += stepFra;
+        uint32_t carry = (currEchFra > MAX_STEP_FRA);
+        currEchFra -= carry * MAX_STEP_FRA;
+        currEch += stepInt + carry;
+
+        currEch -= (currEch >= BASIC_WAVE_TABLE_LEN) * BASIC_WAVE_TABLE_LEN;
+
+        vBuffer[s*2]   = sineWaveform[currEch] * genAmpl;
+        vBuffer[s*2+1] = vBuffer[s*2];
+
+        if(v->newFrequency!=0){
+          stepInt=v->newStepInt;
+          v->stepInt=stepInt;
+          stepFra=v->newStepFra;
+          v->stepFra=stepFra;
+          v->frequency=v->newFrequency;
+          v->newFrequency=0;
+        }
+      }
+    // write-back
+    v->currEch    = currEch;
+    v->currEchFra = currEchFra;
+    }
+    else {
+      // noises
+      for(uint32_t s = 0; s < v->sampleNbToFill; s++)
+      {
+          phase += step;
+          uint32_t limit = (uint32_t)N << 16;
+
+          // branchless wrap using subtraction and conditional negation
+          uint32_t tmp = phase - limit;
+          phase = tmp + ((tmp >> 31) & limit);
+
+          uint32_t white = noise_table[phase>>16];
+
+          //vBuffer[s*2]   = white * genAmpl;
+          //vBuffer[s*2+1] = vBuffer[s*2];
+
+          // bruit rose 1-pôle branchless
+          pink_state=(alpha * pink_state + (32768 - alpha) * (white)) >> 15;
+          
+          vBuffer[s*2]   = (int16_t)pink_state * genAmpl;
+          vBuffer[s*2+1] = vBuffer[s*2];
+      }
+      //dumpStr(vBuffer,256);
+    }
+
+  /*//
   int16_t lastEch=0;
-
-
   uint16_t s;
 
   for(s=0;s<v->sampleNbToFill;s++){
@@ -236,25 +304,20 @@ void fillVoiceBuffer(int32_t* vBuffer,Voice* v){
     if(v->currEch>BASIC_WAVE_TABLE_LEN){v->currEch-=BASIC_WAVE_TABLE_LEN;}
 
     lastEch=sineWaveform[v->currEch];
+
     vBuffer[s*2]=lastEch*v->genAmpl;
     vBuffer[s*2+1]=vBuffer[s*2];
 
-    //printf("s:%4d  f:%f nf:%f sti:%2d stf:%4d  echi:%4d echf:%4d  sin:%4d buf:%10i\n",s,v->frequency,v->newFrequency,v->stepInt,v->stepFra,v->currEch,v->currEchFra,sineWaveform[v->currEch],vBuffer[s*2]);
-
     if(v->newFrequency!=0){
-      //if(v->currentSample<=0 && lastEch<=0){    // freq change when wave between 180-360° (next ech value 0)
         v->stepInt=v->newStepInt;
         v->stepFra=v->newStepFra;
         v->frequency=v->newFrequency;
         v->newFrequency=0;
-        //v->currEch=0;      
-      //}
     }
     v->currentSample=lastEch;
-  }
+  }*/
 
-  gpio_put(TST_PIN,LOW); 
-
+gpio_put(TST_PIN,LOW); 
 }
 
 /*void _fillVoiceBuffer(int32_t* sampleBuffer,Voice* v)

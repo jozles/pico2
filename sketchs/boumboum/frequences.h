@@ -65,17 +65,10 @@ struct Voice {
 };
 
 
-void fillBasicWaveForms();
-void fillOctFreq();
-void showOctFreq(); 
-void fillOctIncr();
-void showOctIncr(float octF,float octF1);
-float calcFreq(uint16_t val);
-void freq_start();
-//void getEch(float freq,uint32_t sampleCounter,uint16_t sampleNbToFill,uint32_t* sampleBuffer);
-void amplStart();
+void sound_tables_init();
 void voiceInit(float freq,Voice* v);
-void fillVoiceBuffer(int32_t* sampleBuffer,Voice* v);
+void fillVoiceBuffer(int32_t* sampleBuffer,Voice* v,uint8_t what);
 void setNewFrequency(float freq,Voice* v);
+float calcFreq(uint16_t val);
 
 #endif  //_FREQUENCES_H_

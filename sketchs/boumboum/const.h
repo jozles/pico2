@@ -156,6 +156,18 @@
 
 #define BASIC_WAVE_TABLE_POW 11     // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
 #define BASIC_WAVE_TABLE_LEN 2048   // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
+
+// ****** basics waves codes ******
+#define W_TEST 1    // test simple ; sinus continu depuis buffer rempli une fois (1/32)
+#define FIRST_WAVE 2
+#define W_SINUS FIRST_WAVE   // sinus continu calculé à la volée
+#define W_TRIANGLE W_SINUS+1
+#define W_SAWTOOTH W_TRIANGLE+1
+#define W_SQUARE W_SAWTOOTH+1
+#define LAST_WAVE W_SQUARE
+#define W_WHITE_NOISE LAST_WAVE+1
+#define W_PINK_NOISE W_WHITE_NOISE+1
+
 //#define SINE_WAVE_TABLE_POW 11    // ***** POWER OF 2 *****  nombre d'échantillons dans la table d'onde sinus
 //#define SINE_WAVE_TABLE_LEN 2048  // ***** POWER OF 2 *****  nombre d'échantillons dans la table d'onde sinus
 
