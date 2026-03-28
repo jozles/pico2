@@ -52,7 +52,7 @@ volatile uint32_t ledBlinker=0;
 
 static repeating_timer millisTimer;
 
-float amplIncr[MAX_16B_LINEAR_VALUE];
+//float amplIncr[MAX_16B_LINEAR_VALUE];
 
 
 // ******** coders functions handling ********
@@ -232,10 +232,16 @@ void setup(){
     i2s_dma_buffers[0]=i2s_buf0;
     i2s_dma_buffers[1]=i2s_buf1;
     what=W_SINUS;
+    uint8_t whatAmpl=31;
+    voices[channel].coderAmpl[W_SINUS]=whatAmpl;
+    voices[channel].coderAmpl0[W_SINUS]=whatAmpl;
+    voices[channel].basicWaveAmpl[W_SINUS]=getAmpl(&voices[channel],W_SINUS);
+    printf("what:%d coderAmpl:%d ampl:%d\n",what,whatAmpl,voices[channel].basicWaveAmpl[W_SINUS]);delay_ms(100);
     next_sound_feeding(i2s_dma_buffers[0],SAMPLES_PER_BUFFER);
     next_sound_feeding(i2s_dma_buffers[1],SAMPLES_PER_BUFFER);
     i2sSetup(_i2s_pio,PICO_AUDIO_I2S_DATA_PIN,i2s_dma_buffers);
 
+    dumpStr(i2s_buf0,256);delay_ms(1000);
     scope(i2s_buf0,SAMPLES_PER_BUFFER,voices[channel].frequency);
     while(gpio_get(CODER_GPIO_SW)==1){
         debug_ticker();
@@ -253,7 +259,7 @@ void setup(){
 
     tft_draw_text_12x12_dma_mult((TFT_W-(7*10))/2,TFT_H/2+14,s, 0xF81F, 0x0000,1); 
 
-    const char* v="v1.3a";
+    const char* v="v1.3b";
     tft_draw_text_12x12_dma_mult((TFT_W-(strlen(v)*10))/2,TFT_H/2+25,v, 0xFFE0, 0x0000,1);
 
     delayBlk(5);
@@ -268,9 +274,9 @@ void setup(){
 // ******** i2s feeding ********
 // -----------------------------
 
-    // exclusively called by void i2s_callback_func() in bb_i2s.cpp 
-    // and dependancies _ see bb_i2s.cpp
 void next_sound_feeding(int32_t* next_sound,uint32_t next_sound_size){
+
+    printf("next_sound_feeding size:%d what:%d\n",next_sound_size,what);
 
         if(next_sound_size!=SAMPLES_PER_BUFFER){
             LEDBLINK_ERROR;

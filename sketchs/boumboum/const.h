@@ -1,4 +1,4 @@
-#ifndef _CONST_H
+#ifndef _CONST_H_
 #define _CONST_H_
 
 #include "pico/stdlib.h"
@@ -139,6 +139,7 @@
 #define AMPLITUDE   30000   // Amplitude max (16 bits signé)
 #define MAX_16B_LINEAR_VALUE 32 // 0 to 31 => 0,1,1.414,2,2.828,4,5.656,8,11.312,16,22.624 ... 8192,11583,16384,23167,32768,46334
 // #define MAX_16B_LINEAR_VALUE 64 // 0 to 63 => 0,1,1.189,1.414,3.234,4,4.757,5.656,6.727,8 ....
+#define MIN_16B_LINEAR_VALUE 0
 
 //#define I2S_DATA_PIN  4     // DIN du MAX98357A
 //#define I2S_BCLK_PIN  2     // BCLK
@@ -158,20 +159,19 @@
 #define BASIC_WAVE_TABLE_LEN 2048   // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
 
 // ****** basics waves codes ******
-#define W_TEST 1    // test simple ; sinus continu depuis buffer rempli une fois (1/32)
-#define FIRST_WAVE 2
-#define W_SINUS FIRST_WAVE   // sinus continu calculé à la volée
-#define W_TRIANGLE W_SINUS+1
-#define W_SAWTOOTH W_TRIANGLE+1
-#define W_SQUARE W_SAWTOOTH+1
+
+#define FIRST_WAVE W_SINUS
 #define LAST_WAVE W_SQUARE
-#define W_WHITE_NOISE LAST_WAVE+1
-#define W_PINK_NOISE W_WHITE_NOISE+1
-
-//#define SINE_WAVE_TABLE_POW 11    // ***** POWER OF 2 *****  nombre d'échantillons dans la table d'onde sinus
-//#define SINE_WAVE_TABLE_LEN 2048  // ***** POWER OF 2 *****  nombre d'échantillons dans la table d'onde sinus
-
-//#define VOICES_NB 4                 // nombre de voix simultanées
+enum Waves {
+    W_SINUS,
+    W_TRIANGLE,
+    W_SAWTOOTH,
+    W_SQUARE,
+    W_WHITE_NOISE,
+    W_PINK_NOISE,
+    W_NB,
+    W_TEST
+};    
 
 #define PIN_DCDC_PSM_CTRL 23        // to set the DCDC in PSM mode for less audio noise
 

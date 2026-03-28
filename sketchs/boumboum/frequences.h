@@ -47,12 +47,15 @@ struct Voice {
     uint32_t    currEchFra;                     // dernière valeur fractionnaire de n° d'ech calculée  
     float       newFrequency;     
     uint16_t    newStepInt;
-    uint32_t    newStepFra; 
+    uint32_t    newStepFra;
+    uint32_t    noisePhase;                     // Q16.16
+    uint32_t    noiseStep;                      // Q16.16 
     //float       freqRateRatio;
     //float       newFreqRateRatio;                   
     int16_t     coderFreq;                      // last coder value for freq  
-    uint16_t    basicWaveAmpl[BASIC_WAVES_NB];
+    uint16_t    basicWaveAmpl[BASIC_WAVES_NB];  // ampl value for coderAmpl value
     int16_t     coderAmpl[BASIC_WAVES_NB];      // last coder value for ampl
+    int16_t     coderAmpl0[BASIC_WAVES_NB];     // prev coder value for ampl
     uint16_t    genAmpl;
     //uint8_t     freqCoeff;
     //uint32_t    dhexFreq;
@@ -70,5 +73,6 @@ void voiceInit(float freq,Voice* v);
 void fillVoiceBuffer(int32_t* sampleBuffer,Voice* v,uint8_t what);
 void setNewFrequency(float freq,Voice* v);
 float calcFreq(uint16_t val);
+uint16_t getAmpl(Voice* v,uint8_t wav);
 
 #endif  //_FREQUENCES_H_

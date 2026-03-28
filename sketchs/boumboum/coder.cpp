@@ -151,22 +151,22 @@ bool coderTimerHandler(){
         
             // détection coder
             cp->coderClock=gpio_get(gpio_clock_pin);                      
-            if(cp->coderClock == cp->coderClock0){                 // no change 
-                if(cp->coderItStatus<coderStrobeNumber){           // wait for change after strobe delay
+            if(cp->coderClock == cp->coderClock0){                // no change 
+                if(cp->coderItStatus<coderStrobeNumber){          // wait for change after strobe delay
                     cp->coderItStatus++;continue;}
-                //if(cp->coderItStatus>coderStrobeNumber){           // 2nd strobe fail
+                //if(cp->coderItStatus>coderStrobeNumber){        // 2nd strobe fail
                 //    cp->coderItStatus=0;continue;}
                 continue;
             }
-            else{                                                  // clock change detected 
-                cp->coderData=gpio_get(gpio_data_pin);             // latch data
-                if(cp->coderItStatus<coderStrobeNumber){           // change too close to previous valid one : ignore it
+            else{                                                 // clock change detected 
+                cp->coderData=gpio_get(gpio_data_pin);            // latch data
+                if(cp->coderItStatus<coderStrobeNumber){          // change too close to previous valid one : ignore it
                     cp->coderItStatus=0;continue;}                                                         
                 if(cp->coderItStatus==coderStrobeNumber){     
-                    cp->coderItStatus++;continue;}                 // 1st strobe passed wait next Int
+                    cp->coderItStatus++;continue;}                // 1st strobe passed wait next Int
             }
         
-            cp->coderClock0=cp->coderClock;                   // valid clock change detected after 2 strobes delay
+            cp->coderClock0=cp->coderClock;                       // valid clock change detected after 2 strobes delay
             cp->coderItStatus=0;
         
             // traitement coder

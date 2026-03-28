@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include "st7789.h"
 #include "st7789_fonts.h"
 
@@ -634,15 +635,16 @@ void scope(int32_t* buf,uint32_t len,float f){
     uint16_t fgcolor=0x07ef;
     int32_t yy;
 
-    st_dma_wait();
+    st_dma_wait();    
 
     for (int i = 0; i < TFT_H*TFT_W ; i++) {
         tft_frame[2*i]     = bgcolor >> 8;
         tft_frame[2*i + 1] = bgcolor & 0xFF;
     }
-  
+
     for(uint32_t i=0;i<TFT_W;i++){
-        yy=(int32_t)(((float)buf[i*2]/(float)0x3fffffff)*(TFT_H/2));///0x7fffffff;
+        yy=(int32_t)((((float)buf[i*2]/(float)0x7fffffff))*(TFT_H/2));///0x7fffffff;
+        if(abs(yy)>=TFT_H/2){yy=TFT_H/2-1;}      
         x=i;
         tft_frame[2*((TFT_H/2-yy)*TFT_W+x)]=fgcolor;
         //printf("%3d  b:%9d  yy:%3d  h:%3d\n",i,buf[i*2],yy,(TFT_H/2-yy));
@@ -653,7 +655,6 @@ void scope(int32_t* buf,uint32_t len,float f){
     st_dma_launch(tft_frame,0,0,TFT_W,TFT_H);
 
     tft_draw_float_12x12_dma_mult(TFT_W*2/3,0,0xf81f,0,1,f,6);
-
 }
 
 void debug_ticker(){
