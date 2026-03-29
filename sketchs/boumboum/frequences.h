@@ -70,7 +70,7 @@ struct Voice {
 
 void sound_tables_init();
 void voiceInit(float freq,Voice* v);
-void fillVoiceBuffer(int32_t* sampleBuffer,Voice* v,uint8_t what);
+void fillVoiceBuffer(volatile int32_t* sampleBuffer,Voice* v,uint8_t what,uint8_t bufNum);
 void setNewFrequency(float freq,Voice* v);
 float calcFreq(uint16_t val);
 uint16_t getAmpl(Voice* v,uint8_t wav);

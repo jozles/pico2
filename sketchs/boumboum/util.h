@@ -32,7 +32,7 @@ uint32_t convStrToHex(char* str,uint8_t len);
 float convStrToNum(char* str,int* sizeRead);
 int32_t convStrToInt(char* str,int* sizeRead);
 
-void next_sound_feeding(int32_t* next_sound,uint32_t next_sound_size);
+void next_sound_feeding(int32_t* next_sound,uint32_t next_sound_size,uint8_t bufNum);
 
 void global_dma_irq_handler();
 

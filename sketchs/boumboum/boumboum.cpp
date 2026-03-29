@@ -8,8 +8,6 @@
 #include "hardware/dma.h"
 #include "hardware/pwm.h"
 #include "hardware/watchdog.h"
-
-
 #include "bb_i2s.h"
 #include "test.h"
 #include "frequences.h"
@@ -68,6 +66,11 @@ extern uint16_t amplLevel[];
 
 static PIO pioWs = ws2812_pio;   // pio0 used by i2s
 
+// i2s
+
+extern volatile bool i2s_buf_free[];
+extern volatile int32_t* i2s_buffer[];
+
 // --------
 
 int main() {
@@ -109,7 +112,7 @@ if (watchdog_caused_reboot()) {
         voices[currVoice].coderAmpl0[i]=99;
         voices[currVoice].basicWaveAmpl[i]=0;
     }
-    voices[currVoice].coderAmpl[W_SINUS]=20;        // 6000?
+    voices[currVoice].coderAmpl[W_SINUS]=25;        // 5793
     voices[currVoice].basicWaveAmpl[W_SINUS]=amplLevel[voices[currVoice].coderAmpl[W_SINUS]];
 
     // ****** coders for voice[currvoice] ampl ******
@@ -117,6 +120,13 @@ if (watchdog_caused_reboot()) {
     coderSetup(&voices[currVoice].coderAmpl[0],&voices[currVoice].coderSw[0]);
 
     while (1) {
+
+gpio_put(TST_PIN,1);
+
+if(i2s_buf_free[0]){fillVoiceBuffer(i2s_buffer[0],&voices[currVoice],0,0);}
+if(i2s_buf_free[1]){fillVoiceBuffer(i2s_buffer[1],&voices[currVoice],0,1);}
+
+gpio_put(TST_PIN,0);
 
         uint16_t ccAmpl=0;
         
@@ -127,21 +137,22 @@ if (watchdog_caused_reboot()) {
 
         //if((millisCounter-probeBlinker)>1000){probeBlinker=millisCounter;printf("%d\n",probe);}  // test existence coderTimerHandler()
 
-        for(uint8_t cod=0;cod<W_NB;cod++){
+        for(uint8_t cod=0;cod<CODER_NB;cod++){
 
             uint8_t coder=cOT[cod];             // ordre physique des coders
+            if(coder>=W_NB){continue;}
             
-            uint32_t cc=voices[currVoice].coderAmpl[cod];
+            uint32_t cc=voices[currVoice].coderAmpl[coder];
             
-            if(cc!=voices[currVoice].coderAmpl0[cod]){
+            if(cc!=voices[currVoice].coderAmpl0[coder]){
 
                 #define LINE_LEN TFT_W/12+1
                 char buf[LINE_LEN];memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
-
-                buf[0]=cod+48;
+                
+                buf[0]=coder+48;
                 sprintf(buf+2,"%4d ",cc);       // valeur courante coder
  
-                voices[currVoice].coderAmpl0[cod]=cc;
+                voices[currVoice].coderAmpl0[coder]=cc;
                 /*float f=calcFreq(cc);
                 setNewFrequency(f,&voices[cod]);               
                 sprintf(buf+7,"%4.2f  ",voices[cod].newFrequency); // valeur fréquence pour valeur codeur*/     
@@ -149,15 +160,16 @@ if (watchdog_caused_reboot()) {
                 int16_t ccAmpl=cc;
                 if(ccAmpl>MAX_16B_LINEAR_VALUE-1){ccAmpl=MAX_16B_LINEAR_VALUE-1;}
                 if(ccAmpl<MIN_16B_LINEAR_VALUE){ccAmpl=MIN_16B_LINEAR_VALUE;}
-                voices[currVoice].basicWaveAmpl[cod]=amplLevel[ccAmpl];           // ampl value for coder value         
-                sprintf(buf+14,"%5d",voices[currVoice].basicWaveAmpl[cod]);   
+                voices[currVoice].basicWaveAmpl[coder]=amplLevel[ccAmpl];           // ampl value for coder value         
+                sprintf(buf+7,"%5d",voices[currVoice].basicWaveAmpl[coder]);   
         
-                tft_draw_text_12x12_dma_mult(0,cod*(12*2+1),buf,0x07EF,0x0000,1);
+                tft_draw_text_12x12_dma_mult(0,coder*(12*2+1),buf,0x07EF,0x0000,1);
 
-                printf("coder:%d cc:%d sw:%d ampl:%d  %s\n",
-                    cod,cc,voices[currVoice].coderSw[cod],voices[cod].genAmpl,buf);       
+                printf("cod:%d coder:%d cc:%d sw:%d ampl:%d waveAmpl:%d b:%s\n",
+                    cod,coder,cc,voices[currVoice].coderSw[coder],voices[currVoice].coderAmpl[coder],voices[currVoice].basicWaveAmpl[coder],buf);       
             }
         }
+        
     }//*/
 
 #endif  // BB_TEST_MODE

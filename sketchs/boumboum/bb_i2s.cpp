@@ -14,12 +14,14 @@
 
 extern volatile uint32_t millisCounter;
 
+volatile bool i2s_buf_free[2]; // false busy : buffer filling to do
+
 static int i2s_dma_chan0;
 static int i2s_dma_chan1;
 static dma_channel_config dma_cfg0;
 static dma_channel_config dma_cfg1;
 
-int32_t* i2s_buffer[2];
+volatile int32_t* i2s_buffer[2];
 
 static PIO i2s_pio;
 static int i2s_sm;
@@ -28,10 +30,12 @@ void dma_i2s_handler() {
     uint32_t status = dma_hw->intr;
 
     if (status & (1u << i2s_dma_chan0)) {
+        i2s_buf_free[0]=true;
         dma_channel_set_read_addr(i2s_dma_chan0, i2s_buffer[0], false);
         dma_hw->ints0 = (1u << i2s_dma_chan0);
     }
     if (status & (1u << i2s_dma_chan1)) {
+        i2s_buf_free[1]=true;
         dma_channel_set_read_addr(i2s_dma_chan1, i2s_buffer[1], false);
         dma_hw->ints0 = (1u << i2s_dma_chan1);
     }

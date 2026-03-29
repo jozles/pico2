@@ -237,11 +237,11 @@ void setup(){
     voices[channel].coderAmpl0[W_SINUS]=whatAmpl;
     voices[channel].basicWaveAmpl[W_SINUS]=getAmpl(&voices[channel],W_SINUS);
     printf("what:%d coderAmpl:%d ampl:%d\n",what,whatAmpl,voices[channel].basicWaveAmpl[W_SINUS]);delay_ms(100);
-    next_sound_feeding(i2s_dma_buffers[0],SAMPLES_PER_BUFFER);
-    next_sound_feeding(i2s_dma_buffers[1],SAMPLES_PER_BUFFER);
+    next_sound_feeding(i2s_dma_buffers[0],SAMPLES_PER_BUFFER,0);
+    next_sound_feeding(i2s_dma_buffers[1],SAMPLES_PER_BUFFER,1);
     i2sSetup(_i2s_pio,PICO_AUDIO_I2S_DATA_PIN,i2s_dma_buffers);
 
-    dumpStr(i2s_buf0,256);delay_ms(1000);
+    //dumpStr(i2s_buf0,256);delay_ms(1000);
     scope(i2s_buf0,SAMPLES_PER_BUFFER,voices[channel].frequency);
     while(gpio_get(CODER_GPIO_SW)==1){
         debug_ticker();
@@ -274,7 +274,7 @@ void setup(){
 // ******** i2s feeding ********
 // -----------------------------
 
-void next_sound_feeding(int32_t* next_sound,uint32_t next_sound_size){
+void next_sound_feeding(int32_t* next_sound,uint32_t next_sound_size,uint8_t bufNum){
 
     printf("next_sound_feeding size:%d what:%d\n",next_sound_size,what);
 
@@ -284,7 +284,7 @@ void next_sound_feeding(int32_t* next_sound,uint32_t next_sound_size){
         }
 
     if(what==W_TEST){test_next_sound_feeding(next_sound,next_sound_size);return;}
-    else fillVoiceBuffer(next_sound,&voices[0],what);
+    else fillVoiceBuffer(next_sound,&voices[0],what,bufNum);
 }
 
 

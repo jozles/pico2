@@ -152,7 +152,7 @@
 //#define FREQUENCY_DECIM 1000      // pour travailler en milliHz
 #define NUMBER_OF_OCTAVES 10
 #define OCTAVE0_FREQ SAMPLE_F/SAMPLE_BUFFER_SIZE
-#define SAMPLES_PER_BUFFER 1024     // nombre d'échantillons (L+R) par buffer   
+#define SAMPLES_PER_BUFFER 512      // nombre d'échantillons (L+R) par buffer (1024 trop lent)  
 #define SAMPLE_BUFFER_SIZE SAMPLES_PER_BUFFER  // taille du buffer (doit être multiple de 4 pour le dma i2s)
 
 #define BASIC_WAVE_TABLE_POW 11     // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes

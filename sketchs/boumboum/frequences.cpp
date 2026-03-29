@@ -2,6 +2,7 @@
 #include "pico/stdlib.h"
 #include "frequences.h"
 #include "util.h"
+#include "bb_i2s.h"
 #include "const.h"
 #include <math.h>
 
@@ -20,6 +21,8 @@ float octIncr[octIncrNb];
 
 uint8_t stepAmpl=MAX_16B_LINEAR_VALUE/16;     // nbre d'intervalles / 3db
 uint16_t amplLevel[MAX_16B_LINEAR_VALUE];
+
+extern volatile bool i2s_buf_free[];
 
 void fillAmplIncr(){
 
@@ -78,7 +81,9 @@ uint32_t step  = 60817408;    // Q16.16
 
 const int32_t alpha = 32113;  // 0.98 en Q15
 
-int32_t pink_state = 0;       // Q15 interne
+volatile int32_t pink_state = 0;       // Q15 interne
+volatile uint32_t nPhase=0;
+volatile uint32_t nStep=0;
 
 static uint32_t seed = 0xA5C3412F;
 
@@ -242,15 +247,17 @@ uint16_t getAmpl(Voice* v,uint8_t wav){
   return amplLevel[v->coderAmpl[wav]];
 }
 
-void fillVoiceBuffer(int32_t* vBuffer,Voice* v,uint8_t what){   // 3.7mS pour sinus ; 3.2mS pour 2 noises  ; <8mS pour les 6 ; @1024 samples (23mS@44100Hz)
+void fillVoiceBuffer(volatile int32_t* vBuffer,Voice* v,uint8_t what,uint8_t bufNum){   // 3.7mS pour sinus ; 3.2mS pour 2 noises  ; <8mS pour les 6 ; @1024 samples (23mS@44100Hz)
 gpio_put(TST_PIN,HIGH);
+
+    i2s_buf_free[bufNum]=false;
 
     uint32_t currEch      = v->currEch;
     uint32_t currEchFra   = v->currEchFra;
     uint32_t stepInt      = v->stepInt;
     uint32_t stepFra      = v->stepFra;
-    uint32_t nPhase       = v->noisePhase;
-    uint32_t nStep        = v->noiseStep;
+    nPhase       = v->noisePhase;
+    nStep        = v->noiseStep;
     int32_t  genAmpl      = v->genAmpl;
     int32_t  waveAmplSin  = v->basicWaveAmpl[W_SINUS];
     int32_t  waveAmplTri  = v->basicWaveAmpl[W_TRIANGLE];
@@ -270,9 +277,9 @@ gpio_put(TST_PIN,HIGH);
         currEch -= (currEch >= BASIC_WAVE_TABLE_LEN) * BASIC_WAVE_TABLE_LEN;
 
         vBuffer[s*2]   = sineWaveform[currEch] * waveAmplSin;
-        vBuffer[s*2]  += triangleWaveform[currEch] * waveAmplTri;
-        vBuffer[s*2]  += sawtoothWaveform[currEch] * waveAmplSaw;
-        vBuffer[s*2]  += squareWaveform[currEch] * waveAmplSqr;
+        //vBuffer[s*2]  += triangleWaveform[currEch] * waveAmplTri;
+        //vBuffer[s*2]  += sawtoothWaveform[currEch] * waveAmplSaw;
+        //vBuffer[s*2]  += squareWaveform[currEch] * waveAmplSqr;
 
         //if(currEch>224 && currEch<298){printf("currech:%d sineWaveform[currEch]:%i waveAmplSin:%d vBuffer[s*2]:%i\n",currEch,sineWaveform[currEch],waveAmplSin,vBuffer[s*2]);}
 
@@ -296,12 +303,12 @@ gpio_put(TST_PIN,HIGH);
 
         uint32_t white = noise_table[phase>>16];
 
-        vBuffer[s*2] += white * waveAmplWhi;
+        //vBuffer[s*2] += white * waveAmplWhi;
 
         // bruit rose 1-pôle branchless
         pink_state=(alpha * pink_state + (32768 - alpha) * (white)) >> 15;
           
-        vBuffer[s*2] += (int16_t)pink_state * waveAmplPin;
+        //vBuffer[s*2] += (int16_t)pink_state * waveAmplPin;
         vBuffer[s*2+1] = vBuffer[s*2];
     }
 
