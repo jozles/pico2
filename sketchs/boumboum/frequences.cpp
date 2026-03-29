@@ -312,7 +312,6 @@ gpio_put(TST_PIN,HIGH);
 
         //if (nPhase >= limit) nPhase -= limit;
 
-
         int32_t white = noise_table[nPhase>>16];
 
         pre += white * waveAmplWhi;
