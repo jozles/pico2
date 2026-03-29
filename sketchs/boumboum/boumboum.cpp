@@ -69,7 +69,7 @@ static PIO pioWs = ws2812_pio;   // pio0 used by i2s
 // i2s
 
 extern volatile bool i2s_buf_free[];
-extern volatile int32_t* i2s_buffer[];
+extern int32_t* i2s_buffer[];
 
 // --------
 
@@ -102,22 +102,23 @@ if (watchdog_caused_reboot()) {
 
     voices[currVoice].genAmpl=0x7fff;
     voices[currVoice].frequencyCc=1943;      
-    float f=calcFreq(1943);             // 440Hz
+    float f=calcFreq(1943);                     // 440Hz
     setNewFrequency(f,&voices[0]);    
     voices[currVoice].frequency=calcFreq(voices[0].frequencyCc);
     voices[currVoice].newFrequency=voices[0].frequency;
 
     for(uint8_t i=0;i<W_NB;i++){
         voices[currVoice].coderAmpl[i]=0;
-        voices[currVoice].coderAmpl0[i]=99;
+        voices[currVoice].coderAmpl0[i]=99;     // force basicWaveAmpl update
+        voices[currVoice].maxCoderAmpl[i]=31;
         voices[currVoice].basicWaveAmpl[i]=0;
     }
-    voices[currVoice].coderAmpl[W_SINUS]=25;        // 5793
+    voices[currVoice].coderAmpl[W_SINUS]=25;    // 5793
     voices[currVoice].basicWaveAmpl[W_SINUS]=amplLevel[voices[currVoice].coderAmpl[W_SINUS]];
 
     // ****** coders for voice[currvoice] ampl ******
     
-    coderSetup(&voices[currVoice].coderAmpl[0],&voices[currVoice].coderSw[0]);
+    coderSetup(&voices[currVoice].coderAmpl[0],&voices[currVoice].coderSw[0],&voices[currVoice].maxCoderAmpl[0]);
 
     while (1) {
 
@@ -137,10 +138,7 @@ gpio_put(TST_PIN,0);
 
         //if((millisCounter-probeBlinker)>1000){probeBlinker=millisCounter;printf("%d\n",probe);}  // test existence coderTimerHandler()
 
-        for(uint8_t cod=0;cod<CODER_NB;cod++){
-
-            uint8_t coder=cOT[cod];             // ordre physique des coders
-            if(coder>=W_NB){continue;}
+        for(uint8_t coder=0;coder<W_NB;coder++){
             
             uint32_t cc=voices[currVoice].coderAmpl[coder];
             
@@ -165,8 +163,8 @@ gpio_put(TST_PIN,0);
         
                 tft_draw_text_12x12_dma_mult(0,coder*(12*2+1),buf,0x07EF,0x0000,1);
 
-                printf("cod:%d coder:%d cc:%d sw:%d ampl:%d waveAmpl:%d b:%s\n",
-                    cod,coder,cc,voices[currVoice].coderSw[coder],voices[currVoice].coderAmpl[coder],voices[currVoice].basicWaveAmpl[coder],buf);       
+                printf("coder:%d cc:%d sw:%d ampl:%d waveAmpl:%d b:%s\n",
+                    coder,cc,voices[currVoice].coderSw[coder],voices[currVoice].coderAmpl[coder],voices[currVoice].basicWaveAmpl[coder],buf);       
             }
         }
         

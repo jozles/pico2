@@ -9,12 +9,12 @@
 const uint8_t octNb = OCTNB;
 float baseFreq = FREQ0;
 float octFreq[octNb+1];
-int16_t sineWaveform[BASIC_WAVE_TABLE_LEN];
-int16_t squareWaveform[BASIC_WAVE_TABLE_LEN];
-int16_t triangleWaveform[BASIC_WAVE_TABLE_LEN];
-int16_t sawtoothWaveform[BASIC_WAVE_TABLE_LEN];
-int16_t pinkNoiseWaveform[BASIC_WAVE_TABLE_LEN];
-int16_t whiteNoiseWaveform[BASIC_WAVE_TABLE_LEN];
+int32_t sineWaveform[BASIC_WAVE_TABLE_LEN];
+int32_t squareWaveform[BASIC_WAVE_TABLE_LEN];
+int32_t triangleWaveform[BASIC_WAVE_TABLE_LEN];
+int32_t sawtoothWaveform[BASIC_WAVE_TABLE_LEN];
+int32_t pinkNoiseWaveform[BASIC_WAVE_TABLE_LEN];
+int32_t whiteNoiseWaveform[BASIC_WAVE_TABLE_LEN];
 
 const uint16_t octIncrNb = 409;
 float octIncr[octIncrNb];
@@ -76,14 +76,12 @@ void automixer(uint8_t nb,uint16_t* ampl,uint8_t chgd){
 #define N 4093
 int16_t noise_table[N];
 
-uint32_t phase = 0;           // Q16.16
-uint32_t step  = 60817408;    // Q16.16
+uint32_t nPhase = 0;           // Q16.16
+uint32_t nStep  = 60817408;    // Q16.16
 
 const int32_t alpha = 32113;  // 0.98 en Q15
 
 volatile int32_t pink_state = 0;       // Q15 interne
-volatile uint32_t nPhase=0;
-volatile uint32_t nStep=0;
 
 static uint32_t seed = 0xA5C3412F;
 
@@ -108,14 +106,14 @@ void init_noise(){
 static inline void get_noise(int16_t *white, int16_t *pink)
 {
     // --- Bruit blanc bande limitée ---
-    phase += step;
+    nPhase += nStep;
     uint32_t limit = (uint32_t)N << 16;
 
     // branchless wrap using subtraction and conditional negation
-    uint32_t tmp = phase - limit;
-    phase = tmp + ((tmp >> 31) & limit);
+    uint32_t tmp = nPhase - limit;
+    nPhase = tmp + ((tmp >> 31) & limit);
 
-    *white = noise_table[phase>>16];
+    *white = noise_table[nPhase>>16];
 
     // bruit rose 1-pôle branchless
     pink_state=(alpha * pink_state + (32768 - alpha) * (*white)) >> 15;
@@ -239,6 +237,7 @@ void setNewFrequency(float freq,Voice* v){
     v->newFrequency=freq;
 
     float k=(uint32_t)BASIC_WAVE_TABLE_LEN*v->newFrequency/SAMPLE_RATE;
+
     v->newStepInt=(uint32_t)k;
     v->newStepFra=(uint32_t)((k-v->newStepInt)*MAX_STEP_FRA);
 }
@@ -247,7 +246,8 @@ uint16_t getAmpl(Voice* v,uint8_t wav){
   return amplLevel[v->coderAmpl[wav]];
 }
 
-void fillVoiceBuffer(volatile int32_t* vBuffer,Voice* v,uint8_t what,uint8_t bufNum){   // 3.7mS pour sinus ; 3.2mS pour 2 noises  ; <8mS pour les 6 ; @1024 samples (23mS@44100Hz)
+
+void fillVoiceBuffer(int32_t* vBuffer,Voice* v,uint8_t what,uint8_t bufNum){   // 3.7mS pour sinus ; 3.2mS pour 2 noises  ; <8mS pour les 6 ; @1024 samples (23mS@44100Hz)
 gpio_put(TST_PIN,HIGH);
 
     i2s_buf_free[bufNum]=false;
@@ -258,63 +258,78 @@ gpio_put(TST_PIN,HIGH);
     uint32_t stepFra      = v->stepFra;
     nPhase       = v->noisePhase;
     nStep        = v->noiseStep;
+    uint32_t limit = (uint32_t)N << 16;
     int32_t  genAmpl      = v->genAmpl;
     int32_t  waveAmplSin  = v->basicWaveAmpl[W_SINUS];
     int32_t  waveAmplTri  = v->basicWaveAmpl[W_TRIANGLE];
     int32_t  waveAmplSaw  = v->basicWaveAmpl[W_SAWTOOTH];        
     int32_t  waveAmplSqr  = v->basicWaveAmpl[W_SQUARE];    
     int32_t  waveAmplWhi  = v->basicWaveAmpl[W_WHITE_NOISE];
-    int32_t  waveAmplPin  = v->basicWaveAmpl[W_PINK_NOISE];    
+    int32_t  waveAmplPin  = v->basicWaveAmpl[W_PINK_NOISE];
+    int32_t* voiceBuffer=&vBuffer[0];
 
+    if(v->newFrequency!=0){
+      stepInt=v->newStepInt;
+      v->stepInt=stepInt;
+      stepFra=v->newStepFra;
+      v->stepFra=stepFra;
+      v->frequency=v->newFrequency;
+      v->newFrequency=0;
+    } 
+    
     for(uint32_t s = 0; s < v->sampleNbToFill; s++)
     {
-        // avance DDS (branchless)
+
         currEchFra += stepFra;
         uint32_t carry = (currEchFra > MAX_STEP_FRA);
         currEchFra -= carry * MAX_STEP_FRA;
         currEch += stepInt + carry;
-
         currEch -= (currEch >= BASIC_WAVE_TABLE_LEN) * BASIC_WAVE_TABLE_LEN;
 
-        vBuffer[s*2]   = sineWaveform[currEch] * waveAmplSin;
-        //vBuffer[s*2]  += triangleWaveform[currEch] * waveAmplTri;
-        //vBuffer[s*2]  += sawtoothWaveform[currEch] * waveAmplSaw;
-        //vBuffer[s*2]  += squareWaveform[currEch] * waveAmplSqr;
+        int32_t pre=sineWaveform[currEch] * waveAmplSin;
+        pre += triangleWaveform[currEch] * waveAmplTri;
+        pre += sawtoothWaveform[currEch]* waveAmplSaw;
+        pre += squareWaveform[currEch]* waveAmplSqr;
 
         //if(currEch>224 && currEch<298){printf("currech:%d sineWaveform[currEch]:%i waveAmplSin:%d vBuffer[s*2]:%i\n",currEch,sineWaveform[currEch],waveAmplSin,vBuffer[s*2]);}
 
-        if(v->newFrequency!=0){
+       /* if(v->newFrequency!=0){
           stepInt=v->newStepInt;
           v->stepInt=stepInt;
           stepFra=v->newStepFra;
           v->stepFra=stepFra;
           v->frequency=v->newFrequency;
           v->newFrequency=0;
-        }
+        }*/
     
         // noises
 
         nPhase += nStep;
-        uint32_t limit = (uint32_t)N << 16;
 
         // branchless wrap using subtraction and conditional negation
         uint32_t tmp = nPhase - limit;
         nPhase = tmp + ((tmp >> 31) & limit);
 
-        uint32_t white = noise_table[phase>>16];
+        //if (nPhase >= limit) nPhase -= limit;
 
-        //vBuffer[s*2] += white * waveAmplWhi;
+
+        int32_t white = noise_table[nPhase>>16];
+
+        pre += white * waveAmplWhi;
 
         // bruit rose 1-pôle branchless
         pink_state=(alpha * pink_state + (32768 - alpha) * (white)) >> 15;
           
-        //vBuffer[s*2] += (int16_t)pink_state * waveAmplPin;
-        vBuffer[s*2+1] = vBuffer[s*2];
+        pre += (int16_t)pink_state * waveAmplPin;
+        
+        *voiceBuffer=pre;
+        *(voiceBuffer+1)=pre;
+        voiceBuffer+=2;
     }
 
     v->currEch    = currEch;
     v->currEchFra = currEchFra;
-    v->noisePhase = nPhase;
+    v->noisePhase = nPhase;   
 
 //dumpStr(vBuffer,256);
 gpio_put(TST_PIN,LOW);    
@@ -384,7 +399,7 @@ gpio_put(TST_PIN,LOW);
 
     v->currentSample++;
   }
-  if(v->currentSample>=SAMPLE_RATE*10 && ech>=BASIC_WAVE_TABLE_LEN-4){v->currentSample=0;}   // re-init to avoid phase error
+  if(v->currentSample>=SAMPLE_RATE*10 && ech>=BASIC_WAVE_TABLE_LEN-4){v->currentSample=0;}   // re-init to avoid nPhase error
 
   //gpio_put(TEST_PIN,OFF);
   

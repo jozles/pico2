@@ -19,8 +19,9 @@ bool coderSwitch=0;                         // current physical coder switch val
 
 uint16_t coderTimerPoolingInterval=1;       // delay betxeen Its (mS) changed by init
 uint8_t coderStrobeNumber=3;                // 1st strobe delay (2nd strobe delay is 1)
-volatile int16_t* coderTimerCount=nullptr;  // ptr to current value to be inc or dec
+volatile uint16_t* coderTimerCount=nullptr; // ptr to current value to be inc or dec
 volatile bool* coderTimerSwitch=nullptr;    // switchs values
+volatile uint16_t* coderCountMaxi=nullptr;  // max value for cTc
 
 uint8_t cOT[CODER_NB]={6,7,0,1,2,5,4,3};    // CODER ORDER TABLE ordre physique
 
@@ -128,9 +129,10 @@ bool coderTimerHandler(){
         Coders* cp;
         probe=millisCounter;
 
-        for(uint8_t coder=0;coder<coder_nb;coder++){
-            gpio_put_masked(sel_gpio_mask, coder << gpio_sel0_pin);     // sel current coder ; env 6uS le pas de boucle + les traitements
-
+        for(uint8_t cod=0;cod<coder_nb;cod++){
+            gpio_put_masked(sel_gpio_mask, cod << gpio_sel0_pin);     // sel current coder ; env 6uS le pas de boucle + les traitements
+            
+            uint8_t coder=cOT[cod];
             cp=&c[coder];
             //gpio_put(TST_PIN,1);
             quick_delay(8);         // 9uS semble nécessaire pour stabiliser les coders et 4051 sinon ca fait nimporte quoi
@@ -139,13 +141,13 @@ bool coderTimerHandler(){
             //gpio_put(TST_PIN,0);
             // traitement switch (en premier pour ne pas être zappé par les "continue")
             if(cp->coderSwitch!=gpio_get(gpio_switch_pin)){
-            if((probe-cp->coderSwitchTime)>CODER_SW_STROBE_MS){
-                cp->coderSwitch=!cp->coderSwitch;
-                cp->coderSwitchTime=probe;
-            }
-            if(coderTimerSwitch!=nullptr){
-                (*(coderTimerSwitch+coder))=cp->coderSwitch;
-            }
+                if((probe-cp->coderSwitchTime)>CODER_SW_STROBE_MS){
+                    cp->coderSwitch=!cp->coderSwitch;
+                    cp->coderSwitchTime=probe;
+                }
+                if(coderTimerSwitch!=nullptr){
+                    (*(coderTimerSwitch+coder))=cp->coderSwitch;
+                }
             }
         
         
@@ -174,13 +176,13 @@ bool coderTimerHandler(){
 
                 if((!cp->coderClock)^cp->coderData){
                     if(*(coderTimerCount+coder)>0){
-                        (*(coderTimerCount+coder))-=1;
+                        (*(coderTimerCount+coder))-=1;   
                     }
                     else *(coderTimerCount+coder)=0;
                 } 
                 else {
                     (*(coderTimerCount+coder))+=1; 
-                    if(*(coderTimerCount+coder)==0){
+                    if(*(coderTimerCount+coder)>*(coderCountMaxi+coder)){
                         (*(coderTimerCount+coder))-=1;
                     }  
                 }
@@ -195,6 +197,7 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_
     // ********************* doit absolument etre fait avant la mise en route du timer *******************
     coderTimerCount=nullptr;
     coderTimerSwitch=nullptr;
+    coderCountMaxi=nullptr;
 
     gpio_clock_pin=ck;
     gpio_data_pin=data;
@@ -288,9 +291,10 @@ void slow_coder_test(uint32_t ms){
 
 #endif  // MUXED_CODER
 
-void coderSetup(volatile int16_t* cTC,volatile bool* cTS){
+void coderSetup(volatile uint16_t* cTC,volatile bool* cTS,uint16_t* maxi){
     coderTimerCount=cTC;
     coderTimerSwitch=cTS;
+    coderCountMaxi=maxi;
 }
 
 

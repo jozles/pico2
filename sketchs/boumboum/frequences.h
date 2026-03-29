@@ -54,8 +54,9 @@ struct Voice {
     //float       newFreqRateRatio;                   
     int16_t     coderFreq;                      // last coder value for freq  
     uint16_t    basicWaveAmpl[BASIC_WAVES_NB];  // ampl value for coderAmpl value
-    int16_t     coderAmpl[BASIC_WAVES_NB];      // last coder value for ampl
-    int16_t     coderAmpl0[BASIC_WAVES_NB];     // prev coder value for ampl
+    uint16_t    coderAmpl[BASIC_WAVES_NB];      // last coder value for ampl
+    uint16_t    coderAmpl0[BASIC_WAVES_NB];     // prev coder value for ampl
+    uint16_t    maxCoderAmpl[BASIC_WAVES_NB];   // valeur maxi pou coderAmpl
     uint16_t    genAmpl;
     //uint8_t     freqCoeff;
     //uint32_t    dhexFreq;
@@ -70,7 +71,7 @@ struct Voice {
 
 void sound_tables_init();
 void voiceInit(float freq,Voice* v);
-void fillVoiceBuffer(volatile int32_t* sampleBuffer,Voice* v,uint8_t what,uint8_t bufNum);
+void fillVoiceBuffer(int32_t* sampleBuffer,Voice* v,uint8_t what,uint8_t bufNum);
 void setNewFrequency(float freq,Voice* v);
 float calcFreq(uint16_t val);
 uint16_t getAmpl(Voice* v,uint8_t wav);
