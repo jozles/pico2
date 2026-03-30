@@ -3,6 +3,13 @@
 
 #include <stdint.h>
 
+#define BLUE    0xf800 
+#define PINK    0xf81f 
+#define YELLOW  0x07ff 
+#define GREEN   0x07e0 
+#define RED     0x001f
+
+
 int st7789_setup(uint32_t spiSpeed);
 volatile bool get_st_dma_free();        // uniquement à des fins de consultation
 

@@ -74,7 +74,7 @@
 /* Voices */
 
 #ifdef MUXED_CODER
-#define VOICES_NB CODER_NB
+#define VOICES_NB 2 // CODER_NB
 
 /* fonc names */
 #define VOICES_MIXER 0              // VOICES_NB 

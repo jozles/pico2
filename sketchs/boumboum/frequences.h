@@ -40,7 +40,6 @@ struct Voice {
     //int32_t*    sampleBuffer;
     uint16_t    sampleNbToFill;                 // sample Nb for 1 period    
     uint32_t    currentSample;                  // last value pushed in i2s buffer                  
-    float       frequency;                      // current freq
     uint16_t    stepInt;                        // partie entière du step
     uint32_t    stepFra;                        // partie fractionnaire du step
     uint16_t    currEch;                        // dernier N° d'ech utilisé
@@ -52,28 +51,33 @@ struct Voice {
     uint32_t    noiseStep;                      // Q16.16 
     //float       freqRateRatio;
     //float       newFreqRateRatio;                   
-    int16_t     coderFreq;                      // last coder value for freq  
     uint16_t    basicWaveAmpl[BASIC_WAVES_NB];  // ampl value for coderAmpl value
     uint16_t    coderAmpl[BASIC_WAVES_NB];      // last coder value for ampl
     uint16_t    coderAmpl0[BASIC_WAVES_NB];     // prev coder value for ampl
-    uint16_t    maxCoderAmpl[BASIC_WAVES_NB];   // valeur maxi pou coderAmpl
+    uint16_t    maxCoderAmpl[BASIC_WAVES_NB];   // max value for coderAmpl
     uint16_t    genAmpl;
+    bool        coderSw[BASIC_WAVES_NB];        // last Switch
     //uint8_t     freqCoeff;
     //uint32_t    dhexFreq;
     //uint32_t    moduloMask;
     //uint8_t     moduloShift;
     uint16_t    soundsCc[CODER_BANK_NB];
     uint16_t    adsrlCc[CODER_BANK_NB];
-    uint16_t    frequencyCc;                    // last coder value used in unmuxed coder test
-    bool        coderSw[BASIC_WAVES_NB];        // last Switch
+    float       frequency;                      // current freq
+    uint16_t    coderFreq;                      // last coder value for freq
+    uint16_t    coderFreq0;                     // prev coder value for freq
+    uint16_t    maxCoderFreq;                   // pmax value for coderFreq
+    bool        coderSwF;                       // last Switch
 };
 
 
 void sound_tables_init();
 void voiceInit(float freq,Voice* v);
+void voiceInit(uint16_t coderF,Voice* v);
 void fillVoiceBuffer(int32_t* sampleBuffer,Voice* v,uint8_t what,uint8_t bufNum);
 void setNewFrequency(float freq,Voice* v);
 float calcFreq(uint16_t val);
+uint16_t calcCoderFreq(float freq);
 uint16_t getAmpl(Voice* v,uint8_t wav);
 
 #endif  //_FREQUENCES_H_

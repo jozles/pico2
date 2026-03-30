@@ -226,7 +226,7 @@ void setup(){
 
     uint8_t channel=0;
     float fr0=440;
-    voiceInit(fr0,&voices[channel]);
+    voiceInit(fr0,voices);
     voices[channel].genAmpl=0x7fff;
 
     i2s_dma_buffers[0]=i2s_buf0;
@@ -260,7 +260,7 @@ void setup(){
 
     tft_draw_text_12x12_dma_mult((TFT_W-(7*10))/2,TFT_H/2+14,s, 0xF81F, 0x0000,1); 
 
-    const char* v="v1.3c";
+    const char* v="v1.3d";
     tft_draw_text_12x12_dma_mult((TFT_W-(strlen(v)*10))/2,TFT_H/2+25,v, 0xFFE0, 0x0000,1);
 
     delayBlk(5);
@@ -337,7 +337,29 @@ void dumpStr16(int32_t* str){
     printf("\n");
 }
 
+void dumpStr16(char* str){
+    printf("%p    ",str);
+    for(uint32_t i=0;i<16;i++){
+        printf("%02x ",str[i]);
+    }
+    printf(" ");
+    for(uint32_t i=0;i<16;i++){
+        uint8_t v0=str[i];
+        if(v0>=0x20 && v0<0x7f){printf("%c",v0);}
+        else{printf(".");}
+        printf(" ");
+    }
+    printf("\n");
+}
+
 void dumpStr(int32_t* str,uint32_t nb){
+    for(uint32_t i=0;i<nb;i+=16){
+        dumpStr16(&str[i]);
+    }
+    printf("\n");
+}
+
+void dumpStr(char* str,uint32_t nb){
     for(uint32_t i=0;i<nb;i+=16){
         dumpStr16(&str[i]);
     }

@@ -49,77 +49,6 @@ extern volatile uint32_t int_counter;
 extern volatile bool one_time;
 
 
-#ifndef MUXED_CODER
-bool coderTimerHandler(){
-
-    coderClock=gpio_get(gpio_clock_pin);
-
-    if(coderClock == coderClock0){                                // no change 
-        if(coderItStatus<coderStrobeNumber){                      // wait for change after strobe delay
-            coderItStatus++;return true;}
-        if(coderItStatus>coderStrobeNumber){                      // 2nd strobe fail
-            coderItStatus=0;return true;}
-        return true;
-    }
-    else{                                                         // clock change detected 
-        coderData=gpio_get(gpio_data_pin);                         // latch data
-
-        if(coderItStatus<coderStrobeNumber){                      // change to close to previous valid one : ignore it
-            coderItStatus=0;return true;}
-                                                            
-        if(coderItStatus==coderStrobeNumber){     
-            coderItStatus++;return true;}                              // 1st strobe passed wait next It
-    
-    }
- 
-    coderClock0=coderClock;                                       // valid clock change detected after 2 strobes delay
-    coderItStatus=0;
-
-    if(coderTimerCount!=nullptr){                                 // coder_switch used as speed multiplier
-
-        coderSwitch=gpio_get(gpio_switch_pin);
-
-        if((!coderClock)^coderData){
-            (*coderTimerCount)-=1+coderSwitch;
-        } 
-        else {
-            (*coderTimerCount)+=1+coderSwitch;
-        }
-    }
-
-    // here accelerator management could be added
-    
-    return true;    // relancer le timer
-}
-
-void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint16_t ctpi,uint8_t cstn){
-    
-    gpio_clock_pin=ck;
-    gpio_data_pin=data;
-    gpio_switch_pin=sw;
-    gpio_vcc_pin=vc;
-
-    coderTimerPoolingInterval=ctpi;
-    coderStrobeNumber=cstn;
-
-    coderItStatus=0;
-
-    gpio_init(gpio_data_pin);gpio_set_dir(gpio_data_pin,GPIO_IN); 
-    gpio_init(gpio_clock_pin);gpio_set_dir(gpio_clock_pin,GPIO_IN);
-    gpio_init(gpio_switch_pin);gpio_set_dir(gpio_switch_pin,GPIO_IN);
-    gpio_init(gpio_vcc_pin);gpio_set_dir(gpio_vcc_pin,GPIO_OUT);gpio_put(gpio_vcc_pin,1);
-
-
-    coderClock0=gpio_get(gpio_clock_pin);
-    coderData0=gpio_get(gpio_data_pin);
-
-    //while(1){
-    printf(" -coder init d:%d c:%d s:%d\n",gpio_get(gpio_data_pin),gpio_get(gpio_clock_pin),gpio_get(gpio_switch_pin));
-    //sleep_ms(1000);}
-}
-#endif // MUXED_CODER
-
-#ifdef MUXED_CODER
 bool coderTimerHandler(){
     
     int_counter++;
@@ -236,41 +165,7 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_
         c[coder].coderSwitchTime=0;                              // init debouncer
         printf(" -coder#%d init d:%d c:%d s:%d\n",coder,c[coder].coderData0,c[coder].coderClock0,gpio_get(gpio_switch_pin));
         c[coder].coderItStatus=0; 
-
-/*
-        gpio_put(2,0);
-        gpio_put(3,0);
-        gpio_put(4,0);
-        printf("clkpin:%d ",gpio_get(gpio_clock_pin));
-        gpio_put(2,1);
-        gpio_put(3,0);
-        gpio_put(4,0);
-        printf("%d ",gpio_get(gpio_clock_pin));
-        gpio_put(2,0);
-        gpio_put(3,1);
-        gpio_put(4,0);
-        printf("%d ",gpio_get(gpio_clock_pin)); 
-        gpio_put(2,1);
-        gpio_put(3,1);
-        gpio_put(4,0);
-        printf("%d ",gpio_get(gpio_clock_pin));         
-        gpio_put(2,0);
-        gpio_put(3,0);
-        gpio_put(4,1);
-        printf("%d ",gpio_get(gpio_clock_pin)); 
-        gpio_put(2,1);
-        gpio_put(3,0);
-        gpio_put(4,1);
-        printf("%d ",gpio_get(gpio_clock_pin));
-        gpio_put(2,0);
-        gpio_put(3,1);
-        gpio_put(4,1);
-        printf("%d ",gpio_get(gpio_clock_pin));  
-        gpio_put(2,1);
-        gpio_put(3,1);
-        gpio_put(4,1);
-        printf("%d\n",gpio_get(gpio_clock_pin)); 
-*/                                            
+            
     }
 }
 
@@ -288,8 +183,6 @@ void slow_coder_test(uint32_t ms){
         sleep_ms(ms);//printf("%d\n",test_cnt++);
     }
 }
-
-#endif  // MUXED_CODER
 
 void coderSetup(volatile uint16_t* cTC,volatile bool* cTS,uint16_t* maxi){
     coderTimerCount=cTC;

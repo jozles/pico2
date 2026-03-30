@@ -205,6 +205,23 @@ float calcFreq(uint16_t val) // from lin value (0-octIncrNb*OCTNB) to snd value 
   return freq;
 }
 
+uint16_t calcCoderFreq(float freq) // from snd value to coder value
+{ 
+    uint8_t oct = 0;
+    while (octFreq[oct+1] <= freq && oct < OCTNB)
+        oct++;
+
+    float f0 = octFreq[oct];
+    float f1 = octFreq[oct+1];
+
+    float alpha = (freq - f0) / (f1 - f0);
+    if (alpha < 0) alpha = 0;
+    if (alpha > 1) alpha = 1;
+
+    uint16_t incr = (uint16_t)round(alpha * octIncrNb);
+    return oct * octIncrNb + incr;
+}
+
 // initialisation des tableaux pour permettre calcFreq()
 void sound_tables_init()        
 {  
@@ -217,27 +234,47 @@ void sound_tables_init()
   fillAmplIncr();
 }
 
-void voiceInit(float freq,Voice* v)
+void voiceInit(uint16_t coderF,Voice* voices)
 {
-    v->sampleNbToFill=SAMPLE_BUFFER_SIZE;    
-    v->currentSample=0;
-    v->currEch=0;
-    v->currEchFra=0;
-    setNewFrequency(freq,v);
-    for(uint8_t i=0;i<BASIC_WAVES_NB;i++){      // all waves off
-      v->coderAmpl[i]=0;
-      v->coderAmpl[i]=0;
-      v->coderAmpl[i]=0;
+
+    for(uint8_t v=0;v<VOICES_NB;v++){
+        voices[v].maxCoderFreq=10000;
+        voices[v].genAmpl=0x7fff;
+        voices[v].coderFreq0=coderF;
+        voices[v].coderFreq=voices[v].coderFreq0;
+        float f=calcFreq(voices[v].coderFreq);          // 440Hz
+        setNewFrequency(f,&voices[v]);    
+        voices[v].frequency=calcFreq(voices[v].coderFreq);
+        voices[v].newFrequency=voices[v].frequency;
+
+        voices[v].sampleNbToFill=SAMPLE_BUFFER_SIZE;    
+        voices[v].currentSample=0;
+        voices[v].currEch=0;
+        voices[v].currEchFra=0;
+
+        voices[v].noisePhase = 0;           // Q16.16
+        voices[v].noiseStep  = 60817408;    // Q16.16
+
+        for(uint8_t i=0;i<W_NB;i++){
+            voices[v].coderAmpl[i]=0;
+            voices[v].coderAmpl0[i]=99;     // force basicWaveAmpl update
+            voices[v].maxCoderAmpl[i]=31;
+            voices[v].basicWaveAmpl[i]=0;
+            voices[v].coderSw[i]=0;
+        }
     }
-    v->noisePhase = 0;           // Q16.16
-    v->noiseStep  = 60817408;    // Q16.16
 }
 
+void voiceInit(float freq,Voice* voices){
+   voiceInit(calcCoderFreq(freq),voices);
+}   
+
+// update voice[].newFrequency - compute newSteps
 void setNewFrequency(float freq,Voice* v){
+    
     v->newFrequency=freq;
 
     float k=(uint32_t)BASIC_WAVE_TABLE_LEN*v->newFrequency/SAMPLE_RATE;
-
     v->newStepInt=(uint32_t)k;
     v->newStepFra=(uint32_t)((k-v->newStepInt)*MAX_STEP_FRA);
 }
@@ -246,8 +283,7 @@ uint16_t getAmpl(Voice* v,uint8_t wav){
   return amplLevel[v->coderAmpl[wav]];
 }
 
-
-void fillVoiceBuffer(int32_t* vBuffer,Voice* v,uint8_t what,uint8_t bufNum){   // 3.7mS pour sinus ; 3.2mS pour 2 noises  ; <8mS pour les 6 ; @1024 samples (23mS@44100Hz)
+void fillVoiceBuffer(int32_t* vBuffer,Voice* v,uint8_t what,uint8_t bufNum){   // 5.8mS pour les 6 sources @512 samples (23mS@44100Hz)
 gpio_put(TST_PIN,HIGH);
 
     i2s_buf_free[bufNum]=false;
@@ -291,17 +327,6 @@ gpio_put(TST_PIN,HIGH);
         pre += sawtoothWaveform[currEch]* waveAmplSaw;
         pre += squareWaveform[currEch]* waveAmplSqr;
 
-        //if(currEch>224 && currEch<298){printf("currech:%d sineWaveform[currEch]:%i waveAmplSin:%d vBuffer[s*2]:%i\n",currEch,sineWaveform[currEch],waveAmplSin,vBuffer[s*2]);}
-
-       /* if(v->newFrequency!=0){
-          stepInt=v->newStepInt;
-          v->stepInt=stepInt;
-          stepFra=v->newStepFra;
-          v->stepFra=stepFra;
-          v->frequency=v->newFrequency;
-          v->newFrequency=0;
-        }*/
-    
         // noises
 
         nPhase += nStep;
@@ -320,10 +345,11 @@ gpio_put(TST_PIN,HIGH);
         pink_state=(alpha * pink_state + (32768 - alpha) * (white)) >> 15;
           
         pre += (int16_t)pink_state * waveAmplPin;
-        
+
         *voiceBuffer=pre;
-        *(voiceBuffer+1)=pre;
-        voiceBuffer+=2;
+        voiceBuffer++;
+        *voiceBuffer=pre;
+        voiceBuffer++;
     }
 
     v->currEch    = currEch;
@@ -333,74 +359,4 @@ gpio_put(TST_PIN,HIGH);
 //dumpStr(vBuffer,256);
 gpio_put(TST_PIN,LOW);    
 }
-
-  /*//
-  int16_t lastEch=0;
-  uint16_t s;
-
-  for(s=0;s<v->sampleNbToFill;s++){
-    v->currEch+=v->stepInt;
-    v->currEchFra+=v->stepFra;
-    if(v->currEchFra>MAX_STEP_FRA){v->currEchFra-=MAX_STEP_FRA;v->currEch++;}
-    if(v->currEch>BASIC_WAVE_TABLE_LEN){v->currEch-=BASIC_WAVE_TABLE_LEN;}
-
-    lastEch=sineWaveform[v->currEch];
-
-    vBuffer[s*2]=lastEch*v->genAmpl;
-    vBuffer[s*2+1]=vBuffer[s*2];
-
-    if(v->newFrequency!=0){
-        v->stepInt=v->newStepInt;
-        v->stepFra=v->newStepFra;
-        v->frequency=v->newFrequency;
-        v->newFrequency=0;
-    }
-    v->currentSample=lastEch;
-  }*/
-
-
-/*void _fillVoiceBuffer(int32_t* sampleBuffer,Voice* v)
-{
-  //gpio_put(TEST_PIN,ON);
-
-  uint32_t ech=0,prev_ech=0;  // ptr dans la table d'onde basique
-  for(uint16_t i=0;i<v->sampleNbToFill;i++){
-    float int_part;
-
-    prev_ech=ech;
-//gpio_put(TST_PIN,HIGH);
-    // modff ~ 50% du temps de boucle avec une seule forme d'onde (5.6uS/10.5)  
-    ech=(uint32_t)(modff(v->currentSample*v->freqRateRatio,&int_part)*BASIC_WAVE_TABLE_LEN); // ech nbr
-    uint32_t ech1=v->currentSample*(uint32_t)(v->freqRateRatio)*BASIC_WAVE_TABLE_LEN; // ech nbr 
-//gpio_put(TST_PIN,LOW);
-//printf("ech:%d ech1:%d\n",ech,ech1);    
-    // si changement de fréquence, synchro sur début table d'onde pour éviter les défauts de forme d'onde
-    if((v->newFrequency!=0)&&(prev_ech>ech)){ 
-      v->frequency=v->newFrequency;
-      v->freqRateRatio=v->newFreqRateRatio;
-      v->newFrequency=0;
-      ech=0;
-      v->currentSample=0;
-    }
-
-    sampleBuffer[i*2]=sineWaveform[ech]*v->genAmpl; // 11.6mS     
-    ((sineWaveform[ech]*v->basicWaveAmpl[WAVE_SINUS]
-      + squareWaveform[ech]*v->basicWaveAmpl[WAVE_SQUARE]
-      + triangleWaveform[ech]*v->basicWaveAmpl[WAVE_TRIANGLE]
-      + sawtoothWaveform[ech]*v->basicWaveAmpl[WAVE_SAWTOOTH]
-      + whiteNoiseWaveform[ech]*v->basicWaveAmpl[WAVE_WHITENOISE]
-      + pinkNoiseWaveform[ech]*v->basicWaveAmpl[WAVE_PINKNOISE]
-      )
-      /MAX_AMP_VAL
-    )*v->genAmpl;
-
-    sampleBuffer[i*2+1]=sampleBuffer[i*2]; // stereo
-
-    v->currentSample++;
-  }
-  if(v->currentSample>=SAMPLE_RATE*10 && ech>=BASIC_WAVE_TABLE_LEN-4){v->currentSample=0;}   // re-init to avoid nPhase error
-
-  //gpio_put(TEST_PIN,OFF);
-  
-}*/
 
