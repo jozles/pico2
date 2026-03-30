@@ -25,20 +25,18 @@ volatile uint16_t* coderCountMaxi=nullptr;  // max value for cTc
 
 uint8_t cOT[CODER_NB]={6,7,0,1,2,5,4,3};    // CODER ORDER TABLE ordre physique
 
-// pico2_pins
+// pico2 coders 
 
 uint8_t gpio_clock_pin;
 uint8_t gpio_data_pin;
 uint8_t gpio_switch_pin;
 uint8_t gpio_vcc_pin;
-#ifdef MUXED_CODER
 uint8_t gpio_sel0_pin;
 uint8_t coder_nb;
 uint8_t coder_sel_nb;
 uint32_t sel_gpio_mask=0;
 
 Coders c[CODER_NB];
-#endif  // MUXED_CODER
 
 extern volatile uint32_t millisCounter;
 extern volatile uint32_t probe;
@@ -70,12 +68,15 @@ bool coderTimerHandler(){
             //gpio_put(TST_PIN,0);
             // traitement switch (en premier pour ne pas être zappé par les "continue")
             if(cp->coderSwitch!=gpio_get(gpio_switch_pin)){
+                
                 if((probe-cp->coderSwitchTime)>CODER_SW_STROBE_MS){
                     cp->coderSwitch=!cp->coderSwitch;
                     cp->coderSwitchTime=probe;
+                    //printf("c:%d csw:%d ",coder,cp->coderSwitch);
                 }
                 if(coderTimerSwitch!=nullptr){
-                    (*(coderTimerSwitch+coder))=cp->coderSwitch;
+                    *(coderTimerSwitch+coder)=cp->coderSwitch;
+                    //printf(" :%d\n",*(coderTimerSwitch+coder));
                 }
             }
         
@@ -139,9 +140,9 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_
     coderTimerPoolingInterval=ctpi;
     coderStrobeNumber=cstn;
 
-    gpio_init(gpio_data_pin);gpio_set_dir(gpio_data_pin,GPIO_IN); 
-    gpio_init(gpio_clock_pin);gpio_set_dir(gpio_clock_pin,GPIO_IN);
-    gpio_init(gpio_switch_pin);gpio_set_dir(gpio_switch_pin,GPIO_IN);
+    gpio_init(gpio_data_pin);gpio_set_dir(gpio_data_pin,GPIO_IN);gpio_pull_up(gpio_data_pin);
+    gpio_init(gpio_clock_pin);gpio_set_dir(gpio_clock_pin,GPIO_IN);gpio_pull_up(gpio_clock_pin);
+    gpio_init(gpio_switch_pin);gpio_set_dir(gpio_switch_pin,GPIO_IN);gpio_pull_up(gpio_switch_pin);
     gpio_init(gpio_vcc_pin);gpio_set_dir(gpio_vcc_pin,GPIO_OUT);gpio_put(gpio_vcc_pin,1);
 
     sleep_ms(10);
@@ -184,10 +185,11 @@ void slow_coder_test(uint32_t ms){
     }
 }
 
-void coderSetup(volatile uint16_t* cTC,volatile bool* cTS,uint16_t* maxi){
+void coderSetup(volatile uint16_t* cTC,volatile bool* cTS,uint16_t* maxi,uint8_t nb){
     coderTimerCount=cTC;
     coderTimerSwitch=cTS;
     coderCountMaxi=maxi;
+    //coder_nb=nb;
 }
 
 

@@ -36,7 +36,7 @@ bool coderTimerHandler();
 void slow_coder_test(uint32_t ms);
 #endif // MUXED_CODER
 
-void coderSetup(volatile uint16_t* cTC,volatile bool* cTS,uint16_t* maxi);
+void coderSetup(volatile uint16_t* cTC,volatile bool* cTS,uint16_t* maxi,uint8_t nb);
 
 
 
