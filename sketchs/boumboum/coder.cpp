@@ -19,7 +19,7 @@ bool coderSwitch=0;                         // current physical coder switch val
 
 uint16_t coderTimerPoolingInterval=1;       // delay betxeen Its (mS) changed by init
 uint8_t coderStrobeNumber=3;                // 1st strobe delay (2nd strobe delay is 1)
-volatile uint16_t* coderTimerCount=nullptr; // ptr to current value to be inc or dec
+volatile int16_t* coderTimerCount=nullptr; // ptr to current value to be inc or dec
 volatile bool* coderTimerSwitch=nullptr;    // switchs values
 volatile uint16_t* coderCountMaxi=nullptr;  // max value for cTc
 
@@ -62,7 +62,7 @@ bool coderTimerHandler(){
             uint8_t coder=cOT[cod];
             cp=&c[coder];
             //gpio_put(TST_PIN,1);
-            quick_delay(8);         // 9uS semble nécessaire pour stabiliser les coders et 4051 sinon ca fait nimporte quoi
+            quick_delay(20);         // 9uS semble nécessaire pour stabiliser les coders et 4051 sinon ca fait nimporte quoi
                                     // temps total du step 19uS ! avec 8mS d'intervalle ça semble ok (v1.2)
                                     // mesure 2.5uS total avec le delay !!! incompréhensible ... et ça marche
             //gpio_put(TST_PIN,0);
@@ -73,10 +73,11 @@ bool coderTimerHandler(){
                     cp->coderSwitch=!cp->coderSwitch;
                     cp->coderSwitchTime=probe;
                     //printf("c:%d csw:%d ",coder,cp->coderSwitch);
-                }
-                if(coderTimerSwitch!=nullptr){
-                    *(coderTimerSwitch+coder)=cp->coderSwitch;
-                    //printf(" :%d\n",*(coderTimerSwitch+coder));
+                
+                    if(coderTimerSwitch!=nullptr){
+                        *(coderTimerSwitch+coder)=cp->coderSwitch;
+                        //printf(" :%d\n",*(coderTimerSwitch+coder));
+                    }
                 }
             }
         
@@ -185,7 +186,7 @@ void slow_coder_test(uint32_t ms){
     }
 }
 
-void coderSetup(volatile uint16_t* cTC,volatile bool* cTS,uint16_t* maxi,uint8_t nb){
+void coderSetup(volatile int16_t* cTC,volatile bool* cTS,uint16_t* maxi,uint8_t nb){
     coderTimerCount=cTC;
     coderTimerSwitch=cTS;
     coderCountMaxi=maxi;

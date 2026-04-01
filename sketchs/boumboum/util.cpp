@@ -38,6 +38,7 @@ int32_t i2s_buf0[SAMPLE_BUFFER_SIZE*2];
 int32_t i2s_buf1[SAMPLE_BUFFER_SIZE*2];
 
 extern struct Voice voices[];
+extern uint16_t amplLevel[];
 
 volatile uint8_t what=0;
 
@@ -225,9 +226,16 @@ void setup(){
     sound_tables_init();
 
     uint8_t channel=0;
+
     float fr0=440;
     voiceInit(fr0,voices);
-    voices[channel].genAmpl=0x7fff;
+    uint8_t cga=31;
+
+    for(uint8_t ch=0;ch<VOICES_NB;ch++){
+        voices[ch].genAmpl=amplLevel[cga];
+        voices[ch].coderGenAmpl=cga;
+        voices[ch].maxCoderGenAmpl=cga;
+    }
 
     i2s_dma_buffers[0]=i2s_buf0;
     i2s_dma_buffers[1]=i2s_buf1;
@@ -260,7 +268,7 @@ void setup(){
 
     tft_draw_text_12x12_dma_mult((TFT_W-(7*10))/2,TFT_H/2+14,s, 0xF81F, 0x0000,1); 
 
-    const char* v="v1.3e";
+    const char* v="v1.3f";
     tft_draw_text_12x12_dma_mult((TFT_W-(strlen(v)*10))/2,TFT_H/2+25,v, 0xFFE0, 0x0000,1);
 
     delayBlk(5);
@@ -337,7 +345,14 @@ void dumpStr16(int32_t* str){
     printf("\n");
 }
 
-void dumpStr16(char* str){
+void dumpStr(int32_t* str,uint32_t nb){
+    for(uint32_t i=0;i<nb;i+=16){
+        dumpStr16(&str[i]);
+    }
+    printf("\n");
+}
+
+/*void dumpStr16(char* str){
     printf("%p    ",str);
     for(uint32_t i=0;i<16;i++){
         printf("%02x ",str[i]);
@@ -347,14 +362,7 @@ void dumpStr16(char* str){
         uint8_t v0=str[i];
         if(v0>=0x20 && v0<0x7f){printf("%c",v0);}
         else{printf(".");}
-        printf(" ");
-    }
-    printf("\n");
-}
-
-void dumpStr(int32_t* str,uint32_t nb){
-    for(uint32_t i=0;i<nb;i+=16){
-        dumpStr16(&str[i]);
+        //printf(" ");
     }
     printf("\n");
 }
@@ -364,7 +372,7 @@ void dumpStr(char* str,uint32_t nb){
         dumpStr16(&str[i]);
     }
     printf("\n");
-}
+}*/
 
 // ******** unused ********
 
@@ -588,12 +596,12 @@ int32_t convStrToInt(char* str,int* sizeRead)
   return v*minu;
 }
 
-void dumpstr0(char* data,uint8_t len,bool cr)
+void dumpStr0(char* data,uint8_t len,bool cr)
 {
     char a[]={0x00,0x00,0x00};
     uint8_t c;
     printf("   %x   ",(long)data);
-    for(int k=0;k<len;k++){conv_htoa(a,(uint8_t*)&data[k]);printf(" %c",a);}
+    for(int k=0;k<len;k++){printf("%02x ",data[k]);}   //conv_htoa(a,(uint8_t*)&data[k]);printf(" %c",a);}
     printf("    ");
     for(int k=0;k<len;k++){
             c=data[k];
@@ -603,16 +611,16 @@ void dumpstr0(char* data,uint8_t len,bool cr)
     if(cr){printf("\n");}
 }
 
-void dumpstr(char* data,uint16_t len,bool cr)
+void dumpStr(char* data,uint32_t len,bool cr)
 {
-    while(len>=16){len-=16;dumpstr0(data,16,len>0);data+=16;}
-    if(len!=0){dumpstr0(data,len,false);}
+    while(len>=16){len-=16;dumpStr0(data,16,len>0);data+=16;}
+    if(len!=0){dumpStr0(data,len,false);}
     if(cr){printf("\n");}
 }
 
-void dumpstr(char* data,uint16_t len)
+void dumpStr(char* data,uint32_t len)
 {
-  return dumpstr(data,len,true);
+  return dumpStr(data,len,true);
 }
 
 void dumpfield(char* fd,uint8_t ll)

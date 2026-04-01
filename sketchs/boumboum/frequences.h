@@ -52,10 +52,12 @@ struct Voice {
     //float       freqRateRatio;
     //float       newFreqRateRatio;                   
     uint16_t    basicWaveAmpl[BASIC_WAVES_NB];  // ampl value for coderAmpl value
-    uint16_t    coderAmpl[BASIC_WAVES_NB];      // last coder value for ampl
-    uint16_t    coderAmpl0[BASIC_WAVES_NB];     // prev coder value for ampl
+    int16_t     coderAmpl[BASIC_WAVES_NB];      // last coder value for ampl
+    int16_t     coderAmpl0[BASIC_WAVES_NB];     // prev coder value for ampl
     uint16_t    maxCoderAmpl[BASIC_WAVES_NB];   // max value for coderAmpl
-    uint16_t    genAmpl;
+    uint16_t    genAmpl;                        // ampl value for global voice
+    int16_t     coderGenAmpl;
+    uint16_t    maxCoderGenAmpl;                // max value for coderGenAmpl
     bool        coderSw[BASIC_WAVES_NB];        // last Switch
     //uint8_t     freqCoeff;
     //uint32_t    dhexFreq;
@@ -64,8 +66,8 @@ struct Voice {
     uint16_t    soundsCc[CODER_BANK_NB];
     uint16_t    adsrlCc[CODER_BANK_NB];
     float       frequency;                      // current freq
-    uint16_t    coderFreq;                      // last coder value for freq
-    uint16_t    coderFreq0;                     // prev coder value for freq
+    int16_t     coderFreq;                      // last coder value for freq
+    //uint16_t    coderFreq0;                     // prev coder value for freq
     uint16_t    maxCoderFreq;                   // pmax value for coderFreq
     bool        coderSwF;                       // last Switch
 };

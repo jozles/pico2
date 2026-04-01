@@ -240,11 +240,11 @@ void voiceInit(uint16_t coderF,Voice* voices)
     for(uint8_t v=0;v<VOICES_NB;v++){
         voices[v].maxCoderFreq=10000;
         voices[v].genAmpl=0x7fff;
-        voices[v].coderFreq0=coderF;
-        voices[v].coderFreq=voices[v].coderFreq0;
+
+        voices[v].coderFreq=1943;
         float f=calcFreq(voices[v].coderFreq);          // 440Hz
         setNewFrequency(f,&voices[v]);    
-        voices[v].frequency=calcFreq(voices[v].coderFreq);
+        voices[v].frequency=f;
         voices[v].newFrequency=voices[v].frequency;
 
         voices[v].sampleNbToFill=SAMPLE_BUFFER_SIZE;    
