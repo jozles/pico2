@@ -24,6 +24,14 @@ uint16_t amplLevel[MAX_16B_LINEAR_VALUE];
 
 extern volatile bool i2s_buf_free[];
 
+void showAmplIncr(){
+  printf("  intervalles d'amplitude\n");
+  for(uint8_t i=0;i<MAX_16B_LINEAR_VALUE;i++){
+      printf("%d %d\n",i,amplLevel[i]);
+  }
+  printf("\n");
+}
+
 void fillAmplIncr(){
 
   amplLevel[0]=0;
@@ -35,14 +43,7 @@ void fillAmplIncr(){
     j++;if(j>=stepAmpl){j=0;}
     i++;     
   }
-}
-
-void showAmplIncr(){
-  printf("  intervalles d'amplitude\n");
-  for(uint8_t i=0;i<MAX_16B_LINEAR_VALUE;i++){
-      printf("%d %d\n",i,amplLevel[i]);
-  }
-  printf("\n");
+  //showAmplIncr();
 }
 
 //

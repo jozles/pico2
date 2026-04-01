@@ -56,7 +56,7 @@ struct Voice {
     int16_t     coderAmpl0[BASIC_WAVES_NB];     // prev coder value for ampl
     uint16_t    maxCoderAmpl[BASIC_WAVES_NB];   // max value for coderAmpl
     uint16_t    genAmpl;                        // ampl value for global voice
-    int16_t     coderGenAmpl;
+    volatile int16_t     coderGenAmpl;
     uint16_t    maxCoderGenAmpl;                // max value for coderGenAmpl
     bool        coderSw[BASIC_WAVES_NB];        // last Switch
     //uint8_t     freqCoeff;

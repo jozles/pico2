@@ -148,7 +148,7 @@ uint8_t coders_for_ampl(uint8_t currVoice)
     tft_fill_rect_blank(0,0,TFT_H,TFT_W);
     #define LINE_LEN TFT_W/12+1
     char buf[LINE_LEN];memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
-    sprintf(buf,"voice:%d %f amp",currVoice,voices[currVoice].frequency);
+    sprintf(buf,"voice:%d %4.3f amp",currVoice,voices[currVoice].frequency);
     tft_draw_text_12x12_dma_mult(0,0,buf,BLUE,0x0000,1);
     bool firstDisplay=true;
 
@@ -169,11 +169,6 @@ uint8_t coders_for_ampl(uint8_t currVoice)
         debug_ticker();
 
         for(uint8_t coder=0;coder<W_NB;coder++){
-
-            /*if((millisCounter-swIgnore)>=SWIGNORE){
-                printf("coder:%d cSw:%d\n",coder,voices[currVoice].coderSw[coder]);
-                if((volatile int)voices[currVoice].coderSw[coder]==0){return coder;}
-            }*/
 
             if((millisCounter-swIgnore)>=SWIGNORE){ 
                 //printf("Ampl mc:%d coder:%d",millisCounter,coder);dumpStr((char*)voicesSw,8);
@@ -272,7 +267,7 @@ gpio_put(TST_PIN,0);
                     ccFreq=voices[coder].newFrequency;          
                 }
 
-                sprintf(buf+2,"%4d  %4.2f",cc,ccFreq);          // actual freq value                
+                sprintf(buf+2,"%4d  %4.2f     ",cc,ccFreq);     // actual freq value                
                 tft_draw_text_12x12_dma_mult(0,coder*(12*2+1)+27,buf,0x07EF,0x0000,1);
 
                 printf("coder:%d cc:%d sw:%d coderFreq:%d frequency:%f b:%s\n",
@@ -326,7 +321,7 @@ gpio_put(TST_PIN,0);
                     return coder;}
             }
             
-            uint16_t ccAmpl=voices[coder].genAmpl;                           // ccAmpl prev genAmpl value for voice[coder] (for display)
+            uint16_t ccAmpl=voices[coder].genAmpl;                      // ccAmpl prev genAmpl value for voice[coder] (for display)
             int32_t cc=voicesAmplCoders[coder];
             int32_t cc0=cc;
             int32_t bid=99;
@@ -338,17 +333,17 @@ gpio_put(TST_PIN,0);
                 
                 buf[0]=coder+48;
  
-                if(cc!=voices[currVoice].coderGenAmpl){                     // if coder change only (not for first display)
+                if(cc!=voices[coder].coderGenAmpl){                     // if coder change only (not for first display)
                     if(cc>MAX_16B_LINEAR_VALUE-1){cc=MAX_16B_LINEAR_VALUE-1;}
                     else if(cc<MIN_16B_LINEAR_VALUE){cc=MIN_16B_LINEAR_VALUE;}
                     voicesAmplCoders[coder]=cc;
-                    voices[currVoice].coderGenAmpl=cc;
+                    voices[coder].coderGenAmpl=cc;
                     ccAmpl=amplLevel[cc];
-                    voices[currVoice].genAmpl=ccAmpl;          // update ampl value for coder value
+                    voices[coder].genAmpl=ccAmpl;                       // update ampl value for coder value
                     bid=0;
                 }
                 
-                sprintf(buf+2,"%2d  %d",cc,ccAmpl);                         // actual ampl value                   
+                sprintf(buf+2,"%2d  %d      ",cc,ccAmpl);               // actual ampl value                   
                 tft_draw_text_12x12_dma_mult(0,coder*(12*2+1)+27,buf,0x07EF,0x0000,1);
 
                 printf("coder:%d cc:%d:%d sw:%d coderGenAmpl:%d genAmpl:%d b:%s bid:%d\n",
