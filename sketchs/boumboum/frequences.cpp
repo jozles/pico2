@@ -302,7 +302,7 @@ gpio_put(TST_PIN,HIGH);
     int32_t  waveAmplSaw  = v->basicWaveAmpl[W_SAWTOOTH];        
     int32_t  waveAmplSqr  = v->basicWaveAmpl[W_SQUARE];    
     int32_t  waveAmplWhi  = v->basicWaveAmpl[W_WHITE_NOISE];
-    int32_t  waveAmplPin  = v->basicWaveAmpl[W_PINK_NOISE];
+    int32_t  waveAmplPnk  = v->basicWaveAmpl[W_PINK_NOISE];
     int32_t* voiceBuffer=&vBuffer[0];
 
     if(v->newFrequency!=0){
@@ -345,7 +345,7 @@ gpio_put(TST_PIN,HIGH);
         // bruit rose 1-pôle branchless
         pink_state=(alpha * pink_state + (32768 - alpha) * (white)) >> 15;
           
-        pre += (int16_t)pink_state * waveAmplPin;
+        pre += (int16_t)pink_state * waveAmplPnk;
 
         *voiceBuffer=pre;
         voiceBuffer++;

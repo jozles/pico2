@@ -4,7 +4,6 @@
 #include "hardware/pio.h"
 
 void setup();
-void soft_reset_wdt();
 void print_diag();
 void print_diag(char c);
 void print_diag(char c,uint32_t gdis);

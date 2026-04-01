@@ -352,28 +352,6 @@ void dumpStr(int32_t* str,uint32_t nb){
     printf("\n");
 }
 
-/*void dumpStr16(char* str){
-    printf("%p    ",str);
-    for(uint32_t i=0;i<16;i++){
-        printf("%02x ",str[i]);
-    }
-    printf(" ");
-    for(uint32_t i=0;i<16;i++){
-        uint8_t v0=str[i];
-        if(v0>=0x20 && v0<0x7f){printf("%c",v0);}
-        else{printf(".");}
-        //printf(" ");
-    }
-    printf("\n");
-}
-
-void dumpStr(char* str,uint32_t nb){
-    for(uint32_t i=0;i<nb;i+=16){
-        dumpStr16(&str[i]);
-    }
-    printf("\n");
-}*/
-
 // ******** unused ********
 
 void pio_full_reset(PIO pio) {
