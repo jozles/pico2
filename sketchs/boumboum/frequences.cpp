@@ -235,18 +235,21 @@ void sound_tables_init()
   fillAmplIncr();
 }
 
-void voiceInit(uint16_t coderF,Voice* voices)
+void voiceInit(Voice* voices,uint16_t coderF,uint16_t cga)
 {
+    for(uint8_t v=0;v<VOICES_NB+1;v++){   // coder voices[VOICES_NB].coderGenAmpl genGen boumboum 
+      
+      voices[v].coderGenAmpl=cga;  
+      voices[v].maxCoderGenAmpl=0xffff;
+      voices[v].genAmpl=amplLevel[cga];
 
-    for(uint8_t v=0;v<VOICES_NB;v++){
-        voices[v].maxCoderFreq=10000;
-        voices[v].genAmpl=0x7fff;
-
-        voices[v].coderFreq=1943;
+      if(v<VOICES_NB){
+        voices[v].maxCoderFreq=10000;        
+        voices[v].coderFreq=coderF;                     //1943;
         float f=calcFreq(voices[v].coderFreq);          // 440Hz
         setNewFrequency(f,&voices[v]);    
-        voices[v].frequency=f;
-        voices[v].newFrequency=voices[v].frequency;
+        //voices[v].frequency=f;
+        //voices[v].newFrequency=voices[v].frequency;
 
         voices[v].sampleNbToFill=SAMPLE_BUFFER_SIZE;    
         voices[v].currentSample=0;
@@ -256,38 +259,42 @@ void voiceInit(uint16_t coderF,Voice* voices)
         voices[v].noisePhase = 0;           // Q16.16
         voices[v].noiseStep  = 60817408;    // Q16.16
 
+        voices[v].maxCoderAmpl=31;
         for(uint8_t i=0;i<W_NB;i++){
             voices[v].coderAmpl[i]=0;
-            voices[v].coderAmpl0[i]=99;     // force basicWaveAmpl update
-            voices[v].maxCoderAmpl[i]=31;
+            //voices[v].coderAmpl0[i]=99;     // force basicWaveAmpl update
             voices[v].basicWaveAmpl[i]=0;
-            voices[v].coderSw[i]=0;
+            voices[v].coderSw[i]=1;
         }
+      }
     }
 }
 
-void voiceInit(float freq,Voice* voices){
-   voiceInit(calcCoderFreq(freq),voices);
+void voiceInit(Voice* voices,float freq,uint16_t cga){
+   voiceInit(voices,calcCoderFreq(freq),cga);
 }   
 
 // update voice[].newFrequency - compute newSteps
 void setNewFrequency(float freq,Voice* v){
     
-    v->newFrequency=freq;
+    v->frequency=freq;
 
-    float k=(uint32_t)BASIC_WAVE_TABLE_LEN*v->newFrequency/SAMPLE_RATE;
-    v->newStepInt=(uint32_t)k;
-    v->newStepFra=(uint32_t)((k-v->newStepInt)*MAX_STEP_FRA);
+    float k=(uint32_t)BASIC_WAVE_TABLE_LEN*v->frequency/SAMPLE_RATE;
+    v->stepInt=(uint32_t)k;
+    v->stepFra=(uint32_t)((k-v->stepInt)*MAX_STEP_FRA);
 }
 
 uint16_t getAmpl(Voice* v,uint8_t wav){
   return amplLevel[v->coderAmpl[wav]];
 }
 
+
 void fillVoiceBuffer(int32_t* vBuffer,Voice* v,uint8_t what,uint8_t bufNum){   // 5.8mS pour les 6 sources @512 samples (23mS@44100Hz)
 gpio_put(TST_PIN,HIGH);
 
     i2s_buf_free[bufNum]=false;
+
+    int32_t  genGenAmpl   = v[VOICES_NB].genAmpl;
 
     uint32_t currEch      = v->currEch;
     uint32_t currEchFra   = v->currEchFra;
@@ -296,6 +303,7 @@ gpio_put(TST_PIN,HIGH);
     nPhase       = v->noisePhase;
     nStep        = v->noiseStep;
     uint32_t limit = (uint32_t)N << 16;
+  
     int32_t  genAmpl      = v->genAmpl;
     int32_t  waveAmplSin  = v->basicWaveAmpl[W_SINUS];
     int32_t  waveAmplTri  = v->basicWaveAmpl[W_TRIANGLE];
@@ -305,14 +313,14 @@ gpio_put(TST_PIN,HIGH);
     int32_t  waveAmplPnk  = v->basicWaveAmpl[W_PINK_NOISE];
     int32_t* voiceBuffer=&vBuffer[0];
 
-    if(v->newFrequency!=0){
+    /*if(v->newFrequency!=0){
       stepInt=v->newStepInt;
       v->stepInt=stepInt;
       stepFra=v->newStepFra;
       v->stepFra=stepFra;
       v->frequency=v->newFrequency;
       v->newFrequency=0;
-    } 
+    }*/
     
     for(uint32_t s = 0; s < v->sampleNbToFill; s++)
     {
@@ -347,6 +355,9 @@ gpio_put(TST_PIN,HIGH);
           
         pre += (int16_t)pink_state * waveAmplPnk;
 
+        //pre *= genAmpl;
+
+        //pre *= genGenAmpl;
         *voiceBuffer=pre;
         voiceBuffer++;
         *voiceBuffer=pre;

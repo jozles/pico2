@@ -554,13 +554,15 @@ void tft_draw_text_12x12_block(
 // ---------------------------------------------------------
 void tft_draw_text_12x12_dma_mult(uint16_t x,uint16_t y,const char *s,uint16_t fg,uint16_t bg,int8_t mult)
 {
-
+    printf("///3 %s\n",s);
     st_dma_wait();
+
+    printf("///4 %s\n",s);
 
     if(mult<1){mult=1;}
 
     int len = 0;
-    while (s[len]) len++;if(len>31){while(1){sleep_ms(250);gpio_put(LED,0);sleep_ms(250);gpio_put(LED,1);}};
+    while (s[len]) len++;if(len>31){printf("tft_draw_text_12x12_dma_mult ovf\n");while(1){sleep_ms(250);gpio_put(LED,0);sleep_ms(250);gpio_put(LED,1);}};
 
     uint8_t st=0;if(mult>1){st=2;}  // rétrécit la largeur/hauteur des caractères en mode mult
     int idx = 0;
@@ -621,7 +623,9 @@ uint16_t tft_draw_float_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_
     memset(st,0x00,MAXL);
     uint8_t l=convNumToString(st,num);
     if(len>l && len!=0){memset(st+l,' ',len-l);}
+    printf("///1 %s\n",st);
     tft_draw_text_12x12_dma_mult(x,y,st,fg,bg,mult);
+    printf("///2\n");delay_ms(10);
     return strstr(st,"\0")-st;
 }
 
@@ -654,7 +658,9 @@ void scope(int32_t* buf,uint32_t len,float f){
 
     st_dma_launch(tft_frame,0,0,TFT_W,TFT_H);
 
+    printf("%f\n",f);delay_ms(10);
     tft_draw_float_12x12_dma_mult(TFT_W*2/3,0,0xf81f,0,1,f,6);
+    printf("***\n");
 }
 
 void debug_ticker(){

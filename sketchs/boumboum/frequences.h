@@ -36,6 +36,12 @@
 
 #define MAX_STEP_FRA 10000  // décimales ratio sampleFreq/currFreq
 
+// particularités :
+// les valeurs controlées par les codeurs ont 3 variables :
+// coderNnnn, maxCoderNnnn et nnnn pour stocker la valeur du coder, sa valeur maxi et la valeur décodée
+// la fréquence et les params de DDS associés sont mis-à-jour via une fonction
+// la fréquence est lue au début de fillVoiceBuffer et n'est pas modifiée pendant le filling
+// pareil pour tous les autres paramètres du filling
 struct Voice {
     //int32_t*    sampleBuffer;
     uint16_t    sampleNbToFill;                 // sample Nb for 1 period    
@@ -44,17 +50,17 @@ struct Voice {
     uint32_t    stepFra;                        // partie fractionnaire du step
     uint16_t    currEch;                        // dernier N° d'ech utilisé
     uint32_t    currEchFra;                     // dernière valeur fractionnaire de n° d'ech calculée  
-    float       newFrequency;     
-    uint16_t    newStepInt;
-    uint32_t    newStepFra;
+    //float       newFrequency;     
+    //uint16_t    newStepInt;
+    //uint32_t    newStepFra;
     uint32_t    noisePhase;                     // Q16.16
     uint32_t    noiseStep;                      // Q16.16 
     //float       freqRateRatio;
     //float       newFreqRateRatio;                   
     uint16_t    basicWaveAmpl[BASIC_WAVES_NB];  // ampl value for coderAmpl value
     int16_t     coderAmpl[BASIC_WAVES_NB];      // last coder value for ampl
-    int16_t     coderAmpl0[BASIC_WAVES_NB];     // prev coder value for ampl
-    uint16_t    maxCoderAmpl[BASIC_WAVES_NB];   // max value for coderAmpl
+    //int16_t     coderAmpl0[BASIC_WAVES_NB];     // prev coder value for ampl
+    uint16_t    maxCoderAmpl;                   // max value for coderAmpl
     uint16_t    genAmpl;                        // ampl value for global voice
     volatile int16_t     coderGenAmpl;
     uint16_t    maxCoderGenAmpl;                // max value for coderGenAmpl
@@ -74,8 +80,8 @@ struct Voice {
 
 
 void sound_tables_init();
-void voiceInit(float freq,Voice* v);
-void voiceInit(uint16_t coderF,Voice* v);
+void voiceInit(Voice* v,float freq,uint16_t cga);
+void voiceInit(Voice* v,uint16_t coderF,uint16_t cga);
 void fillVoiceBuffer(int32_t* sampleBuffer,Voice* v,uint8_t what,uint8_t bufNum);
 void setNewFrequency(float freq,Voice* v);
 float calcFreq(uint16_t val);

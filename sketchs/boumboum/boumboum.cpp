@@ -33,21 +33,15 @@ uint32_t probeBlinker=0;
 
 // coder 
 
-//volatile int16_t coderCounter[CODER_NB];
-//volatile int16_t coderCounter0[CODER_NB];
-//volatile bool coderSwitchs[CODER_NB];
 extern int8_t cOT[];
-
-#ifdef MUXED_CODER
 
 extern Coders c[];
 
 Coders ct[CODER_NB];                            // cinematic
 
-uint8_t currFonc=0;
-uint32_t* currCoderBank=nullptr;
-uint32_t* currCoderBank0=nullptr;
-#endif // MUXED_CODER
+//uint8_t currFonc=0;
+//uint32_t* currCoderBank=nullptr;
+//uint32_t* currCoderBank0=nullptr;
 
 // voices 
 
@@ -63,10 +57,14 @@ volatile int16_t voicesFreqCoders[VOICES_NB];
 uint16_t voicesMaxFreqCoders[VOICES_NB];
 volatile int16_t voicesAmplCoders[VOICES_NB];
 uint16_t voicesMaxAmplCoders[VOICES_NB];
+volatile int16_t voicesWaveAmplCoders[W_NB];
+uint16_t voicesMaxWaveAmplCoders[W_NB];
 volatile bool voicesSw[CODER_NB];                // coder it handler scans all physical coders
 
-volatile int16_t amplitude=0;
+//volatile int16_t amplitude=0;
 extern uint16_t amplLevel[];
+
+uint16_t genGenApml=0;
 
 // ws2812
 
@@ -106,13 +104,13 @@ if (watchdog_caused_reboot()) {
 
     init_test_7789(20,25*8,0,TFT_H-12*8,TFT_H,1);       // init screen animation
 
-    voiceInit((uint16_t)1943,voices);
+    voiceInit(voices,(uint16_t)1944,1);                 
     
     i2s_start();                                        // launch sound output
 
     // ****** inits ******
     for(uint8_t v=0;v<VOICES_NB;v++){
-        voicesFreqCoders[v]=1944; // 440Hz @1943 _ 1944 force first display
+        voicesFreqCoders[v]=voices[v].frequency;        // 440Hz @1943 _ 1944 force first display
         voicesMaxFreqCoders[v]=voices[v].maxCoderFreq;
         voicesAmplCoders[v]=voices[v].coderGenAmpl;
         voicesMaxAmplCoders[v]=voices[v].maxCoderGenAmpl;
@@ -121,11 +119,14 @@ if (watchdog_caused_reboot()) {
         voices[v].coderSwF=true;
         for(uint8_t a=0;a<W_NB;a++){
             voices[v].coderSw[a]=true;
-        }        
+        }
+        voicesMaxWaveAmplCoders[v]=voices[v].maxCoderAmpl;  // tableau nécessaire pour handler coder ; pratiquement toutes valeurs identiques
+
     }
     for(uint8_t c=0;c<CODER_NB;c++){
         voicesSw[c]=1;
     }
+
 
     while(1){
         currVoice=coders_for_freq();
@@ -152,7 +153,9 @@ uint8_t coders_for_ampl(uint8_t currVoice)
     tft_draw_text_12x12_dma_mult(0,0,buf,BLUE,0x0000,1);
     bool firstDisplay=true;
 
-    coderSetup(&voices[currVoice].coderAmpl[0],voicesSw,&voices[currVoice].maxCoderAmpl[0],W_NB);    
+    //coderSetup(&voices[currVoice].coderAmpl[0],voicesSw,&voices[currVoice].maxCoderAmpl[0],W_NB);
+    for(uint8_t a=0;a<W_NB;a++){voicesWaveAmplCoders[a]=voices[currVoice].coderAmpl[a];}    
+    coderSetup(voicesWaveAmplCoders,voicesSw,voicesMaxWaveAmplCoders,W_NB);    
     
     while (1) {
 
@@ -170,6 +173,7 @@ uint8_t coders_for_ampl(uint8_t currVoice)
 
         for(uint8_t coder=0;coder<W_NB;coder++){
 
+            // gestion switchs
             if((millisCounter-swIgnore)>=SWIGNORE){ 
                 //printf("Ampl mc:%d coder:%d",millisCounter,coder);dumpStr((char*)voicesSw,8);
                 volatile int vs=voicesSw[coder];          
@@ -178,28 +182,28 @@ uint8_t coders_for_ampl(uint8_t currVoice)
                     voicesSw[coder]==1;
                     return coder;}
             }
-         
-            int32_t cc=voices[currVoice].coderAmpl[coder];                  // cc actual coder value
-            int32_t cc0=cc;
             
-            if(cc!=voices[currVoice].coderAmpl0[coder] || firstDisplay){    // coder change or first display
+            // gestion coders
+            int32_t cc=voicesWaveAmplCoders[coder];                         // cc actual coder value
+            int16_t* cp=&voices[currVoice].coderAmpl[coder];
+            
+            if(cc!=*cp || firstDisplay){     // coder change or first display  ----Ampl0
 
                 memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
-                
-                buf[0]=coder+48;
 
-                if(cc!=voices[currVoice].coderAmpl0[coder]){                // if coder change only (not for first display)
+                if(cc!=*cp){                 // if coder change only (not for first display)
                     if(cc>MAX_16B_LINEAR_VALUE-1){cc=MAX_16B_LINEAR_VALUE-1;}
                     else if(cc<MIN_16B_LINEAR_VALUE){cc=MIN_16B_LINEAR_VALUE;}
-                    voices[currVoice].coderAmpl0[coder]=cc;
+                    *cp=cc;
                     voices[currVoice].basicWaveAmpl[coder]=amplLevel[cc];   // update ampl value for coder value 
                 }
-                        
+                
+                // display
+                buf[0]=coder+48;                        
                 sprintf(buf+2,"%2d  %5d",cc,voices[currVoice].basicWaveAmpl[coder]);          
-
                 tft_draw_text_12x12_dma_mult(0,coder*(12*2+1)+27,buf,GREEN,0x0000,1);
-                printf("coder:%d cc:%d:%d sw:%d ampl:%d waveAmpl:%d b:%s\n",
-                    coder,cc0,cc,voices[currVoice].coderSw[coder],voices[currVoice].coderAmpl[coder],voices[currVoice].basicWaveAmpl[coder],buf);       
+                printf("coder:%d cc:%d sw:%d ampl:%d waveAmpl:%d b:%s\n",
+                    coder,cc,voices[currVoice].coderSw[coder],voices[currVoice].coderAmpl[coder],voices[currVoice].basicWaveAmpl[coder],buf);       
             }
         }
         firstDisplay=false;   
@@ -240,7 +244,8 @@ gpio_put(TST_PIN,0);
         //if((millisCounter-probeBlinker)>1000){probeBlinker=millisCounter;printf("%d\n",probe);}  // test existence coderTimerHandler()
 
         for(uint8_t coder=0;coder<VOICES_NB;coder++){
-
+            
+            // gestion switchs
             if((millisCounter-swIgnore)>=SWIGNORE){ 
                 //printf("Freq mc:%d coder:%d",millisCounter,coder);dumpStr((char*)voicesSw,8);
                 volatile int vs=voicesSw[coder];          
@@ -250,6 +255,7 @@ gpio_put(TST_PIN,0);
                     return coder;}
             }
             
+            // gestions coders
             float ccFreq=voices[coder].frequency;               // ccFreq prev freq value for voice[coder] (for display)
             uint32_t cc=voicesFreqCoders[coder];                // cc     actual coder value
             
@@ -257,16 +263,16 @@ gpio_put(TST_PIN,0);
 
                 #define LINE_LEN TFT_W/12+1
                 char buf[LINE_LEN];memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
-                
-                buf[0]=coder+48;
  
                 if(cc!=voices[coder].coderFreq){                // if coder change only (not for first display)
                     voices[coder].coderFreq=cc;
                     float f=calcFreq(cc);
                     setNewFrequency(f,&voices[coder]);          // update freq value for coder value
-                    ccFreq=voices[coder].newFrequency;          
+                    ccFreq=voices[coder].frequency;          
                 }
 
+                // display
+                buf[0]=coder+48;                
                 sprintf(buf+2,"%4d  %4.2f     ",cc,ccFreq);     // actual freq value                
                 tft_draw_text_12x12_dma_mult(0,coder*(12*2+1)+27,buf,0x07EF,0x0000,1);
 
@@ -292,7 +298,7 @@ uint8_t coders_for_genAmpl()
     tft_draw_text_12x12_dma_mult(0,0,buf,BLUE,0x0000,1);
     bool firstDisplay=true;    
 
-    coderSetup(voicesAmplCoders,voicesSw,voicesMaxAmplCoders,VOICES_NB);
+    coderSetup(voicesAmplCoders,voicesSw,voicesMaxAmplCoders,VOICES_NB+1);  // last coder for genGenAmpl
 
     while (1) {
 
@@ -310,8 +316,9 @@ gpio_put(TST_PIN,0);
 
         //if((millisCounter-probeBlinker)>1000){probeBlinker=millisCounter;printf("%d\n",probe);}  // test existence coderTimerHandler()
 
-        for(uint8_t coder=0;coder<VOICES_NB;coder++){
+        for(uint8_t coder=0;coder<VOICES_NB+1;coder++){
 
+            // gestion switchs            
             if((millisCounter-swIgnore)>=SWIGNORE){ 
                 //printf("GenA mc:%d coder:%d",millisCounter,coder);dumpStr((char*)voicesSw,8);
                 volatile int vs=voicesSw[coder];          
@@ -321,17 +328,14 @@ gpio_put(TST_PIN,0);
                     return coder;}
             }
             
+            // gestion coders
             uint16_t ccAmpl=voices[coder].genAmpl;                      // ccAmpl prev genAmpl value for voice[coder] (for display)
             int32_t cc=voicesAmplCoders[coder];
-            int32_t cc0=cc;
-            int32_t bid=99;
             
             if(cc!=voices[coder].coderGenAmpl || firstDisplay){
 
                 #define LINE_LEN TFT_W/12+1
                 char buf[LINE_LEN];memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
-                
-                buf[0]=coder+48;
  
                 if(cc!=voices[coder].coderGenAmpl){                     // if coder change only (not for first display)
                     if(cc>MAX_16B_LINEAR_VALUE-1){cc=MAX_16B_LINEAR_VALUE-1;}
@@ -340,14 +344,17 @@ gpio_put(TST_PIN,0);
                     voices[coder].coderGenAmpl=cc;
                     ccAmpl=amplLevel[cc];
                     voices[coder].genAmpl=ccAmpl;                       // update ampl value for coder value
-                    bid=0;
                 }
-                
-                sprintf(buf+2,"%2d  %d      ",cc,ccAmpl);               // actual ampl value                   
-                tft_draw_text_12x12_dma_mult(0,coder*(12*2+1)+27,buf,0x07EF,0x0000,1);
 
-                printf("coder:%d cc:%d:%d sw:%d coderGenAmpl:%d genAmpl:%d b:%s bid:%d\n",
-                    coder,cc0,cc,voices[coder].coderSwF,voices[coder].coderGenAmpl,voices[coder].genAmpl,buf,bid); 
+                // display
+                buf[0]=coder+48;
+                sprintf(buf+2,"%2d  %d      ",cc,ccAmpl);               // actual ampl value                   
+                if(coder<VOICES_NB){
+                        tft_draw_text_12x12_dma_mult(0,coder*(12*2+1)+27,buf,0x07EF,0x0000,1);}     // coders 0->VOICES_NB-1 voice.gen ; 
+                else    tft_draw_text_12x12_dma_mult(0,coder*(12*2+1)+27+12,buf,0x07EF,0x0000,1);   // coder VOICES_NB genGen (voir fillVoicesBuffer)
+
+                printf("coder:%d cc:%d sw:%d coderGenAmpl:%d genAmpl:%d b:%s \n",
+                    coder,cc,voices[coder].coderSwF,voices[coder].coderGenAmpl,voices[coder].genAmpl,buf); 
             }
         }
         firstDisplay=false;    

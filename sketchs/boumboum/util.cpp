@@ -228,22 +228,16 @@ void setup(){
     uint8_t channel=0;
 
     float fr0=440;
-    voiceInit(fr0,voices);
-    uint8_t cga=31;
-
-    for(uint8_t ch=0;ch<VOICES_NB;ch++){
-        voices[ch].genAmpl=amplLevel[cga];
-        voices[ch].coderGenAmpl=cga;
-        voices[ch].maxCoderGenAmpl=cga;
-    }
+    uint8_t cga=30;
+    voiceInit(voices,fr0,cga);
 
     i2s_dma_buffers[0]=i2s_buf0;
     i2s_dma_buffers[1]=i2s_buf1;
     what=W_SINUS;
     uint8_t whatAmpl=31;
     voices[channel].coderAmpl[W_SINUS]=whatAmpl;
-    voices[channel].coderAmpl0[W_SINUS]=whatAmpl;
-    voices[channel].maxCoderAmpl[W_SINUS]=31;
+    //voices[channel].coderAmpl0[W_SINUS]=whatAmpl;
+    voices[channel].maxCoderAmpl=31;
     voices[channel].basicWaveAmpl[W_SINUS]=getAmpl(&voices[channel],W_SINUS);
     printf("what:%d coderAmpl:%d ampl:%d\n",what,whatAmpl,voices[channel].basicWaveAmpl[W_SINUS]);delay_ms(100);
     next_sound_feeding(i2s_dma_buffers[0],SAMPLES_PER_BUFFER,0);
@@ -252,6 +246,7 @@ void setup(){
 
     //dumpStr(i2s_buf0,256);delay_ms(1000);
     scope(i2s_buf0,SAMPLES_PER_BUFFER,voices[channel].frequency);
+    printf("---\n");
     while(gpio_get(CODER_GPIO_SW)==1){
         debug_ticker();
     }
