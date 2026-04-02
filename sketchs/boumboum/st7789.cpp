@@ -116,9 +116,8 @@ static void tft_set_window(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) {
     tft_cmd(0x2C);
 }
 
-void st_dma_launch(uint8_t* frame,uint16_t x,uint16_t y,uint16_t w,uint16_t h){      // wait for end of current st dma usage ; 
-                                                            // if blank running -> load sched and run
-
+void st_dma_launch(uint8_t* frame,uint16_t x,uint16_t y,uint16_t w,uint16_t h){     // wait for end of current st dma usage ; 
+                                                                                    // if blank running -> load sched and run                                                           
     while(1){ 
         
         uint32_t f = spin_lock_blocking(st_dma_lock); //protège st_dma_done_xxx et sched_xxx contre un accès asynchrone
@@ -130,7 +129,7 @@ void st_dma_launch(uint8_t* frame,uint16_t x,uint16_t y,uint16_t w,uint16_t h){ 
         // sinon si st_dma_done_blank est false (blank en cours)
         // si sched dispo store and run
         // sinon wait    
-        
+
         if(st_dma_free){            // dma free -> launch & run
             st_dma_free=false; 
             st_sched_free=true;
@@ -148,7 +147,7 @@ void st_dma_launch(uint8_t* frame,uint16_t x,uint16_t y,uint16_t w,uint16_t h){ 
                 w*h*2,
                 true
             );
-            spin_unlock(st_dma_lock, f);          
+            spin_unlock(st_dma_lock, f);    
             return;
         }
 
@@ -168,7 +167,7 @@ void st_dma_launch(uint8_t* frame,uint16_t x,uint16_t y,uint16_t w,uint16_t h){ 
         }
 
         spin_unlock(st_dma_lock, f);
-        sleep_us(100);
+        sleep_us(100);   
     }
 
 }
@@ -189,7 +188,7 @@ void st_dma_wait_blank(){       // wait for end of current st dma usage -- speci
 volatile bool get_st_dma_free(){return st_dma_free;}
 
 void st_dma_irq_handler() {
-//printf(">) d:%d b:%d s:%d\n",st_dma_free,st_dma_done_blank,st_sched_free);
+
     while (spi_is_busy(spi0)) {
         tight_loop_contents();
     }
@@ -220,8 +219,7 @@ void st_dma_irq_handler() {
         st_buffer_free=true;           
         st_dma_free=true;
     }
-
-//printf("<) d:%d b:%d s:%d\n",st_dma_free,st_dma_done_blank,st_sched_free);    
+  
     dma_hw->ints0 = 1u << st_dma_chan;   // clear IRQ
 }
 
@@ -239,10 +237,7 @@ int init_dma_spi() {
     channel_config_set_dreq(&dma_cfg, DREQ_SPI0_TX);
    
     dma_channel_set_irq1_enabled(st_dma_chan, true);
-#ifndef GLOBAL_DMA_IRQ_HANDLER 
-    irq_set_exclusive_handler(DMA_IRQ_1, st_dma_irq_handler);
-    irq_set_enabled(DMA_IRQ_1, true);
-#endif
+
     return st_dma_chan;
 }
 
@@ -272,7 +267,7 @@ int st7789_setup(uint32_t spiSpeed)
 
     memset(tft_frame_blk,0x00,FRAME_SIZE);
 
-    tft_fill_rect_blank(0,0,TFT_H,TFT_W);//sleep_ms(50);
+    tft_fill_rect_blank(0,0,TFT_H,TFT_W);
     gpio_put(ST7789_PIN_BL, 1);
     printf("st7789_Setup done\n");
     delay_ms(100);
@@ -554,10 +549,7 @@ void tft_draw_text_12x12_block(
 // ---------------------------------------------------------
 void tft_draw_text_12x12_dma_mult(uint16_t x,uint16_t y,const char *s,uint16_t fg,uint16_t bg,int8_t mult)
 {
-    printf("///3 %s\n",s);
     st_dma_wait();
-
-    printf("///4 %s\n",s);
 
     if(mult<1){mult=1;}
 
@@ -623,9 +615,7 @@ uint16_t tft_draw_float_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_
     memset(st,0x00,MAXL);
     uint8_t l=convNumToString(st,num);
     if(len>l && len!=0){memset(st+l,' ',len-l);}
-    printf("///1 %s\n",st);
     tft_draw_text_12x12_dma_mult(x,y,st,fg,bg,mult);
-    printf("///2\n");delay_ms(10);
     return strstr(st,"\0")-st;
 }
 
@@ -657,8 +647,7 @@ void scope(int32_t* buf,uint32_t len,float f){
     for(uint8_t i=0;i<TFT_W;i+=3){tft_frame[2*((TFT_H/2)*TFT_W+i)]=fgcolor;}
 
     st_dma_launch(tft_frame,0,0,TFT_W,TFT_H);
-
-    printf("%f\n",f);delay_ms(10);
+   
     tft_draw_float_12x12_dma_mult(TFT_W*2/3,0,0xf81f,0,1,f,6);
     printf("***\n");
 }

@@ -55,40 +55,6 @@ static repeating_timer millisTimer;
 
 //float amplIncr[MAX_16B_LINEAR_VALUE];
 
-
-// ******** coders functions handling ********
-
-#ifdef MUXED_CODERS
-int8_t ccbChanged(int32_t* ccb,int32_t ccb0){
-    for(uint8_t i=0;i<CODER_NB;i++){if(ccb[i]!=ccb0[i]){return i;}}
-    return -1;
-}
-
-void adsr(int32_t* ccb,int32_t ccb0){}
-
-// 16 bits values with constant sum
-void autoMixer(int32_t* ccb,uint32_t ccb0){
-    int8_t c=ccbChanged(int32_t* ccb,uint32_t ccb0);
-    if(c<0){return;}                                    // no change
-    int32_t v=ccb[i]-ccb0[i];
-    if(v>0){
-        for(uint8_t k=0;k<CODER_NB;k++){
-            if(ccb[k]>(MAX_16B_LINEAR_VALUE-1-v)){ccb[c]=ccb0[c];return;}      // no change : value in excess
-        }
-    }
-    else {
-        for(uint8_t k=0;k<CODER_NB;k++){
-            if(ccb[k]<=1+v){ccb[c]=ccb0[c];return;}               // no change : value in excess
-        }
-    }
-    for(uint8_t i=0;i<CODER_NB;i++){
-        if(i==c){ccb[i]=ccb0[i]+v*(CODER_NB-1);}
-        else ccb[i]+=v;
-    }
-    // ccb 16bits linear values to be changed to exponential (ie v*2^n)
-}
-#endif// MUXED_CODERS
-
 // ******** global setup ********
 
 /*
@@ -142,18 +108,6 @@ void init_pwm_timer_1khz() {
     irq_set_enabled(PWM_IRQ_WRAP, true);
 }
 
-/*
-static bool __not_in_flash_func(millisTimerHandler)(repeating_timer *t){
-    millisCounter++;
-    //coderTimerHandler();
-//    if(millisCounter%1000==0){
-//        tft_draw_int_12x12_dma_mult(165,12,0xffff,0x0000,1,millisCounter/1000);}
-//        tft_draw_int_12x12_dma_mult(180,12,0xffff,0x0000,1,dma_tfr_count);}
-    return true;
-}
-*/
-
-
 void quick_delay(uint32_t us){           // 0/1-> 2.33uS 5->8.33 10->14.25  env 1.2uS par step +2.25 init
     for(uint32_t i=0;i<us;i++){
         __asm volatile("nop");
@@ -169,18 +123,16 @@ void delayBlk(uint8_t sec){
     sleep_ms(950);gpio_put(LED,HIGH);sleep_ms(50);gpio_put(LED,LOW);}
 }
 
-#ifdef GLOBAL_DMA_IRQ_HANDLER
-
 void global_dma_irq_handler(){
 
     //gpio_put(TST_PIN,HIGH);    
     
     uint32_t global_dma_irq_status = dma_hw->intr;
 
-    if((global_dma_irq_status & (1u << ws_dma_channel))!=0){
+    if((global_dma_irq_status & (1u << ws_dma_channel))!=0){       
         ws_dma_irq_handler();
     } 
-    if((global_dma_irq_status & (1u << st_dma_channel))!=0){
+    if((global_dma_irq_status & (1u << st_dma_channel))!=0){     
         st_dma_irq_handler();
     }
     
@@ -191,7 +143,6 @@ void init_global_dma_irq(){
     irq_set_exclusive_handler(DMA_IRQ_1, global_dma_irq_handler);
     irq_set_enabled(DMA_IRQ_1, true);
 }
-#endif  // GLOBAL_DMA_IRQ_HANDLER
 
 void setup(){
 
@@ -218,9 +169,7 @@ void setup(){
     st_dma_channel=st7789_setup(ST7789_SPI_SPEED);
     if(st_dma_channel<0){LEDBLINK_ERROR_DMA}
 
-    #ifdef GLOBAL_DMA_IRQ_HANDLER
     init_global_dma_irq();
-    #endif
 
     // ****** sound ******
     sound_tables_init();
@@ -246,7 +195,6 @@ void setup(){
 
     //dumpStr(i2s_buf0,256);delay_ms(1000);
     scope(i2s_buf0,SAMPLES_PER_BUFFER,voices[channel].frequency);
-    printf("---\n");
     while(gpio_get(CODER_GPIO_SW)==1){
         debug_ticker();
     }

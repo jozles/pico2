@@ -28,7 +28,6 @@ void scope(int32_t* buf,uint32_t len,float f);
 void debug_ticker();
 void test_st7789();
 void test_st7789_2();
-#ifdef GLOBAL_DMA_IRQ_HANDLER 
 void st_dma_irq_handler();
-#endif
+
 #endif //_ST7789_H_

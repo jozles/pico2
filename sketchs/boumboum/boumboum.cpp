@@ -64,7 +64,7 @@ volatile bool voicesSw[CODER_NB];                // coder it handler scans all p
 //volatile int16_t amplitude=0;
 extern uint16_t amplLevel[];
 
-uint16_t genGenApml=0;
+//uint16_t genGenApml=0;
 
 // ws2812
 

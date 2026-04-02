@@ -104,10 +104,6 @@
 #define LED 25              // pico2 built_in
 #define LED_PIN LED
 
-/* dma */
-
-#define GLOBAL_DMA_IRQ_HANDLER
-
 /* Ws2812 */
 
 #define PICO_WS2812_PIO 1
