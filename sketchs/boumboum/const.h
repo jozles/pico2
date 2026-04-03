@@ -21,14 +21,10 @@
 
 /* coder */
 
-#define MUXED_CODER
-
 #define CODER_GPIO_CLOCK       10          
 #define CODER_GPIO_DATA        11          
 #define CODER_GPIO_SW          12
 #define CODER_GPIO_VCC         22
-
-#ifdef MUXED_CODER
 
 #define CODER_NB                8
 #define CODER_BANK_NB           6
@@ -52,7 +48,6 @@
 #define RELEASE                 5       // realease duration
 #define SUSTAIN_LEVEL           6       // sustain level
 
-#endif // MUXED_CODER
 
 #define LOW 0
 #define OFF 0
@@ -73,7 +68,6 @@
 
 /* Voices */
 
-#ifdef MUXED_CODER
 #define VOICES_NB 2 // CODER_NB
 
 /* fonc names */
@@ -93,15 +87,6 @@
 #define MAX_FONC 12
 
 #define CODER_COUNTERS MAX_FONC*CODER_NB
-#endif // MUXED_CODER
-
-#ifndef MUXED_CODER
-#define CODER_FREQUENCY 0
-#define VOICES_NB 1
-#define CODER_NB  1
-#define CODER_BANK_NB  1
-#define CODER_COUNTERS 1
-#endif  // MUXED_CODER
 
 /* led */
 

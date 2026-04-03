@@ -560,7 +560,7 @@ void tft_draw_text_12x12_dma_mult(uint16_t x,uint16_t y,const char *s,uint16_t f
     if(mult<1){mult=1;}
 
     int len = 0;
-    while (s[len]) len++;if(len>31){while(1){sleep_ms(250);gpio_put(LED,0);sleep_ms(250);gpio_put(LED,1);}};
+    while (s[len]) len++;if(len>31){printf("tft_draw_text_12x12_dma_mult ovf\n");while(1){sleep_ms(250);gpio_put(LED,0);sleep_ms(250);gpio_put(LED,1);}};
 
     uint8_t st=0;if(mult>1){st=2;}  // rétrécit la largeur/hauteur des caractères en mode mult
     int idx = 0;

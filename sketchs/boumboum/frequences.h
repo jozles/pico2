@@ -44,17 +44,17 @@ struct Voice {
     uint32_t    stepFra;                        // partie fractionnaire du step
     uint16_t    currEch;                        // dernier N° d'ech utilisé
     uint32_t    currEchFra;                     // dernière valeur fractionnaire de n° d'ech calculée  
-    float       newFrequency;     
-    uint16_t    newStepInt;
-    uint32_t    newStepFra;
+    //float       newFrequency;     
+    //uint16_t    newStepInt;
+    //uint32_t    newStepFra;
     uint32_t    noisePhase;                     // Q16.16
     uint32_t    noiseStep;                      // Q16.16 
     //float       freqRateRatio;
     //float       newFreqRateRatio;                   
     uint16_t    basicWaveAmpl[BASIC_WAVES_NB];  // ampl value for coderAmpl value
     int16_t     coderAmpl[BASIC_WAVES_NB];      // last coder value for ampl
-    int16_t     coderAmpl0[BASIC_WAVES_NB];     // prev coder value for ampl
-    uint16_t    maxCoderAmpl[BASIC_WAVES_NB];   // max value for coderAmpl
+    //int16_t     coderAmpl0[BASIC_WAVES_NB];     // prev coder value for ampl
+    uint16_t    maxCoderAmpl;                   // max value for coderAmpl
     uint16_t    genAmpl;                        // ampl value for global voice
     volatile int16_t     coderGenAmpl;
     uint16_t    maxCoderGenAmpl;                // max value for coderGenAmpl

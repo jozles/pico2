@@ -8,15 +8,6 @@
 #include "st7789.h"
 
 
-#ifndef MUXED_CODER
-uint8_t coderItStatus=0;                    // coder decoding status
-bool coderClock=0;                          // current physical coder clock value
-bool coderClock0=0;                         // previous physical coder clock value
-bool coderData=0;                           // current physical coder data value
-bool coderData0=0;                          // previous physical coder data value
-bool coderSwitch=0;                         // current physical coder switch value
-#endif // MUXED_CODER
-
 uint16_t coderTimerPoolingInterval=1;       // delay betxeen Its (mS) changed by init
 uint8_t coderStrobeNumber=3;                // 1st strobe delay (2nd strobe delay is 1)
 volatile int16_t* coderTimerCount=nullptr;  // ptr to current value to be inc or dec

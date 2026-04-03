@@ -246,7 +246,6 @@ void voiceInit(uint16_t coderF,Voice* voices)
         float f=calcFreq(voices[v].coderFreq);          // 440Hz
         setNewFrequency(f,&voices[v]);    
         voices[v].frequency=f;
-        voices[v].newFrequency=voices[v].frequency;
 
         voices[v].sampleNbToFill=SAMPLE_BUFFER_SIZE;    
         voices[v].currentSample=0;
@@ -256,10 +255,9 @@ void voiceInit(uint16_t coderF,Voice* voices)
         voices[v].noisePhase = 0;           // Q16.16
         voices[v].noiseStep  = 60817408;    // Q16.16
 
+        voices[v].maxCoderAmpl=31;
         for(uint8_t i=0;i<W_NB;i++){
             voices[v].coderAmpl[i]=0;
-            voices[v].coderAmpl0[i]=99;     // force basicWaveAmpl update
-            voices[v].maxCoderAmpl[i]=31;
             voices[v].basicWaveAmpl[i]=0;
             voices[v].coderSw[i]=0;
         }
@@ -273,11 +271,11 @@ void voiceInit(float freq,Voice* voices){
 // update voice[].newFrequency - compute newSteps
 void setNewFrequency(float freq,Voice* v){
     
-    v->newFrequency=freq;
+    v->frequency=freq;
 
-    float k=(uint32_t)BASIC_WAVE_TABLE_LEN*v->newFrequency/SAMPLE_RATE;
-    v->newStepInt=(uint32_t)k;
-    v->newStepFra=(uint32_t)((k-v->newStepInt)*MAX_STEP_FRA);
+    float k=(uint32_t)BASIC_WAVE_TABLE_LEN*v->frequency/SAMPLE_RATE;
+    v->stepInt=(uint32_t)k;
+    v->stepFra=(uint32_t)((k-v->stepInt)*MAX_STEP_FRA);
 }
 
 uint16_t getAmpl(Voice* v,uint8_t wav){
@@ -305,15 +303,6 @@ gpio_put(TST_PIN,HIGH);
     int32_t  waveAmplPnk  = v->basicWaveAmpl[W_PINK_NOISE];
     int32_t* voiceBuffer=&vBuffer[0];
 
-    if(v->newFrequency!=0){
-      stepInt=v->newStepInt;
-      v->stepInt=stepInt;
-      stepFra=v->newStepFra;
-      v->stepFra=stepFra;
-      v->frequency=v->newFrequency;
-      v->newFrequency=0;
-    } 
-    
     for(uint32_t s = 0; s < v->sampleNbToFill; s++)
     {
 

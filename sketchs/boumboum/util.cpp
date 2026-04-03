@@ -58,37 +58,6 @@ static repeating_timer millisTimer;
 
 // ******** coders functions handling ********
 
-#ifdef MUXED_CODERS
-int8_t ccbChanged(int32_t* ccb,int32_t ccb0){
-    for(uint8_t i=0;i<CODER_NB;i++){if(ccb[i]!=ccb0[i]){return i;}}
-    return -1;
-}
-
-void adsr(int32_t* ccb,int32_t ccb0){}
-
-// 16 bits values with constant sum
-void autoMixer(int32_t* ccb,uint32_t ccb0){
-    int8_t c=ccbChanged(int32_t* ccb,uint32_t ccb0);
-    if(c<0){return;}                                    // no change
-    int32_t v=ccb[i]-ccb0[i];
-    if(v>0){
-        for(uint8_t k=0;k<CODER_NB;k++){
-            if(ccb[k]>(MAX_16B_LINEAR_VALUE-1-v)){ccb[c]=ccb0[c];return;}      // no change : value in excess
-        }
-    }
-    else {
-        for(uint8_t k=0;k<CODER_NB;k++){
-            if(ccb[k]<=1+v){ccb[c]=ccb0[c];return;}               // no change : value in excess
-        }
-    }
-    for(uint8_t i=0;i<CODER_NB;i++){
-        if(i==c){ccb[i]=ccb0[i]+v*(CODER_NB-1);}
-        else ccb[i]+=v;
-    }
-    // ccb 16bits linear values to be changed to exponential (ie v*2^n)
-}
-#endif// MUXED_CODERS
-
 // ******** global setup ********
 
 /*
@@ -201,12 +170,7 @@ void setup(){
     gpio_put(PIN_DCDC_PSM_CTRL, 1); // PWM mode for less Audio noise   
 
     // ****** coders ******
-    #ifndef MUXED_CODER
-    coderInit(CODER_GPIO_CLOCK,CODER_GPIO_DATA,CODER_GPIO_SW,CODER_GPIO_VCC,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER);
-    #endif  // MUXED_CODER
-    #ifdef MUXED_CODER
-    coderInit(CODER_GPIO_CLOCK,CODER_GPIO_DATA,CODER_GPIO_SW,CODER_GPIO_VCC,CODER_PIO_SEL0,CODER_SEL_NB,CODER_NB,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER);
-    #endif // MUXED_CODER   
+    coderInit(CODER_GPIO_CLOCK,CODER_GPIO_DATA,CODER_GPIO_SW,CODER_GPIO_VCC,CODER_PIO_SEL0,CODER_SEL_NB,CODER_NB,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER); 
 
     init_pwm_timer_1khz();  // millitimers+coders
 
@@ -242,8 +206,6 @@ void setup(){
     what=W_SINUS;
     uint8_t whatAmpl=31;
     voices[channel].coderAmpl[W_SINUS]=whatAmpl;
-    voices[channel].coderAmpl0[W_SINUS]=whatAmpl;
-    voices[channel].maxCoderAmpl[W_SINUS]=31;
     voices[channel].basicWaveAmpl[W_SINUS]=getAmpl(&voices[channel],W_SINUS);
     printf("what:%d coderAmpl:%d ampl:%d\n",what,whatAmpl,voices[channel].basicWaveAmpl[W_SINUS]);delay_ms(100);
     next_sound_feeding(i2s_dma_buffers[0],SAMPLES_PER_BUFFER,0);
@@ -268,7 +230,7 @@ void setup(){
 
     tft_draw_text_12x12_dma_mult((TFT_W-(7*10))/2,TFT_H/2+14,s, 0xF81F, 0x0000,1); 
 
-    const char* v="v1.3f";
+    const char* v="v1.3g";
     tft_draw_text_12x12_dma_mult((TFT_W-(strlen(v)*10))/2,TFT_H/2+25,v, 0xFFE0, 0x0000,1);
 
     delayBlk(5);

@@ -14,12 +14,6 @@
     Le paramètre CODER_BANK_NB le nombre de codeurs dans le panneau de config
 */
 
-#ifndef MUXED_CODER
-void coderInit(uint8_t pio_ck,uint8_t pio_d,uint8_t pio_sw,uint8_t vc,uint16_t ctpi,uint8_t cstn);
-bool coderTimerHandler();
-#endif // MUXED_CODER
-#ifdef MUXED_CODER
-
 struct Coders{
     uint8_t coderItStatus;            // coder decoding status
     bool coderClock;                  // current physical coder clock value
@@ -34,7 +28,6 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_
 bool coderTimerHandler();
 
 void slow_coder_test(uint32_t ms);
-#endif // MUXED_CODER
 
 void coderSetup(volatile int16_t* cTC,volatile bool* cTS,uint16_t* maxi,uint8_t nb);
 
