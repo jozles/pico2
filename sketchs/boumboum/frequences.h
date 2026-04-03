@@ -54,7 +54,7 @@ struct Voice {
     uint16_t    basicWaveAmpl[BASIC_WAVES_NB];  // ampl value for coderAmpl value
     int16_t     coderAmpl[BASIC_WAVES_NB];      // last coder value for ampl
     //int16_t     coderAmpl0[BASIC_WAVES_NB];     // prev coder value for ampl
-    uint16_t    maxCoderAmpl;                   // max value for coderAmpl
+    uint16_t    maxCoderAmpl[BASIC_WAVES_NB];   // max value for coderAmpl
     uint16_t    genAmpl;                        // ampl value for global voice
     volatile int16_t     coderGenAmpl;
     uint16_t    maxCoderGenAmpl;                // max value for coderGenAmpl
@@ -74,8 +74,8 @@ struct Voice {
 
 
 void sound_tables_init();
-void voiceInit(float freq,Voice* v);
-void voiceInit(uint16_t coderF,Voice* v);
+void voicesInit(Voice* v,float freq,uint8_t cga);
+void voicesInit(Voice* v,uint16_t coderF,uint8_t cga);
 void fillVoiceBuffer(int32_t* sampleBuffer,Voice* v,uint8_t what,uint8_t bufNum);
 void setNewFrequency(float freq,Voice* v);
 float calcFreq(uint16_t val);

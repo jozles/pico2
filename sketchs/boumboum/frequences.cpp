@@ -235,17 +235,19 @@ void sound_tables_init()
   fillAmplIncr();
 }
 
-void voiceInit(uint16_t coderF,Voice* voices)
+void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)
 {
-
     for(uint8_t v=0;v<VOICES_NB;v++){
         voices[v].maxCoderFreq=10000;
         voices[v].genAmpl=0x7fff;
 
-        voices[v].coderFreq=1943;
+        voices[v].genAmpl=amplLevel[cga];
+        voices[v].coderGenAmpl=cga;
+        voices[v].maxCoderGenAmpl=MAX_16B_LINEAR_VALUE;
+
+        voices[v].coderFreq=coderF;
         float f=calcFreq(voices[v].coderFreq);          // 440Hz
         setNewFrequency(f,&voices[v]);    
-        voices[v].frequency=f;
 
         voices[v].sampleNbToFill=SAMPLE_BUFFER_SIZE;    
         voices[v].currentSample=0;
@@ -255,17 +257,17 @@ void voiceInit(uint16_t coderF,Voice* voices)
         voices[v].noisePhase = 0;           // Q16.16
         voices[v].noiseStep  = 60817408;    // Q16.16
 
-        voices[v].maxCoderAmpl=31;
         for(uint8_t i=0;i<W_NB;i++){
             voices[v].coderAmpl[i]=0;
+            voices[v].maxCoderAmpl[i]=MAX_16B_LINEAR_VALUE;
             voices[v].basicWaveAmpl[i]=0;
             voices[v].coderSw[i]=0;
         }
     }
 }
 
-void voiceInit(float freq,Voice* voices){
-   voiceInit(calcCoderFreq(freq),voices);
+void voicesInit(Voice* voices,float freq,uint8_t cga){
+   voicesInit(voices,calcCoderFreq(freq),cga);
 }   
 
 // update voice[].newFrequency - compute newSteps
