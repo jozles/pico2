@@ -32,7 +32,7 @@ void showAmplIncr(){
   printf("\n");
 }
 
-void fillAmplIncr(){
+void fillAmplIncr(){          // fonctionne avec stepAmpl mini 2 !!!
 
   amplLevel[0]=0;
 
@@ -281,6 +281,7 @@ void setNewFrequency(float freq,Voice* v){
 }
 
 uint16_t getAmpl(Voice* v,uint8_t wav){
+  //printf("coderAmpl:%d wav:%d lev:%d :%d\n",v->coderAmpl[wav],wav,amplLevel[v->coderAmpl[wav]],amplLevel[31]);
   return amplLevel[v->coderAmpl[wav]];
 }
 
