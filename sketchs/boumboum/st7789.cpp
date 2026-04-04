@@ -116,9 +116,14 @@ static void tft_set_window(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) {
     tft_cmd(0x2C);
 }
 
-void st_dma_launch(uint8_t* frame,uint16_t x,uint16_t y,uint16_t w,uint16_t h){      // wait for end of current st dma usage ; 
-                                                            // if blank running -> load sched and run
-
+// -----------------------------------------------------------
+// wait for end of current st dma usage 
+// if blank running -> load sched and run
+//
+// x,y window upper left corner ; w,h size
+// -----------------------------------------------------------
+void st_dma_launch(uint8_t* frame,uint16_t x,uint16_t y,uint16_t w,uint16_t h){       
+                                                            
     while(1){ 
         
         uint32_t f = spin_lock_blocking(st_dma_lock); //protège st_dma_done_xxx et sched_xxx contre un accès asynchrone
@@ -629,7 +634,7 @@ uint16_t tft_draw_float_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_
     return tft_draw_float_12x12_dma_mult(x,y,fg,bg,mult,num,0);
 }
 
-void scope(int32_t* buf,uint32_t len,float f){
+void scope(int32_t* buf,uint32_t len,float f,uint16_t begline){
     uint32_t x;
     uint16_t bgcolor=0x0000;
     uint16_t fgcolor=0x07ef;
@@ -637,30 +642,30 @@ void scope(int32_t* buf,uint32_t len,float f){
 
     st_dma_wait();    
 
-    for (int i = 0; i < TFT_H*TFT_W ; i++) {
+    for (int i = 0; i < (TFT_H-begline)*TFT_W ; i++) {        // full buffer erasing
         tft_frame[2*i]     = bgcolor >> 8;
         tft_frame[2*i + 1] = bgcolor & 0xFF;
     }
 
-    for(uint32_t i=0;i<TFT_W;i++){
-        yy=(int32_t)((((float)buf[i*2]/(float)0x7fffffff))*(TFT_H/2));///0x7fffffff;
-        if(abs(yy)>=TFT_H/2){yy=TFT_H/2-1;}      
+    for(uint32_t i=0;i<TFT_W;i++){                  // read buf and generate waveform
+        yy=(int32_t)((((float)buf[i*2]/(float)0x7fffffff))*((TFT_H-begline)/2));
+        if(abs(yy)>=(TFT_H-begline)/2){yy=(TFT_H-begline)/2-1;}      
         x=i;
-        tft_frame[2*((TFT_H/2-yy)*TFT_W+x)]=fgcolor;
+        tft_frame[2*(((TFT_H-begline)/2-yy)*TFT_W+x)]=fgcolor;
         //printf("%3d  b:%9d  yy:%3d  h:%3d\n",i,buf[i*2],yy,(TFT_H/2-yy));
     }
 
-    for(uint8_t i=0;i<TFT_W;i+=3){tft_frame[2*((TFT_H/2)*TFT_W+i)]=fgcolor;}
+    for(uint8_t i=0;i<TFT_W;i+=3){tft_frame[2*(((TFT_H-begline)/2)*TFT_W+i)]=fgcolor;}        // 0 line
 
-    st_dma_launch(tft_frame,0,0,TFT_W,TFT_H);
+    st_dma_launch(tft_frame,0,begline,TFT_W,TFT_H-begline);
 
-    tft_draw_float_12x12_dma_mult(TFT_W*2/3,0,0xf81f,0,1,f,6);
+    tft_draw_float_12x12_dma_mult(TFT_W*2/3,begline,0xf81f,0,1,f,6);
 }
 
 void debug_ticker(){
     if((millisCounter-ticker10)>10000){
         printf("10sec_counter:%d\n",millisCounter/10000);ticker10=millisCounter;
-        tft_draw_int_12x12_dma_mult(0,190, 0x001f,0x0000,1,millisCounter/10000);    
+        tft_draw_int_12x12_dma_mult(190,0,0x001f,0x0000,1,millisCounter/10000);    
     }
 }
 

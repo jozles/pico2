@@ -128,7 +128,6 @@ if (watchdog_caused_reboot()) {
         printf("currVoice:%d\n",currVoice);delay_ms(1);
         if(currVoice<VOICES_NB){coders_for_ampl(currVoice);}
         coders_for_genAmpl();
-    
     }
 }
 
@@ -139,13 +138,16 @@ uint8_t coders_for_ampl(uint8_t currVoice)
     // sw coder debounce
     #define SWIGNORE 2000
     uint32_t swIgnore=millisCounter;
+    bool mode_scope=false;
+    int32_t* i2s_buf=nullptr;
+    uint16_t begline=27;                  
 
     // display title
     tft_fill_rect_blank(0,0,TFT_H,TFT_W);
     #define LINE_LEN TFT_W/12+1
     char buf[LINE_LEN];memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
-    sprintf(buf,"voice:%d %4.3f amp",currVoice,voices[currVoice].frequency);
-    tft_draw_text_12x12_dma_mult(0,0,buf,BLUE,0x0000,1);
+    sprintf(buf,"v:%d %4.3f amp",currVoice,voices[currVoice].frequency);
+    tft_draw_text_12x12_dma_mult(0,0,buf,0x001f,0x0000,1);
     volatile bool firstDisplay=true;
 
     for(uint8_t a=0;a<W_NB;a++){voicesWaveAmplCoders[a]=voices[currVoice].coderAmpl[a];}
@@ -155,14 +157,14 @@ uint8_t coders_for_ampl(uint8_t currVoice)
 
         gpio_put(TST_PIN,1);
 
-        if(i2s_buf_free[0]){fillVoiceBuffer(i2s_buffer[0],&voices[currVoice],0,0);}
-        if(i2s_buf_free[1]){fillVoiceBuffer(i2s_buffer[1],&voices[currVoice],0,1);}
+        if(i2s_buf_free[0]){fillVoiceBuffer(i2s_buffer[0],&voices[currVoice],0,0);i2s_buf=i2s_buffer[0];}
+        if(i2s_buf_free[1]){fillVoiceBuffer(i2s_buffer[1],&voices[currVoice],0,1);i2s_buf=i2s_buffer[1];}
 
         gpio_put(TST_PIN,0);
         
         ws_show_3(30);
         ledblinkn(2);
-        test_st7789_2();    // animation balayage de lignes
+        if(!mode_scope){test_st7789_2();}    // animation balayage de lignes
         debug_ticker();
 
         for(uint8_t coder=0;coder<W_NB;coder++){
@@ -171,9 +173,15 @@ uint8_t coders_for_ampl(uint8_t currVoice)
             if((millisCounter-swIgnore)>=SWIGNORE){ 
                 volatile int vs=voicesSw[coder];          
                 voices[coder].coderSwF=vs;
-                if((volatile int)vs==0){
-                    voicesSw[coder]=1;
-                    return coder;}
+                if(vs==0){ 
+                    if(coder==W_NB-1){         // return             
+                        voicesSw[coder]=1;
+                        return coder;}
+                    else {
+                        mode_scope=!mode_scope;
+                        tft_fill_rect_blank(begline,0,TFT_H-begline,TFT_W);
+                    }
+                }
             }
          
             // gestions coders
@@ -193,15 +201,17 @@ uint8_t coders_for_ampl(uint8_t currVoice)
                 }
 
                 // display
-                buf[0]=coder+48;
-                sprintf(buf+2,"%2d  %5d",cc,voices[currVoice].basicWaveAmpl[coder]);          
-
-                tft_draw_text_12x12_dma_mult(0,coder*(12*2+1)+27,buf,GREEN,0x0000,1);
+                if(!mode_scope){
+                    buf[0]=coder+48;
+                    sprintf(buf+2,"%2d  %5d",cc,voices[currVoice].basicWaveAmpl[coder]);          
+                    tft_draw_text_12x12_dma_mult(0,coder*(12*2+1)+begline,buf,GREEN,0x0000,1);
+                }
                 printf("coder:%d cc:%d sw:%d ampl:%d waveAmpl:%d b:%s\n",
                     coder,cc,voices[currVoice].coderSw[coder],voices[currVoice].coderAmpl[coder],voices[currVoice].basicWaveAmpl[coder],buf);       
             }
         }
-        firstDisplay=false;   
+        firstDisplay=false;
+        if(mode_scope && i2s_buf!=nullptr){scope(i2s_buf,SAMPLES_PER_BUFFER,voices[currVoice].frequency,begline);}   
     }
 }
 

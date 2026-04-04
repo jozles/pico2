@@ -207,7 +207,7 @@ void setup(){
     i2sSetup(_i2s_pio,PICO_AUDIO_I2S_DATA_PIN,i2s_dma_buffers);
 
     //dumpStr(i2s_buf0,256);delay_ms(1000);
-    scope(i2s_buf0,SAMPLES_PER_BUFFER,voices[channel].frequency);
+    scope(i2s_buf0,SAMPLES_PER_BUFFER,voices[channel].frequency,0);
     while(gpio_get(CODER_GPIO_SW)==1){
         debug_ticker();
         ledblinkn(3);
