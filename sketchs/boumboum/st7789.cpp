@@ -633,8 +633,8 @@ uint16_t tft_draw_float_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_
 uint16_t tft_draw_float_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_t bg,int8_t mult,float num){
     return tft_draw_float_12x12_dma_mult(x,y,fg,bg,mult,num,0);
 }
-
-void scope(int32_t* buf,uint32_t len,float f,uint16_t begline){
+// display scope lookout of buf values ; len =buf size ; f freq ; begline first available line ; fd freq display
+void scope(int32_t* buf,uint32_t len,float f,uint16_t begline,bool fd){
     uint32_t x;
     uint16_t bgcolor=0x0000;
     uint16_t fgcolor=0x07ef;
@@ -659,7 +659,7 @@ void scope(int32_t* buf,uint32_t len,float f,uint16_t begline){
 
     st_dma_launch(tft_frame,0,begline,TFT_W,TFT_H-begline);
 
-    tft_draw_float_12x12_dma_mult(TFT_W*2/3,begline,0xf81f,0,1,f,6);
+    if(fd){tft_draw_float_12x12_dma_mult(TFT_W*2/3,begline,0xf81f,0,1,f,6);}
 }
 
 void debug_ticker(){

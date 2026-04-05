@@ -23,6 +23,22 @@ uint8_t stepAmpl=MAX_16B_LINEAR_VALUE/16;     // nbre d'intervalles / 3db
 uint16_t amplLevel[MAX_16B_LINEAR_VALUE];
 
 extern volatile bool i2s_buf_free[];
+extern uint32_t millisCounter;
+
+// current lfo values (lfoHandler triger'd by pwmIrqHandler)
+float       lfosFrequency[LFOS_NB];                  // current lfo freq
+int16_t     coderLfos[LFOS_NB];                      // last coder value for freq
+uint16_t    lfosMaxCoderFreq[LFOS_NB];               // pmax value for lfo coderFreq
+uint16_t    lfosStepInt[LFOS_NB];                    // partie entière du step lfo
+uint32_t    lfosStepFra[LFOS_NB];                    // partie fractionnaire du step lfo
+uint16_t    currLfoEch[LFOS_NB];
+uint32_t    currLfoEchFra[LFOS_NB];
+uint16_t    sineLfo[LFOS_NB];
+uint16_t    squareLfo[LFOS_NB];
+uint16_t    triangleLfo[LFOS_NB];
+uint16_t    sawtoothLfo[LFOS_NB];
+uint32_t    lfoTime=millisCounter;
+uint32_t    lfoTimingInterval=1000/LFOS_SAMPLE_RATE;
 
 void showAmplIncr(){
   printf("  intervalles d'amplitude\n");
@@ -206,7 +222,7 @@ float calcFreq(uint16_t val) // from lin value (0-octIncrNb*OCTNB) to snd value 
   return freq;
 }
 
-uint16_t calcCoderFreq(float freq) // from snd value to coder value
+uint16_t calcCoderFreq(float freq) // from freq value to coder value
 { 
     uint8_t oct = 0;
     while (octFreq[oct+1] <= freq && oct < OCTNB)
@@ -247,7 +263,7 @@ void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)
 
         voices[v].coderFreq=coderF;
         float f=calcFreq(voices[v].coderFreq);          // 440Hz
-        setNewFrequency(f,&voices[v]);    
+        setVoiceFrequency(f,&voices[v]);    
 
         voices[v].sampleNbToFill=SAMPLE_BUFFER_SIZE;    
         voices[v].currentSample=0;
@@ -270,14 +286,67 @@ void voicesInit(Voice* voices,float freq,uint8_t cga){
    voicesInit(voices,calcCoderFreq(freq),cga);
 }   
 
-// update voice[].newFrequency - compute newSteps
-void setNewFrequency(float freq,Voice* v){
+// update voice[].frequency - compute steps
+void setVoiceFrequency(float freq,Voice* v){
     
     v->frequency=freq;
 
     float k=(uint32_t)BASIC_WAVE_TABLE_LEN*v->frequency/SAMPLE_RATE;
     v->stepInt=(uint32_t)k;
     v->stepFra=(uint32_t)((k-v->stepInt)*MAX_STEP_FRA);
+}
+
+// update voice[].lfosFrequency - compute steps
+void setLfosFrequency(float freq,uint8_t l){
+    
+    lfosFrequency[l]=freq;
+
+    float k=(uint32_t)BASIC_WAVE_TABLE_LEN*lfosFrequency[l]/LFOS_SAMPLE_RATE;
+    lfosStepInt[l]=(uint32_t)k;
+    lfosStepFra[l]=(uint32_t)((k-lfosStepInt[l])*MAX_STEP_FRA);
+}
+
+void lfosInit(){
+    for(uint8_t l=0;l<LFOS_NB;l++){
+
+        coderLfos[l]=16;
+        lfosFrequency[l]=calcFreq(coderLfos[l]);
+        lfosMaxCoderFreq[l]=10000;
+        currLfoEch[l]=0;
+        currLfoEchFra[l]=0;
+        lfosStepInt[l]=0;
+        lfosStepFra[l]=0;
+
+        sineLfo[l]=0;
+        squareLfo[l]=0;        
+        triangleLfo[l]=0;
+        sawtoothLfo[l]=0;
+    }
+}
+
+void lfosHandler()
+{
+  if((millisCounter-lfoTime)>lfoTimingInterval){
+    for(uint8_t l=0;l<LFOS_NB;l++){
+
+        uint16_t ce=currLfoEch[l];
+        uint32_t cf=currLfoEchFra[l];
+
+        cf += lfosStepFra[l];
+        uint32_t carry = (cf > MAX_STEP_FRA);
+        cf -= carry * MAX_STEP_FRA;
+        ce += lfosStepInt[l] + carry;
+        ce -= (ce >= BASIC_WAVE_TABLE_LEN) * BASIC_WAVE_TABLE_LEN;
+
+        sineLfo[l]=sineWaveform[ce];
+        squareLfo[l]=squareWaveform[ce];
+        triangleLfo[l]=triangleWaveform[ce];
+        sawtoothLfo[l]=sawtoothWaveform[ce];
+
+        currLfoEch[l]=ce;
+        currLfoEchFra[l]=cf;
+    }
+  }
 }
 
 uint16_t getAmpl(Voice* v,uint8_t wav){

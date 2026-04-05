@@ -30,12 +30,12 @@ uint32_t sel_gpio_mask=0;
 Coders c[CODER_NB];
 
 extern volatile uint32_t millisCounter;
-extern volatile uint32_t probe;
+volatile uint32_t probe;
 
 extern PIO pio;
 
-extern volatile uint32_t int_counter;
-extern volatile bool one_time;
+volatile uint32_t int_counter;
+volatile bool one_time;
 
 
 bool coderTimerHandler(){

@@ -58,6 +58,7 @@ add_executable(boumboum
 	leds.cpp
 	st7789.cpp
 	font12x12.c
+	menus.cpp
 	)
 
 pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/ws2812.pio)
@@ -80,8 +81,8 @@ target_link_libraries(boumboum
 		hardware_pio
 		hardware_spi
 		hardware_pwm
-    	pico_audio_32b
-    	pico_audio_i2s_32b
+    	#pico_audio_32b
+    	#pico_audio_i2s_32b
 )
 
 # Add the standard include files to the build

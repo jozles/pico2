@@ -4,52 +4,16 @@
 #include "const.h"
 #include "coder.h"
 #include "util.h"
-#include "hardware/pio.h"
-#include "hardware/dma.h"
-#include "hardware/pwm.h"
-#include "hardware/watchdog.h"
-#include "bb_i2s.h"
-#include "test.h"
-#include "frequences.h"
-#include "leds.h"
-#include "st7789.h"
 #include "menus.h"
-
-uint8_t currVoice=0;
-
-/*
-// debug
-
-volatile uint32_t int_counter=0;
-volatile bool one_time=false;
-
-// leds
-
-extern volatile uint32_t durOffOn[];
-extern volatile bool led;
-extern volatile uint32_t ledBlinker;
-
-// millis
+#include "st7789.h"
+#include "leds.h"
+#include "frequences.h"
 
 volatile uint32_t millisCounter=0;
-volatile uint32_t probe=0;      // pour debouncer
-uint32_t probeBlinker=0;
 
-// coder 
-
-extern int8_t cOT[];
-
-extern Coders c[];
-
-Coders ct[CODER_NB];                            // cinematic
-
-// voices 
-
-extern int32_t i2s_buf0[];
-extern int32_t i2s_buf1[];
-
-uint8_t currVoice=0;
 Voice voices[VOICES_NB];
+
+Lfo lfos[LFOS_NB];
 
 // frequence/ampl
 
@@ -60,60 +24,37 @@ uint16_t voicesMaxAmplCoders[VOICES_NB];
 volatile bool voicesSw[CODER_NB];                // coder it handler scans all physical coders
 volatile int16_t voicesWaveAmplCoders[W_NB];
 uint16_t voicesMaxWaveAmplCoders[W_NB];
-//volatile int16_t amplitude=0;
 extern uint16_t amplLevel[];
+volatile int16_t lfosFreqCoders[LFOS_NB];
+uint16_t lfosMaxFreqCoders[LFOS_NB];
 
-// ws2812
-
-static PIO pioWs = ws2812_pio;   // pio0 used by i2s
+extern float lfosFrequency[LFOS_NB];             // current lfo freq
+extern int16_t coderLfos[LFOS_NB]; 
 
 // i2s
 
 extern volatile bool i2s_buf_free[];
 extern int32_t* i2s_buffer[];
+int32_t* i2s_buf=nullptr;           // last loaded buffer for scope
 
 // loop
 
 #define SWIGNORE 1000
 uint32_t swIgnore=millisCounter;
-*/
 
-// --------
-/*
-uint8_t coders_for_ampl(uint8_t currVoice);
-uint8_t coders_for_freq();
-uint8_t coders_for_genAmpl();
-*/
+// fill voices buffers
+void fillVoices()
+{
+    gpio_put(TST_PIN,1);
 
-int main() {
+    if(i2s_buf_free[0]){fillVoiceBuffer(i2s_buffer[0],&voices[0],0,0);i2s_buf=i2s_buffer[0];}
+    if(i2s_buf_free[1]){fillVoiceBuffer(i2s_buffer[1],&voices[0],0,1);i2s_buf=i2s_buffer[1];}
 
-    stdio_init_all();
-
-    sleep_ms(1000);
-
-    gpio_init(TST_PIN);gpio_set_dir(TST_PIN,GPIO_OUT); gpio_put(TST_PIN,LOW);    
-    gpio_init(LED);gpio_set_dir(LED,GPIO_OUT); gpio_put(LED,LOW);
-    delayBlk(3);        
-    printf("\n+boumboum= \n");
-    
-if (watchdog_caused_reboot()) {
-    printf("RESET = WATCHDOG\n");
-} else {
-    printf("RESET = NORMAL\n");
+    gpio_put(TST_PIN,0);
 }
 
-    setup();
-
-#ifdef BB_TEST_MODE
-
-    init_test_7789(20,25*8,0,TFT_H-12*8,TFT_H,1);       // init screen animation
-
-    //voicesInit(voices,(uint16_t)1943);
-    
-    i2s_start();                                        // launch sound output
-
-    /*
-    // ****** inits ******
+// ****** inits ******
+void menus_init(){    
     for(uint8_t v=0;v<VOICES_NB;v++){
         voicesFreqCoders[v]=voices[v].coderFreq; // 440Hz @1943 _ 1944 force first display
         voicesMaxFreqCoders[v]=voices[v].maxCoderFreq;
@@ -131,26 +72,12 @@ if (watchdog_caused_reboot()) {
     for(uint8_t c=0;c<CODER_NB;c++){
         voicesSw[c]=1;
     }
-    */
-
-    menus_init();
-
-    while(1){
-        currVoice=coders_for_freq(currVoice);
-        printf("currVoice:%d\n",currVoice);delay_ms(1);
-        if(currVoice<VOICES_NB){coders_for_wavesAmpl(currVoice);}
-        else if(currVoice=VOICES_NB-1){
-            currVoice=coders_for_lfos_freq(currVoice);}
-        else coders_for_genAmpl(currVoice);
-    }
 }
 
-/*
 // ****** coders for voice[currvoice] ampl ******
-uint8_t coders_for_ampl(uint8_t currVoice)
+uint8_t coders_for_wavesAmpl(uint8_t currVoice)
 { 
     bool mode_scope=false;
-    int32_t* i2s_buf=nullptr;
     uint16_t begline=27;                  
 
     // display title
@@ -166,12 +93,7 @@ uint8_t coders_for_ampl(uint8_t currVoice)
     
     while (1) {
 
-        gpio_put(TST_PIN,1);
-
-        if(i2s_buf_free[0]){fillVoiceBuffer(i2s_buffer[0],&voices[currVoice],0,0);i2s_buf=i2s_buffer[0];}
-        if(i2s_buf_free[1]){fillVoiceBuffer(i2s_buffer[1],&voices[currVoice],0,1);i2s_buf=i2s_buffer[1];}
-
-        gpio_put(TST_PIN,0);
+        fillVoices();
         
         ws_show_3(30);
         ledblinkn(2);
@@ -228,7 +150,7 @@ uint8_t coders_for_ampl(uint8_t currVoice)
 }
 
 // ****** coders for voice[].freq ******
-uint8_t coders_for_freq()
+uint8_t coders_for_freq(uint8_t currVoice)
 {
     // display title
     tft_fill_rect_blank(0,0,TFT_H,TFT_W);
@@ -242,12 +164,7 @@ uint8_t coders_for_freq()
 
     while (1) {
 
-gpio_put(TST_PIN,1);
-
-if(i2s_buf_free[0]){fillVoiceBuffer(i2s_buffer[0],&voices[currVoice],0,0);}
-if(i2s_buf_free[1]){fillVoiceBuffer(i2s_buffer[1],&voices[currVoice],0,1);}
-
-gpio_put(TST_PIN,0);
+        fillVoices();
         
         ws_show_3(30);
         ledblinkn(2);
@@ -279,7 +196,7 @@ gpio_put(TST_PIN,0);
                 if(cc!=voices[coder].coderFreq){                // if coder change only (not for first display)
                     voices[coder].coderFreq=cc;
                     float f=calcFreq(cc);
-                    setNewFrequency(f,&voices[coder]);          // update freq value for coder value
+                    setVoiceFrequency(f,&voices[coder]);          // update freq value for coder value
                     ccFreq=voices[coder].frequency;          
                 }
 
@@ -296,7 +213,7 @@ gpio_put(TST_PIN,0);
     }
 }
 
-uint8_t coders_for_genAmpl()
+uint8_t coders_for_genAmpl(uint8_t currVoice)
 {
     // display title
     tft_fill_rect_blank(0,0,TFT_H,TFT_W);
@@ -310,12 +227,7 @@ uint8_t coders_for_genAmpl()
 
     while (1) {
 
-gpio_put(TST_PIN,1);
-
-if(i2s_buf_free[0]){fillVoiceBuffer(i2s_buffer[0],&voices[currVoice],0,0);}
-if(i2s_buf_free[1]){fillVoiceBuffer(i2s_buffer[1],&voices[currVoice],0,1);}
-
-gpio_put(TST_PIN,0);
+        fillVoices();
         
         ws_show_3(30);
         ledblinkn(2);
@@ -363,6 +275,68 @@ gpio_put(TST_PIN,0);
         }
         firstDisplay=false;    
     }
+}    
+
+// ****** coders for voice[].freq ******
+uint8_t coders_for_lfos_freq(uint8_t currVoice)
+{
+    // display title
+    tft_fill_rect_blank(0,0,TFT_H,TFT_W);
+    #define LINE_LEN TFT_W/12+1
+    char buf[LINE_LEN];memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
+    sprintf(buf,"lfos ");
+    tft_draw_text_12x12_dma_mult(0,0,buf,BLUE,0x0000,1);
+    volatile bool firstDisplay=true;    
+
+    coderSetup(lfosFreqCoders,voicesSw,lfosMaxFreqCoders,VOICES_NB);
+
+    while (1) {
+
+        fillVoices();
+        
+        ws_show_3(30);
+        ledblinkn(2);
+        test_st7789_2();    // animation balayage de lignes
+        debug_ticker();
+
+        for(uint8_t coder=0;coder<LFOS_NB;coder++){
+
+            // gestion switchs
+            if((millisCounter-swIgnore)>=SWIGNORE){ 
+                volatile int vs=voicesSw[coder];          
+                voices[coder].coderSwF=vs;
+                if((volatile int)vs==0){
+                    swIgnore=millisCounter;
+                    voicesSw[coder]=1;
+                    return coder;}
+            }
+            
+            // gestions coders
+            float ccLfos=lfosFrequency[coder];           // ccFreq prev freq value for voice[coder] (for display)
+            uint32_t cc=lfosFreqCoders[coder];                // cc     actual coder value
+            //int16_t* cp=&coderLfos[coder];
+            
+            if(cc!=coderLfos[coder] || firstDisplay){
+
+                #define LINE_LEN TFT_W/12+1
+                char buf[LINE_LEN];memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
+                 
+                if(cc!=coderLfos[coder]){                // if coder change only (not for first display)
+                    coderLfos[coder]=cc;
+                    float f=calcFreq(cc)/10000;
+                    setLfosFrequency(f,coder);          // update freq value for coder value
+                    ccLfos=lfosFrequency[coder];          
+                }
+
+                // display
+                buf[0]=coder+48;                
+                sprintf(buf+2,"%4d  %4.2f     ",cc,ccLfos);     // actual freq value                
+                tft_draw_text_12x12_dma_mult(0,coder*(12*2+1)+27,buf,0x07EF,0x0000,1);
+
+                printf("coder:%d cc:%d sw:%d coderLfos:%d lfoFreq:%f b:%s\n",
+                    coder,cc,voices[coder].coderSwF,coderLfos[coder],lfosFrequency[coder],buf);                      
+            }
+        }
+        firstDisplay=false;            
+    }
 }
-    */    
-#endif  // BB_TEST_MODE

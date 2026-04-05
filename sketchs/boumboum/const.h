@@ -68,7 +68,11 @@
 
 /* Voices */
 
-#define VOICES_NB 2 // CODER_NB
+#define VOICES_NB 2 
+/* lfos */
+
+#define LFOS_NB 4
+#define LFOS_SAMPLE_RATE 40
 
 /* fonc names */
 #define VOICES_MIXER 0              // VOICES_NB 

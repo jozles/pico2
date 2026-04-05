@@ -24,7 +24,7 @@ uint16_t tft_draw_int_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_t 
 uint16_t tft_draw_float_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_t bg,int8_t mult,float num);
 uint16_t tft_draw_float_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_t bg,int8_t mult,float num,uint8_t len);
 void init_test_7789(uint32_t ms,uint16_t l0,uint16_t c0,uint16_t ln,uint16_t cn,uint8_t m0);
-void scope(int32_t* buf,uint32_t len,float f,uint16_t begline);
+void scope(int32_t* buf,uint32_t len,float f,uint16_t begline,bool fd);
 void debug_ticker();
 void test_st7789();
 void test_st7789_2();
