@@ -18,6 +18,7 @@
 #include "test.h"
 #include "leds.h"
 #include "st7789.h"
+#include "mapping.h"
 
 #define SYSTICK_BASE 0xE000E010UL
 
@@ -169,7 +170,11 @@ void setup(){
     gpio_init(LED);gpio_set_dir(LED,GPIO_OUT); gpio_put(LED,LOW);    
 
     gpio_init(PIN_DCDC_PSM_CTRL);gpio_set_dir(PIN_DCDC_PSM_CTRL, GPIO_OUT);
-    gpio_put(PIN_DCDC_PSM_CTRL, 1); // PWM mode for less Audio noise   
+    gpio_put(PIN_DCDC_PSM_CTRL, 1); // PWM mode for less Audio noise
+    
+    // ****** inputs ******
+
+    inputsInit();
 
     // ****** coders ******
     coderInit(CODER_GPIO_CLOCK,CODER_GPIO_DATA,CODER_GPIO_SW,CODER_GPIO_VCC,CODER_PIO_SEL0,CODER_SEL_NB,CODER_NB,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER); 

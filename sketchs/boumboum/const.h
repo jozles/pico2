@@ -69,28 +69,12 @@
 /* Voices */
 
 #define VOICES_NB 2 
+
 /* lfos */
 
 #define LFOS_NB 4
 #define LFOS_SAMPLE_RATE 40
 
-/* fonc names */
-#define VOICES_MIXER 0              // VOICES_NB 
-#define VOICE0_SPECTRUM_MIXER 1
-#define VOICE1_SPECTRUM_MIXER 2
-#define VOICE2_SPECTRUM_MIXER 3
-#define VOICE3_SPECTRUM_MIXER 4
-#define VOICE4_SPECTRUM_MIXER 5
-#define VOICE5_SPECTRUM_MIXER 6
-#define VOICE0_ADSR 7
-#define VOICE1_ADSR 8
-#define VOICE2_ADSR 9 
-#define VOICE3_ADSR 10
-#define VOICE4_ADSR 11 
-#define VOICE5_ADSR 12
-#define MAX_FONC 12
-
-#define CODER_COUNTERS MAX_FONC*CODER_NB
 
 /* led */
 
@@ -146,6 +130,25 @@
 
 #define BASIC_WAVE_TABLE_POW 11     // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
 #define BASIC_WAVE_TABLE_LEN 2048   // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
+
+// ****** inputs ******
+
+#define IN_OUT_NAME_LEN 12
+typedef enum {
+#define X(name,text) name,    
+#include "inputs.def"
+#undef X
+    INPUTS_NB
+}  Inputs;
+
+// ****** outputs ******
+
+typedef enum {
+#define Y(name,text) name,    
+#include "outputs.def"
+#undef Y
+    OUTPUTS_NB
+}  Outputs;
 
 // ****** basics waves codes ******
 

@@ -8,6 +8,7 @@
 #include "st7789.h"
 #include "leds.h"
 #include "frequences.h"
+#include "mapping.h"
 
 volatile uint32_t millisCounter=0;
 
@@ -42,7 +43,14 @@ int32_t* i2s_buf=nullptr;           // last loaded buffer for scope
 #define SWIGNORE 1000
 uint32_t swIgnore=millisCounter;
 
-// fill voices buffers
+#define LINE_LEN TFT_W/12+1
+char buf[LINE_LEN];
+
+uint16_t begline=27;
+
+/* ----------------------------------------- */
+
+// ******fill voices buffers ******
 void fillVoices()
 {
     gpio_put(TST_PIN,1);
@@ -74,19 +82,45 @@ void menus_init(){
     }
 }
 
+// ****** display title ******
+void title_dsp(const char* title,uint8_t currVoice,uint8_t v){
+    tft_fill_rect_blank(0,0,TFT_H,TFT_W);
+    memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
+    switch(v){
+        case 0:sprintf(buf,"v:%d %4.3f amp",currVoice,voices[currVoice].frequency);break;
+        default:sprintf(buf,"%s ",title);break;
+    }        
+    tft_draw_text_12x12_dma_mult(0,0,buf,0x001f,0x0000,1);
+} 
+
+// ****** switchs
+#define SCOPE_MODE -2
+int8_t tst_switchs(uint8_t coder){
+    if((millisCounter-swIgnore)>=SWIGNORE){ 
+        volatile int vs=voicesSw[coder];          
+        voices[coder].coderSwF=vs;
+        if((volatile int)vs==0){
+            swIgnore=millisCounter;
+            if(coder==W_NB-1){          // switch found return                       
+                voicesSw[coder]=1;
+                return coder;}
+            else {
+                tft_fill_rect_blank(begline,0,TFT_H-begline,TFT_W);
+                return -2;              // mode scope
+            }
+        }
+    }
+    return -1;                          // nothing
+} 
+
 // ****** coders for voice[currvoice] ampl ******
 uint8_t coders_for_wavesAmpl(uint8_t currVoice)
 { 
-    bool mode_scope=false;
-    uint16_t begline=27;                  
+    bool mode_scope=false;                  
 
-    // display title
-    tft_fill_rect_blank(0,0,TFT_H,TFT_W);
-    #define LINE_LEN TFT_W/12+1
-    char buf[LINE_LEN];memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
-    sprintf(buf,"v:%d %4.3f amp",currVoice,voices[currVoice].frequency);
-    tft_draw_text_12x12_dma_mult(0,0,buf,0x001f,0x0000,1);
     volatile bool firstDisplay=true;
+
+    title_dsp("",currVoice,0);
 
     for(uint8_t a=0;a<W_NB;a++){voicesWaveAmplCoders[a]=voices[currVoice].coderAmpl[a];}
     coderSetup(voicesWaveAmplCoders,voicesSw,voicesMaxWaveAmplCoders,W_NB);    
@@ -102,22 +136,10 @@ uint8_t coders_for_wavesAmpl(uint8_t currVoice)
 
         for(uint8_t coder=0;coder<W_NB;coder++){
 
-            // gestion switchs
-            if((millisCounter-swIgnore)>=SWIGNORE){     // debounce
-                volatile int vs=voicesSw[coder];          
-                voices[coder].coderSwF=vs;
-                if(vs==0){
-                    swIgnore=millisCounter;
-                    if(coder==W_NB-1){          // return             
-                        voicesSw[coder]=1;
-                        return coder;}
-                    else {
-                        mode_scope=!mode_scope;
-                        tft_fill_rect_blank(begline,0,TFT_H-begline,TFT_W);
-                    }
-                }
-            }
-         
+            int8_t s=tst_switchs(coder);
+            if(s>=0){return s;}
+            else if(s==SCOPE_MODE){mode_scope=!mode_scope;}
+
             // gestions coders
             int32_t cc=voicesWaveAmplCoders[coder];                         // cc actual coder value
 
@@ -152,13 +174,9 @@ uint8_t coders_for_wavesAmpl(uint8_t currVoice)
 // ****** coders for voice[].freq ******
 uint8_t coders_for_freq(uint8_t currVoice)
 {
-    // display title
-    tft_fill_rect_blank(0,0,TFT_H,TFT_W);
-    #define LINE_LEN TFT_W/12+1
-    char buf[LINE_LEN];memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
-    sprintf(buf,"voices ");
-    tft_draw_text_12x12_dma_mult(0,0,buf,BLUE,0x0000,1);
-    volatile bool firstDisplay=true;    
+    volatile bool firstDisplay=true;
+
+    title_dsp("voices ",currVoice,99);   
 
     coderSetup(voicesFreqCoders,voicesSw,voicesMaxFreqCoders,VOICES_NB);
 
@@ -173,15 +191,8 @@ uint8_t coders_for_freq(uint8_t currVoice)
 
         for(uint8_t coder=0;coder<VOICES_NB;coder++){
 
-            // gestion switchs
-            if((millisCounter-swIgnore)>=SWIGNORE){ 
-                volatile int vs=voicesSw[coder];          
-                voices[coder].coderSwF=vs;
-                if((volatile int)vs==0){
-                    swIgnore=millisCounter;
-                    voicesSw[coder]=1;
-                    return coder;}
-            }
+            int s=tst_switchs(coder);
+            if(s>=0){return s;}
             
             // gestions coders
             float ccFreq=voices[coder].frequency;               // ccFreq prev freq value for voice[coder] (for display)
@@ -191,7 +202,7 @@ uint8_t coders_for_freq(uint8_t currVoice)
             if(cc!=voices[coder].coderFreq || firstDisplay){
 
                 #define LINE_LEN TFT_W/12+1
-                char buf[LINE_LEN];memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
+                memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
                  
                 if(cc!=voices[coder].coderFreq){                // if coder change only (not for first display)
                     voices[coder].coderFreq=cc;
@@ -215,13 +226,9 @@ uint8_t coders_for_freq(uint8_t currVoice)
 
 uint8_t coders_for_genAmpl(uint8_t currVoice)
 {
-    // display title
-    tft_fill_rect_blank(0,0,TFT_H,TFT_W);
-    #define LINE_LEN TFT_W/12+1
-    char buf[LINE_LEN];memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
-    sprintf(buf,"Voices Amplifier ");
-    tft_draw_text_12x12_dma_mult(0,0,buf,BLUE,0x0000,1);
     volatile bool firstDisplay=true;    
+
+    title_dsp("Voices Amplifier ",currVoice,99);
 
     coderSetup(voicesAmplCoders,voicesSw,voicesMaxAmplCoders,VOICES_NB);
 
@@ -236,15 +243,8 @@ uint8_t coders_for_genAmpl(uint8_t currVoice)
 
         for(uint8_t coder=0;coder<VOICES_NB;coder++){
 
-            // gestion switchs
-            if((millisCounter-swIgnore)>=SWIGNORE){ 
-                volatile int vs=voicesSw[coder];          
-                voices[coder].coderSwF=vs;
-                if((volatile int)vs==0){
-                    swIgnore=millisCounter;
-                    voicesSw[coder]=1;
-                    return coder;}
-            }
+            int s=tst_switchs(coder);            
+            if(s>=0){return s;}            
             
             // gestions coders
             uint16_t ccAmpl=voices[coder].genAmpl;                      // ccAmpl prev genAmpl value for voice[coder] (for display)
@@ -253,7 +253,7 @@ uint8_t coders_for_genAmpl(uint8_t currVoice)
             if(cc!=voices[coder].coderGenAmpl || firstDisplay){
 
                 #define LINE_LEN TFT_W/12+1
-                char buf[LINE_LEN];memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
+                memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
  
                 if(cc!=voices[coder].coderGenAmpl){                     // if coder change only (not for first display)
                     if(cc>MAX_16B_LINEAR_VALUE-1){cc=MAX_16B_LINEAR_VALUE-1;}
@@ -280,13 +280,9 @@ uint8_t coders_for_genAmpl(uint8_t currVoice)
 // ****** coders for voice[].freq ******
 uint8_t coders_for_lfos_freq(uint8_t currVoice)
 {
-    // display title
-    tft_fill_rect_blank(0,0,TFT_H,TFT_W);
-    #define LINE_LEN TFT_W/12+1
-    char buf[LINE_LEN];memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
-    sprintf(buf,"lfos ");
-    tft_draw_text_12x12_dma_mult(0,0,buf,BLUE,0x0000,1);
-    volatile bool firstDisplay=true;    
+    volatile bool firstDisplay=true;  
+    
+    title_dsp("lfos ",currVoice,99);
 
     coderSetup(lfosFreqCoders,voicesSw,lfosMaxFreqCoders,VOICES_NB);
 
@@ -301,15 +297,8 @@ uint8_t coders_for_lfos_freq(uint8_t currVoice)
 
         for(uint8_t coder=0;coder<LFOS_NB;coder++){
 
-            // gestion switchs
-            if((millisCounter-swIgnore)>=SWIGNORE){ 
-                volatile int vs=voicesSw[coder];          
-                voices[coder].coderSwF=vs;
-                if((volatile int)vs==0){
-                    swIgnore=millisCounter;
-                    voicesSw[coder]=1;
-                    return coder;}
-            }
+            int s=tst_switchs(coder);            
+            if(s>=0){return s;}
             
             // gestions coders
             float ccLfos=lfosFrequency[coder];           // ccFreq prev freq value for voice[coder] (for display)
@@ -319,7 +308,7 @@ uint8_t coders_for_lfos_freq(uint8_t currVoice)
             if(cc!=coderLfos[coder] || firstDisplay){
 
                 #define LINE_LEN TFT_W/12+1
-                char buf[LINE_LEN];memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
+                memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
                  
                 if(cc!=coderLfos[coder]){                // if coder change only (not for first display)
                     coderLfos[coder]=cc;
@@ -339,4 +328,82 @@ uint8_t coders_for_lfos_freq(uint8_t currVoice)
         }
         firstDisplay=false;            
     }
+}
+
+#define MAPPING_CODER_NB 3
+volatile int16_t mappingCoders[MAPPING_CODER_NB];  // [0] curr input nb ; [1] curr_input value
+uint16_t maxMappingCoders[]={INPUTS_NB,OUTPUTS_NB,0};
+extern uint16_t inputs[];
+extern const char* inputs_names;
+extern const char* outputs_names;
+
+#define NB_DSP_LINES 12
+#define FIRSTLINEH 20
+
+void mappingDsp(uint8_t inp,uint8_t line,bool rev){
+    uint8_t v=convIntToString(buf,inp);
+    if(v==1){buf[1]=' ';}
+    buf[2]=' ';
+    v=convIntToString(buf,inputs[inp]);
+    if(v==1){buf[v+3]=' ';}
+    buf[v+3+1]=' ';
+    memcpy(buf+v+3+1+1,&inputs_names[inputs[inp]],IN_OUT_NAME_LEN);
+    buf[v+3+1+1+IN_OUT_NAME_LEN]=' ';
+    memcpy(buf+v+3+1+1+IN_OUT_NAME_LEN+1,&inputs_names[inputs[inp]],3); //IN_OUT_NAME_LEN);
+    uint16_t fgc=0x07EF;
+    uint16_t bgc=0x0000;
+    uint16_t buc=fgc;
+    if(rev){fgc=bgc;bgc=buc;}
+    tft_draw_text_12x12_dma_mult(0,line*((12+2))+FIRSTLINEH,buf,fgc,bgc,1);
+}
+
+void fullMappingDsp(uint8_t firstInput,uint8_t currDspInput){
+    for(uint8_t l=0;l<NB_DSP_LINES;l++){
+        mappingDsp(firstInput+l,l,currDspInput==l);
+    }
+}
+
+uint8_t coders_for_mapping(){
+    
+    uint8_t currInput=0;
+    uint8_t currDspInput=0;
+
+    coderSetup(mappingCoders,voicesSw,maxMappingCoders,3);
+
+    fullMappingDsp(0,0);
+
+        while(1){
+
+            for(uint8_t coder=0;coder<MAPPING_CODER_NB;coder++){
+                int s=tst_switchs(coder);            
+                if(s>=0){return s;}
+
+                uint32_t cc=mappingCoders[coder];
+                if(coder==0){
+                    if(cc>currInput){                                   // cursor move down
+                        if(currDspInput<NB_DSP_LINES){                  // no scroll
+                            mappingDsp(currInput,currDspInput,false);   // restore prev
+                            mappingDsp(currInput+1,currDspInput+1,true);    
+                        }
+                    }
+                    else if(currInput<INPUTS_NB-1){
+                        currDspInput=NB_DSP_LINES-1;
+                        fullMappingDsp(currInput++ - NB_DSP_LINES,currDspInput);}    // scroll down
+                
+                    if(cc<currInput){                                   // cursor move up
+                        if(currDspInput>0){                             // no scroll
+                            mappingDsp(currInput,currDspInput,false);   // restore prev
+                            mappingDsp(currInput-1,currDspInput-1,true);    
+                        }
+                    }
+                    else if(currInput>0){
+                        currDspInput=0;
+                        fullMappingDsp(currInput--,currDspInput);}       // scroll up
+                }
+                if(coder==1){
+                    inputs[currInput]=cc;
+                    mappingDsp(currInput,currDspInput,true);
+                }
+            }
+        }          
 }

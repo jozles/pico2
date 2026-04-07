@@ -150,7 +150,7 @@ static uint8_t col=2;
 static uint8_t newCol=2;
 #define NBLEDS 70
 #define SPEC 16
-uint32_t buf[NBLEDS];
+uint32_t bufLeds[NBLEDS];
 #define COLNB 24
 #define MINCOL 2
 #define COLCYCLENB 2
@@ -181,15 +181,15 @@ void ws_show_3(uint32_t ms){
             else if((pos>(NBLEDS-SPEC+cyclePos)) && (cyclePos<SPEC)){pt=pos-(NBLEDS-SPEC+cyclePos);}
 
             if(pt>=0 && pt<SPEC){
-                if(pt<SPEC/4 || pt>(SPEC-4)){buf[pos]=reduc(colPal[curCol],6);}
-                else if(pt<(SPEC/2-1) || pt>(SPEC/2)){buf[pos]=reduc(colPal[curCol],5);}
-                else if(pt!=(SPEC/2)){buf[pos]=reduc(colPal[curCol],4);}
-                else {buf[pos]=reduc(colPal[curCol],3);}
+                if(pt<SPEC/4 || pt>(SPEC-4)){bufLeds[pos]=reduc(colPal[curCol],6);}
+                else if(pt<(SPEC/2-1) || pt>(SPEC/2)){bufLeds[pos]=reduc(colPal[curCol],5);}
+                else if(pt!=(SPEC/2)){bufLeds[pos]=reduc(colPal[curCol],4);}
+                else {bufLeds[pos]=reduc(colPal[curCol],3);}
             }
-            else {buf[pos]=reduc(colPal[curCol],7);}
+            else {bufLeds[pos]=reduc(colPal[curCol],7);}
         }
 
-        pio_sm_put_dma_array(ws_pio,ws_sm,buf,NBLEDS);
+        pio_sm_put_dma_array(ws_pio,ws_sm,bufLeds,NBLEDS);
 
         cyclePos++;if(cyclePos>=NBLEDS){
             cyclePos=0;
