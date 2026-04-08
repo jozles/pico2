@@ -217,7 +217,7 @@ void setup(){
     i2sSetup(_i2s_pio,PICO_AUDIO_I2S_DATA_PIN,i2s_dma_buffers);
 
     //dumpStr(i2s_buf0,256);delay_ms(1000);
-    scope(i2s_buf0,SAMPLES_PER_BUFFER,voices[channel].frequency,0,true);
+    scope(i2s_buf0,SAMPLES_PER_BUFFER,voices[channel].frequency,0,true,true);
     while(gpio_get(CODER_GPIO_SW)==1){
         debug_ticker();
         ledblinkn(3);
@@ -235,7 +235,7 @@ void setup(){
 
     tft_draw_text_12x12_dma_mult((TFT_W-(7*10))/2,TFT_H/2+14,s, 0xF81F, 0x0000,1); 
 
-    const char* v="v1.3j";
+    const char* v="v1.3k";
     tft_draw_text_12x12_dma_mult((TFT_W-(strlen(v)*10))/2,TFT_H/2+25,v, 0xFFE0, 0x0000,1);
 
     delayBlk(5);

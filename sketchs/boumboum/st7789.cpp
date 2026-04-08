@@ -634,24 +634,28 @@ uint16_t tft_draw_float_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_
     return tft_draw_float_12x12_dma_mult(x,y,fg,bg,mult,num,0);
 }
 // display scope lookout of buf values ; len =buf size ; f freq ; begline first available line ; fd freq display
-void scope(int32_t* buf,uint32_t len,float f,uint16_t begline,bool fd){
+void scope(int32_t* buf,uint32_t len,float f,uint16_t begline,bool fd,bool blk){
     uint32_t x;
     uint16_t bgcolor=0x0000;
     uint16_t fgcolor=0x07ef;
     int32_t yy;
+    uint32_t points[TFT_W];
 
     st_dma_wait();    
-
-    for (int i = 0; i < (TFT_H-begline)*TFT_W ; i++) {        // full buffer erasing
-        tft_frame[2*i]     = bgcolor >> 8;
-        tft_frame[2*i + 1] = bgcolor & 0xFF;
+    if(blk){
+        for (int i = 0; i < (TFT_H-begline)*TFT_W ; i++) {        // full buffer erasing
+            tft_frame[2*i]     = bgcolor >> 8;
+            tft_frame[2*i + 1] = bgcolor & 0xFF;
+        }
+        blk=false;
     }
 
     for(uint32_t i=0;i<TFT_W;i++){                  // read buf and generate waveform
         yy=(int32_t)((((float)buf[i*2]/(float)0x7fffffff))*((TFT_H-begline)/2));
         if(abs(yy)>=(TFT_H-begline)/2){yy=(TFT_H-begline)/2-1;}      
         x=i;
-        tft_frame[2*(((TFT_H-begline)/2-yy)*TFT_W+x)]=fgcolor;
+        points[i]=2*(((TFT_H-begline)/2-yy)*TFT_W+x);
+        tft_frame[points[i]]=fgcolor;
         //printf("%3d  b:%9d  yy:%3d  h:%3d\n",i,buf[i*2],yy,(TFT_H/2-yy));
     }
 

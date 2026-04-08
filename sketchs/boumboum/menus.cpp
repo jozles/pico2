@@ -119,6 +119,7 @@ uint8_t coders_for_wavesAmpl(uint8_t currVoice)
     bool mode_scope=false;                  
 
     volatile bool firstDisplay=true;
+    bool firstScope=false;
 
     title_dsp("",currVoice,0);
 
@@ -138,7 +139,7 @@ uint8_t coders_for_wavesAmpl(uint8_t currVoice)
 
             int8_t s=tst_switchs(coder);
             if(s>=0){return s;}
-            else if(s==SCOPE_MODE){mode_scope=!mode_scope;}
+            else if(s==SCOPE_MODE){mode_scope=!mode_scope;firstScope=true;}
 
             // gestions coders
             int32_t cc=voicesWaveAmplCoders[coder];                         // cc actual coder value
@@ -167,7 +168,7 @@ uint8_t coders_for_wavesAmpl(uint8_t currVoice)
             }
         }
         firstDisplay=false;
-        if(mode_scope && i2s_buf!=nullptr){scope(i2s_buf,SAMPLES_PER_BUFFER,voices[currVoice].frequency,begline,false);}   
+        if(mode_scope && i2s_buf!=nullptr){scope(i2s_buf,SAMPLES_PER_BUFFER,voices[currVoice].frequency,begline,false,firstScope);firstScope=false;}   
     }
 }
 
