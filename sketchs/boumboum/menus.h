@@ -6,6 +6,7 @@ uint8_t coders_for_wavesAmpl(uint8_t currVoice);
 uint8_t coders_for_freq(uint8_t currVoice);
 uint8_t coders_for_genAmpl(uint8_t currVoice);
 uint8_t coders_for_lfos_freq(uint8_t currVoice);
+uint8_t coders_for_mapping();
 
 
 #endif // _MENUS_H_

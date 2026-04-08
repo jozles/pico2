@@ -95,20 +95,17 @@ void title_dsp(const char* title,uint8_t currVoice,uint8_t v){
 
 // ****** switchs
 #define SCOPE_MODE -2
-int8_t tst_switchs(uint8_t coder){
+int8_t tst_switchs(uint8_t coder,uint8_t maxi){
     if((millisCounter-swIgnore)>=SWIGNORE){ 
         volatile int vs=voicesSw[coder];          
         voices[coder].coderSwF=vs;
         if((volatile int)vs==0){
             swIgnore=millisCounter;
-            if(coder==W_NB-1){          // switch found return                       
-                voicesSw[coder]=1;
+            voicesSw[coder]=1;
+            if(coder<maxi){                      
                 return coder;}
-            else {
-                tft_fill_rect_blank(begline,0,TFT_H-begline,TFT_W);
-                return -2;              // mode scope
-            }
-        }
+            return -(coder-maxi+2);     // if maxi == 2 values are -2,-3,-4,-5
+        }                               // if maxi == 4 values are -2,-3
     }
     return -1;                          // nothing
 } 
@@ -116,10 +113,10 @@ int8_t tst_switchs(uint8_t coder){
 // ****** coders for voice[currvoice] ampl ******
 uint8_t coders_for_wavesAmpl(uint8_t currVoice)
 { 
-    bool mode_scope=false;                  
+    bool mode_scope=false;
+    bool firstScope=false;            
 
     volatile bool firstDisplay=true;
-    bool firstScope=false;
 
     title_dsp("",currVoice,0);
 
@@ -133,11 +130,12 @@ uint8_t coders_for_wavesAmpl(uint8_t currVoice)
         ws_show_3(30);
         ledblinkn(2);
         if(!mode_scope){test_st7789_2();}       // animation balayage de lignes
-        debug_ticker();
+        //debug_ticker();
 
         for(uint8_t coder=0;coder<W_NB;coder++){
 
-            int8_t s=tst_switchs(coder);
+            int8_t s=tst_switchs(coder,2);  // coder0 return ; other->scope
+            if(s!=-1){printf("s:%d\n",s);}
             if(s>=0){return s;}
             else if(s==SCOPE_MODE){mode_scope=!mode_scope;firstScope=true;}
 
@@ -167,6 +165,7 @@ uint8_t coders_for_wavesAmpl(uint8_t currVoice)
                     coder,cc,voices[currVoice].coderSw[coder],voices[currVoice].coderAmpl[coder],voices[currVoice].basicWaveAmpl[coder],buf);       
             }
         }
+        //printf("%d %d\n",mode_scope,firstScope);
         firstDisplay=false;
         if(mode_scope && i2s_buf!=nullptr){scope(i2s_buf,SAMPLES_PER_BUFFER,voices[currVoice].frequency,begline,false,firstScope);firstScope=false;}   
     }
@@ -192,7 +191,7 @@ uint8_t coders_for_freq(uint8_t currVoice)
 
         for(uint8_t coder=0;coder<VOICES_NB;coder++){
 
-            int s=tst_switchs(coder);
+            int s=tst_switchs(coder,VOICES_NB);
             if(s>=0){return s;}
             
             // gestions coders
@@ -244,7 +243,7 @@ uint8_t coders_for_genAmpl(uint8_t currVoice)
 
         for(uint8_t coder=0;coder<VOICES_NB;coder++){
 
-            int s=tst_switchs(coder);            
+            int s=tst_switchs(coder,VOICES_NB);            
             if(s>=0){return s;}            
             
             // gestions coders
@@ -281,7 +280,10 @@ uint8_t coders_for_genAmpl(uint8_t currVoice)
 // ****** coders for voice[].freq ******
 uint8_t coders_for_lfos_freq(uint8_t currVoice)
 {
-    volatile bool firstDisplay=true;  
+    volatile bool firstDisplay=true;
+    
+    bool mode_scope=false;
+    bool firstScope=false;     
     
     title_dsp("lfos ",currVoice,99);
 
@@ -298,8 +300,9 @@ uint8_t coders_for_lfos_freq(uint8_t currVoice)
 
         for(uint8_t coder=0;coder<LFOS_NB;coder++){
 
-            int s=tst_switchs(coder);            
+            int s=tst_switchs(coder,LFOS_NB);            
             if(s>=0){return s;}
+            else if(s==SCOPE_MODE){mode_scope=!mode_scope;firstScope=true;}
             
             // gestions coders
             float ccLfos=lfosFrequency[coder];           // ccFreq prev freq value for voice[coder] (for display)
@@ -327,7 +330,8 @@ uint8_t coders_for_lfos_freq(uint8_t currVoice)
                     coder,cc,voices[coder].coderSwF,coderLfos[coder],lfosFrequency[coder],buf);                      
             }
         }
-        firstDisplay=false;            
+        firstDisplay=false;
+        if(mode_scope && i2s_buf!=nullptr){scope(i2s_buf,SAMPLES_PER_BUFFER,voices[currVoice].frequency,begline,false,firstScope);firstScope=false;}             
     }
 }
 
@@ -376,7 +380,7 @@ uint8_t coders_for_mapping(){
         while(1){
 
             for(uint8_t coder=0;coder<MAPPING_CODER_NB;coder++){
-                int s=tst_switchs(coder);            
+                int s=tst_switchs(coder,MAPPING_CODER_NB);            
                 if(s>=0){return s;}
 
                 uint32_t cc=mappingCoders[coder];

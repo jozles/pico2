@@ -52,6 +52,8 @@ static volatile uint16_t sched_h;
 static uint8_t tft_frame[FRAME_SIZE];    // 2bytes/pixel
 static uint8_t tft_frame_blk[FRAME_SIZE];    // 2bytes/pixel
 
+static uint32_t points[TFT_W];
+
 static void tft_init(void);
 
 // ---------------------------------------------------------
@@ -639,18 +641,23 @@ void scope(int32_t* buf,uint32_t len,float f,uint16_t begline,bool fd,bool blk){
     uint16_t bgcolor=0x0000;
     uint16_t fgcolor=0x07ef;
     int32_t yy;
-    uint32_t points[TFT_W];
 
-    st_dma_wait();    
-    if(blk){
-        for (int i = 0; i < (TFT_H-begline)*TFT_W ; i++) {        // full buffer erasing
+    st_dma_wait();
+
+    //if(blk){
+        for (int i = 0; i < (TFT_H-begline)*TFT_W ; i++) {          // full buffer erasing
             tft_frame[2*i]     = bgcolor >> 8;
             tft_frame[2*i + 1] = bgcolor & 0xFF;
         }
         blk=false;
-    }
+    //}
+    /*else {
+        for(uint32_t i=0;i<TFT_W;i++){                              // prev waveform erasing
+            tft_frame[points[i]]=bgcolor;
+        }
+    }*/
 
-    for(uint32_t i=0;i<TFT_W;i++){                  // read buf and generate waveform
+    for(uint32_t i=0;i<TFT_W;i++){                                  // read buf and generate waveform
         yy=(int32_t)((((float)buf[i*2]/(float)0x7fffffff))*((TFT_H-begline)/2));
         if(abs(yy)>=(TFT_H-begline)/2){yy=(TFT_H-begline)/2-1;}      
         x=i;

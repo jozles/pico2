@@ -71,10 +71,14 @@ if (watchdog_caused_reboot()) {
     while(1){
         currVoice=coders_for_freq(currVoice);
         printf("currVoice:%d\n",currVoice);delay_ms(1);
-        if(currVoice<VOICES_NB){coders_for_wavesAmpl(currVoice);}
-        else if(currVoice=VOICES_NB-1){
-            currVoice=coders_for_lfos_freq(currVoice);}
-        else coders_for_genAmpl(currVoice);
+        if(currVoice<VOICES_NB){
+            coders_for_wavesAmpl(currVoice);}           // currVoice==0 ou 1
+        else if(currVoice=-4){               
+            currVoice=coders_for_lfos_freq(currVoice);} 
+        else if(currVoice=-3){ 
+            coders_for_genAmpl(currVoice);}
+        else if(currVoice=-5){
+            coders_for_mapping();}                      // installer un "coders_for_menu qui dispatche freq,genAmpl,lfos,mapping,adsr etc"             
     }
 }
 

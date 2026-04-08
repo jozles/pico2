@@ -1,10 +1,11 @@
 #include <stdio.h>
+#include <string.h>
+#include <math.h>
 #include "pico/stdlib.h"
 #include "frequences.h"
 #include "util.h"
 #include "bb_i2s.h"
 #include "const.h"
-#include <math.h>
 
 const uint8_t octNb = OCTNB;
 float baseFreq = FREQ0;
@@ -39,6 +40,8 @@ uint16_t    triangleLfo[LFOS_NB];
 uint16_t    sawtoothLfo[LFOS_NB];
 uint32_t    lfoTime=millisCounter;
 uint32_t    lfoTimingInterval=1000/LFOS_SAMPLE_RATE;
+uint16_t    lfoScopeBuffer[LFOS_NB][BASIC_WAVE_TABLE_LEN];  // n° echantillons 
+uint16_t    lfoScopeBufPtr=0;
 
 void showAmplIncr(){
   printf("  intervalles d'amplitude\n");
@@ -322,6 +325,7 @@ void lfosInit(){
         triangleLfo[l]=0;
         sawtoothLfo[l]=0;
     }
+    memset(lfoScopeBuffer,0x0000,LFOS_NB*BASIC_WAVE_TABLE_LEN);
 }
 
 void lfosHandler()
@@ -345,7 +349,11 @@ void lfosHandler()
 
         currLfoEch[l]=ce;
         currLfoEchFra[l]=cf;
+
+        lfoScopeBuffer[l][lfoScopeBufPtr]=ce;
     }
+    lfoScopeBufPtr++;
+    lfoScopeBufPtr&=BASIC_WAVE_TABLE_LEN-1;
   }
 }
 
