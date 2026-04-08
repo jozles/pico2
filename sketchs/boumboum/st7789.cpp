@@ -644,18 +644,18 @@ void scope(int32_t* buf,uint32_t len,float f,uint16_t begline,bool fd,bool blk){
 
     st_dma_wait();
 
-    //if(blk){
+    if(blk){
         for (int i = 0; i < (TFT_H-begline)*TFT_W ; i++) {          // full buffer erasing
             tft_frame[2*i]     = bgcolor >> 8;
             tft_frame[2*i + 1] = bgcolor & 0xFF;
         }
         blk=false;
-    //}
-    /*else {
+    }
+    else {
         for(uint32_t i=0;i<TFT_W;i++){                              // prev waveform erasing
             tft_frame[points[i]]=bgcolor;
         }
-    }*/
+    }
 
     for(uint32_t i=0;i<TFT_W;i++){                                  // read buf and generate waveform
         yy=(int32_t)((((float)buf[i*2]/(float)0x7fffffff))*((TFT_H-begline)/2));
