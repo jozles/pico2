@@ -66,6 +66,16 @@
 
 #define CODER_SW_STROBE_MS 50              // minimal delay for switch valid change (debouncer);
 
+/* Menu */
+
+#define MENU_NAME_LEN 12
+typedef enum {
+#define Z(name,text) name,    
+#include "menu.def"
+#undef Z
+    MENU_NB
+}  Menu;
+
 /* Voices */
 
 #define VOICES_NB 2 

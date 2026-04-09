@@ -59,9 +59,9 @@ add_executable(boumboum
 	st7789.cpp
 	font12x12.c
 	menus.cpp
+	menu.def
 	inputs.def
 	outputs.def
-	mapping.cpp
 	)
 
 pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/ws2812.pio)

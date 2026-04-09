@@ -8,9 +8,29 @@
 #include "st7789.h"
 #include "leds.h"
 #include "frequences.h"
-#include "mapping.h"
+//#include "mapping.h"
 
 volatile uint32_t millisCounter=0;
+
+// mapping
+
+const char inputs_names[][IN_OUT_NAME_LEN]={
+    #define X(name,text) text,
+    #include "inputs.def"
+    #undef X
+};
+
+const char outputs_names[][IN_OUT_NAME_LEN]={
+    #define Y(name,text) text,
+    #include "outputs.def"
+    #undef Y
+};
+
+uint8_t  inputs[INPUTS_NB];
+
+void inputsInit(){
+    memset(inputs,0x00,INPUTS_NB);
+}
 
 Voice voices[VOICES_NB];
 
@@ -47,6 +67,12 @@ uint32_t swIgnore=millisCounter;
 char buf[LINE_LEN];
 
 uint16_t begline=27;
+
+const char menu_names[][MENU_NAME_LEN]={
+    #define Z(name,text) text,
+    #include "menu.def"
+    #undef Z
+};
 
 /* ----------------------------------------- */
 
@@ -338,9 +364,6 @@ uint8_t coders_for_lfos_freq(uint8_t currVoice)
 #define MAPPING_CODER_NB 3
 volatile int16_t mappingCoders[MAPPING_CODER_NB];  // [0] curr input nb ; [1] curr_input value
 uint16_t maxMappingCoders[]={INPUTS_NB,OUTPUTS_NB,0};
-extern uint16_t inputs[];
-extern const char* inputs_names;
-extern const char* outputs_names;
 
 #define NB_DSP_LINES 12
 #define FIRSTLINEH 20
@@ -411,4 +434,56 @@ uint8_t coders_for_mapping(){
                 }
             }
         }          
+}
+
+void lineMenuDsp(uint8_t line,bool rev){
+        uint16_t fgc=GREEN;
+        uint16_t bgc=0x0000;
+        uint16_t buc=fgc;
+        if(rev){fgc=bgc;bgc=buc;}
+        buf[0]=line+48;
+        sprintf(buf,"%2d  %s",line,&menu_names[line][0]);
+        //memcpy(buf+3,&menu_names[line][0],MENU_NAME_LEN);       
+        tft_draw_text_12x12_dma_mult(0,line*(12*2+1)+begline,buf,fgc,bgc,1);
+
+}
+
+void fullMenuDsp(){
+    uint8_t begline=25;
+    
+    tft_fill_rect_blank(0,0,TFT_H,TFT_W);
+
+    for(uint8_t m=0;m<MENU_NB;m++){
+        lineMenuDsp(m,false);
+    }
+}
+
+#define MENU_CODER_NB MENU_NB
+
+volatile int16_t menuCoders[MENU_CODER_NB];  // [0] curr input nb ; [1] curr_input value
+uint16_t maxMenuCoders[]={MENU_NB-1};
+
+uint8_t coders_for_menu(){
+    uint8_t currInput=0;
+    uint8_t m=0;
+
+    coderSetup(menuCoders,voicesSw,maxMenuCoders,1);
+
+    fullMenuDsp();lineMenuDsp(0,true);
+
+    while(1){
+
+            for(uint8_t coder=0;coder<MENU_CODER_NB;coder++){
+
+                int s=tst_switchs(coder,MENU_CODER_NB);            
+                if(s>=0){return m;}
+
+                uint32_t cc=menuCoders[coder];
+                if(coder==0 && cc!=m){
+                    lineMenuDsp(m,false);
+                    m=cc;
+                    lineMenuDsp(m,true);
+                }
+            }          
+    }
 }

@@ -18,7 +18,7 @@
 #include "test.h"
 #include "leds.h"
 #include "st7789.h"
-#include "mapping.h"
+#include "menus.h"
 
 #define SYSTICK_BASE 0xE000E010UL
 
@@ -235,7 +235,7 @@ void setup(){
 
     tft_draw_text_12x12_dma_mult((TFT_W-(7*10))/2,TFT_H/2+14,s, 0xF81F, 0x0000,1); 
 
-    const char* v="v1.3m";
+    const char* v="v1.3n";
     tft_draw_text_12x12_dma_mult((TFT_W-(strlen(v)*10))/2,TFT_H/2+25,v, 0xFFE0, 0x0000,1);
 
     delayBlk(5);
