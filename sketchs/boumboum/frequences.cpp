@@ -278,7 +278,7 @@ void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)
 
         for(uint8_t i=0;i<W_NB;i++){
             voices[v].coderAmpl[i]=0;
-            voices[v].maxCoderAmpl[i]=MAX_16B_LINEAR_VALUE;
+            voices[v].maxCoderAmpl[i]=MAX_16B_LINEAR_VALUE-1;
             voices[v].basicWaveAmpl[i]=0;
             voices[v].coderSw[i]=0;
         }
@@ -382,6 +382,8 @@ gpio_put(TST_PIN,HIGH);
     int32_t  waveAmplWhi  = v->basicWaveAmpl[W_WHITE_NOISE];
     int32_t  waveAmplPnk  = v->basicWaveAmpl[W_PINK_NOISE];
     int32_t* voiceBuffer=&vBuffer[0];
+
+    //printf("sin:%d\n",v->basicWaveAmpl[W_SINUS]);
 
     for(uint32_t s = 0; s < v->sampleNbToFill; s++)
     {

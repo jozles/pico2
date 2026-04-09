@@ -36,7 +36,7 @@ extern int16_t coderLfos[LFOS_NB];
 
 extern volatile bool i2s_buf_free[];
 extern int32_t* i2s_buffer[];
-int32_t* i2s_buf=nullptr;           // last loaded buffer for scope
+static int32_t* i2s_buf=nullptr;           // last loaded buffer for scope
 
 // loop
 
@@ -140,17 +140,17 @@ uint8_t coders_for_wavesAmpl(uint8_t currVoice)
             else if(s==SCOPE_MODE){mode_scope=!mode_scope;firstScope=true;}
 
             // gestions coders
-            int32_t cc=voicesWaveAmplCoders[coder];                         // cc actual coder value
+            volatile int32_t cc=voicesWaveAmplCoders[coder];                         // cc actual coder value
 
-            int16_t* cp=&voices[currVoice].coderAmpl[coder];            
+            volatile int16_t* cp=&voices[currVoice].coderAmpl[coder];            
             
             if(cc!=*cp || firstDisplay){     // coder change or first display
 
                 memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
 
                 if(cc!=*cp){                                                // if coder change only (not for first display)
-                    if(cc>MAX_16B_LINEAR_VALUE-1){cc=MAX_16B_LINEAR_VALUE-1;}
-                    else if(cc<MIN_16B_LINEAR_VALUE){cc=MIN_16B_LINEAR_VALUE;}
+                    //if(cc>MAX_16B_LINEAR_VALUE-1){cc=MAX_16B_LINEAR_VALUE-1;}
+                    //else if(cc<MIN_16B_LINEAR_VALUE){cc=MIN_16B_LINEAR_VALUE;}
                     *cp=cc;
                     voices[currVoice].basicWaveAmpl[coder]=amplLevel[cc];   // update ampl value for coder value 
                 }
@@ -167,7 +167,7 @@ uint8_t coders_for_wavesAmpl(uint8_t currVoice)
         }
         //printf("%d %d\n",mode_scope,firstScope);
         firstDisplay=false;
-        if(mode_scope && i2s_buf!=nullptr){scope(i2s_buf,SAMPLES_PER_BUFFER,voices[currVoice].frequency,begline,false,firstScope);firstScope=false;}   
+        if(mode_scope && i2s_buf!=nullptr){scope(i2s_buf,SAMPLES_PER_BUFFER,voices[currVoice].frequency,begline,false,firstScope,3);firstScope=false;}   
     }
 }
 
@@ -331,7 +331,7 @@ uint8_t coders_for_lfos_freq(uint8_t currVoice)
             }
         }
         firstDisplay=false;
-        if(mode_scope && i2s_buf!=nullptr){scope(i2s_buf,SAMPLES_PER_BUFFER,voices[currVoice].frequency,begline,false,firstScope);firstScope=false;}             
+        if(mode_scope && i2s_buf!=nullptr){scope(i2s_buf,SAMPLES_PER_BUFFER,voices[currVoice].frequency,begline,false,firstScope,3);firstScope=false;}             
     }
 }
 
