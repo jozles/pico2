@@ -106,6 +106,10 @@ void menus_init(){
     for(uint8_t c=0;c<CODER_NB;c++){
         voicesSw[c]=1;
     }
+    for(uint8_t l=0;l<LFOS_NB;l++){
+        lfosMaxFreqCoders[l]=LFOS_MAX_FREQ_CODERS;
+        lfosFreqCoders[l]=1768;     // 1.5 sec
+    }
 }
 
 // ****** display title ******
@@ -193,7 +197,7 @@ uint8_t coders_for_wavesAmpl(uint8_t currVoice)
         }
         //printf("%d %d\n",mode_scope,firstScope);
         firstDisplay=false;
-        if(mode_scope && i2s_buf!=nullptr){scope(i2s_buf,SAMPLES_PER_BUFFER,voices[currVoice].frequency,begline,false,firstScope,3);firstScope=false;}   
+        if(mode_scope && i2s_buf!=nullptr){scope(i2s_buf,SAMPLES_PER_BUFFER,voices[currVoice].frequency,begline,false,firstScope,3,nullptr);firstScope=false;}   
     }
 }
 
@@ -303,17 +307,22 @@ uint8_t coders_for_genAmpl(uint8_t currVoice)
     }
 }    
 
+extern int32_t lfoScopeBuffer[];
+extern int32_t* waveformTable[];
+
 // ****** coders for voice[].freq ******
 uint8_t coders_for_lfos_freq(uint8_t currVoice)
 {
     volatile bool firstDisplay=true;
     
     bool mode_scope=false;
-    bool firstScope=false;     
+    bool firstScope=false;
+    uint8_t wave=0;
+    uint8_t lfoNb=0;    
     
     title_dsp("lfos ",currVoice,99);
 
-    coderSetup(lfosFreqCoders,voicesSw,lfosMaxFreqCoders,VOICES_NB);
+    coderSetup(lfosFreqCoders,voicesSw,lfosMaxFreqCoders,LFOS_NB+1);
 
     while (1) {
 
@@ -321,14 +330,20 @@ uint8_t coders_for_lfos_freq(uint8_t currVoice)
         
         ws_show_3(30);
         ledblinkn(2);
-        test_st7789_2();    // animation balayage de lignes
+        if(!mode_scope){test_st7789_2();}       // animation balayage de lignes
         debug_ticker();
 
         for(uint8_t coder=0;coder<LFOS_NB;coder++){
 
             int s=tst_switchs(coder,LFOS_NB);            
-            if(s>=0){return s;}
-            else if(s==SCOPE_MODE){mode_scope=!mode_scope;firstScope=true;}
+            if(s<=-2){return s;}
+            else if(s>=0){
+                mode_scope=!mode_scope;
+                if(mode_scope){firstScope=true;lfoNb=s;}
+                else {
+                    coder=0;firstDisplay=true;
+                    tft_fill_rect_blank(0,begline,TFT_H-begline,TFT_W);}
+            }
             
             // gestions coders
             float ccLfos=lfosFrequency[coder];           // ccFreq prev freq value for voice[coder] (for display)
@@ -342,22 +357,23 @@ uint8_t coders_for_lfos_freq(uint8_t currVoice)
                  
                 if(cc!=coderLfos[coder]){                // if coder change only (not for first display)
                     coderLfos[coder]=cc;
-                    float f=calcFreq(cc)/10000;
+                    float f=calcFreq(cc+LFOS_MIN_FREQ_CODERS)/1000;
                     setLfosFrequency(f,coder);          // update freq value for coder value
                     ccLfos=lfosFrequency[coder];          
                 }
 
                 // display
                 buf[0]=coder+48;                
-                sprintf(buf+2,"%4d  %4.2f     ",cc,ccLfos);     // actual freq value                
+                sprintf(buf+2,"%4d  %2.3f  %2.3f",cc,ccLfos,1/ccLfos);     // actual freq value                
                 tft_draw_text_12x12_dma_mult(0,coder*(12*2+1)+27,buf,0x07EF,0x0000,1);
 
                 printf("coder:%d cc:%d sw:%d coderLfos:%d lfoFreq:%f b:%s\n",
                     coder,cc,voices[coder].coderSwF,coderLfos[coder],lfosFrequency[coder],buf);                      
             }
+            if(mode_scope){
+                scope(&lfoScopeBuffer[lfoNb],SAMPLES_PER_BUFFER,lfosFrequency[coder],begline,false,firstScope,0,waveformTable[wave]);firstScope=false;}   
         }
-        firstDisplay=false;
-        if(mode_scope && i2s_buf!=nullptr){scope(i2s_buf,SAMPLES_PER_BUFFER,voices[currVoice].frequency,begline,false,firstScope,3);firstScope=false;}             
+        firstDisplay=false;          
     }
 }
 
@@ -453,6 +469,8 @@ void fullMenuDsp(){
     
     tft_fill_rect_blank(0,0,TFT_H,TFT_W);
 
+    title_dsp("boumboum ",0,99);
+
     for(uint8_t m=0;m<MENU_NB;m++){
         lineMenuDsp(m,false);
     }
@@ -472,6 +490,13 @@ uint8_t coders_for_menu(){
     fullMenuDsp();lineMenuDsp(0,true);
 
     while(1){
+            
+            fillVoices();
+        
+            ws_show_3(30);
+            ledblinkn(2);
+            test_st7789_2();    // animation balayage de lignes
+            debug_ticker();
 
             for(uint8_t coder=0;coder<MENU_CODER_NB;coder++){
 

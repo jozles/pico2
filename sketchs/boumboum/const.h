@@ -84,6 +84,8 @@ typedef enum {
 
 #define LFOS_NB 4
 #define LFOS_SAMPLE_RATE 40
+#define LFOS_MAX_FREQ_CODERS 3000
+#define LFOS_MIN_FREQ_CODERS 420     // 30sec
 
 
 /* led */

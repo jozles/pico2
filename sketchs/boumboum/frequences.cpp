@@ -40,7 +40,7 @@ uint16_t    triangleLfo[LFOS_NB];
 uint16_t    sawtoothLfo[LFOS_NB];
 uint32_t    lfoTime=millisCounter;
 uint32_t    lfoTimingInterval=1000/LFOS_SAMPLE_RATE;
-uint16_t    lfoScopeBuffer[LFOS_NB][BASIC_WAVE_TABLE_LEN];  // n° echantillons 
+int32_t     lfoScopeBuffer[LFOS_NB][BASIC_WAVE_TABLE_LEN];  // n° echantillons 
 uint16_t    lfoScopeBufPtr=0;
 
 void showAmplIncr(){
@@ -328,6 +328,7 @@ void lfosInit(){
     memset(lfoScopeBuffer,0x0000,LFOS_NB*BASIC_WAVE_TABLE_LEN);
 }
 
+int32_t* waveformTable[]={sineWaveform,squareWaveform,triangleWaveform,sawtoothWaveform};
 void lfosHandler()
 {
   if((millisCounter-lfoTime)>lfoTimingInterval){
