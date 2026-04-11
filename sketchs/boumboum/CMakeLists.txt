@@ -84,8 +84,6 @@ target_link_libraries(boumboum
 		hardware_pio
 		hardware_spi
 		hardware_pwm
-    	#pico_audio_32b
-    	#pico_audio_i2s_32b
 )
 
 # Add the standard include files to the build

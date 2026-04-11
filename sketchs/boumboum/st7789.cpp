@@ -664,20 +664,19 @@ void scope(int32_t* buf,uint32_t len,float f,uint16_t begline,bool fd,bool blk,u
         
         for(uint32_t i=0;i<TFT_W;i++){                                  // read buf and generate waveform
             float b=(float)buf[i*2]/(float)0x7fffffff;
-            if(wtable!=nullptr){b=(float)wtable[buf[i]]/(float)0x7fff;printf("%1.3f ",b);}
+            if(wtable!=nullptr){b=(float)wtable[buf[i]]/(float)0x7fff;}
             yy=(int32_t)(b*((TFT_H-begline)/2));
             if(abs(yy)>=(TFT_H-begline)/2){yy=(TFT_H-begline)/2-1;}      
             x=i;
             points[i]=2*(((TFT_H-begline)/2-yy)*TFT_W+x);
             tft_frame[points[i]]=fgcolor;
-            //printf("%3d  b:%9d  yy:%3d  h:%3d\n",i,buf[i*2],yy,(TFT_H/2-yy));
-        }printf("\n");
+        }
 
         for(uint8_t i=0;i<TFT_W;i+=3){tft_frame[2*(((TFT_H-begline)/2)*TFT_W+i)]=fgcolor;}        // 0 line
 
         st_dma_launch(tft_frame,0,begline,TFT_W,TFT_H-begline);
 
-        if(fd){tft_draw_float_12x12_dma_mult(TFT_W*2/3,begline,0xf81f,0,1,f,6);}
+        if(fd){tft_draw_float_12x12_dma_mult(TFT_W*1/3,begline,0xf81f,0,1,f,6);}
     }
     else refrCnt++;
 }

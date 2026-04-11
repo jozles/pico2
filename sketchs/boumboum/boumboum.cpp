@@ -25,7 +25,9 @@ int main() {
 
     sleep_ms(1000);
 
-    gpio_init(TST_PIN);gpio_set_dir(TST_PIN,GPIO_OUT); gpio_put(TST_PIN,LOW);    
+    gpio_init(TST_PIN);gpio_set_dir(TST_PIN,GPIO_OUT); gpio_put(TST_PIN,LOW);   
+    gpio_init(BUTTON_PIN);gpio_set_dir(BUTTON_PIN,GPIO_IN);
+    gpio_init(BUT_VCC_PIN);gpio_set_dir(BUT_VCC_PIN,GPIO_OUT); gpio_put(BUT_VCC_PIN,LOW);sleep_ms(100);gpio_put(BUT_VCC_PIN,HIGH);
     gpio_init(LED);gpio_set_dir(LED,GPIO_OUT); gpio_put(LED,LOW);
     delayBlk(3);        
     printf("\n+boumboum= \n");
@@ -51,7 +53,7 @@ if (watchdog_caused_reboot()) {
             case VOICES_FR: currVoice=coders_for_freq(currVoice);break;
             case WAVES_AMP: coders_for_wavesAmpl(currVoice);break;
             case GEN_AMPL_: coders_for_genAmpl(currVoice);break;
-            case LFOS_FREQ: currVoice=coders_for_lfos_freq(currVoice);break;
+            case LFOS_FREQ: coders_for_lfos_freq();break;
             case MAPPING__: coders_for_mapping();break;
 
             default:break;

@@ -165,6 +165,30 @@ void init_global_dma_irq(){
 }
 #endif  // GLOBAL_DMA_IRQ_HANDLER
 
+bool gpio_irq_set=false;
+
+uint32_t pin_irq_cnt=0;
+void gpio_irq_handler(uint gpio, uint32_t events) {
+    if (events & GPIO_IRQ_EDGE_RISE) {
+        gpio_irq_set=true;
+        printf("irq_pin:%d\n",pin_irq_cnt++);
+    }
+}
+
+void gpio_irq_init(uint pin) {
+    gpio_init(pin);
+    gpio_set_dir(pin, GPIO_IN);
+    gpio_pull_up(pin);                     // si capteur open-collector
+
+    gpio_set_irq_enabled_with_callback(
+        pin,
+        GPIO_IRQ_EDGE_RISE,                // front 
+        true,
+        gpio_irq_handler
+    );
+    gpio_irq_set=false;
+}
+
 void setup(){
 
     gpio_init(LED);gpio_set_dir(LED,GPIO_OUT); gpio_put(LED,LOW);    
@@ -177,7 +201,7 @@ void setup(){
     inputsInit();
 
     // ****** coders ******
-    coderInit(CODER_GPIO_CLOCK,CODER_GPIO_DATA,CODER_GPIO_SW,CODER_GPIO_VCC,CODER_PIO_SEL0,CODER_SEL_NB,CODER_NB,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER); 
+    coderInit(CODER_GPIO_CLOCK,CODER_GPIO_DATA,CODER_GPIO_SW,CODER_GPIO_VCC,CODER_PIO_SEL0,CODER_SEL_NB,CODER_NB,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER);
 
     // ****** lfos ******
     lfosInit();
@@ -192,9 +216,10 @@ void setup(){
     st_dma_channel=st7789_setup(ST7789_SPI_SPEED);
     if(st_dma_channel<0){LEDBLINK_ERROR_DMA}
 
-    #ifdef GLOBAL_DMA_IRQ_HANDLER
     init_global_dma_irq();
-    #endif
+
+    // ****** button ******
+    gpio_irq_init(BUTTON_PIN);  // après  init_global_dma_irq();
 
     // ****** sound ******
     sound_tables_init();
@@ -216,9 +241,8 @@ void setup(){
     next_sound_feeding(i2s_dma_buffers[1],SAMPLES_PER_BUFFER,1);
     i2sSetup(_i2s_pio,PICO_AUDIO_I2S_DATA_PIN,i2s_dma_buffers);
 
-    //dumpStr(i2s_buf0,256);delay_ms(1000);
     scope(i2s_buf0,SAMPLES_PER_BUFFER,voices[channel].frequency,0,true,true,0,nullptr);
-    while(gpio_get(CODER_GPIO_SW)==1){
+    while(!gpio_irq_set){
         debug_ticker();
         ledblinkn(3);
     }
@@ -235,7 +259,7 @@ void setup(){
 
     tft_draw_text_12x12_dma_mult((TFT_W-(7*10))/2,TFT_H/2+14,s, 0xF81F, 0x0000,1); 
 
-    const char* v="v1.3o";
+    const char* v="v1.3p";
     tft_draw_text_12x12_dma_mult((TFT_W-(strlen(v)*10))/2,TFT_H/2+25,v, 0xFFE0, 0x0000,1);
 
     delayBlk(5);

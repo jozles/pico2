@@ -10,6 +10,9 @@
 
 #define TST_PIN 0
 
+#define BUT_VCC_PIN 28
+#define BUTTON_PIN  27
+
 /* slices */
 
 #define PWM_IRQ_SLICE 0
@@ -145,7 +148,7 @@ typedef enum {
 
 // ****** inputs ******
 
-#define IN_OUT_NAME_LEN 12
+#define IN_OUT_NAME_LEN 9
 typedef enum {
 #define X(name,text) name,    
 #include "inputs.def"
