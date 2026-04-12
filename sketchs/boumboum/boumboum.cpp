@@ -17,7 +17,7 @@
 
 uint8_t currVoice=0;
 
-
+extern const char menu0_names[][MENU_NAME_LEN];
 
 int main() {
 
@@ -47,7 +47,7 @@ if (watchdog_caused_reboot()) {
     menus_init();
 
     while(1){
-        uint8_t menu=coders_for_menu();
+        uint8_t menu=coders_for_menu((const char*)menu0_names,MENU0_NB,MENU_NAME_LEN);
 
         switch(menu){
             case VOICES_FR: currVoice=coders_for_freq(currVoice);break;

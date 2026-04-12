@@ -82,7 +82,7 @@ void init_timer_1khz() {
 */
 uint pwm_irq_slice=PWM_IRQ_SLICE;
 
-void pwm_irq_handler() {
+void __not_in_flash_func(pwm_irq_handler)() {
 
     //gpio_put(TST_PIN,HIGH);
 
@@ -143,7 +143,7 @@ void delayBlk(uint8_t sec){
 
 #ifdef GLOBAL_DMA_IRQ_HANDLER
 
-void global_dma_irq_handler(){
+void __not_in_flash_func(global_dma_irq_handler)(){
 
     //gpio_put(TST_PIN,HIGH);    
     
@@ -171,7 +171,7 @@ uint32_t pin_irq_cnt=0;
 void gpio_irq_handler(uint gpio, uint32_t events) {
     if (events & GPIO_IRQ_EDGE_RISE) {
         gpio_irq_set=true;
-        printf("irq_pin:%d\n",pin_irq_cnt++);
+        //printf("irq_pin:%d\n",pin_irq_cnt++);
     }
 }
 
@@ -259,7 +259,7 @@ void setup(){
 
     tft_draw_text_12x12_dma_mult((TFT_W-(7*10))/2,TFT_H/2+14,s, 0xF81F, 0x0000,1); 
 
-    const char* v="v1.3p";
+    const char* v="v1.3q";
     tft_draw_text_12x12_dma_mult((TFT_W-(strlen(v)*10))/2,TFT_H/2+25,v, 0xFFE0, 0x0000,1);
 
     delayBlk(5);

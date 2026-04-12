@@ -27,7 +27,7 @@ int32_t* i2s_buffer[2];
 static PIO i2s_pio;
 static int i2s_sm;
 
-void dma_i2s_handler() {
+void __not_in_flash_func(dma_i2s_handler)() {
     uint32_t status = dma_hw->intr;
 
     if (status & (1u << i2s_dma_chan0)) {

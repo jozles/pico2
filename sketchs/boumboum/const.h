@@ -22,7 +22,7 @@
 #define DMA_LOCK 5
 #define WS_LOCK  3
 
-/* coder */
+/* coders */
 
 #define CODER_GPIO_CLOCK       10          
 #define CODER_GPIO_DATA        11          
@@ -35,13 +35,6 @@
 #define CODER_PIO_SEL0          2       // CODER_SEL_NB consecutive pins
 
 // *** coders actions ***
-
-#define SIN_LEV                 2       // sinus coder
-#define SQR_LEV                 3       // sqare coder
-#define TRI_LEV                 4       // triangle level
-#define SAW_LEV                 5       // sawtooth level
-#define WHI_LEV                 6       // white noise level
-#define PIN_LEV                 7       // pink noise level
 
 #define CODER_FREQUENCY         0       // voice frequency coder in all functions 
 
@@ -75,8 +68,8 @@
 typedef enum {
 #define Z(name,text) name,    
 #include "menu.def"
+        MENU0_NB
 #undef Z
-    MENU_NB
 }  Menu;
 
 /* Voices */
@@ -88,8 +81,8 @@ typedef enum {
 #define LFOS_NB 4
 #define LFOS_SAMPLE_RATE 40
 #define LFOS_MAX_FREQ_CODERS 3000
-#define LFOS_MIN_FREQ_CODERS 420     // 30sec
-
+#define LFOS_MIN_FREQ_CODERS 420    // 30sec
+#define LFOS_SCOPE_BUFFER_LEN 256   // power of 2 !!!
 
 /* led */
 
@@ -120,18 +113,10 @@ typedef enum {
 
 #define PICO_I2S_PIO 0
 #define _i2s_pio __CONCAT(pio, PICO_I2S_PIO)   
-//#define PICO_AUDIO_I2S_CLOCK_PIN_BASE 13 // 16        // 2 consecutive gpios
-#define PICO_AUDIO_I2S_DATA_PIN 13 // 18
-
+#define PICO_AUDIO_I2S_DATA_PIN 13  // 2 consecutive gpios
 #define SAMPLE_RATE 44100
-//#define AMPLITUDE   30000   // Amplitude max (16 bits signé)
-#define MAX_16B_LINEAR_VALUE 32 // 0 to 31 => 0,1,1.414,2,2.828,4,5.656,8,11.312,16,22.624 ... 8192,11583,16384,23167,32768,46334
-// #define MAX_16B_LINEAR_VALUE 64 // 0 to 63 => 0,1,1.189,1.414,3.234,4,4.757,5.656,6.727,8 ....
+#define MAX_16B_LINEAR_VALUE 32     // 0 to 31 => 0,1,1.414,2,2.828,4,5.656,8,11.312,16,22.624 ... 8192,11583,16384,23167,32768,46334
 #define MIN_16B_LINEAR_VALUE 0
-
-//#define I2S_DATA_PIN  4     // DIN du MAX98357A
-//#define I2S_BCLK_PIN  2     // BCLK
-//#define I2S_LRCLK_PIN 3     // LRCLK
 
 /* frequencies/voices */
 
@@ -152,8 +137,8 @@ typedef enum {
 typedef enum {
 #define X(name,text) name,    
 #include "inputs.def"
+        INPUTS_NB  
 #undef X
-    INPUTS_NB
 }  Inputs;
 
 // ****** outputs ******
@@ -161,8 +146,8 @@ typedef enum {
 typedef enum {
 #define Y(name,text) name,    
 #include "outputs.def"
+        OUTPUTS_NB
 #undef Y
-    OUTPUTS_NB
 }  Outputs;
 
 // ****** basics waves codes ******

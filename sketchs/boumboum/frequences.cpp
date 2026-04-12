@@ -40,8 +40,16 @@ uint16_t    triangleLfo[LFOS_NB];
 uint16_t    sawtoothLfo[LFOS_NB];
 uint32_t    lfoTime=millisCounter;
 uint32_t    lfoTimingInterval=1000/LFOS_SAMPLE_RATE;
-int32_t     lfoScopeBuffer[LFOS_NB*BASIC_WAVE_TABLE_LEN];  // n° echantillons 
+int32_t     lfoScopeBuffer[LFOS_NB*LFOS_SCOPE_BUFFER_LEN];  // n° echantillons 
 uint16_t    lfoScopeBufPtr=0;
+
+// i2s
+
+Voice voices[VOICES_NB];
+
+extern volatile bool i2s_buf_free[];
+extern int32_t* i2s_buffer[];
+int32_t* i2s_buf;                    // last loaded buffer for scope
 
 void showAmplIncr(){
   printf("  intervalles d'amplitude\n");
@@ -325,7 +333,7 @@ void lfosInit(){
         triangleLfo[l]=0;
         sawtoothLfo[l]=0;
     }
-    memset(lfoScopeBuffer,0x0000,LFOS_NB*BASIC_WAVE_TABLE_LEN);
+    memset(lfoScopeBuffer,0x0000,LFOS_NB*LFOS_SCOPE_BUFFER_LEN);
 }
 
 int32_t* waveformTable[]={sineWaveform,squareWaveform,triangleWaveform,sawtoothWaveform};
@@ -352,12 +360,12 @@ void lfosHandler()
         currLfoEch[l]=ce;
         currLfoEchFra[l]=cf;
 
-        lfoScopeBuffer[l*BASIC_WAVE_TABLE_LEN+lfoScopeBufPtr]=ce;
+        lfoScopeBuffer[l*LFOS_SCOPE_BUFFER_LEN+lfoScopeBufPtr]=ce;
 
 //printf("l:%d si:%d sf:%d ce:%d ",l,lfosStepInt[l],lfosStepFra[l],ce);        
     }
     lfoScopeBufPtr++;
-    lfoScopeBufPtr&=BASIC_WAVE_TABLE_LEN-1;
+    lfoScopeBufPtr&=LFOS_SCOPE_BUFFER_LEN-1;
     //printf("\n");
   }
 }
@@ -367,7 +375,8 @@ uint16_t getAmpl(Voice* v,uint8_t wav){
   return amplLevel[v->coderAmpl[wav]];
 }
 
-void fillVoiceBuffer(int32_t* vBuffer,Voice* v,uint8_t what,uint8_t bufNum){   // 5.8mS pour les 6 sources @512 samples (23mS@44100Hz)
+/* // 251uS
+void __not_in_flash_func(fillVoiceBuffer)(volatile int32_t* vBuffer,Voice* v,uint8_t what,uint8_t bufNum){   // 5.8mS pour les 6 sources @512 samples (23mS@44100Hz)
 gpio_put(TST_PIN,HIGH);
 
     i2s_buf_free[bufNum]=false;
@@ -386,7 +395,7 @@ gpio_put(TST_PIN,HIGH);
     int32_t  waveAmplSqr  = v->basicWaveAmpl[W_SQUARE];    
     int32_t  waveAmplWhi  = v->basicWaveAmpl[W_WHITE_NOISE];
     int32_t  waveAmplPnk  = v->basicWaveAmpl[W_PINK_NOISE];
-    int32_t* voiceBuffer=&vBuffer[0];
+    volatile int32_t* voiceBuffer=&vBuffer[0];
 
     //printf("sin:%d\n",v->basicWaveAmpl[W_SINUS]);
 
@@ -435,5 +444,105 @@ gpio_put(TST_PIN,HIGH);
 
 //dumpStr(vBuffer,256);
 gpio_put(TST_PIN,LOW);    
+}
+
+void fillVoices()
+{
+    gpio_put(TST_PIN,1);
+
+    if(i2s_buf_free[0]){fillVoiceBuffer(i2s_buffer[0],&voices[0],0,0);i2s_buf=i2s_buffer[0];}
+    if(i2s_buf_free[1]){fillVoiceBuffer(i2s_buffer[1],&voices[0],0,1);i2s_buf=i2s_buffer[1];}
+
+    gpio_put(TST_PIN,0);
+}*/
+
+void __not_in_flash_func(fillVoiceBuffer)(volatile int32_t* vBuffer,Voice* v,uint8_t what,uint8_t bufNum){   // 5.8mS pour les 6 sources @512 samples (23mS@44100Hz)
+gpio_put(TST_PIN,HIGH);
+
+    uint16_t tablech[SAMPLE_BUFFER_SIZE];
+
+    //for(uint8_t n=0;n<VOICES_NB;n++){
+
+      i2s_buf_free[bufNum]=false;
+
+      uint32_t currEch      = v->currEch;
+      uint32_t currEchFra   = v->currEchFra;
+      uint32_t stepInt      = v->stepInt;
+      uint32_t stepFra      = v->stepFra;
+      nPhase       = v->noisePhase;
+      nStep        = v->noiseStep;
+      uint32_t limit = (uint32_t)N << 16;
+      int32_t  genAmpl      = v->genAmpl;
+      int32_t  waveAmplSin  = v->basicWaveAmpl[W_SINUS];
+      int32_t  waveAmplTri  = v->basicWaveAmpl[W_TRIANGLE];
+      int32_t  waveAmplSaw  = v->basicWaveAmpl[W_SAWTOOTH];        
+      int32_t  waveAmplSqr  = v->basicWaveAmpl[W_SQUARE];    
+      int32_t  waveAmplWhi  = v->basicWaveAmpl[W_WHITE_NOISE];
+      int32_t  waveAmplPnk  = v->basicWaveAmpl[W_PINK_NOISE];
+      volatile int32_t* voiceBuffer=&vBuffer[0];
+
+      uint32_t s = SAMPLE_BUFFER_SIZE;
+//gpio_put(TST_PIN,HIGH);
+      do
+      {
+        s--;
+        currEchFra += stepFra;
+        uint32_t carry = (currEchFra > MAX_STEP_FRA);
+        currEchFra -= carry * MAX_STEP_FRA;
+        currEch += stepInt + carry;
+        currEch &= BASIC_WAVE_TABLE_LEN-1;
+
+        tablech[s]=currEch;
+      }
+      while (s!=0);
+//gpio_put(TST_PIN,LOW);
+      for(uint32_t s = 0; s < SAMPLE_BUFFER_SIZE; s++)
+      {
+        uint16_t e=tablech[s];
+        int32_t pre=sineWaveform[e] * waveAmplSin;
+        pre += triangleWaveform[e]  * waveAmplTri;
+        pre += sawtoothWaveform[e]  * waveAmplSaw;
+        pre += squareWaveform[e]    * waveAmplSqr;
+
+        // noises
+
+        nPhase += nStep;
+
+        // branchless wrap using subtraction and conditional negation
+        uint32_t tmp = nPhase - limit;
+        nPhase = tmp + ((tmp >> 31) & limit);
+
+        //if (nPhase >= limit) nPhase -= limit;
+
+        int32_t white = noise_table[nPhase>>16];
+
+        pre += white * waveAmplWhi;
+
+        // bruit rose 1-pôle branchless
+        pink_state=(alpha * pink_state + (32768 - alpha) * (white)) >> 15;
+          
+        pre += (int16_t)pink_state * waveAmplPnk;
+
+        *voiceBuffer=pre;
+        voiceBuffer++;
+        *voiceBuffer=pre;
+        voiceBuffer++;
+      }
+
+    v->currEch    = currEch;
+    v->currEchFra = currEchFra;
+    v->noisePhase = nPhase;   
+
+//gpio_put(TST_PIN,LOW);    
+}
+
+void fillVoices()
+{
+    gpio_put(TST_PIN,1);
+
+    if(i2s_buf_free[0]){fillVoiceBuffer(i2s_buffer[0],voices,0,0);i2s_buf=i2s_buffer[0];}
+    if(i2s_buf_free[1]){fillVoiceBuffer(i2s_buffer[1],voices,0,1);i2s_buf=i2s_buffer[1];}
+
+    gpio_put(TST_PIN,0);
 }
 

@@ -38,7 +38,7 @@ volatile uint32_t int_counter;
 volatile bool one_time;
 
 
-bool coderTimerHandler(){
+bool __not_in_flash_func(coderTimerHandler)(){
     
     int_counter++;
     if(int_counter>=coderTimerPoolingInterval){

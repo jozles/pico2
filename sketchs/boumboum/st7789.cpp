@@ -196,7 +196,7 @@ void st_dma_wait_blank(){       // wait for end of current st dma usage -- speci
 
 volatile bool get_st_dma_free(){return st_dma_free;}
 
-void st_dma_irq_handler() {
+void __not_in_flash_func(st_dma_irq_handler)() {
 //printf(">) d:%d b:%d s:%d\n",st_dma_free,st_dma_done_blank,st_sched_free);
     while (spi_is_busy(spi0)) {
         tight_loop_contents();
@@ -420,7 +420,7 @@ void tft_fill_rect(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,uint16_t
 // ---------------------------------------------------------
 // BLANK : 1 DMA = un rectangle dans l'écran
 // ---------------------------------------------------------
-void tft_fill_rect_blank(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,uint16_t col_nb)
+void __not_in_flash_func(tft_fill_rect_blank)(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,uint16_t col_nb)
 {
 
     st_dma_wait_blank();
@@ -429,7 +429,7 @@ void tft_fill_rect_blank(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,ui
     size_t total_pixels = lines_nb * col_nb;
     size_t total_bytes  = total_pixels * 2;
 
-    // 2) remplir le buffer
+    // 2) remplir le buffer                            // inutile le buffer tft_frame_blk est pret
     //for (int i = 0; i < total_pixels; i++) {
     //    tft_frame[2*i]     = color >> 8;
     //    tft_frame[2*i + 1] = color & 0xFF;
@@ -454,7 +454,7 @@ void tft_fill_rect_blank(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,ui
 // ---------------------------------------------------------
 // DRAW : 1 DMA = un rectangle dans l'écran
 // ---------------------------------------------------------
-void tft_draw_rect(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,uint16_t col_nb,uint8_t* buffer)
+void __not_in_flash_func(tft_draw_rect)(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,uint16_t col_nb,uint8_t* buffer)
 {
 
     st_dma_wait();
@@ -637,7 +637,7 @@ uint16_t tft_draw_float_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_
     return tft_draw_float_12x12_dma_mult(x,y,fg,bg,mult,num,0);
 }
 // display scope lookout of buf values ; len =buf size ; f freq ; begline first available line ; fd freq display
-void scope(int32_t* buf,uint32_t len,float f,uint16_t begline,bool fd,bool blk,uint8_t refr,int32_t* wtable){
+void __not_in_flash_func(scope)(int32_t* buf,uint32_t len,float f,uint16_t begline,bool fd,bool blk,uint8_t refr,int32_t* wtable){
 
     if(refrCnt>=refr){
 
@@ -789,7 +789,7 @@ void test_st7789(){
 
 
 
-void test_st7789_2(){
+void __not_in_flash_func(test_st7789_2)(){
     if((millis+ms0)<millisCounter){     
         millis=millisCounter;
 
