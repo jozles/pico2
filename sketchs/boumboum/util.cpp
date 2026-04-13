@@ -80,6 +80,9 @@ void init_timer_1khz() {
 */
 uint pwm_irq_slice=PWM_IRQ_SLICE;
 
+
+
+
 void __not_in_flash_func(pwm_irq_handler)() {
 
     //gpio_put(TST_PIN,HIGH);
@@ -254,7 +257,7 @@ dumpStr(i2s_buf0,256);
 
     tft_draw_text_12x12_dma_mult((TFT_W-(7*10))/2,TFT_H/2+14,s, 0xF81F, 0x0000,1); 
 
-    const char* v="v1.3q";
+    const char* v="v1.3r";
     tft_draw_text_12x12_dma_mult((TFT_W-(strlen(v)*10))/2,TFT_H/2+25,v, 0xFFE0, 0x0000,1);
 
     delayBlk(5);

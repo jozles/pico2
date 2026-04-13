@@ -1,11 +1,22 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <stdint.h>
 #include "pico/stdlib.h"
 #include "frequences.h"
 #include "util.h"
 #include "bb_i2s.h"
 #include "const.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void blank(char *var, uint16_t len);
+
+#ifdef __cplusplus
+}
+#endif
 
 const uint8_t octNb = OCTNB;
 float baseFreq = FREQ0;
@@ -467,6 +478,7 @@ void fillVoices()
     gpio_put(TST_PIN,0);
 }*/
 
+// 440uS 
 /*void __not_in_flash_func(fillVoiceBuffer)(volatile int32_t* vBuffer,Voice* v,uint8_t bufNum){   // 5.8mS pour les 6 sources @512 samples (23mS@44100Hz)
 //gpio_put(TST_PIN,HIGH);
 
@@ -544,7 +556,8 @@ void fillVoices()
 //gpio_put(TST_PIN,LOW);    
 }*/
 
-void __not_in_flash_func(fillVoiceBuffer)(volatile int32_t* vBuffer, Voice* v, uint8_t bufNum)
+// 440uS copilot
+/*void __not_in_flash_func(fillVoiceBuffer)(volatile int32_t* vBuffer, Voice* v, uint8_t bufNum)
 {
     // --- 1) Buffer local non-volatile pour accumulation ---
     static int32_t mixBuffer[SAMPLE_BUFFER_SIZE * 2];
@@ -612,8 +625,115 @@ void __not_in_flash_func(fillVoiceBuffer)(volatile int32_t* vBuffer, Voice* v, u
     // --- 4) Copie finale vers buffer I2S (une seule fois) ---
     for (uint32_t i = 0; i < SAMPLE_BUFFER_SIZE * 2; i++)
         vBuffer[i] = mixBuffer[i];
+}*/
+
+// 223uS
+void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* v,uint8_t bufNum){   // 5.8mS pour les 6 sources @512 samples (23mS@44100Hz)
+gpio_put(TST_PIN,0);
+
+      uint16_t tablech[SAMPLE_BUFFER_SIZE];
+
+      uint32_t currEch      = v->currEch;
+      uint32_t currEchFra   = v->currEchFra;
+      uint32_t stepInt      = v->stepInt;
+      uint32_t stepFra      = v->stepFra;
+      nPhase       = v->noisePhase;
+      nStep        = v->noiseStep;
+      uint32_t limit = (uint32_t)N << 16;
+      int32_t  genAmpl      = v->genAmpl;
+      int32_t  waveAmplSin  = v->basicWaveAmpl[W_SINUS];
+      int32_t  waveAmplTri  = v->basicWaveAmpl[W_TRIANGLE];
+      int32_t  waveAmplSaw  = v->basicWaveAmpl[W_SAWTOOTH];        
+      int32_t  waveAmplSqr  = v->basicWaveAmpl[W_SQUARE];    
+      int32_t  waveAmplWhi  = v->basicWaveAmpl[W_WHITE_NOISE];
+      int32_t  waveAmplPnk  = v->basicWaveAmpl[W_PINK_NOISE];
+      volatile int32_t* voiceBuffer=vBuffer;
+
+      uint32_t s = SAMPLE_BUFFER_SIZE;
+      do
+      {
+        s--;
+        currEchFra += stepFra;
+        uint32_t carry = (currEchFra > MAX_STEP_FRA);
+        currEchFra -= carry * MAX_STEP_FRA;
+        currEch += stepInt + carry;
+        currEch &= BASIC_WAVE_TABLE_LEN-1;
+
+        tablech[s]=currEch;
+      }
+      while (s!=0);
+
+      for(uint32_t s = 0; s < SAMPLE_BUFFER_SIZE; s++)
+      {
+        uint16_t e=tablech[s];
+        int32_t pre=sineWaveform[e] * waveAmplSin;
+        pre += triangleWaveform[e]  * waveAmplTri;
+        pre += sawtoothWaveform[e]  * waveAmplSaw;
+        pre += squareWaveform[e]    * waveAmplSqr;
+
+        // noises
+
+        nPhase += nStep;
+
+        // branchless wrap using subtraction and conditional negation
+        uint32_t tmp = nPhase - limit;
+        nPhase = tmp + ((tmp >> 31) & limit);
+
+        //if (nPhase >= limit) nPhase -= limit;
+
+        int32_t white = noise_table[nPhase>>16];
+
+        pre += white * waveAmplWhi;
+
+        // bruit rose 1-pôle branchless
+        pink_state=(alpha * pink_state + (32768 - alpha) * (white)) >> 15;
+          
+        pre += (int16_t)pink_state * waveAmplPnk;
+
+        *voiceBuffer+=pre;
+        voiceBuffer++;
+        *voiceBuffer+=pre;
+        voiceBuffer++;
+      }
+
+    v->currEch    = currEch;
+    v->currEchFra = currEchFra;
+    v->noisePhase = nPhase;   
+
+    //i2s_buf_free[bufNum] = false;
+gpio_put(TST_PIN,1);    
 }
 
+void blank(char *var, uint16_t len);
+
+
+void __not_in_flash_func(fillVoiceBuffer)(int32_t* vBuffer, Voice* voices, uint8_t bufNum)
+{
+
+    //memset((void*)vBuffer, 0, SAMPLE_BUFFER_SIZE * 2 * sizeof(int32_t));
+    //memset((void*)vBuffer,0x00,SAMPLE_BUFFER_SIZE*4*2);
+
+    //blank((char*)vBuffer,SAMPLE_BUFFER_SIZE);
+
+
+    // buffer temporaire pour une voix
+    //static int32_t tmpBuffer[SAMPLE_BUFFER_SIZE * 2];
+
+    // pour chaque voix : on calcule dans tmpBuffer, puis on accumule dans mixBuffer
+    //for (uint8_t n = 0; n < VOICES_NB; n++)
+    //{
+        // calcule la voix n dans tmpBuffer avec TA fonction mono
+        fillVoiceBuffer_mono(vBuffer, &voices[0], bufNum);
+        fillVoiceBuffer_mono(vBuffer, &voices[1], bufNum);        
+//gpio_put(TST_PIN,1);
+        // accumulation simple
+        //for (uint32_t i = 0; i < SAMPLE_BUFFER_SIZE * 2; i++)
+        //  {vBuffer[i] += tmpBuffer[i];}
+//gpio_put(TST_PIN,0);    
+    //}
+
+    i2s_buf_free[bufNum] = false;
+}
 
 void fillVoices()
 {

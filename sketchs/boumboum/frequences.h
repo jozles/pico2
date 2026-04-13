@@ -68,7 +68,7 @@ void sound_tables_init();
 void voicesInit(Voice* v,float freq,uint8_t cga);
 void voicesInit(Voice* v,uint16_t coderF,uint8_t cga);
 void dumpVoices(Voice* v);
-void __not_in_flash_func(fillVoiceBuffer)(volatile int32_t* sampleBuffer,Voice* v,uint8_t bufNum);
+void __not_in_flash_func(fillVoiceBuffer)(int32_t* sampleBuffer,Voice* v,uint8_t bufNum);
 void fillVoices();
 void setVoiceFrequency(float freq,Voice* v);
 float calcFreq(uint16_t val);
