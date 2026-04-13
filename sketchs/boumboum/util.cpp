@@ -34,14 +34,12 @@ extern bool st_buffer_free,st_dma_free,st_dma_done_blank,st_sched_free;
 static int st_dma_channel;
 static int ws_dma_channel;
 
-int32_t* i2s_dma_buffers[2];
-int32_t i2s_buf0[SAMPLE_BUFFER_SIZE*2];
-int32_t i2s_buf1[SAMPLE_BUFFER_SIZE*2];
+int32_t* i2s_dma_buffers[2];                // les 2 pointeurs sur les 2 buffers dma
+int32_t i2s_buf0[SAMPLE_BUFFER_SIZE*2];     // le buffer 0 (512*4*2 bytes = 8k)
+int32_t i2s_buf1[SAMPLE_BUFFER_SIZE*2];     // le buffer 1
 
 extern struct Voice voices[];
 extern uint16_t amplLevel[];
-
-volatile uint8_t what=0;
 
 extern volatile uint32_t millisCounter;
 
@@ -224,24 +222,21 @@ void setup(){
     // ****** sound ******
     sound_tables_init();
 
-    uint8_t channel=0;
-
     float fr0=440;
     uint8_t cga=1;
     voicesInit(voices,fr0,cga);
 
     i2s_dma_buffers[0]=i2s_buf0;
     i2s_dma_buffers[1]=i2s_buf1;
-    what=W_SINUS;
-    uint8_t whatAmpl=31;
-    voices[channel].coderAmpl[W_SINUS]=whatAmpl;
-    voices[channel].basicWaveAmpl[W_SINUS]=getAmpl(&voices[channel],W_SINUS);
-    printf("what:%d coderAmpl:%d ampl:%d\n",what,whatAmpl,voices[channel].basicWaveAmpl[W_SINUS]);delay_ms(100);
-    next_sound_feeding(i2s_dma_buffers[0],SAMPLES_PER_BUFFER,0);
-    next_sound_feeding(i2s_dma_buffers[1],SAMPLES_PER_BUFFER,1);
-    i2sSetup(_i2s_pio,PICO_AUDIO_I2S_DATA_PIN,i2s_dma_buffers);
 
-    scope(i2s_buf0,SAMPLES_PER_BUFFER,voices[channel].frequency,0,true,true,0,nullptr);
+    voices[0].coderAmpl[W_SINUS]=31;
+    voices[0].basicWaveAmpl[W_SINUS]=getAmpl(&voices[0],W_SINUS);
+    printf("demo sinus ampl:%d\n",voices[0].basicWaveAmpl[W_SINUS]);delay_ms(100);
+    i2sSetup(_i2s_pio,PICO_AUDIO_I2S_DATA_PIN,i2s_dma_buffers);
+    fillVoices();           // après i2sSetup
+dumpVoices(voices);    
+dumpStr(i2s_buf0,256);
+    scope(i2s_buf0,SAMPLES_PER_BUFFER,voices[0].frequency,0,true,true,0,nullptr);
     while(!gpio_irq_set){
         debug_ticker();
         ledblinkn(3);
@@ -269,24 +264,6 @@ void setup(){
     printf("end setup \n");
     //print_diag();
 }
-
-// -----------------------------
-// ******** i2s feeding ********
-// -----------------------------
-
-void next_sound_feeding(int32_t* next_sound,uint32_t next_sound_size,uint8_t bufNum){
-
-    printf("next_sound_feeding size:%d what:%d\n",next_sound_size,what);
-
-        if(next_sound_size!=SAMPLES_PER_BUFFER){
-            LEDBLINK_ERROR;
-            return;
-        }
-
-    if(what==W_TEST){test_next_sound_feeding(next_sound,next_sound_size);return;}
-    else fillVoiceBuffer(next_sound,&voices[0],what,bufNum);
-}
-
 
 // ******** diags/debug ********
 
@@ -371,11 +348,6 @@ void pio_full_reset(PIO pio) {
     for (int sm = 0; sm < 4; sm++) {
         pio_sm_restart(pio, sm);
     }
-
-    //printf("Dump PIO0:\n");
-    //for (int i = 0; i < 32; i++) {
-    //    printf("instr[%02d] = 0x%04x\n", i, pio0->instr_mem[i]);
-    //}
 
 }
 

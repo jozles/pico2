@@ -58,12 +58,12 @@ extern uint16_t amplLevel[];                // table des amplitudes
 // mapping
 
 #define MAPPING_CODER_NB 2
-volatile int16_t mappingCoders[MAPPING_CODER_NB];  // [0] curr input nb ; [1] curr_input value
+volatile int16_t mappingCoders[MAPPING_CODER_NB];   // [0] curr input nb ; [1] curr_input value
 uint16_t maxMappingCoders[]={INPUTS_NB,OUTPUTS_NB};
 
 // i2s
 
-extern int32_t* i2s_buf;                    // last loaded buffer for scope
+extern int32_t* i2s_buf_scope;                      // last loaded buffer for scope
 
 // loop
 
@@ -78,8 +78,8 @@ uint16_t begline=27;
 // menu
 
 #define MENU0_CODER_NB MENU0_NB
-volatile int16_t menuCoders[MENU0_CODER_NB];  // [0] curr input nb ; [1] curr_input value
-uint16_t maxMenuCoders[]={MENU0_NB-1};
+volatile int16_t menu0Coders[MENU0_CODER_NB];        // [0] curr input nb ; [1] curr_input value
+uint16_t maxMenu0Coders[]={MENU0_NB-1};
 
 const char menu0_names[][MENU_NAME_LEN]={
     #define Z(name,text) text,
@@ -200,7 +200,7 @@ uint8_t coders_for_wavesAmpl(uint8_t currVoice)
         }
         //printf("%d %d\n",mode_scope,firstScope);
         firstDisplay=false;
-        if(mode_scope && i2s_buf!=nullptr){scope(i2s_buf,SAMPLES_PER_BUFFER,voices[currVoice].frequency,begline,false,firstScope,3,nullptr);firstScope=false;}   
+        if(mode_scope && i2s_buf_scope!=nullptr){scope(i2s_buf_scope,SAMPLES_PER_BUFFER,voices[currVoice].frequency,begline,false,firstScope,3,nullptr);firstScope=false;}   
     }
 }
 
@@ -504,7 +504,7 @@ uint8_t coders_for_menu(const char* menu,uint8_t linesNb,uint8_t line_len){
 
     uint8_t m=0;
 
-    coderSetup(menuCoders,voicesSw,maxMenuCoders,1);
+    coderSetup(menu0Coders,voicesSw,maxMenu0Coders,1);
 
     fullMenuDsp("boumboum ",menu,linesNb,line_len,0);
 
@@ -522,7 +522,7 @@ uint8_t coders_for_menu(const char* menu,uint8_t linesNb,uint8_t line_len){
                 int s=tst_switchs(coder,linesNb);            
                 if(s>=0){return m;}
 
-                uint32_t cc=menuCoders[coder];
+                uint32_t cc=menu0Coders[coder];
                 if(coder==0 && cc!=m){
                     menuLineDsp(menu,m,line_len,false);
                     m=cc;

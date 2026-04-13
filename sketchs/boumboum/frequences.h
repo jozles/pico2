@@ -51,13 +51,12 @@ struct Voice {
     volatile uint16_t    genAmpl;                        // ampl value for global voice
     volatile int16_t     coderGenAmpl;
     uint16_t    maxCoderGenAmpl;                // max value for coderGenAmpl
-    bool        coderSw[BASIC_WAVES_NB];        // last Switch
+    bool        coderSw[CODER_NB];        // last Switch
     uint16_t    soundsCc[CODER_BANK_NB];
     uint16_t    adsrlCc[CODER_BANK_NB];
     float       frequency;                      // current freq
     int16_t     coderFreq;                      // last coder value for freq
     uint16_t    maxCoderFreq;                   // pmax value for coderFreq
-    bool        coderSwF;                       // last Switch
 };
 
 struct Lfo {
@@ -68,8 +67,8 @@ struct Lfo {
 void sound_tables_init();
 void voicesInit(Voice* v,float freq,uint8_t cga);
 void voicesInit(Voice* v,uint16_t coderF,uint8_t cga);
-//void fillVoiceBuffer(int32_t* sampleBuffer,Voice* v,uint8_t what,uint8_t bufNum);
-void __not_in_flash_func(fillVoiceBuffer)(volatile int32_t* sampleBuffer,Voice* v,uint8_t what,uint8_t bufNum);
+void dumpVoices(Voice* v);
+void __not_in_flash_func(fillVoiceBuffer)(volatile int32_t* sampleBuffer,Voice* v,uint8_t bufNum);
 void fillVoices();
 void setVoiceFrequency(float freq,Voice* v);
 float calcFreq(uint16_t val);

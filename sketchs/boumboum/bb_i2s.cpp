@@ -119,6 +119,9 @@ int i2sSetup(PIO pio,uint8_t i2sDataPin,int32_t* buf[2]) {
     int v=init_dma_i2s();
     if(v<0){printf("i2sSetup: no dma channel available\n");return v;}   // -1 ou -2
 
+    i2s_buf_free[0]=true;
+    i2s_buf_free[1]=true;
+
     printf("début i2s\n");
     return 0;
 }
