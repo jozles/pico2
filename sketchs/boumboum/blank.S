@@ -1,8 +1,12 @@
     .syntax unified
     .thumb
-
+    .thumb_func
+    .cpu cortex-m33
+    
     .global blank
 blank:
+    push    {r4,r5,r6,lr}
+
     cbz     r1, end
 
 align_loop:
@@ -38,4 +42,4 @@ byte_loop:
     bne     byte_loop
 
 end:
-    bx      lr
+    pop     {r4,r5,r6,pc}

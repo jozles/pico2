@@ -12,7 +12,7 @@
 extern "C" {
 #endif
 
-void blank(char *var, uint16_t len);
+void blank(char *var, uint16_t len);    // memcpy(var,0x00,len) en 40 fois plus rapide
 
 #ifdef __cplusplus
 }
@@ -629,7 +629,6 @@ void fillVoices()
 
 // 223uS
 void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* v,uint8_t bufNum){   // 5.8mS pour les 6 sources @512 samples (23mS@44100Hz)
-gpio_put(TST_PIN,0);
 
       uint16_t tablech[SAMPLE_BUFFER_SIZE];
 
@@ -674,20 +673,13 @@ gpio_put(TST_PIN,0);
         // noises
 
         nPhase += nStep;
-
-        // branchless wrap using subtraction and conditional negation
         uint32_t tmp = nPhase - limit;
         nPhase = tmp + ((tmp >> 31) & limit);
-
-        //if (nPhase >= limit) nPhase -= limit;
-
         int32_t white = noise_table[nPhase>>16];
-
         pre += white * waveAmplWhi;
 
         // bruit rose 1-pôle branchless
-        pink_state=(alpha * pink_state + (32768 - alpha) * (white)) >> 15;
-          
+        pink_state=(alpha * pink_state + (32768 - alpha) * (white)) >> 15;    
         pre += (int16_t)pink_state * waveAmplPnk;
 
         *voiceBuffer+=pre;
@@ -699,49 +691,29 @@ gpio_put(TST_PIN,0);
     v->currEch    = currEch;
     v->currEchFra = currEchFra;
     v->noisePhase = nPhase;   
-
-    //i2s_buf_free[bufNum] = false;
-gpio_put(TST_PIN,1);    
 }
 
 void blank(char *var, uint16_t len);
 
+// <230uS/voix +10
 
 void __not_in_flash_func(fillVoiceBuffer)(int32_t* vBuffer, Voice* voices, uint8_t bufNum)
 {
+    blank((char*)vBuffer,SAMPLE_BUFFER_SIZE*8);
 
-    //memset((void*)vBuffer, 0, SAMPLE_BUFFER_SIZE * 2 * sizeof(int32_t));
-    //memset((void*)vBuffer,0x00,SAMPLE_BUFFER_SIZE*4*2);
-
-    //blank((char*)vBuffer,SAMPLE_BUFFER_SIZE);
-
-
-    // buffer temporaire pour une voix
-    //static int32_t tmpBuffer[SAMPLE_BUFFER_SIZE * 2];
-
-    // pour chaque voix : on calcule dans tmpBuffer, puis on accumule dans mixBuffer
-    //for (uint8_t n = 0; n < VOICES_NB; n++)
-    //{
-        // calcule la voix n dans tmpBuffer avec TA fonction mono
-        fillVoiceBuffer_mono(vBuffer, &voices[0], bufNum);
-        fillVoiceBuffer_mono(vBuffer, &voices[1], bufNum);        
-//gpio_put(TST_PIN,1);
-        // accumulation simple
-        //for (uint32_t i = 0; i < SAMPLE_BUFFER_SIZE * 2; i++)
-        //  {vBuffer[i] += tmpBuffer[i];}
-//gpio_put(TST_PIN,0);    
-    //}
+    fillVoiceBuffer_mono(vBuffer, &voices[0], bufNum); 
+    fillVoiceBuffer_mono(vBuffer, &voices[1], bufNum);        
 
     i2s_buf_free[bufNum] = false;
 }
 
 void fillVoices()
 {
-    gpio_put(TST_PIN,1);
+gpio_put(TST_PIN,1);
 
     if(i2s_buf_free[0]){fillVoiceBuffer(i2s_buffer[0],voices,0);i2s_buf_scope=i2s_buffer[0];}
     if(i2s_buf_free[1]){fillVoiceBuffer(i2s_buffer[1],voices,1);i2s_buf_scope=i2s_buffer[1];}
 
-    gpio_put(TST_PIN,0);
+gpio_put(TST_PIN,0);
 }
 

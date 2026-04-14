@@ -190,15 +190,18 @@ void gpio_irq_init(uint pin) {
     gpio_irq_set=false;
 }
 
+// hardware full init 
 void setup(){
 
-    gpio_init(LED);gpio_set_dir(LED,GPIO_OUT); gpio_put(LED,LOW);    
+    gpio_init(TST_PIN);gpio_set_dir(TST_PIN,GPIO_OUT); gpio_put(TST_PIN,LOW); 
+
+    gpio_init(LED);gpio_set_dir(LED,GPIO_OUT); gpio_put(LED,LOW);
+    delayBlk(3);               
 
     gpio_init(PIN_DCDC_PSM_CTRL);gpio_set_dir(PIN_DCDC_PSM_CTRL, GPIO_OUT);
     gpio_put(PIN_DCDC_PSM_CTRL, 1); // PWM mode for less Audio noise
     
     // ****** inputs ******
-
     inputsInit();
 
     // ****** coders ******
@@ -206,7 +209,8 @@ void setup(){
 
     // ****** lfos ******
     lfosInit();
-    
+
+    // ****** 1kHZ irq ******
     init_pwm_timer_1khz();  // millitimers+coders+lfos
 
     // ****** ws2812 ******
@@ -217,9 +221,12 @@ void setup(){
     st_dma_channel=st7789_setup(ST7789_SPI_SPEED);
     if(st_dma_channel<0){LEDBLINK_ERROR_DMA}
 
+    // ****** global irq (st+ws) ******
     init_global_dma_irq();
 
     // ****** button ******
+    gpio_init(BUTTON_PIN);gpio_set_dir(BUTTON_PIN,GPIO_IN);
+    gpio_init(BUT_VCC_PIN);gpio_set_dir(BUT_VCC_PIN,GPIO_OUT); gpio_put(BUT_VCC_PIN,LOW);sleep_ms(100);gpio_put(BUT_VCC_PIN,HIGH);
     gpio_irq_init(BUTTON_PIN);  // après  init_global_dma_irq();
 
     // ****** sound ******
@@ -229,16 +236,18 @@ void setup(){
     uint8_t cga=1;
     voicesInit(voices,fr0,cga);
 
-    i2s_dma_buffers[0]=i2s_buf0;
-    i2s_dma_buffers[1]=i2s_buf1;
-
     voices[0].coderAmpl[W_SINUS]=31;
     voices[0].basicWaveAmpl[W_SINUS]=getAmpl(&voices[0],W_SINUS);
-    printf("demo sinus ampl:%d\n",voices[0].basicWaveAmpl[W_SINUS]);delay_ms(100);
+    printf("demo sinus ampl:%d\n",voices[0].basicWaveAmpl[W_SINUS]);delay_ms(100);    
+
+    // ****** i2s ******
+    i2s_dma_buffers[0]=i2s_buf0;
+    i2s_dma_buffers[1]=i2s_buf1;
     i2sSetup(_i2s_pio,PICO_AUDIO_I2S_DATA_PIN,i2s_dma_buffers);
     fillVoices();           // après i2sSetup
-dumpVoices(voices);    
-dumpStr(i2s_buf0,256);
+   
+//dumpVoices(voices);    
+    // ****** scope check ******
     scope(i2s_buf0,SAMPLES_PER_BUFFER,voices[0].frequency,0,true,true,0,nullptr);
     while(!gpio_irq_set){
         debug_ticker();
@@ -257,15 +266,15 @@ dumpStr(i2s_buf0,256);
 
     tft_draw_text_12x12_dma_mult((TFT_W-(7*10))/2,TFT_H/2+14,s, 0xF81F, 0x0000,1); 
 
-    const char* v="v1.3r";
-    tft_draw_text_12x12_dma_mult((TFT_W-(strlen(v)*10))/2,TFT_H/2+25,v, 0xFFE0, 0x0000,1);
+    const char* version=VERSION;
+    tft_draw_text_12x12_dma_mult((TFT_W-(strlen(version)*10))/2,TFT_H/2+25,version, 0xFFE0, 0x0000,1);
 
     delayBlk(5);
 
     tft_fill_rect_blank(0,0,TFT_H,TFT_W);
 
     printf("end setup \n");
-    //print_diag();
+//print_diag();
 }
 
 // ******** diags/debug ********

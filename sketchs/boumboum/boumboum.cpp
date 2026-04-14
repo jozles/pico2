@@ -15,6 +15,7 @@
 #include "st7789.h"
 #include "menus.h"
 
+const char* version=VERSION;
 uint8_t currVoice=0;
 
 extern const char menu0_names[][MENU_NAME_LEN];
@@ -22,22 +23,14 @@ extern const char menu0_names[][MENU_NAME_LEN];
 int main() {
 
     stdio_init_all();
-
-    sleep_ms(1000);
-
-    gpio_init(TST_PIN);gpio_set_dir(TST_PIN,GPIO_OUT); gpio_put(TST_PIN,LOW);   
-    gpio_init(BUTTON_PIN);gpio_set_dir(BUTTON_PIN,GPIO_IN);
-    gpio_init(BUT_VCC_PIN);gpio_set_dir(BUT_VCC_PIN,GPIO_OUT); gpio_put(BUT_VCC_PIN,LOW);sleep_ms(100);gpio_put(BUT_VCC_PIN,HIGH);
-    gpio_init(LED);gpio_set_dir(LED,GPIO_OUT); gpio_put(LED,LOW);
-    delayBlk(3);        
-    printf("\n+boumboum= \n");
+    sleep_ms(2000);
+    printf("\n+boumboum\n");    // %s\n",version);
     
 if (watchdog_caused_reboot()) {
     printf("RESET = WATCHDOG\n");
 } else {
     printf("RESET = NORMAL\n");
 }
-
     setup();
 
     init_test_7789(20,25*8,0,TFT_H-12*8,TFT_H,1);       // init screen animation

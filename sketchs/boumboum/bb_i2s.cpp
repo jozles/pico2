@@ -14,7 +14,7 @@
 
 extern volatile uint32_t millisCounter;
 
-volatile bool i2s_buf_free[2]; // false busy : buffer filling to do
+volatile bool i2s_buf_free[2]; // false busy : buffer ready for dma
 
 static int i2s_dma_chan0;
 static int i2s_dma_chan1;

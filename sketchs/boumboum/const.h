@@ -4,6 +4,8 @@
 #include "pico/stdlib.h"
 #include "util.h"
 
+#define VERSION "v1.3r"
+
 #define PI 3.141592636
 
 #define BB_TEST_MODE

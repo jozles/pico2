@@ -65,7 +65,7 @@ uint16_t maxMappingCoders[]={INPUTS_NB,OUTPUTS_NB};
 
 extern int32_t* i2s_buf_scope;                      // last loaded buffer for scope
 
-// loop
+// menu
 
 #define SWIGNORE 1000
 uint32_t swIgnore=millisCounter;
@@ -74,8 +74,6 @@ uint32_t swIgnore=millisCounter;
 char buf[LINE_LEN];
 
 uint16_t begline=27;
-
-// menu
 
 #define MENU0_CODER_NB MENU0_NB
 volatile int16_t menu0Coders[MENU0_CODER_NB];        // [0] curr input nb ; [1] curr_input value
