@@ -787,9 +787,8 @@ void test_st7789(){
     }   
 }
 
-
-
-void __not_in_flash_func(test_st7789_2)(){
+void __not_in_flash_func(test_st7789_2)(void)
+{
     if((millis+ms0)<millisCounter){     
         millis=millisCounter;
 
@@ -807,4 +806,26 @@ void __not_in_flash_func(test_st7789_2)(){
       tft_draw_rect(l,0,1,TFT_W,&tft_frame[bgad]);          
       l++;     
     }
+    // ton code ici
 }
+
+/*void __not_in_flash_func(test_st7789_2)(void)
+{
+    if((millis+ms0)<millisCounter){     
+        millis=millisCounter;
+
+      if(l>lbeg && ms0>2){                          // effacement ligne précédente 
+        ms0=2;
+        tft_fill_rect_blank(l-1,0,1,TFT_W);
+        return;  
+      }
+      
+      if(l>=TFT_H){l=lbeg;}
+
+      ms0=ms;
+      uint32_t bgad=l*TFT_W*2;                      // trace ligne courante
+      memset(&tft_frame[bgad],0xff,TFT_W*2);
+      tft_draw_rect(l,0,1,TFT_W,&tft_frame[bgad]);          
+      l++;     
+    }
+}*/

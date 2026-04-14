@@ -38,11 +38,13 @@ uint16_t amplLevel[MAX_16B_LINEAR_VALUE];
 extern uint32_t millisCounter;
 
 // current lfo values (lfoHandler triger'd by pwmIrqHandler)
-float       lfosFrequency[LFOS_NB];                  // current lfo freq
-int16_t     coderLfos[LFOS_NB];                      // last coder value for freq
-uint16_t    lfosMaxCoderFreq[LFOS_NB];               // pmax value for lfo coderFreq
-uint16_t    lfosStepInt[LFOS_NB];                    // partie entière du step lfo
-uint32_t    lfosStepFra[LFOS_NB];                    // partie fractionnaire du step lfo
+float       lfosFrequency[LFOS_NB];                   // current lfo freq
+int16_t     coderLfos[LFOS_NB];                       // last coder value for freq
+uint16_t    lfosMaxCoderFreq[LFOS_NB];                // pmax value for lfo coderFreq
+uint16_t    lfosStepInt[LFOS_NB];                     // partie entière du step lfo
+uint32_t    lfosStepFra[LFOS_NB];                     // partie fractionnaire du step lfo
+uint16_t    lfosStepIntD[LFOS_NB];                    // partie entière du step descendant
+uint32_t    lfosStepFraD[LFOS_NB];                    // partie fractionnaire du step descendant  
 uint16_t    currLfoEch[LFOS_NB];
 uint32_t    currLfoEchFra[LFOS_NB];
 uint16_t    sineLfo[LFOS_NB];
@@ -53,6 +55,9 @@ uint32_t    lfoTime=millisCounter;
 uint32_t    lfoTimingInterval=1000/LFOS_SAMPLE_RATE;
 int32_t     lfoScopeBuffer[LFOS_NB*LFOS_SCOPE_BUFFER_LEN];  // n° echantillons 
 uint16_t    lfoScopeBufPtr=0;
+int8_t      lfosCoderCycleR[LFOS_NB];                 // rapport cyclique -64/+64 pour coder
+int8_t      lfosMaxCoderCycleR[LFOS_NB];
+
 
 // i2s
 
@@ -285,7 +290,7 @@ void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)
 
         voices[v].coderFreq=coderF;
         float f=calcFreq(voices[v].coderFreq);          // 440Hz
-        setVoiceFrequency(f,&voices[v]);    
+        setVoiceFrequency(f,&voices[v],0);    
 
         voices[v].sampleNbToFill=SAMPLE_BUFFER_SIZE;    
         voices[v].currentSample=0;
@@ -321,23 +326,65 @@ void dumpVoices(Voice* v)
 }
 
 // update voice[].frequency - compute steps
-void setVoiceFrequency(float freq,Voice* v){
+void __not_in_flash_func(setVoiceFrequency)(float freq,Voice* v,int8_t rc){
     
     v->frequency=freq;
+    v->coderCycleR=rc;
+
+    float r = (rc + 64) / 128.0f;
+    float stepUp,stepDown;
 
     float k=(uint32_t)BASIC_WAVE_TABLE_LEN*v->frequency/SAMPLE_RATE;
-    v->stepInt=(uint32_t)k;
-    v->stepFra=(uint32_t)((k-v->stepInt)*MAX_STEP_FRA);
+
+    if (r <= 0.0f) {
+      stepUp = 0.0f;
+      stepDown = k;
+    }
+    else if (r >= 1.0f) {
+      stepUp = k;
+      stepDown = 0.0f;
+    }
+    else {
+      stepUp   = k / r;
+      stepDown = k / (1.0f - r);
+    }
+
+    v->stepInt=(uint32_t)stepUp;
+    v->stepFra=(uint32_t)((stepUp-v->stepInt)*MAX_STEP_FRA);
+
+    v->stepIntD=(uint32_t)stepDown;
+    v->stepFraD=(uint32_t)((stepDown-v->stepInt)*MAX_STEP_FRA);
 }
 
 // update voice[].lfosFrequency - compute steps
-void setLfosFrequency(float freq,uint8_t l){
+void __not_in_flash_func(setLfosFrequency)(float freq,uint8_t l,int8_t rc){
     
     lfosFrequency[l]=freq;
+    lfosCoderCycleR[l]=rc;
+
+    float r = (rc + 64) / 128.0f;
+    float stepUp,stepDown;
 
     float k=(uint32_t)BASIC_WAVE_TABLE_LEN*lfosFrequency[l]/LFOS_SAMPLE_RATE;
-    lfosStepInt[l]=(uint32_t)k;
-    lfosStepFra[l]=(uint32_t)((k-lfosStepInt[l])*MAX_STEP_FRA);
+
+    if (r <= 0.0f) {
+      stepUp = 0.0f;
+      stepDown = k;
+    }
+    else if (r >= 1.0f) {
+      stepUp = k;
+      stepDown = 0.0f;
+    }
+    else {
+      stepUp   = k / r;
+      stepDown = k / (1.0f - r);
+    }    
+
+    lfosStepInt[l]=(uint32_t)stepUp;
+    lfosStepFra[l]=(uint32_t)((stepUp-lfosStepInt[l])*MAX_STEP_FRA);
+    
+    lfosStepIntD[l]=(uint32_t)stepDown;
+    lfosStepFraD[l]=(uint32_t)((stepDown-lfosStepInt[l])*MAX_STEP_FRA);
 }
 
 void lfosInit(){
@@ -360,19 +407,35 @@ void lfosInit(){
 }
 
 int32_t* waveformTable[]={sineWaveform,squareWaveform,triangleWaveform,sawtoothWaveform};
-void lfosHandler()
+
+void __not_in_flash_func(lfosHandler)()
 {
+  #define LIM90  MAX_STEP_FRA/4
+  #define LIM270 MAX_STEP_FRA*3/4
+
   if((millisCounter-lfoTime)>lfoTimingInterval){
     lfoTime=millisCounter;
+    uint32_t stepIntUse;
+    uint32_t stepFraUse;    
+    
     for(uint8_t l=0;l<LFOS_NB;l++){
 
         uint16_t ce=currLfoEch[l];
         uint32_t cf=currLfoEchFra[l];
+        uint32_t cs=lfosStepInt[l];
+        uint32_t ct=lfosStepFra[l];
+        uint32_t cg=lfosStepIntD[l];
+        uint32_t ch=lfosStepFraD[l]; 
 
-        cf += lfosStepFra[l];
+        int32_t cond=(ce>LIM90 && ce<LIM270);
+        cond=0-cond;                        
+        stepIntUse=(cs&cond) | (cg&(~cond));
+        stepFraUse=(ct&cond) | (ch&(~cond));
+
+        cf += ct;
         uint32_t carry = (cf > MAX_STEP_FRA);
         cf -= carry * MAX_STEP_FRA;
-        ce += lfosStepInt[l] + carry;
+        ce += cs + carry;
         ce -= (ce >= BASIC_WAVE_TABLE_LEN) * BASIC_WAVE_TABLE_LEN;
 
         sineLfo[l]=sineWaveform[ce];
@@ -398,245 +461,23 @@ uint16_t getAmpl(Voice* v,uint8_t wav){
   return amplLevel[v->coderAmpl[wav]];
 }
 
-/* // 251uS
-void __not_in_flash_func(fillVoiceBuffer)(volatile int32_t* vBuffer,Voice* v,uint8_t what,uint8_t bufNum){   // 5.8mS pour les 6 sources @512 samples (23mS@44100Hz)
-gpio_put(TST_PIN,HIGH);
 
-    i2s_buf_free[bufNum]=false;
-
-    uint32_t currEch      = v->currEch;
-    uint32_t currEchFra   = v->currEchFra;
-    uint32_t stepInt      = v->stepInt;
-    uint32_t stepFra      = v->stepFra;
-    nPhase       = v->noisePhase;
-    nStep        = v->noiseStep;
-    uint32_t limit = (uint32_t)N << 16;
-    int32_t  genAmpl      = v->genAmpl;
-    int32_t  waveAmplSin  = v->basicWaveAmpl[W_SINUS];
-    int32_t  waveAmplTri  = v->basicWaveAmpl[W_TRIANGLE];
-    int32_t  waveAmplSaw  = v->basicWaveAmpl[W_SAWTOOTH];        
-    int32_t  waveAmplSqr  = v->basicWaveAmpl[W_SQUARE];    
-    int32_t  waveAmplWhi  = v->basicWaveAmpl[W_WHITE_NOISE];
-    int32_t  waveAmplPnk  = v->basicWaveAmpl[W_PINK_NOISE];
-    volatile int32_t* voiceBuffer=&vBuffer[0];
-
-    //printf("sin:%d\n",v->basicWaveAmpl[W_SINUS]);
-
-    for(uint32_t s = 0; s < v->sampleNbToFill; s++)
-    {
-
-        currEchFra += stepFra;
-        uint32_t carry = (currEchFra > MAX_STEP_FRA);
-        currEchFra -= carry * MAX_STEP_FRA;
-        currEch += stepInt + carry;
-        currEch -= (currEch >= BASIC_WAVE_TABLE_LEN) * BASIC_WAVE_TABLE_LEN;
-
-        int32_t pre=sineWaveform[currEch] * waveAmplSin;
-        pre += triangleWaveform[currEch] * waveAmplTri;
-        pre += sawtoothWaveform[currEch]* waveAmplSaw;
-        pre += squareWaveform[currEch]* waveAmplSqr;
-
-        // noises
-
-        nPhase += nStep;
-
-        // branchless wrap using subtraction and conditional negation
-        uint32_t tmp = nPhase - limit;
-        nPhase = tmp + ((tmp >> 31) & limit);
-
-        //if (nPhase >= limit) nPhase -= limit;
-
-        int32_t white = noise_table[nPhase>>16];
-
-        pre += white * waveAmplWhi;
-
-        // bruit rose 1-pôle branchless
-        pink_state=(alpha * pink_state + (32768 - alpha) * (white)) >> 15;
-          
-        pre += (int16_t)pink_state * waveAmplPnk;
-
-        *voiceBuffer=pre;
-        voiceBuffer++;
-        *voiceBuffer=pre;
-        voiceBuffer++;
-    }
-
-    v->currEch    = currEch;
-    v->currEchFra = currEchFra;
-    v->noisePhase = nPhase;   
-
-//dumpStr(vBuffer,256);
-gpio_put(TST_PIN,LOW);    
-}
-
-void fillVoices()
-{
-    gpio_put(TST_PIN,1);
-
-    if(i2s_buf_free[0]){fillVoiceBuffer(i2s_buffer[0],&voices[0],0,0);i2s_buf=i2s_buffer[0];}
-    if(i2s_buf_free[1]){fillVoiceBuffer(i2s_buffer[1],&voices[0],0,1);i2s_buf=i2s_buffer[1];}
-
-    gpio_put(TST_PIN,0);
-}*/
-
-// 440uS 
-/*void __not_in_flash_func(fillVoiceBuffer)(volatile int32_t* vBuffer,Voice* v,uint8_t bufNum){   // 5.8mS pour les 6 sources @512 samples (23mS@44100Hz)
-//gpio_put(TST_PIN,HIGH);
-
-      int16_t tablech[SAMPLE_BUFFER_SIZE];
-      memset((void*)vBuffer,0x00,SAMPLE_BUFFER_SIZE*4*2);
-
-      i2s_buf_free[bufNum]=false;
-
-
-      uint8_t n=0;
-      uint32_t currEch      = v[n].currEch;
-      uint32_t currEchFra   = v[n].currEchFra;
-      uint32_t stepInt      = v[n].stepInt;
-      uint32_t stepFra      = v[n].stepFra;
-      nPhase       = v[n].noisePhase;
-      nStep        = v[n].noiseStep;
-      uint32_t limit = (uint32_t)N << 16;
-      int32_t  genAmpl      = v[n].genAmpl;
-      int32_t  waveAmplSin  = v[n].basicWaveAmpl[W_SINUS];
-      int32_t  waveAmplTri  = v[n].basicWaveAmpl[W_TRIANGLE];
-      int32_t  waveAmplSaw  = v[n].basicWaveAmpl[W_SAWTOOTH];        
-      int32_t  waveAmplSqr  = v[n].basicWaveAmpl[W_SQUARE];    
-      int32_t  waveAmplWhi  = v[n].basicWaveAmpl[W_WHITE_NOISE];
-      int32_t  waveAmplPnk  = v[n].basicWaveAmpl[W_PINK_NOISE];
-
-  for(uint8_t n=0;n<VOICES_NB;n++){
-
-
-      volatile int32_t* voiceBuffer=vBuffer;
-
-      uint32_t s = SAMPLE_BUFFER_SIZE;
-
-      do                                                          // compute & store samples nb in waves tables
-      {
-        s--;
-        currEchFra += stepFra;
-        uint32_t carry = (currEchFra > MAX_STEP_FRA);
-        currEchFra -= carry * MAX_STEP_FRA;
-        currEch += stepInt + carry;
-        currEch &= BASIC_WAVE_TABLE_LEN-1;
-
-        tablech[s]=currEch;
-      }
-      while (s!=0);
-
-      for(uint32_t s = 0; s < SAMPLE_BUFFER_SIZE; s++)            // accumulate amplified samples + noises ... 1 voice
-      {
-        uint16_t e=tablech[s];
-        int32_t pre = sineWaveform[e] * waveAmplSin;
-        pre += triangleWaveform[e]  * waveAmplTri;
-        pre += sawtoothWaveform[e]  * waveAmplSaw;
-        pre += squareWaveform[e]    * waveAmplSqr;
-
-        // noises
-        nPhase += nStep;
-        uint32_t tmp = nPhase - limit;
-        nPhase = tmp + ((tmp >> 31) & limit);
-        int32_t white = noise_table[nPhase>>16];                              // bruit blanc
-        pink_state=(alpha * pink_state + (32768 - alpha) * (white)) >> 15;    // bruit rose
-
-        pre += white * waveAmplWhi;        
-        pre += (int16_t)pink_state * waveAmplPnk;
-
-        *voiceBuffer+=pre;    // *voiceBuffer=pre;
-        voiceBuffer++;
-        *voiceBuffer+=pre;    // *voiceBuffer=pre;
-        voiceBuffer++;
-      }
-
-      v[n].currEch    = currEch;
-      v[n].currEchFra = currEchFra;
-      v[n].noisePhase = nPhase; 
-  }  
-
-//gpio_put(TST_PIN,LOW);    
-}*/
-
-// 440uS copilot
-/*void __not_in_flash_func(fillVoiceBuffer)(volatile int32_t* vBuffer, Voice* v, uint8_t bufNum)
-{
-    // --- 1) Buffer local non-volatile pour accumulation ---
-    static int32_t mixBuffer[SAMPLE_BUFFER_SIZE * 2];
-    memset(mixBuffer, 0, SAMPLE_BUFFER_SIZE * 2 * sizeof(int32_t));
-
-    // --- 2) Boucle des voix ---
-    for (uint8_t n = 0; n < VOICES_NB; n++)
-    {
-        // Lecture des paramètres de la voix (optimisé)
-        uint32_t currEch    = v[n].currEch;
-        uint32_t currEchFra = v[n].currEchFra;
-        uint32_t stepInt    = v[n].stepInt;
-        uint32_t stepFra    = v[n].stepFra;
-
-        uint32_t nPhase     = v[n].noisePhase;
-        uint32_t nStep      = v[n].noiseStep;
-        uint32_t limit      = (uint32_t)N << 16;
-
-        int32_t waveAmplSin = v[n].basicWaveAmpl[W_SINUS];
-        int32_t waveAmplTri = v[n].basicWaveAmpl[W_TRIANGLE];
-        int32_t waveAmplSaw = v[n].basicWaveAmpl[W_SAWTOOTH];
-        int32_t waveAmplSqr = v[n].basicWaveAmpl[W_SQUARE];
-        int32_t waveAmplWhi = v[n].basicWaveAmpl[W_WHITE_NOISE];
-        int32_t waveAmplPnk = v[n].basicWaveAmpl[W_PINK_NOISE];
-
-        // --- 3) Boucle des samples ---
-        for (uint32_t s = 0; s < SAMPLE_BUFFER_SIZE; s++)
-        {
-            // DDS
-            currEchFra += stepFra;
-            uint32_t carry = (currEchFra > MAX_STEP_FRA);
-            currEchFra -= carry * MAX_STEP_FRA;
-            currEch += stepInt + carry;
-            currEch &= BASIC_WAVE_TABLE_LEN - 1;
-
-            // Formes d’onde
-            int32_t pre = 0;
-            pre += sineWaveform[currEch]     * waveAmplSin;
-            pre += triangleWaveform[currEch] * waveAmplTri;
-            pre += sawtoothWaveform[currEch] * waveAmplSaw;
-            pre += squareWaveform[currEch]   * waveAmplSqr;
-
-            // Bruits
-            nPhase += nStep;
-            uint32_t tmp = nPhase - limit;
-            nPhase = tmp + ((tmp >> 31) & limit);
-
-            int32_t white = noise_table[nPhase >> 16];
-            pink_state = (alpha * pink_state + (32768 - alpha) * white) >> 15;
-
-            pre += white * waveAmplWhi;
-            pre += (int16_t)pink_state * waveAmplPnk;
-
-            // --- Accumulation SANS pénalité ---
-            mixBuffer[s*2]     += pre;
-            mixBuffer[s*2 + 1] += pre;
-        }
-
-        // Sauvegarde état voix
-        v[n].currEch    = currEch;
-        v[n].currEchFra = currEchFra;
-        v[n].noisePhase = nPhase;
-    }
-
-    // --- 4) Copie finale vers buffer I2S (une seule fois) ---
-    for (uint32_t i = 0; i < SAMPLE_BUFFER_SIZE * 2; i++)
-        vBuffer[i] = mixBuffer[i];
-}*/
-
-// 223uS
+// 223uS  producer 1 voice for i2s   (see prev versions for other implementations - this one the fastest)
 void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* v,uint8_t bufNum){   // 5.8mS pour les 6 sources @512 samples (23mS@44100Hz)
 
       uint16_t tablech[SAMPLE_BUFFER_SIZE];
+
+      #define LIM90  MAX_STEP_FRA/4
+      #define LIM270 MAX_STEP_FRA*3/4
 
       uint32_t currEch      = v->currEch;
       uint32_t currEchFra   = v->currEchFra;
       uint32_t stepInt      = v->stepInt;
       uint32_t stepFra      = v->stepFra;
+      uint32_t stepIntD     = v->stepInt;
+      uint32_t stepFraD     = v->stepFra;
+      uint32_t stepIntUse;
+      uint32_t stepFraUse;
       nPhase       = v->noisePhase;
       nStep        = v->noiseStep;
       uint32_t limit = (uint32_t)N << 16;
@@ -652,14 +493,52 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
       uint32_t s = SAMPLE_BUFFER_SIZE;
       do
       {
+#define VMOI
+
+        #ifdef VCOPILOT
+        //  version copilot
         s--;
-        currEchFra += stepFra;
+
+        // maskDesc = 1 si 90° < currEch < 270°, sinon 0
+        uint32_t m1 = (currEch - LIM90)  >> 31;      // 1 si currEch < LIM90
+        uint32_t m2 = (LIM270 - currEch) >> 31;      // 1 si currEch >= LIM270
+        uint32_t maskDesc = ~(m1 | m2) & 1;          // 1 = descente, 0 = montée
+
+        // masque 0xFFFFFFFF ou 0x00000000
+        uint32_t mask = -maskDesc;
+
+        // sélection branchless
+        stepIntUse = (stepIntD & mask) | (stepInt & ~mask);
+        stepFraUse = (stepFraD & mask) | (stepFra & ~mask);
+
+        // avance DDS
+        currEchFra += stepFraUse;
         uint32_t carry = (currEchFra > MAX_STEP_FRA);
         currEchFra -= carry * MAX_STEP_FRA;
-        currEch += stepInt + carry;
+
+        currEch += stepIntUse + carry;
+        currEch &= BASIC_WAVE_TABLE_LEN - 1;
+
+        tablech[s] = currEch;
+        #endif // VCOPILOT
+
+        #ifdef VMOI
+        // ma version (+0.7cyles/boucle !)
+        s--;
+        int32_t cond=(currEch>LIM90 && currEch<LIM270);
+        cond=0-cond;                        
+        stepIntUse=(stepInt&cond) | (stepIntD&(~cond));
+        stepFraUse=(stepFra&cond) | (stepFraD&(~cond));
+
+        currEchFra += stepFraUse;
+        uint32_t carry = (currEchFra > MAX_STEP_FRA);
+        currEchFra -= carry * MAX_STEP_FRA;
+        currEch += stepIntUse + carry;
         currEch &= BASIC_WAVE_TABLE_LEN-1;
 
         tablech[s]=currEch;
+
+        #endif // VMOI
       }
       while (s!=0);
 

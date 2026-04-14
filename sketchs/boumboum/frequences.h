@@ -39,8 +39,10 @@
 struct Voice {
     uint16_t    sampleNbToFill;                 // sample Nb for 1 period    
     uint32_t    currentSample;                  // last value pushed in i2s buffer                  
-    uint16_t    stepInt;                        // partie entière du step
-    uint32_t    stepFra;                        // partie fractionnaire du step
+    uint16_t    stepInt;                        // partie entière du step montant
+    uint32_t    stepFra;                        // partie fractionnaire du step montant
+    uint16_t    stepIntD;                       // partie entière du step descendant
+    uint32_t    stepFraD;                       // partie fractionnaire du step descendant    
     uint16_t    currEch;                        // dernier N° d'ech utilisé
     uint32_t    currEchFra;                     // dernière valeur fractionnaire de n° d'ech calculée  
     uint32_t    noisePhase;                     // Q16.16
@@ -48,15 +50,18 @@ struct Voice {
     volatile uint16_t    basicWaveAmpl[BASIC_WAVES_NB];  // ampl value for coderAmpl value
     volatile int16_t     coderAmpl[BASIC_WAVES_NB];      // last coder value for ampl
     uint16_t    maxCoderAmpl[BASIC_WAVES_NB];   // max value for coderAmpl
-    volatile uint16_t    genAmpl;                        // ampl value for global voice
+    volatile uint16_t    genAmpl;               // ampl value for global voice
     volatile int16_t     coderGenAmpl;
     uint16_t    maxCoderGenAmpl;                // max value for coderGenAmpl
-    bool        coderSw[CODER_NB];        // last Switch
+    bool        coderSw[CODER_NB];              // last Switch
     uint16_t    soundsCc[CODER_BANK_NB];
     uint16_t    adsrlCc[CODER_BANK_NB];
     float       frequency;                      // current freq
     int16_t     coderFreq;                      // last coder value for freq
     uint16_t    maxCoderFreq;                   // pmax value for coderFreq
+    int8_t      coderCycleR;                    // rapport cyclique -64/+64 pour coder
+    int8_t      maxCoderCycleR;
+
 };
 
 struct Lfo {
@@ -70,12 +75,12 @@ void voicesInit(Voice* v,uint16_t coderF,uint8_t cga);
 void dumpVoices(Voice* v);
 void __not_in_flash_func(fillVoiceBuffer)(int32_t* sampleBuffer,Voice* v,uint8_t bufNum);
 void fillVoices();
-void setVoiceFrequency(float freq,Voice* v);
+void __not_in_flash_func(setVoiceFrequency)(float freq,Voice* v,int8_t rc);
 float calcFreq(uint16_t val);
 uint16_t calcCoderFreq(float freq);
 uint16_t getAmpl(Voice* v,uint8_t wav);
-void setLfosFrequency(float freq,uint8_t l);
-void lfosHandler();
+void __not_in_flash_func(setLfosFrequency)(float freq,uint8_t l,int8_t rc);
+void __not_in_flash_func(lfosHandler)();
 void lfosInit();
 
 #endif  //_FREQUENCES_H_

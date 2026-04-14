@@ -1,7 +1,7 @@
 #ifndef _ST7789_H_
 #define _ST7789_H_
 
-#include <stdint.h>
+//#include <stdint.h>
 
 #define BLUE    0xf800 
 #define PINK    0xf81f 
@@ -27,8 +27,7 @@ void init_test_7789(uint32_t ms,uint16_t l0,uint16_t c0,uint16_t ln,uint16_t cn,
 void scope(int32_t* buf,uint32_t len,float f,uint16_t begline,bool fd,bool blk,uint8_t refr,int32_t* wtable);
 void debug_ticker();
 void test_st7789();
-void test_st7789_2();
-#ifdef GLOBAL_DMA_IRQ_HANDLER 
+void test_st7789_2(void);
 void st_dma_irq_handler();
-#endif
+
 #endif //_ST7789_H_

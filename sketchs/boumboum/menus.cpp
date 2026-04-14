@@ -239,7 +239,7 @@ uint8_t coders_for_freq(uint8_t currVoice)
                 if(cc!=voices[coder].coderFreq){                // if coder change only (not for first display)
                     voices[coder].coderFreq=cc;
                     float f=calcFreq(cc);
-                    setVoiceFrequency(f,&voices[coder]);          // update freq value for coder value
+                    setVoiceFrequency(f,&voices[coder],0);          // update freq value for coder value
                     ccFreq=voices[coder].frequency;          
                 }
 
@@ -358,7 +358,7 @@ uint8_t coders_for_lfos_freq()
                 if(cc!=coderLfos[coder]){               // if coder change only (not for first display)
                     coderLfos[coder]=cc;
                     float f=calcFreq(cc+LFOS_MIN_FREQ_CODERS)/1000;
-                    setLfosFrequency(f,coder);          // update freq value for coder value          
+                    setLfosFrequency(f,coder,0);          // update freq value for coder value          
                 }
 
                 // display
@@ -374,9 +374,10 @@ uint8_t coders_for_lfos_freq()
                 //printf("scope:%d \n",lfoNb);
                 memcpy(buf,"lfo:",4);sprintf(buf+4,"%d f:%1.3f",lfoNb,lfosFrequency[lfoNb]);
                 tft_draw_text_12x12_dma_mult(0,0,buf,0x001F,0x0000,1);
-                scope(&lfoScopeBuffer[lfoNb*BASIC_WAVE_TABLE_LEN],SAMPLES_PER_BUFFER,lfosFrequency[lfoNb],begline,false,firstScope,0,waveformTable[wave]);firstScope=false;}   
+                scope(&lfoScopeBuffer[lfoNb*BASIC_WAVE_TABLE_LEN],SAMPLES_PER_BUFFER,lfosFrequency[lfoNb],begline,false,firstScope,0,waveformTable[wave]);firstScope=false;   
+            }
+            firstDisplay=false;          
         }
-        firstDisplay=false;          
     }
 }
 
