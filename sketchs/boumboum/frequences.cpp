@@ -3,6 +3,7 @@
 #include <math.h>
 #include <stdint.h>
 #include "pico/stdlib.h"
+//#include "hardware/dma.h"
 #include "frequences.h"
 #include "util.h"
 #include "bb_i2s.h"
@@ -12,7 +13,7 @@
 extern "C" {
 #endif
 
-void blank(char *var, uint16_t len);    // memcpy(var,0x00,len) en 40 fois plus rapide
+void __not_in_flash_func(blank)(char *var, uint16_t len);    // 268uS pour 2048 bytes ; memcpy(var,0x00,len) 375uS ; dma env 60uS si nécessaire et le tft_frame_blank peut être utilisé
 
 #ifdef __cplusplus
 }
@@ -695,11 +696,40 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
 
 void blank(char *var, uint16_t len);
 
-// <230uS/voix +10
+/*void dma_clear(void* dst, uint32_t size_bytes) {
+    static const uint32_t zero = 0;
 
+    int chan = dma_claim_unused_channel(true);
+    //printf("dma_clear_test chan = %d\n", chan);
+
+    dma_channel_config c = dma_channel_get_default_config(chan);
+
+    channel_config_set_transfer_data_size(&c, DMA_SIZE_32);
+    channel_config_set_read_increment(&c, false);
+    channel_config_set_write_increment(&c, true);
+    channel_config_set_dreq(&c, DREQ_FORCE);      // <<< au lieu de 0
+    channel_config_set_irq_quiet(&c, true);
+
+    dma_channel_configure(
+        chan,
+        &c,
+        dst,
+        &zero,
+        size_bytes / 4,
+        true
+    );
+
+    dma_channel_wait_for_finish_blocking(chan);
+    dma_channel_unclaim(chan);
+}*/
+
+// <235uS/voix +265uS blank +35   (2 voix 771)
 void __not_in_flash_func(fillVoiceBuffer)(int32_t* vBuffer, Voice* voices, uint8_t bufNum)
 {
+
+    //dma_clear(vBuffer, SAMPLE_BUFFER_SIZE * 8); // ne fonctionne pas (690uS)
     blank((char*)vBuffer,SAMPLE_BUFFER_SIZE*8);
+    //memset((char*)vBuffer,0x00,SAMPLE_BUFFER_SIZE*8);
 
     fillVoiceBuffer_mono(vBuffer, &voices[0], bufNum); 
     fillVoiceBuffer_mono(vBuffer, &voices[1], bufNum);        

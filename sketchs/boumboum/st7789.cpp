@@ -50,8 +50,8 @@ static volatile uint16_t sched_h;
 
 #define FRAME_SIZE TFT_W * TFT_H * 2
 static uint8_t tft_frame[FRAME_SIZE];    // 2bytes/pixel
-static uint8_t tft_frame_blk[FRAME_SIZE];    // 2bytes/pixel
-
+//static 
+uint8_t tft_frame_blk[FRAME_SIZE];    // 2bytes/pixel 
 static uint32_t points[TFT_W];
 static uint8_t refrCnt=0;
 
@@ -444,7 +444,7 @@ void __not_in_flash_func(tft_fill_rect_blank)(uint16_t beg_line,uint16_t beg_col
         st_dma_chan,
         &dma_cfg,
         &spi0_hw->dr,
-        tft_frame_blk,
+        tft_frame_blk,              // on peut s'affranchir du buffer et utiliser &zero (static const uint16_t zero = 0;) modifier l'init : canal temporaire sans irq
         total_bytes,
         true
     );
