@@ -4,7 +4,7 @@
 #include "pico/stdlib.h"
 #include "util.h"
 
-#define VERSION "v1.3r"
+#define VERSION "v1.3s"
 
 #define PI 3.141592636
 
@@ -133,6 +133,8 @@ typedef enum {
 #define BASIC_WAVE_TABLE_POW 11     // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
 #define BASIC_WAVE_TABLE_LEN 2048   // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
 
+#define MAXCODER_RC 127             // (-63 +63)
+
 // ****** inputs ******
 
 #define IN_OUT_NAME_LEN 9
@@ -151,6 +153,14 @@ typedef enum {
         OUTPUTS_NB
 #undef Y
 }  Outputs;
+
+// ****** menus codes ******
+
+enum Menus {
+    MENU0,
+    LFOS,
+    MENUS_NB
+};
 
 // ****** basics waves codes ******
 

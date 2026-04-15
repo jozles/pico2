@@ -207,9 +207,6 @@ void setup(){
     // ****** coders ******
     coderInit(CODER_GPIO_CLOCK,CODER_GPIO_DATA,CODER_GPIO_SW,CODER_GPIO_VCC,CODER_PIO_SEL0,CODER_SEL_NB,CODER_NB,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER);
 
-    // ****** lfos ******
-    lfosInit();
-
     // ****** 1kHZ irq ******
     init_pwm_timer_1khz();  // millitimers+coders+lfos
 
@@ -234,16 +231,19 @@ void setup(){
 
     float fr0=440;
     uint8_t cga=1;
-    voicesInit(voices,fr0,cga);
+    voicesInit(voices,fr0,cga);  
 
-    voices[0].coderAmpl[W_SINUS]=31;
-    voices[0].basicWaveAmpl[W_SINUS]=getAmpl(&voices[0],W_SINUS);
-    printf("demo sinus ampl:%d\n",voices[0].basicWaveAmpl[W_SINUS]);delay_ms(100);    
+    // ****** lfos ******
+    lfosInit();
 
     // ****** i2s ******
     i2s_dma_buffers[0]=i2s_buf0;
     i2s_dma_buffers[1]=i2s_buf1;
     i2sSetup(_i2s_pio,PICO_AUDIO_I2S_DATA_PIN,i2s_dma_buffers);
+
+    voices[0].coderAmpl[W_SINUS]=31;
+    voices[0].basicWaveAmpl[W_SINUS]=getAmpl(&voices[0],W_SINUS);
+    printf("demo sinus ampl:%d\n",voices[0].basicWaveAmpl[W_SINUS]);delay_ms(100);      
     fillVoices();           // après i2sSetup
    
 //dumpVoices(voices);    

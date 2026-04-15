@@ -39,7 +39,7 @@ extern uint32_t millisCounter;
 
 // current lfo values (lfoHandler triger'd by pwmIrqHandler)
 float       lfosFrequency[LFOS_NB];                   // current lfo freq
-int16_t     coderLfos[LFOS_NB];                       // last coder value for freq
+uint16_t    lfosCoders[LFOS_NB];                      // last coder value for freq
 uint16_t    lfosMaxCoderFreq[LFOS_NB];                // pmax value for lfo coderFreq
 uint16_t    lfosStepInt[LFOS_NB];                     // partie entière du step lfo
 uint32_t    lfosStepFra[LFOS_NB];                     // partie fractionnaire du step lfo
@@ -55,8 +55,8 @@ uint32_t    lfoTime=millisCounter;
 uint32_t    lfoTimingInterval=1000/LFOS_SAMPLE_RATE;
 int32_t     lfoScopeBuffer[LFOS_NB*LFOS_SCOPE_BUFFER_LEN];  // n° echantillons 
 uint16_t    lfoScopeBufPtr=0;
-int8_t      lfosCoderCycleR[LFOS_NB];                 // rapport cyclique -64/+64 pour coder
-int8_t      lfosMaxCoderCycleR[LFOS_NB];
+uint16_t    lfosCoderCycleR[LFOS_NB];                 // rapport cyclique -64/+64 pour coder
+
 
 
 // i2s
@@ -246,6 +246,7 @@ float calcFreq(uint16_t val) // from lin value (0-octIncrNb*OCTNB) to snd value 
   uint8_t oct = val/ octIncrNb;
   uint16_t incr = val % octIncrNb;
   float freq = octFreq[oct] +octIncr[incr]*(octFreq[oct+1]-octFreq[oct]);
+  printf("val:%d oct:%d incr:%d freq:%f\n",val,oct,incr,freq);
   return freq;
 }
 
@@ -362,7 +363,7 @@ void __not_in_flash_func(setLfosFrequency)(float freq,uint8_t l,int8_t rc){
     lfosFrequency[l]=freq;
     lfosCoderCycleR[l]=rc;
 
-    float r = (rc + 64) / 128.0f;
+    float r = (float)rc / MAXCODER_RC;      //  rc 0-127 soit -63 à +63 128.0f;
     float stepUp,stepDown;
 
     float k=(uint32_t)BASIC_WAVE_TABLE_LEN*lfosFrequency[l]/LFOS_SAMPLE_RATE;
@@ -390,9 +391,9 @@ void __not_in_flash_func(setLfosFrequency)(float freq,uint8_t l,int8_t rc){
 void lfosInit(){
     for(uint8_t l=0;l<LFOS_NB;l++){
 
-        coderLfos[l]=16;
-        lfosFrequency[l]=calcFreq(coderLfos[l]);
-        lfosMaxCoderFreq[l]=10000;
+        lfosCoders[l]=1768;    // 1.5s
+        lfosFrequency[l]=calcFreq(lfosCoders[l])/1000;
+        lfosMaxCoderFreq[l]=LFOS_MAX_FREQ_CODERS;
         currLfoEch[l]=0;
         currLfoEchFra[l]=0;
         lfosStepInt[l]=0;
@@ -402,8 +403,11 @@ void lfosInit(){
         squareLfo[l]=0;        
         triangleLfo[l]=0;
         sawtoothLfo[l]=0;
+
+        lfosCoderCycleR[l]=MAXCODER_RC/2;
     }
     memset(lfoScopeBuffer,0x0000,LFOS_NB*LFOS_SCOPE_BUFFER_LEN);
+
 }
 
 int32_t* waveformTable[]={sineWaveform,squareWaveform,triangleWaveform,sawtoothWaveform};
@@ -447,12 +451,10 @@ void __not_in_flash_func(lfosHandler)()
         currLfoEchFra[l]=cf;
 
         lfoScopeBuffer[l*LFOS_SCOPE_BUFFER_LEN+lfoScopeBufPtr]=ce;
-
-//printf("l:%d si:%d sf:%d ce:%d ",l,lfosStepInt[l],lfosStepFra[l],ce);        
     }
     lfoScopeBufPtr++;
     lfoScopeBufPtr&=LFOS_SCOPE_BUFFER_LEN-1;
-    //printf("\n");
+
   }
 }
 

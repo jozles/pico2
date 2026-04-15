@@ -33,7 +33,7 @@ void inputsInit(){
 
 extern Voice voices[VOICES_NB];
 
-Lfo lfos[LFOS_NB];
+//Lfo lfos[LFOS_NB];
 
 // frequences/ampl/lfos
 
@@ -44,16 +44,19 @@ uint16_t voicesMaxFreqCoders[VOICES_NB];
 volatile int16_t voicesAmplCoders[VOICES_NB];
 uint16_t voicesMaxAmplCoders[VOICES_NB];
 
-volatile int16_t lfosFreqCoders[LFOS_NB];
-uint16_t lfosMaxFreqCoders[LFOS_NB];
-extern float lfosFrequency[LFOS_NB];             // current lfo freq
-extern int16_t coderLfos[LFOS_NB];
+//volatile int16_t lfosFreqCoders[CODER_NB];
+//extern uint16_t lfosMaxFreqCoders[];
+extern float lfosFrequency[];                       // current lfo freq
+extern uint16_t lfosCoders[];
+extern uint16_t lfosCoderCycleR[];
+extern uint16_t* lfosVar[];
 extern int32_t lfoScopeBuffer[];
 extern int32_t* waveformTable[];
+extern volatile int16_t menuLfosCoders[];
 
-volatile bool voicesSw[CODER_NB];           // coder it handler scans all physical coders
+extern volatile bool voicesSw[];                    // coder it handler scans all physical coders
 
-extern uint16_t amplLevel[];                // table des amplitudes
+extern uint16_t amplLevel[];                        // table des amplitudes
 
 // mapping
 
@@ -75,10 +78,6 @@ char buf[LINE_LEN];
 
 uint16_t begline=27;
 
-#define MENU0_CODER_NB MENU0_NB
-volatile int16_t menu0Coders[MENU0_CODER_NB];        // [0] curr input nb ; [1] curr_input value
-uint16_t maxMenu0Coders[]={MENU0_NB-1};
-
 const char menu0_names[][MENU_NAME_LEN]={
     #define Z(name,text) text,
     #include "menu.def"
@@ -86,7 +85,11 @@ const char menu0_names[][MENU_NAME_LEN]={
 };
 
 /* ----------------------------------------- */
-
+enum LfosCoders {
+     LFOMENU,
+     LFOCODERFREQ,
+     LFOCODERRC
+};
 
 // ****** inits ******
 void menus_init(){    
@@ -106,10 +109,17 @@ void menus_init(){
     for(uint8_t c=0;c<CODER_NB;c++){
         voicesSw[c]=1;
     }
-    for(uint8_t l=0;l<LFOS_NB;l++){
-        lfosMaxFreqCoders[l]=LFOS_MAX_FREQ_CODERS;
-        lfosFreqCoders[l]=1768;     // 1.5 sec
+    for(uint8_t i=0;i<CODER_NB-2;i++){
+        lfosVar[i]=nullptr;
     }
+    lfosVar[LFOCODERFREQ-1]=lfosCoders;
+    lfosVar[LFOCODERRC-1]=lfosCoderCycleR;
+    menuLfosCoders[LFOMENU]=0;          // line 0 du menu
+    menuLfosCoders[1]=lfosCoders[0];
+    menuLfosCoders[2]=lfosCoderCycleR[0];
+
+    printf("lfofreq[0]:%f 1:%f\n",lfosFrequency[0],lfosFrequency[1]);
+    
     mappingCoders[0]=0;     // ligne 0 
 }
 
@@ -309,7 +319,7 @@ uint8_t coders_for_genAmpl(uint8_t currVoice)
     }
 }    
 
-// ****** coders for lfos_freq ******
+/*// ****** coders for lfos_freq ******
 
 uint8_t coders_for_lfos_freq()
 {
@@ -321,6 +331,10 @@ uint8_t coders_for_lfos_freq()
     uint8_t lfoNb=0;    
     
     title_dsp("lfos ",0,99);
+
+    volatile int16_t lfosFreqCoders[CODER_NB];
+    for(uint8_t c=0;c<CODER_NB;c++){lfosFreqCoders[c]=lfosCoders[c];}
+    uint16_t lfosMaxFreqCoders[]={3000,3000,3000,3000};
 
     coderSetup(lfosFreqCoders,voicesSw,lfosMaxFreqCoders,LFOS_NB);
 
@@ -350,13 +364,13 @@ uint8_t coders_for_lfos_freq()
             // gestions coders
             uint32_t cc=lfosFreqCoders[coder];          // cc     actual coder value
             
-            if(cc!=coderLfos[coder] || firstDisplay){
+            if(cc!=lfosCoders[coder] || firstDisplay){
 
                 #define LINE_LEN TFT_W/12+1
                 memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
                  
-                if(cc!=coderLfos[coder]){               // if coder change only (not for first display)
-                    coderLfos[coder]=cc;
+                if(cc!=lfosCoders[coder]){               // if coder change only (not for first display)
+                    lfosCoders[coder]=cc;
                     float f=calcFreq(cc+LFOS_MIN_FREQ_CODERS)/1000;
                     setLfosFrequency(f,coder,0);          // update freq value for coder value          
                 }
@@ -368,7 +382,7 @@ uint8_t coders_for_lfos_freq()
                     tft_draw_text_12x12_dma_mult(0,coder*(12*2+1)+27,buf,0x07EF,0x0000,1);
                 }
 
-                printf("coder:%d cc:%d coderLfos:%d lfoFreq:%f b:%s\n",coder,cc,coderLfos[coder],lfosFrequency[coder],buf);                      
+                printf("coder:%d cc:%d coderLfos:%d lfoFreq:%f b:%s\n",coder,cc,lfosCoders[coder],lfosFrequency[coder],buf);                      
             }
             if(mode_scope){
                 //printf("scope:%d \n",lfoNb);
@@ -379,8 +393,7 @@ uint8_t coders_for_lfos_freq()
             firstDisplay=false;          
         }
     }
-}
-
+}*/
 
 // ****** coders for mapping ******
 
@@ -477,35 +490,51 @@ uint8_t coders_for_mapping(){
 
 // ****** coders for menu ******
 
-void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev){
+void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type,uint8_t coder,uint32_t cc,bool mode_scope){
         uint16_t fgc=GREEN;
         uint16_t bgc=0x0000;
         uint16_t buc=fgc;
         if(rev){fgc=bgc;bgc=buc;}
         buf[0]=line+48;
-        sprintf(buf,"%2d  %s",line,menu+line*len);      
-        //memcpy(buf+3,&menu_names[line][0],MENU_NAME_LEN);       
-        tft_draw_text_12x12_dma_mult(0,line*(12*2+1)+begline,buf,fgc,bgc,1);
+        buf[1]=' ';
 
+        switch(type){
+            case MENU0:sprintf(buf,"%2d  %s",line,menu+line*len);break; // général
+            case LFOS:
+                if(coder==LFOCODERFREQ){lfosFrequency[line]=calcFreq(cc+LFOS_MIN_FREQ_CODERS)/1000;}
+                sprintf(buf+2,"%1.3f %1.3f %d",lfosFrequency[line],1/lfosFrequency[line],lfosCoderCycleR[line]-MAXCODER_RC/2);
+                break;  
+            default:break;
+        }
+        if(!mode_scope){tft_draw_text_12x12_dma_mult(0,line*(12*2+1)+begline,buf,fgc,bgc,1);}
 }
 
-void fullMenuDsp(const char* title,const char* menu,uint8_t linesNb,uint8_t line_len,uint8_t currline){
+void fullMenuDsp(const char* title,const char* menu,uint8_t linesNb,uint8_t line_len,uint8_t currline,uint8_t type,uint8_t coder,uint32_t cc,bool mode_scope){
 
     tft_fill_rect_blank(0,0,TFT_H,TFT_W);
     title_dsp(title,0,99);
 
     for(uint8_t m=0;m<linesNb;m++){
-        menuLineDsp(menu,m,line_len,currline==m);
+        menuLineDsp(menu,m,line_len,currline==m,type,coder,cc,mode_scope);
     }
 }
 
-uint8_t coders_for_menu(const char* menu,uint8_t linesNb,uint8_t line_len){
+// affiche un menu avec ligne courante en reverse ; 
+// si les lignes ont un libellé, menu pointe sur le tableau[lineNb,line_len] ; 
+// si aucune saisie/variables c'est le type 0 (cTC[0] contient la valeur courante du 1er coder et maxi le nombre de lignes à afficher-1) - voir menu0
+// s'il y a des variables à afficher c'est un type!=0 : créer l'enum du type et une ligne d'affichage dans menuLineDsp
+// s'il y a des variables à saisir via coder, uint16_t* var[] contient les pointeurs sur les tableaux uint16_t[line] (valeur courante du coder correspondant)
+// donc var[coder-1][line] permet d'accéder à ces valeurs de coder (traitement spécifique éventuel selon le type dans menuLineDsp (ou ailleurs)
+uint8_t coders_for_menu(const char* title,const char* menu,uint8_t linesNb,uint8_t line_len,uint8_t type,volatile int16_t *cTC, volatile bool *cTS, uint16_t *maxi,uint16_t** var,uint8_t coderNb){
 
-    uint8_t m=0;
+    uint8_t line=0;
+    bool mode_scope=false;
+    bool firstScope=true;
+    uint8_t wave=0;
 
-    coderSetup(menu0Coders,voicesSw,maxMenu0Coders,1);
+    coderSetup(cTC,cTS,maxi,linesNb);
 
-    fullMenuDsp("boumboum ",menu,linesNb,line_len,0);
+    fullMenuDsp(title,menu,linesNb,line_len,0,type,0,0,false);
 
     while(1){
             
@@ -516,17 +545,39 @@ uint8_t coders_for_menu(const char* menu,uint8_t linesNb,uint8_t line_len){
             test_st7789_2();    // animation balayage de lignes
             debug_ticker();
 
-            for(uint8_t coder=0;coder<linesNb;coder++){
+            for(uint8_t coder=0;coder<coderNb;coder++){
 
                 int s=tst_switchs(coder,linesNb);            
-                if(s>=0){return m;}
+                if(s==0){return line;}
+                if(s>0){mode_scope=true;firstScope=true;wave=s-1;}
 
-                uint32_t cc=menu0Coders[coder];
-                if(coder==0 && cc!=m){
-                    menuLineDsp(menu,m,line_len,false);
-                    m=cc;
-                    menuLineDsp(menu,m,line_len,true);
+                uint32_t cc=cTC[coder];
+                
+                // coder 0 : depl vertical
+                if(coder==0 && cc!=line){                  
+                    menuLineDsp(menu,line,line_len,false,type,coder,cc,mode_scope);    // enlever le rev
+                    line=cc;
+                    for(uint8_t k=1;k<coderNb;k++){
+                        if(var[k-1]!=nullptr){
+                            cTC[k]=var[k-1][line];   // rechargement de la valeur actuelle des coder(1 à n, le 0 est pour le depl vertical) pour la nouvelle ligne ()
+                        }
+                    } 
+                    menuLineDsp(menu,line,line_len,true,type,coder,cc,mode_scope);     // mettre le rev
                 }
+
+                // coders 1 à n update variables des enregistrements
+                if(coder>0 && var[coder-1]!=nullptr){                   // coder 0 pour depl vertical ; (ex lfos : 1 pour freq, 2 rc)
+                        if(var[coder-1][line]!=cc){                     // maj valeur coder et affichage changement 
+                            var[coder-1][line]=cc;
+                            menuLineDsp(menu,line,line_len,true,type,coder,cc,mode_scope);
+                        }
+                }
+            }
+            if(mode_scope){
+                if(type==LFOS){
+                    scope(&lfoScopeBuffer[line*BASIC_WAVE_TABLE_LEN],SAMPLES_PER_BUFFER,lfosFrequency[line],begline,false,firstScope,0,waveformTable[wave]);firstScope=false;
+                }
+                else mode_scope=false;
             }          
     }
 }
