@@ -246,7 +246,7 @@ float calcFreq(uint16_t val) // from lin value (0-octIncrNb*OCTNB) to snd value 
   uint8_t oct = val/ octIncrNb;
   uint16_t incr = val % octIncrNb;
   float freq = octFreq[oct] +octIncr[incr]*(octFreq[oct+1]-octFreq[oct]);
-  printf("val:%d oct:%d incr:%d freq:%f\n",val,oct,incr,freq);
+  //printf("val:%d oct:%d incr:%d freq:%f\n",val,oct,incr,freq);
   return freq;
 }
 
@@ -363,7 +363,7 @@ void __not_in_flash_func(setLfosFrequency)(float freq,uint8_t l,int8_t rc){
     lfosFrequency[l]=freq;
     lfosCoderCycleR[l]=rc;
 
-    float r = (float)rc / MAXCODER_RC;      //  rc 0-127 soit -63 à +63 128.0f;
+    float r = (rc + 64) / 128.0f;            //float)rc / MAXCODER_RC;      //  rc 0-127 soit -63 à +63 128.0f;
     float stepUp,stepDown;
 
     float k=(uint32_t)BASIC_WAVE_TABLE_LEN*lfosFrequency[l]/LFOS_SAMPLE_RATE;
@@ -386,6 +386,9 @@ void __not_in_flash_func(setLfosFrequency)(float freq,uint8_t l,int8_t rc){
     
     lfosStepIntD[l]=(uint32_t)stepDown;
     lfosStepFraD[l]=(uint32_t)((stepDown-lfosStepInt[l])*MAX_STEP_FRA);
+
+    printf("Frequency:%f CoderCycleR:%d StepInt:%u StepFra:%u StepIntD:%u StepFraD:%u currEch:%u currEchFra:%u\n",
+      lfosFrequency[0],lfosCoderCycleR[0],lfosStepInt[0],lfosStepFra[0],lfosStepIntD[0],lfosStepFraD[0],currLfoEch[0],currLfoEchFra[0]);
 }
 
 void lfosInit(){
