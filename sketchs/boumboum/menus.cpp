@@ -501,7 +501,10 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
         switch(type){
             case MENU0:sprintf(buf,"%2d  %s",line,menu+line*len);break; // général
             case LFOS:
-                if(coder==LFOCODERFREQ){lfosFrequency[line]=calcFreq(cc+LFOS_MIN_FREQ_CODERS)/1000;}
+                if(coder==LFOCODERFREQ){
+                    lfosFrequency[line]=calcFreq(cc+LFOS_MIN_FREQ_CODERS)/1000;
+                    setLfosFrequency(lfosFrequency[line],line,0);
+                }
                 sprintf(buf+2,"%1.3f %1.3f %d",lfosFrequency[line],1/lfosFrequency[line],lfosCoderCycleR[line]-MAXCODER_RC/2);
                 break;  
             default:break;
@@ -536,13 +539,15 @@ uint8_t coders_for_menu(const char* title,const char* menu,uint8_t linesNb,uint8
 
     fullMenuDsp(title,menu,linesNb,line_len,0,type,0,0,false);
 
+    dumpStr(lfoScopeBuffer,256);
+
     while(1){
             
             fillVoices();
         
             ws_show_3(30);
             ledblinkn(2);
-            test_st7789_2();    // animation balayage de lignes
+            if(!mode_scope){test_st7789_2();}    // animation balayage de lignes
             debug_ticker();
 
             for(uint8_t coder=0;coder<coderNb;coder++){
