@@ -58,7 +58,7 @@ if (watchdog_caused_reboot()) {
             case WAVES_AMP: coders_for_wavesAmpl(currVoice);break;
             case GEN_AMPL_: coders_for_genAmpl(currVoice);break;
             //case LFOS_____: coders_for_lfos_freq();break;
-            case LFOS_____: coders_for_menu("lfos ",(const char*)nullptr,LFOS_NB,0,LFOS,menuLfosCoders,voicesSw,menuMaxLfosCoders,lfosVar,LFO_CODER_NB);break;
+            case LFOS_____: coders_for_menu("lfos ",(const char*)nullptr,LFOS_NB,0,LFOS,menuLfosCoders,voicesSw,menuMaxLfosCoders,lfosVar,BASIC_WAVES_NB);break;
             case MAPPING__: coders_for_mapping();break;
 
             default:break;
