@@ -109,11 +109,11 @@ void menus_init(){
     for(uint8_t c=0;c<CODER_NB;c++){
         voicesSw[c]=1;
     }
-    for(uint8_t i=0;i<CODER_NB-2;i++){
-        lfosVar[i]=nullptr;
+    for(uint8_t c=0;c<CODER_NB;c++){
+        lfosVar[c]=nullptr;
     }
-    lfosVar[LFOCODERFREQ-1]=lfosCoders;
-    lfosVar[LFOCODERRC-1]=lfosCoderCycleR;
+    lfosVar[LFOCODERFREQ-1]=lfosCoders;         // lfosVar[0]
+    lfosVar[LFOCODERRC-1]=lfosCoderCycleR;      // lfosVar[1]
     menuLfosCoders[LFOMENU]=0;          // line 0 du menu
     menuLfosCoders[1]=lfosCoders[0];
     menuLfosCoders[2]=lfosCoderCycleR[0];
@@ -143,7 +143,10 @@ extern bool gpio_irq_set;
 int8_t tst_switchs(uint8_t coder,uint8_t maxi){
     if((millisCounter-swIgnore)>=SWIGNORE){ 
         volatile int vs=voicesSw[coder];          
-        if(gpio_irq_set){gpio_irq_set=false;return -99;}      // button return
+        if(gpio_irq_set){
+            swIgnore=millisCounter;
+            gpio_irq_set=false;
+            return -99;}      // button return
         if((volatile int)vs==0){        // coder[coder] on
             swIgnore=millisCounter;
             voicesSw[coder]=1;
@@ -255,7 +258,7 @@ uint8_t coders_for_freq(uint8_t currVoice)
         for(uint8_t coder=0;coder<VOICES_NB;coder++){
 
             int s=tst_switchs(coder,VOICES_NB);
-            if(s>=0){return s;}
+            if(s>=0 || s==-99){return s;}
             
             // gestions coders
             float ccFreq=voices[coder].frequency;               // ccFreq prev freq value for voice[coder] (for display)
@@ -526,7 +529,7 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                     lfosFrequency[line]=calcFreq(cc+LFOS_MIN_FREQ_CODERS)/1000;
                     setLfosFrequency(lfosFrequency[line],line,0);
                 }
-                sprintf(buf+2,"%1.3f %1.3f %d",lfosFrequency[line],1/lfosFrequency[line],lfosCoderCycleR[line]-MAXCODER_RC/2);
+                sprintf(buf+2,"%1.3f %1.3f %d   ",lfosFrequency[line],1/lfosFrequency[line],lfosCoderCycleR[line]-MAXCODER_RC/2);
                 break;  
             default:break;
         }
@@ -543,15 +546,16 @@ void fullMenuDsp(const char* title,const char* menu,uint8_t linesNb,uint8_t line
     }
 }
 
-// coders_for_menu() affiche un menu avec ligne courante en reverse ; 
+// ****** coders_for_menu() ****** affiche un menu avec ligne courante en reverse ; 
 // si les lignes ont un libellé, text pointe sur le tableau[lineNb,line_len] ; lineNb nombre de lignes du menu et line_len la longueur du libellé
 // si aucune saisie/variables c'est le type 0 (cTC[0] contient la valeur courante du 1er coder et maxi le nombre de lignes à afficher-1) - voir menu0
 // s'il y a des variables à afficher c'est un type!=0 : créer l'enum du type et une ligne d'affichage dans menuLineDsp
 // s'il y a des variables à saisir via coder, uint16_t* var[] contient les pointeurs sur les tableaux uint16_t[line] (valeur courante du coder correspondant)
 // donc var[coder-1][line] permet d'accéder à ces valeurs de coder (traitement spécifique éventuel selon le type dans menuLineDsp (ou ailleurs)
+// varNb est le nombre de variables 
 // switch : la sortie est déclenchée soit par le "return button" soit par l'appui du coder 0 ; la valeur retournée est le n° de ligne
 // les autres switchs passent en mode scope si le type de menu le gère ; coderNb indique le nombre de coders valides (coder 0 inclu)
-uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8_t line_len,uint8_t type,volatile int16_t *cTC, volatile bool *cTS, uint16_t *maxi,uint16_t** var,uint8_t switchsNb)
+uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8_t line_len,uint8_t type,volatile int16_t *cTC, volatile bool *cTS, uint16_t *maxi,uint16_t** var,uint8_t varNb,uint8_t switchsNb)
 {
 
     uint8_t line=0;
@@ -570,14 +574,12 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
             ws_show_3(30);
             ledblinkn(2);
             if(!mode_scope){test_st7789_2();}    // animation balayage de lignes
-            debug_ticker();
+            debug_ticker();          
 
-            
-
-            for(uint8_t coder=0;coder<linesNb;coder++){
+            for(uint8_t coder=0;coder<varNb+1;coder++){       
 
                 int s=tst_switchs(coder,switchsNb);            
-                if(s==0){return line;}
+                if(s==0 || s==-99){return line;}
                 if(s>0){mode_scope=true;firstScope=true;wave=s-1;}
 
                 uint32_t cc=cTC[coder];
@@ -586,30 +588,27 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
                 if(coder==0 && cc!=line){                  
                     menuLineDsp(text,line,line_len,false,type,coder,cc,mode_scope);    // enlever le rev
                     line=cc;
-                    for(uint8_t k=1;k<linesNb;k++){
-                        /*if(var[k-1]!=nullptr){
-                            cTC[k]=var[k-1][line];   // rechargement de la valeur actuelle des coder(1 à n, le 0 est pour le depl vertical) pour la nouvelle ligne ()
-                        }*/
+                    for(uint8_t k=0;k<varNb;k++){
+                        if(var[k]!=nullptr){
+                            cTC[k+1]=var[k][line];   // rechargement de la valeur actuelle des coder(1 à n, le 0 est pour le depl vertical) pour la nouvelle ligne ()
+                        }
                     }
-                    menuLineDsp(text,line,line_len,true,type,coder,cc,mode_scope);     // mettre le rev
-                    
+                    menuLineDsp(text,line,line_len,true,type,coder,cc,mode_scope);     // mettre le rev               
                 }
 
                 // coders 1 à n update variables des enregistrements
-                if(coder>0 && var[coder-1]!=nullptr){                   // coder 0 pour depl vertical ; (ex lfos : 1 pour freq, 2 rc)
+                if(varNb>0 && coder>0 && var[coder-1]!=nullptr){                   // coder 0 pour depl vertical ; (ex lfos : 1 pour freq, 2 rc)
                         if(var[coder-1][line]!=cc){                     // maj valeur coder et affichage changement 
-                            //var[coder-1][line]=cc;
-                            //menuLineDsp(text,line,line_len,true,type,coder,cc,mode_scope);
+                            var[coder-1][line]=cc;
+                            menuLineDsp(text,line,line_len,true,type,coder,cc,mode_scope);
                         }
-                }
-            
+                }        
             }
             if(mode_scope){
                 if(type==LFOS){
                     scope(&lfoScopeBuffer[line*BASIC_WAVE_TABLE_LEN],SAMPLES_PER_BUFFER,lfosFrequency[line],begline,false,firstScope,0,waveformTable[wave]);firstScope=false;
                 }
                 else mode_scope=false;
-            }
-                
+            }                
     }
 }

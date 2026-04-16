@@ -253,6 +253,7 @@ void setup(){
         debug_ticker();
         ledblinkn(3);
     }
+    gpio_irq_set=false;
 
     // ****** hello ******
     tft_fill_rect_blank(0,0,TFT_H,TFT_W);

@@ -26,10 +26,10 @@ uint16_t menu0MaxCoders[]={MENU0_NB-1};
 
 extern const char menu0_names[][MENU_NAME_LEN];
 
-#define LFO_CODER_NB 3
-volatile int16_t menuLfosCoders[LFO_CODER_NB];      // [0] curr input nb ; [1] curr coder value for freq ; [2] curr coder value for rc
+#define LFO_VAR_NB 2
+volatile int16_t menuLfosCoders[LFO_VAR_NB+1];    // [0] curr input nb ; [1] curr coder value for freq ; [2] curr coder value for rc
 uint16_t menuMaxLfosCoders[]={LFOS_NB-1,LFOS_MAX_FREQ_CODERS,MAXCODER_RC};
-uint16_t* lfosVar[LFO_CODER_NB];                    //  inits dans menu.cpp
+uint16_t* lfosVar[CODER_NB];                      //  inits dans menu.cpp ; les éléments inutilisés sont nullptr
 
 
 int main() {
@@ -51,14 +51,14 @@ if (watchdog_caused_reboot()) {
     menus_init();
 
     while(1){
-        uint8_t menu=coders_for_menu("boumboum ",(const char*)menu0_names,MENU0_NB,MENU_NAME_LEN,MENU0,menu0Coders,voicesSw,menu0MaxCoders,nullptr,MENU0_CODER_NB);
+        uint8_t menu=coders_for_menu("boumboum ",(const char*)menu0_names,MENU0_NB,MENU_NAME_LEN,MENU0,menu0Coders,voicesSw,menu0MaxCoders,nullptr,0,MENU0_CODER_NB);
 
         switch(menu){
             case VOICES_FR: currVoice=coders_for_freq(currVoice);break;
             case WAVES_AMP: coders_for_wavesAmpl(currVoice);break;
             case GEN_AMPL_: coders_for_genAmpl(currVoice);break;
             //case LFOS_____: coders_for_lfos_freq();break;
-            case LFOS_____: coders_for_menu("lfos ",(const char*)nullptr,LFOS_NB,0,LFOS,menuLfosCoders,voicesSw,menuMaxLfosCoders,lfosVar,BASIC_WAVES_NB);break;
+            case LFOS_____: coders_for_menu("lfos ",(const char*)nullptr,LFOS_NB,0,LFOS,menuLfosCoders,voicesSw,menuMaxLfosCoders,lfosVar,LFO_VAR_NB,BASIC_WAVES_NB);break;
             case MAPPING__: coders_for_mapping();break;
 
             default:break;
