@@ -73,14 +73,14 @@ void sound_tables_init();
 void voicesInit(Voice* v,float freq,uint8_t cga);
 void voicesInit(Voice* v,uint16_t coderF,uint8_t cga);
 void dumpVoices(Voice* v);
-void __not_in_flash_func(fillVoiceBuffer)(int32_t* sampleBuffer,Voice* v,uint8_t bufNum);
+void fillVoiceBuffer(int32_t* sampleBuffer,Voice* v,uint8_t bufNum);
 void fillVoices();
-void __not_in_flash_func(setVoiceFrequency)(float freq,Voice* v,int8_t rc);
+void setVoiceFrequency(float freq,Voice* v,int8_t rc);
 float calcFreq(uint16_t val);
 uint16_t calcCoderFreq(float freq);
 uint16_t getAmpl(Voice* v,uint8_t wav);
-void __not_in_flash_func(setLfosFrequency)(float freq,uint8_t l,int8_t rc);
-void __not_in_flash_func(lfosHandler)();
+void setLfosFrequency(float freq,uint8_t l,int8_t rc);
+void lfosHandler();
 void lfosInit();
 
 #endif  //_FREQUENCES_H_

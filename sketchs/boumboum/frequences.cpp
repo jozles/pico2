@@ -51,7 +51,7 @@ uint16_t    sineLfo[LFOS_NB];
 uint16_t    squareLfo[LFOS_NB];
 uint16_t    triangleLfo[LFOS_NB];
 uint16_t    sawtoothLfo[LFOS_NB];
-uint32_t    lfoTime=millisCounter;
+uint32_t    lfoTime=0;
 uint32_t    lfoTimingInterval=1000/LFOS_SAMPLE_RATE;
 int32_t     lfoScopeBuffer[LFOS_NB*LFOS_SCOPE_BUFFER_LEN];  // n° echantillons 
 uint16_t    lfoScopeBufPtr=0;
@@ -67,27 +67,6 @@ extern volatile bool i2s_buf_free[];
 extern int32_t* i2s_buffer[];
 int32_t* i2s_buf_scope;       // last loaded buffer for scope
 
-void showAmplIncr(){
-  printf("  intervalles d'amplitude\n");
-  for(uint8_t i=0;i<MAX_16B_LINEAR_VALUE;i++){
-      printf("%d %d\n",i,amplLevel[i]);
-  }
-  printf("\n");
-}
-
-void fillAmplIncr(){          // fonctionne avec stepAmpl mini 2 !!!
-
-  amplLevel[0]=0;
-
-  uint8_t j=1;
-  uint8_t i=1;
-  while(i<MAX_16B_LINEAR_VALUE){
-    amplLevel[i]=(uint16_t)roundf(pow(2,((float)((int)(i/stepAmpl))+((float)j/stepAmpl))));
-    j++;if(j>=stepAmpl){j=0;}
-    i++;     
-  }
-  //showAmplIncr();
-}
 
 //
 // Les amplitudes sont des valeurs 16 bits positives utilisées pour multiplier
@@ -116,6 +95,8 @@ void automixer(uint8_t nb,uint16_t* ampl,uint8_t chgd){
   }
 
 }
+
+// **********************  noises  *********************************
 
 #define N 4093
 int16_t noise_table[N];
@@ -163,6 +144,30 @@ static inline void get_noise(int16_t *white, int16_t *pink)
     pink_state=(alpha * pink_state + (32768 - alpha) * (*white)) >> 15;
     *pink = (int16_t)pink_state;
 
+}
+
+// *************************** tables *******************************
+
+void showAmplIncr(){
+  printf("  intervalles d'amplitude\n");
+  for(uint8_t i=0;i<MAX_16B_LINEAR_VALUE;i++){
+      printf("%d %d\n",i,amplLevel[i]);
+  }
+  printf("\n");
+}
+
+void fillAmplIncr(){          // fonctionne avec stepAmpl mini 2 !!!
+
+  amplLevel[0]=0;
+
+  uint8_t j=1;
+  uint8_t i=1;
+  while(i<MAX_16B_LINEAR_VALUE){
+    amplLevel[i]=(uint16_t)roundf(pow(2,((float)((int)(i/stepAmpl))+((float)j/stepAmpl))));
+    j++;if(j>=stepAmpl){j=0;}
+    i++;     
+  }
+  //showAmplIncr();
 }
 
 // production des valeurs d'échantillon pour les différentes formes d'onde
@@ -240,33 +245,6 @@ void showOctIncr(float oct0,float octn)
   }
 }
 
-// calcul de la fréquence sonore à partir de la valeur linéaire
-float calcFreq(uint16_t val) // from lin value (0-octIncrNb*OCTNB) to snd value (baseF à baseF*2^OCTNB)
-{ 
-  uint8_t oct = val/ octIncrNb;
-  uint16_t incr = val % octIncrNb;
-  float freq = octFreq[oct] +octIncr[incr]*(octFreq[oct+1]-octFreq[oct]);
-  //printf("val:%d oct:%d incr:%d freq:%f\n",val,oct,incr,freq);
-  return freq;
-}
-
-uint16_t calcCoderFreq(float freq) // from freq value to coder value
-{ 
-    uint8_t oct = 0;
-    while (octFreq[oct+1] <= freq && oct < OCTNB)
-        oct++;
-
-    float f0 = octFreq[oct];
-    float f1 = octFreq[oct+1];
-
-    float alpha = (freq - f0) / (f1 - f0);
-    if (alpha < 0) alpha = 0;
-    if (alpha > 1) alpha = 1;
-
-    uint16_t incr = (uint16_t)round(alpha * octIncrNb);
-    return oct * octIncrNb + incr;
-}
-
 // initialisation des tableaux pour permettre calcFreq()
 void sound_tables_init()        
 {  
@@ -278,6 +256,8 @@ void sound_tables_init()
   init_noise();
   fillAmplIncr();
 }
+
+// **********************  voices ************************
 
 void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)
 {
@@ -326,6 +306,33 @@ void dumpVoices(Voice* v)
   }
 }
 
+uint16_t calcCoderFreq(float freq) // from freq value to coder value
+{ 
+    uint8_t oct = 0;
+    while (octFreq[oct+1] <= freq && oct < OCTNB)
+        oct++;
+
+    float f0 = octFreq[oct];
+    float f1 = octFreq[oct+1];
+
+    float alpha = (freq - f0) / (f1 - f0);
+    if (alpha < 0) alpha = 0;
+    if (alpha > 1) alpha = 1;
+
+    uint16_t incr = (uint16_t)round(alpha * octIncrNb);
+    return oct * octIncrNb + incr;
+}
+
+// calcul de la fréquence sonore à partir de la valeur linéaire
+float calcFreq(uint16_t val) // from lin value (0-octIncrNb*OCTNB) to snd value (baseF à baseF*2^OCTNB)
+{ 
+  uint8_t oct = val/ octIncrNb;
+  uint16_t incr = val % octIncrNb;
+  float freq = octFreq[oct] +octIncr[incr]*(octFreq[oct+1]-octFreq[oct]);
+  //printf("val:%d oct:%d incr:%d freq:%f\n",val,oct,incr,freq);
+  return freq;
+}
+
 // update voice[].frequency - compute steps
 void __not_in_flash_func(setVoiceFrequency)(float freq,Voice* v,int8_t rc){
     
@@ -357,13 +364,15 @@ void __not_in_flash_func(setVoiceFrequency)(float freq,Voice* v,int8_t rc){
     v->stepFraD=(uint32_t)((stepDown-v->stepInt)*MAX_STEP_FRA);
 }
 
+// *************************** lfos ****************************
+
 // update voice[].lfosFrequency - compute steps
-void __not_in_flash_func(setLfosFrequency)(float freq,uint8_t l,int8_t rc){
+void __not_in_flash_func(setLfosFrequency)(float freq,uint8_t l,int8_t rc){ 
     
     lfosFrequency[l]=freq;
     lfosCoderCycleR[l]=rc;
 
-    float r = (rc + 64) / 128.0f;            //float)rc / MAXCODER_RC;      //  rc 0-127 soit -63 à +63 128.0f;
+    /*float r = (rc - 64) / 128.0f;            //float)rc / MAXCODER_RC;      //  rc 0-127 soit -63 à +63 128.0f;
     float stepUp,stepDown;
 
     float k=(uint32_t)BASIC_WAVE_TABLE_LEN*lfosFrequency[l]/LFOS_SAMPLE_RATE;
@@ -387,8 +396,32 @@ void __not_in_flash_func(setLfosFrequency)(float freq,uint8_t l,int8_t rc){
     lfosStepIntD[l]=(uint32_t)stepDown;
     lfosStepFraD[l]=(uint32_t)((stepDown-lfosStepInt[l])*MAX_STEP_FRA);
 
-    printf("Frequency:%f CoderCycleR:%d StepInt:%u StepFra:%u StepIntD:%u StepFraD:%u currEch:%u currEchFra:%u\n",
-      lfosFrequency[0],lfosCoderCycleR[0],lfosStepInt[0],lfosStepFra[0],lfosStepIntD[0],lfosStepFraD[0],currLfoEch[0],currLfoEchFra[0]);
+    //printf("Frequency:%f CoderCycleR:%d StepInt:%u StepFra:%u StepIntD:%u StepFraD:%u currEch:%u currEchFra:%u\n",
+    //  lfosFrequency[0],lfosCoderCycleR[0],lfosStepInt[0],lfosStepFra[0],lfosStepIntD[0],lfosStepFraD[0],currLfoEch[0],currLfoEchFra[0]);
+    */
+
+    float k = (float)BASIC_WAVE_TABLE_LEN * lfosFrequency[l] / LFOS_SAMPLE_RATE;
+
+   // mapping rc -> ratio r
+    float t = ((float)rc - 64.0f) / 64.0f;   // [-1 ; +1]
+    float R = 4.0f;                          // ratio max (à régler selon ce que tu veux)
+    float r = powf(R, t);                    // [1/R ; R]
+
+    // steps UP / DOWN avec fréquence conservée
+    float stepDown_f = k * (1.0f + r) / (2.0f * r);
+    float stepUp_f   = k * (1.0f + r) / 2.0f;
+
+    // conversion en entier + fraction
+    float s;
+
+    s = stepUp_f;
+    lfosStepInt[l] = (uint32_t)s;
+    lfosStepFra[l] = (uint32_t)((s - (float)lfosStepInt[l]) * (MAX_STEP_FRA + 1));
+
+    s = stepDown_f;
+    lfosStepIntD[l] = (uint32_t)s;
+    lfosStepFraD[l] = (uint32_t)((s - (float)lfosStepIntD[l]) * (MAX_STEP_FRA + 1));
+
 }
 
 void lfosInit(){
@@ -401,6 +434,8 @@ void lfosInit(){
         currLfoEchFra[l]=0;
         lfosStepInt[l]=0;
         lfosStepFra[l]=0;
+        lfosStepIntD[l]=0;
+        lfosStepFraD[l]=0;
 
         sineLfo[l]=0;
         squareLfo[l]=0;        
@@ -408,6 +443,9 @@ void lfosInit(){
         sawtoothLfo[l]=0;
 
         lfosCoderCycleR[l]=MAXCODER_RC/2;
+        setLfosFrequency(lfosFrequency[l],l,lfosCoderCycleR[l]);        
+
+        lfoTime=0;
     }
     memset(lfoScopeBuffer,0x0000,LFOS_NB*LFOS_SCOPE_BUFFER_LEN);
 
@@ -417,8 +455,8 @@ int32_t* waveformTable[]={sineWaveform,squareWaveform,triangleWaveform,sawtoothW
 
 void __not_in_flash_func(lfosHandler)()
 {
-  #define LIM90  MAX_STEP_FRA/4
-  #define LIM270 MAX_STEP_FRA*3/4
+  #define LIM90  BASIC_WAVE_TABLE_LEN/4
+  #define LIM270 BASIC_WAVE_TABLE_LEN*3/4
 
   if((millisCounter-lfoTime)>lfoTimingInterval){
     lfoTime=millisCounter;
@@ -428,22 +466,18 @@ void __not_in_flash_func(lfosHandler)()
     for(uint8_t l=0;l<LFOS_NB;l++){
 
         uint16_t ce=currLfoEch[l];
-        uint32_t cf=currLfoEchFra[l];
-        uint32_t cs=lfosStepInt[l];
-        uint32_t ct=lfosStepFra[l];
-        uint32_t cg=lfosStepIntD[l];
-        uint32_t ch=lfosStepFraD[l]; 
+        uint16_t cf=currLfoEchFra[l];
 
         int32_t cond=(ce>LIM90 && ce<LIM270);
         cond=0-cond;                        
-        stepIntUse=(cs&cond) | (cg&(~cond));
-        stepFraUse=(ct&cond) | (ch&(~cond));
+        stepIntUse=(lfosStepInt[l]&cond) | (lfosStepIntD[l]&(~cond));
+        stepFraUse=(lfosStepFra[l]&cond) | (lfosStepFraD[l]&(~cond));
 
-        cf += ct;
+        cf += stepFraUse;
         uint32_t carry = (cf > MAX_STEP_FRA);
         cf -= carry * MAX_STEP_FRA;
-        ce += cs + carry;
-        ce -= (ce >= BASIC_WAVE_TABLE_LEN) * BASIC_WAVE_TABLE_LEN;
+        ce += stepIntUse + carry;
+        ce &= BASIC_WAVE_TABLE_LEN-1;
 
         sineLfo[l]=sineWaveform[ce];
         squareLfo[l]=squareWaveform[ce];
@@ -451,29 +485,27 @@ void __not_in_flash_func(lfosHandler)()
         sawtoothLfo[l]=sawtoothWaveform[ce];
 
         currLfoEch[l]=ce;
-        currLfoEchFra[l]=cf;
 
         lfoScopeBuffer[l*LFOS_SCOPE_BUFFER_LEN+lfoScopeBufPtr]=ce;
     }
     lfoScopeBufPtr++;
     lfoScopeBufPtr&=LFOS_SCOPE_BUFFER_LEN-1;
-
   }
 }
 
 uint16_t getAmpl(Voice* v,uint8_t wav){
-  //printf("coderAmpl:%d wav:%d lev:%d :%d\n",v->coderAmpl[wav],wav,amplLevel[v->coderAmpl[wav]],amplLevel[31]);
   return amplLevel[v->coderAmpl[wav]];
 }
 
+// ***************************  voices producer  ******************************
 
 // 223uS  producer 1 voice for i2s   (see prev versions for other implementations - this one the fastest)
 void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* v,uint8_t bufNum){   // 5.8mS pour les 6 sources @512 samples (23mS@44100Hz)
 
       uint16_t tablech[SAMPLE_BUFFER_SIZE];
 
-      #define LIM90  MAX_STEP_FRA/4
-      #define LIM270 MAX_STEP_FRA*3/4
+      #define LIM90  BASIC_WAVE_TABLE_LEN/4
+      #define LIM270 BASIC_WAVE_TABLE_LEN*3/4
 
       uint32_t currEch      = v->currEch;
       uint32_t currEchFra   = v->currEchFra;

@@ -248,7 +248,7 @@ void setup(){
    
 //dumpVoices(voices);    
     // ****** scope check ******
-    scope(i2s_buf0,SAMPLES_PER_BUFFER,voices[0].frequency,0,true,true,0,nullptr);
+    scope(i2s_buf0,voices[0].frequency,0,true,true,0,nullptr);
     while(!gpio_irq_set){
         debug_ticker();
         ledblinkn(3);

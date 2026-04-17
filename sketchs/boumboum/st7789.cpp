@@ -178,7 +178,6 @@ void st_dma_launch(uint8_t* frame,uint16_t x,uint16_t y,uint16_t w,uint16_t h){
         spin_unlock(st_dma_lock, f);
         sleep_us(100);
     }
-
 }
 
 void st_dma_wait_blank(){       // wait for end of current st dma usage -- special pour blank : attente obligatoire
@@ -190,14 +189,12 @@ void st_dma_wait_blank(){       // wait for end of current st dma usage -- speci
             spin_unlock(st_dma_lock, f);
             return;}          
         spin_unlock(st_dma_lock, f);
-        //sleep_us(100);
     }
 }
 
 volatile bool get_st_dma_free(){return st_dma_free;}
 
 void __not_in_flash_func(st_dma_irq_handler)() {
-//printf(">) d:%d b:%d s:%d\n",st_dma_free,st_dma_done_blank,st_sched_free);
     while (spi_is_busy(spi0)) {
         tight_loop_contents();
     }
@@ -228,8 +225,6 @@ void __not_in_flash_func(st_dma_irq_handler)() {
         st_buffer_free=true;           
         st_dma_free=true;
     }
-
-//printf("<) d:%d b:%d s:%d\n",st_dma_free,st_dma_done_blank,st_sched_free);    
     dma_hw->ints0 = 1u << st_dma_chan;   // clear IRQ
 }
 
@@ -637,7 +632,7 @@ uint16_t tft_draw_float_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_
     return tft_draw_float_12x12_dma_mult(x,y,fg,bg,mult,num,0);
 }
 // display scope lookout of buf values ; len =buf size ; f freq ; begline first available line ; fd freq display
-void __not_in_flash_func(scope)(int32_t* buf,uint32_t len,float f,uint16_t begline,bool fd,bool blk,uint8_t refr,int32_t* wtable){
+void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bool blk,uint8_t refr,int32_t* wtable){
 
     if(refrCnt>=refr){
 
@@ -654,7 +649,7 @@ void __not_in_flash_func(scope)(int32_t* buf,uint32_t len,float f,uint16_t begli
                 tft_frame[2*i]     = bgcolor >> 8;
                 tft_frame[2*i + 1] = bgcolor & 0xFF;
             }
-            blk=false;
+            //blk=false;
         //}
         /*else {
             for(uint32_t i=0;i<TFT_W;i++){                              // prev waveform erasing
@@ -662,13 +657,13 @@ void __not_in_flash_func(scope)(int32_t* buf,uint32_t len,float f,uint16_t begli
             }
         }*/
         
-        for(uint32_t i=0;i<TFT_W;i++){                                  // read buf and generate waveform
+        for(uint32_t i=0;i<TFT_W;i++){                                  // read buf and generate waveform        
             float b=(float)buf[i*2]/(float)0x7fffffff;
-            if(wtable!=nullptr){b=(float)wtable[buf[i]]/(float)0x7fff;}
+            if(wtable!=nullptr){b=(float)wtable[buf[i]]/(float)0x7fff;}        
             yy=(int32_t)(b*((TFT_H-begline)/2));
-            if(abs(yy)>=(TFT_H-begline)/2){yy=(TFT_H-begline)/2-1;}      
+            if(abs(yy)>=(TFT_H-begline)/2){yy=(TFT_H-begline)/2-1;}               
             x=i;
-            points[i]=2*(((TFT_H-begline)/2-yy)*TFT_W+x);
+            points[i]=2*(((TFT_H-begline)/2-yy)*TFT_W+x);         
             tft_frame[points[i]]=fgcolor;
         }
 
@@ -684,7 +679,7 @@ void __not_in_flash_func(scope)(int32_t* buf,uint32_t len,float f,uint16_t begli
 void debug_ticker(){
     if((millisCounter-ticker10)>10000){
         printf("10sec_counter:%d\n",millisCounter/10000);ticker10=millisCounter;
-        tft_draw_int_12x12_dma_mult(190,0,0x001f,0x0000,1,millisCounter/10000);    
+        tft_draw_int_12x12_dma_mult(TFT_W-4*12,0,0x001f,0x0000,1,millisCounter/10000);    
     }
 }
 
