@@ -231,7 +231,7 @@ void setup(){
 
     float fr0=440;
     uint8_t cga=1;
-    voicesInit(voices,fr0,cga);  
+    voicesInit(voices,fr0,cga);
 
     // ****** lfos ******
     lfosInit();

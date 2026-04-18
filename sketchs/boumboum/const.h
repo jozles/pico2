@@ -4,7 +4,7 @@
 #include "pico/stdlib.h"
 #include "util.h"
 
-#define VERSION "v1.3t"
+#define VERSION "v1.3u"
 
 #define PI 3.141592636
 
@@ -77,14 +77,14 @@ typedef enum {
 /* Voices */
 
 #define VOICES_NB 2 
-
+#define VCES_MAX_FREQ_CODERS 10000
 /* lfos */
 
 #define LFOS_NB 4
 #define LFOS_SAMPLE_RATE 40
 #define LFOS_MAX_FREQ_CODERS 3000
 #define LFOS_MIN_FREQ_CODERS 420    // 30sec
-#define LFOS_SCOPE_BUFFER_LEN 256   // power of 2 !!!
+#define OSC_SCOPE_BUFFER_LEN 256   // power of 2 !!!
 
 /* led */
 
@@ -158,7 +158,9 @@ typedef enum {
 
 enum Menus {
     MENU0,
+    VOICES,
     LFOS,
+    AMPS,
     MENUS_NB
 };
 

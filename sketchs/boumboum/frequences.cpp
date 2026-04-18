@@ -53,11 +53,12 @@ uint16_t    triangleLfo[LFOS_NB];
 uint16_t    sawtoothLfo[LFOS_NB];
 uint32_t    lfoTime=0;
 uint32_t    lfoTimingInterval=1000/LFOS_SAMPLE_RATE;
-int32_t     lfoScopeBuffer[LFOS_NB*LFOS_SCOPE_BUFFER_LEN];  // n° echantillons 
+int32_t     lfoScopeBuffer[LFOS_NB*OSC_SCOPE_BUFFER_LEN];  // n° echantillons 
 uint16_t    lfoScopeBufPtr=0;
 uint16_t    lfosCoderCycleR[LFOS_NB];                 // rapport cyclique -64/+64 pour coder
 
-
+int32_t     voiceScopeBuffer[VOICES_NB*OSC_SCOPE_BUFFER_LEN];  // n° echantillons
+uint16_t    voiceScopeBufPtr=0;
 
 // i2s
 
@@ -262,8 +263,9 @@ void sound_tables_init()
 void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)
 {
     for(uint8_t v=0;v<VOICES_NB;v++){
-        voices[v].maxCoderFreq=10000;
+        voices[v].maxCoderFreq=VCES_MAX_FREQ_CODERS;
         voices[v].genAmpl=0x7fff;
+        voices[v].coderCycleR=MAXCODER_RC/2;
 
         voices[v].genAmpl=amplLevel[cga];
         voices[v].coderGenAmpl=cga;
@@ -271,7 +273,7 @@ void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)
 
         voices[v].coderFreq=coderF;
         float f=calcFreq(voices[v].coderFreq);          // 440Hz
-        setVoiceFrequency(f,&voices[v],0);    
+        setVoiceFrequency(f,&voices[v],voices[v].coderCycleR);    
 
         voices[v].sampleNbToFill=SAMPLE_BUFFER_SIZE;    
         voices[v].currentSample=0;
@@ -339,29 +341,27 @@ void __not_in_flash_func(setVoiceFrequency)(float freq,Voice* v,int8_t rc){
     v->frequency=freq;
     v->coderCycleR=rc;
 
-    float r = (rc + 64) / 128.0f;
-    float stepUp,stepDown;
+    float k=(float)BASIC_WAVE_TABLE_LEN*v->frequency/SAMPLE_RATE;
 
-    float k=(uint32_t)BASIC_WAVE_TABLE_LEN*v->frequency/SAMPLE_RATE;
+   // mapping rc -> ratio r
+    float t = ((float)rc - 64.0f) / 64.0f;   // [-1 ; +1]
+    float R = 4.0f;                          // ratio max (à régler selon ce que tu veux)
+    float r = powf(R, t);                    // [1/R ; R]
 
-    if (r <= 0.0f) {
-      stepUp = 0.0f;
-      stepDown = k;
-    }
-    else if (r >= 1.0f) {
-      stepUp = k;
-      stepDown = 0.0f;
-    }
-    else {
-      stepUp   = k / r;
-      stepDown = k / (1.0f - r);
-    }
+    // steps UP / DOWN avec fréquence conservée
+    float stepDown_f = k * (1.0f + r) / (2.0f * r);
+    float stepUp_f   = k * (1.0f + r) / 2.0f;
 
-    v->stepInt=(uint32_t)stepUp;
-    v->stepFra=(uint32_t)((stepUp-v->stepInt)*MAX_STEP_FRA);
+    // conversion en entier + fraction
+    float s;
 
-    v->stepIntD=(uint32_t)stepDown;
-    v->stepFraD=(uint32_t)((stepDown-v->stepInt)*MAX_STEP_FRA);
+    s = stepUp_f;
+    v->stepInt = (uint32_t)s;
+    v->stepFra = (uint32_t)((s - (float)v->stepInt) * (MAX_STEP_FRA + 1));
+
+    s = stepDown_f;
+    v->stepIntD = (uint32_t)s;
+    v->stepFraD = (uint32_t)((s - (float)v->stepIntD) * (MAX_STEP_FRA + 1));
 }
 
 // *************************** lfos ****************************
@@ -371,34 +371,6 @@ void __not_in_flash_func(setLfosFrequency)(float freq,uint8_t l,int8_t rc){
     
     lfosFrequency[l]=freq;
     lfosCoderCycleR[l]=rc;
-
-    /*float r = (rc - 64) / 128.0f;            //float)rc / MAXCODER_RC;      //  rc 0-127 soit -63 à +63 128.0f;
-    float stepUp,stepDown;
-
-    float k=(uint32_t)BASIC_WAVE_TABLE_LEN*lfosFrequency[l]/LFOS_SAMPLE_RATE;
-
-    if (r <= 0.0f) {
-      stepUp = 0.0f;
-      stepDown = k;
-    }
-    else if (r >= 1.0f) {
-      stepUp = k;
-      stepDown = 0.0f;
-    }
-    else {
-      stepUp   = k / r;
-      stepDown = k / (1.0f - r);
-    }    
-
-    lfosStepInt[l]=(uint32_t)stepUp;
-    lfosStepFra[l]=(uint32_t)((stepUp-lfosStepInt[l])*MAX_STEP_FRA);
-    
-    lfosStepIntD[l]=(uint32_t)stepDown;
-    lfosStepFraD[l]=(uint32_t)((stepDown-lfosStepInt[l])*MAX_STEP_FRA);
-
-    //printf("Frequency:%f CoderCycleR:%d StepInt:%u StepFra:%u StepIntD:%u StepFraD:%u currEch:%u currEchFra:%u\n",
-    //  lfosFrequency[0],lfosCoderCycleR[0],lfosStepInt[0],lfosStepFra[0],lfosStepIntD[0],lfosStepFraD[0],currLfoEch[0],currLfoEchFra[0]);
-    */
 
     float k = (float)BASIC_WAVE_TABLE_LEN * lfosFrequency[l] / LFOS_SAMPLE_RATE;
 
@@ -421,7 +393,6 @@ void __not_in_flash_func(setLfosFrequency)(float freq,uint8_t l,int8_t rc){
     s = stepDown_f;
     lfosStepIntD[l] = (uint32_t)s;
     lfosStepFraD[l] = (uint32_t)((s - (float)lfosStepIntD[l]) * (MAX_STEP_FRA + 1));
-
 }
 
 void lfosInit(){
@@ -447,7 +418,7 @@ void lfosInit(){
 
         lfoTime=0;
     }
-    memset(lfoScopeBuffer,0x0000,LFOS_NB*LFOS_SCOPE_BUFFER_LEN);
+    memset(lfoScopeBuffer,0x0000,LFOS_NB*OSC_SCOPE_BUFFER_LEN);
 
 }
 
@@ -486,10 +457,10 @@ void __not_in_flash_func(lfosHandler)()
 
         currLfoEch[l]=ce;
 
-        lfoScopeBuffer[l*LFOS_SCOPE_BUFFER_LEN+lfoScopeBufPtr]=ce;
+        lfoScopeBuffer[l*OSC_SCOPE_BUFFER_LEN+lfoScopeBufPtr]=ce;
     }
     lfoScopeBufPtr++;
-    lfoScopeBufPtr&=LFOS_SCOPE_BUFFER_LEN-1;
+    lfoScopeBufPtr&=OSC_SCOPE_BUFFER_LEN-1;
   }
 }
 
@@ -500,7 +471,7 @@ uint16_t getAmpl(Voice* v,uint8_t wav){
 // ***************************  voices producer  ******************************
 
 // 223uS  producer 1 voice for i2s   (see prev versions for other implementations - this one the fastest)
-void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* v,uint8_t bufNum){   // 5.8mS pour les 6 sources @512 samples (23mS@44100Hz)
+void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* v,uint8_t bufNum,uint8_t voiceNum){   // 5.8mS pour les 6 sources @512 samples (23mS@44100Hz)
 
       uint16_t tablech[SAMPLE_BUFFER_SIZE];
 
@@ -526,6 +497,8 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
       int32_t  waveAmplWhi  = v->basicWaveAmpl[W_WHITE_NOISE];
       int32_t  waveAmplPnk  = v->basicWaveAmpl[W_PINK_NOISE];
       volatile int32_t* voiceBuffer=vBuffer;
+
+      int32_t* vsBuffer=voiceScopeBuffer+voiceNum*OSC_SCOPE_BUFFER_LEN;
 
       uint32_t s = SAMPLE_BUFFER_SIZE;
       do
@@ -574,6 +547,10 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
         currEch &= BASIC_WAVE_TABLE_LEN-1;
 
         tablech[s]=currEch;
+
+        vsBuffer[voiceScopeBufPtr]=currEch;
+        voiceScopeBufPtr++;
+        voiceScopeBufPtr&=OSC_SCOPE_BUFFER_LEN-1;
 
         #endif // VMOI
       }
@@ -647,8 +624,9 @@ void __not_in_flash_func(fillVoiceBuffer)(int32_t* vBuffer, Voice* voices, uint8
     blank((char*)vBuffer,SAMPLE_BUFFER_SIZE*8);
     //memset((char*)vBuffer,0x00,SAMPLE_BUFFER_SIZE*8);
 
-    fillVoiceBuffer_mono(vBuffer, &voices[0], bufNum); 
-    fillVoiceBuffer_mono(vBuffer, &voices[1], bufNum);        
+    for(uint8_t v=0;v<VOICES_NB;v++){
+      fillVoiceBuffer_mono(vBuffer, &voices[v], bufNum,v);
+    }
 
     i2s_buf_free[bufNum] = false;
 }
