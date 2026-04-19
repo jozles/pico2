@@ -8,6 +8,7 @@
 #include "st7789.h"
 #include "leds.h"
 #include "frequences.h"
+#include "miscControls.h"
 
 volatile uint32_t millisCounter=0;
 
@@ -44,8 +45,6 @@ uint16_t voicesMaxFreqCoders[VOICES_NB];
 volatile int16_t voicesAmplCoders[VOICES_NB];
 uint16_t voicesMaxAmplCoders[VOICES_NB];
 
-//volatile int16_t lfosFreqCoders[CODER_NB];
-//extern uint16_t lfosMaxFreqCoders[];
 extern float lfosFrequency[];                       // current lfo freq
 extern uint16_t lfosCoders[];
 extern uint16_t lfosCoderCycleR[];
@@ -60,6 +59,14 @@ uint16_t tempVceCoderCycleR[VOICES_NB];
 uint16_t tempVceCoderGenAmp[VOICES_NB];
 extern volatile int16_t menuVcesCoders[];
 extern int32_t voiceScopeBuffer[];
+
+extern uint16_t adsrAttCoder[ADSR_NB];                       // current lfo freq
+extern uint16_t adsrDecCoder[ADSR_NB];
+extern uint16_t adsrSusCoder[ADSR_NB];
+extern uint16_t adsrRelCoder[ADSR_NB];
+extern uint16_t adsrLevCoder[ADSR_NB];
+extern volatile int16_t menuAdsrCoders[];
+extern uint16_t* adsrVar[];
 
 extern volatile bool voicesSw[];                    // coder it handler scans all physical coders
 
@@ -97,6 +104,15 @@ enum OscCoders {        // coders pour menu voices et lfos
      OSCCODERFREQ,
      OSCCODERRC,
      OSCGENAMP
+};
+
+enum AdsrCoders {        // coders pour menu voices et lfos
+     ADSRMENU,
+     ADSRATT,
+     ADSRDEC,
+     ADSRSUS,
+     ADSRREL,
+     ADSRLEV
 };
 
 // ****** inits ******
@@ -137,9 +153,21 @@ void menus_init(){
     vcesVar[OSCCODERRC-1]=tempVceCoderCycleR;   // vcesVar[1]
     vcesVar[OSCGENAMP-1]=tempVceCoderGenAmp;    // vcesVar[1]
     menuVcesCoders[OSCMENU]=0;                  // line 0 du menu
-    menuVcesCoders[1]=voices[0].coderFreq;
-    menuVcesCoders[2]=voices[0].coderCycleR;
-    menuVcesCoders[3]=voices[0].genAmpl;
+    menuVcesCoders[OSCCODERFREQ]=voices[0].coderFreq;
+    menuVcesCoders[OSCCODERRC]=voices[0].coderCycleR;
+    menuVcesCoders[OSCGENAMP]=voices[0].genAmpl;
+    // ***  Adsr  ****
+    adsrVar[ADSRATT-1]=adsrAttCoder;            // lfosVar[0]
+    adsrVar[ADSRDEC-1]=adsrDecCoder;            // lfosVar[1]
+    adsrVar[ADSRSUS-1]=adsrSusCoder;            // lfosVar[2]
+    adsrVar[ADSRREL-1]=adsrRelCoder;            // lfosVar[3]
+    adsrVar[ADSRLEV-1]=adsrLevCoder;            // lfosVar[4]
+    menuAdsrCoders[ADSRMENU]=0;                 // line 0 du menu
+    menuAdsrCoders[ADSRATT]=adsrAttCoder[0];
+    menuAdsrCoders[ADSRDEC]=adsrDecCoder[0];
+    menuAdsrCoders[ADSRSUS]=adsrSusCoder[0];
+    menuAdsrCoders[ADSRREL]=adsrRelCoder[0];
+    menuAdsrCoders[ADSRLEV]=adsrLevCoder[0];
     
     mappingCoders[0]=0;     // ligne 0 
 }
@@ -150,7 +178,9 @@ void title_dsp(const char* title,uint8_t item,uint8_t type,float v0, float v1, u
     memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
     switch(type){
         case AMPS:sprintf(buf,"v:%d %4.3f amp",item,voices[item].frequency);break;
-        case LFOS:sprintf(buf,"%s:%u %1.3f %i      ",title,item,v0,v2);break;
+        case LFOS:sprintf(buf,"%s:%u %1.3f %i      ",title,item,lfosFrequency[item],lfosCoderCycleR[item]);break;
+        case VOICES:sprintf(buf,"%s:%u %1.3f %i      ",title,item,voices[item].frequency,voices[item].coderCycleR);break;
+        case ADSR:sprintf(buf,"%s:%u %u %u %u %u %u",title,item,adsrAttCoder[item],adsrDecCoder[item],adsrSusCoder[item],adsrRelCoder[item],adsrLevCoder[item]);break;
         //case 2:sprintf(buf,"%s #%d %4.3f ",title,item,lfosFrequency[item]);break;
         default:sprintf(buf,"%s     ",title);break;
     }        
@@ -506,6 +536,17 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                 }                
                 sprintf(buf+2,"%4.3f %i %u",voices[line].frequency,voices[line].coderCycleR-MAXCODER_RC/2,voices[line].coderGenAmpl);
                 break;
+            case ADSR:
+                switch (coder){
+                    case ADSRMENU: break;
+                    case ADSRATT:adsrAttCoder[line]==cc;
+                    case ADSRDEC:adsrDecCoder[line]==cc;
+                    case ADSRSUS:adsrSusCoder[line]==cc;
+                    case ADSRREL:adsrRelCoder[line]==cc;
+                    case ADSRLEV:adsrLevCoder[line]==cc;
+                    default: break;
+                }
+                sprintf(buf+2,"%u %u %u %u %u",adsrAttCoder[line],adsrDecCoder[line],adsrSusCoder[line],adsrRelCoder[line],adsrLevCoder[line]);
             default:break;
         }
         if(!mode_scope){tft_draw_text_12x12_dma_mult(0,line*(12*2+1)+begline,buf,fgc,bgc,1);}
@@ -580,18 +621,18 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
                         if(var[coder-1][line]!=cc){                     // maj valeur coder et affichage changement 
                             var[coder-1][line]=cc;
                             menuLineDsp(text,line,line_len,true,type,coder,cc,mode_scope,VAR_CHANGE);  // contient les traitements associés à la modif de variables
-                            title_dsp(title,line,1,lfosFrequency[line],0,lfosCoderCycleR[line]);
+                            title_dsp(title,line,type);
                         }
                 }        
             }
             if(mode_scope){
                 if(type==LFOS){      
                     scope(&lfoScopeBuffer[line*OSC_SCOPE_BUFFER_LEN],lfosFrequency[line],begline,false,firstScope,0,waveformTable[wave]);firstScope=false;
-                    title_dsp(title,line,1,lfosFrequency[line],0,lfosCoderCycleR[line]);         
+                    title_dsp(title,line,LFOS,lfosFrequency[line],0,lfosCoderCycleR[line]);         
                 }
                 else if(type==VOICES){      
                     scope(voiceScopeBuffer+line*OSC_SCOPE_BUFFER_LEN,voices[line].frequency,begline,false,firstScope,0,waveformTable[wave]);firstScope=false;
-                    title_dsp(title,line,1,voices[line].frequency,0,voices[line].coderCycleR);         
+                    title_dsp(title,line,VOICES,voices[line].frequency,0,voices[line].coderCycleR);         
                 }
                 else mode_scope=false;
             }          

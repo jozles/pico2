@@ -36,6 +36,11 @@ volatile int16_t menuLfosCoders[LFO_VAR_NB+1];      // [0] curr input nb ; [1] c
 uint16_t menuMaxLfosCoders[]={LFOS_NB-1,LFOS_MAX_FREQ_CODERS,MAXCODER_RC};
 uint16_t* lfosVar[CODER_NB];                        // inits dans menu.cpp ; les éléments inutilisés sont nullptr                
 
+#define ADSR_VAR_NB 5
+volatile int16_t menuAdsrCoders[ADSR_VAR_NB+1];      // [0] curr input nb ; [1] curr coder value for freq ; [2] curr coder value for rc
+uint16_t menuMaxAdsrCoders[]={ADSR_NB-1,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_LEVEL_CODERS};
+uint16_t* adsrVar[CODER_NB];                        // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
+
 int main() {
 
     stdio_init_all();
@@ -63,6 +68,7 @@ if (watchdog_caused_reboot()) {
             case WAVES_AMP: coders_for_wavesAmpl(currVoice);break;
             //case GEN_AMPL_: coders_for_genAmpl(currVoice);break;
             case LFOS_____: coders_for_menu("lfo",(const char*)nullptr,LFOS_NB,0,LFOS,menuLfosCoders,voicesSw,menuMaxLfosCoders,lfosVar,LFO_VAR_NB,BASIC_WAVES_NB);break;
+            case ADSRL____: coders_for_menu("adsr",(const char*)nullptr,ADSR_NB,0,ADSR,menuAdsrCoders,voicesSw,menuMaxAdsrCoders,adsrVar,ADSR_VAR_NB,BASIC_WAVES_NB);break;
             case MAPPING__: coders_for_mapping();break;
 
             default:break;

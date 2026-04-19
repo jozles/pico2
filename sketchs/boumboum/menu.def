@@ -3,6 +3,7 @@
     Z(VOICES_FR,"voices freq")
     Z(WAVES_AMP,"waves ampl ")
     Z(LFOS_____,"lfos       ")
+    Z(ADSRL____,"adsrl      ")
     Z(MAPPING__,"I/O mapping")
     
 

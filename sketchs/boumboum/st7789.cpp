@@ -657,7 +657,11 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
             }
         }*/
         
-        for(uint32_t i=0;i<TFT_W;i++){                                  // read buf and generate waveform        
+        for(uint32_t i=0;i<TFT_W;i++){                                  // read buf and generate waveform
+            uint32_t t0=buf[i*2];
+            uint16_t t=t0>>16;                                          // rc = numéro de table 
+            t0&=0x000007ff;                                             // n° ech 0-2047
+            
             float b=(float)buf[i*2]/(float)0x7fffffff;
             if(wtable!=nullptr){b=(float)wtable[buf[i]]/(float)0x7fff;}        
             yy=(int32_t)(b*((TFT_H-begline)/2));

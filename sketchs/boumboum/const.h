@@ -40,13 +40,6 @@
 
 #define CODER_FREQUENCY         0       // voice frequency coder in all functions 
 
-#define ATTACK                  2       // attack duration 
-#define DECAY                   3       // decay duration 
-#define SUSTAIN                 4       // sustain duration
-#define RELEASE                 5       // realease duration
-#define SUSTAIN_LEVEL           6       // sustain level
-
-
 #define LOW 0
 #define OFF 0
 #define HIGH 1
@@ -78,6 +71,7 @@ typedef enum {
 
 #define VOICES_NB 2 
 #define VCES_MAX_FREQ_CODERS 10000
+
 /* lfos */
 
 #define LFOS_NB 4
@@ -85,6 +79,12 @@ typedef enum {
 #define LFOS_MAX_FREQ_CODERS 3000
 #define LFOS_MIN_FREQ_CODERS 420    // 30sec
 #define OSC_SCOPE_BUFFER_LEN 256   // power of 2 !!!
+
+/* Adsrl */
+
+#define ADSR_NB 4
+#define ADSR_MAX_TIME_CODERS 128
+#define ADSR_MAX_LEVEL_CODERS MAX_16B_LINEAR_VALUE-1
 
 /* led */
 
@@ -160,6 +160,7 @@ enum Menus {
     MENU0,
     VOICES,
     LFOS,
+    ADSR,
     AMPS,
     MENUS_NB
 };

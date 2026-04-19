@@ -8,6 +8,7 @@
 #include "util.h"
 #include "bb_i2s.h"
 #include "const.h"
+#include "rc_tables.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -431,15 +432,15 @@ void __not_in_flash_func(lfosHandler)()
 
   if((millisCounter-lfoTime)>lfoTimingInterval){
     lfoTime=millisCounter;
-    uint32_t stepIntUse;
-    uint32_t stepFraUse;    
+    //uint32_t stepIntUse;
+    //uint32_t stepFraUse; 
     
     for(uint8_t l=0;l<LFOS_NB;l++){
 
         uint16_t ce=currLfoEch[l];
         uint16_t cf=currLfoEchFra[l];
 
-        int32_t cond=(ce>LIM90 && ce<LIM270);
+        /*int32_t cond=(ce>LIM90 && ce<LIM270);
         cond=0-cond;                        
         stepIntUse=(lfosStepInt[l]&cond) | (lfosStepIntD[l]&(~cond));
         stepFraUse=(lfosStepFra[l]&cond) | (lfosStepFraD[l]&(~cond));
@@ -449,15 +450,33 @@ void __not_in_flash_func(lfosHandler)()
         cf -= carry * MAX_STEP_FRA;
         ce += stepIntUse + carry;
         ce &= BASIC_WAVE_TABLE_LEN-1;
+        */
 
-        sineLfo[l]=sineWaveform[ce];
+        cf += lfosStepFra[l];
+        uint32_t carry = (cf > MAX_STEP_FRA);
+        cf -= carry * MAX_STEP_FRA;
+        ce += lfosStepInt[l] + carry;
+        ce &= BASIC_WAVE_TABLE_LEN-1;
+
+        uint8_t t=lfosCoderCycleR[l]>>1;  // rc=0-127 ; t=0-31 32-63
+        const int16_t *p = &rc_tables[t][0][0]+3*ce;
+
+        /*sineLfo[l]=sineWaveform[ce];
         squareLfo[l]=squareWaveform[ce];
         triangleLfo[l]=triangleWaveform[ce];
-        sawtoothLfo[l]=sawtoothWaveform[ce];
+        sawtoothLfo[l]=sawtoothWaveform[ce];*/
+
+        int32_t sign=(ce<1023)*2-1;
+
+        sineLfo[l]=sign*p[0];
+        triangleLfo[l]=sign*p[1];
+        sawtoothLfo[l]=sign*p[2];
 
         currLfoEch[l]=ce;
 
-        lfoScopeBuffer[l*OSC_SCOPE_BUFFER_LEN+lfoScopeBufPtr]=ce;
+
+
+        //lfoScopeBuffer[l*OSC_SCOPE_BUFFER_LEN+lfoScopeBufPtr]=ce;
     }
     lfoScopeBufPtr++;
     lfoScopeBufPtr&=OSC_SCOPE_BUFFER_LEN-1;
