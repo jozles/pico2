@@ -46,7 +46,7 @@ int main() {
     stdio_init_all();
     sleep_ms(2000);
     printf("\n+boumboum\n");    // %s\n",version);
-    
+
 if (watchdog_caused_reboot()) {
     printf("RESET = WATCHDOG\n");
 } else {

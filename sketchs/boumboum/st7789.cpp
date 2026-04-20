@@ -17,6 +17,8 @@
 #include "const.h"
 #include "util.h"
 
+#include "rc_tables.h"
+
 uint32_t ticker10=0;
 
 extern uint32_t millisCounter;
@@ -631,8 +633,8 @@ uint16_t tft_draw_float_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_
 uint16_t tft_draw_float_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_t bg,int8_t mult,float num){
     return tft_draw_float_12x12_dma_mult(x,y,fg,bg,mult,num,0);
 }
-// display scope lookout of buf values ; len =buf size ; f freq ; begline first available line ; fd freq display
-void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bool blk,uint8_t refr,int32_t* wtable){
+// display scope lookout of buf values ; len =buf size ; f freq ; begline first available line ; fd freq display ; wf required waveform
+void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bool blk,uint8_t refr,uint8_t wf){
 
     if(refrCnt>=refr){
 
@@ -641,6 +643,7 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
         uint16_t bgcolor=0x0000;
         uint16_t fgcolor=0x07ef;
         int32_t yy;
+        uint32_t v;
 
         st_dma_wait();
 
@@ -658,17 +661,26 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
         }*/
         
         for(uint32_t i=0;i<TFT_W;i++){                                  // read buf and generate waveform
-            uint32_t t0=buf[i*2];
+
+            uint32_t t0=buf[i];
             uint16_t t=t0>>16;                                          // rc = numéro de table 
             t0&=0x000007ff;                                             // n° ech 0-2047
-            
-            float b=(float)buf[i*2]/(float)0x7fffffff;
+            const int16_t *p = &rc_tables[t][0][0]+3*t0;                // pointeur sur valeur ech
+            float b=(float)p[wf]/(float)0x7fff;                         // ech value
+            yy=(int32_t)(b*((TFT_H-begline)/2));                        // tft y value
+            if(abs(yy)>=(TFT_H-begline)/2){yy=(TFT_H-begline)/2-1;}
+            v=2*(((TFT_H-begline)/2-yy)*TFT_W+x);                       // pixel location in tft_frame
+            tft_frame[v]=fgcolor;
+
+printf("wf:%u rc:%u ech:%u p[wf]:%i vech:%1.3f yy:%d v:%u\n",wf,t,t0,p[wf],b,yy,v);
+
+            /*float b=(float)buf[i*2]/(float)0x7fffffff;
             if(wtable!=nullptr){b=(float)wtable[buf[i]]/(float)0x7fff;}        
             yy=(int32_t)(b*((TFT_H-begline)/2));
             if(abs(yy)>=(TFT_H-begline)/2){yy=(TFT_H-begline)/2-1;}               
             x=i;
             points[i]=2*(((TFT_H-begline)/2-yy)*TFT_W+x);         
-            tft_frame[points[i]]=fgcolor;
+            tft_frame[points[i]]=fgcolor;*/
         }
 
         for(uint8_t i=0;i<TFT_W;i+=3){tft_frame[2*(((TFT_H-begline)/2)*TFT_W+i)]=fgcolor;}        // 0 line

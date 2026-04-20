@@ -178,8 +178,8 @@ void title_dsp(const char* title,uint8_t item,uint8_t type,float v0, float v1, u
     memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
     switch(type){
         case AMPS:sprintf(buf,"v:%d %4.3f amp",item,voices[item].frequency);break;
-        case LFOS:sprintf(buf,"%s:%u %1.3f %i      ",title,item,lfosFrequency[item],lfosCoderCycleR[item]);break;
-        case VOICES:sprintf(buf,"%s:%u %1.3f %i      ",title,item,voices[item].frequency,voices[item].coderCycleR);break;
+        case LFOS:sprintf(buf,"%s:%u %1.3f %i",title,item,lfosFrequency[item],lfosCoderCycleR[item]);break;
+        case VOICES:sprintf(buf,"%s:%u %1.3f %i",title,item,voices[item].frequency,voices[item].coderCycleR);break;
         case ADSR:sprintf(buf,"%s:%u %u %u %u %u %u",title,item,adsrAttCoder[item],adsrDecCoder[item],adsrSusCoder[item],adsrRelCoder[item],adsrLevCoder[item]);break;
         //case 2:sprintf(buf,"%s #%d %4.3f ",title,item,lfosFrequency[item]);break;
         default:sprintf(buf,"%s     ",title);break;
@@ -289,7 +289,8 @@ uint8_t coders_for_wavesAmpl(uint8_t currVoice)
         }
         //printf("%d %d\n",mode_scope,firstScope);
         firstDisplay=false;
-        if(mode_scope && i2s_buf_scope!=nullptr){scope(i2s_buf_scope,voices[currVoice].frequency,begline,false,firstScope,3,nullptr);firstScope=false;}   
+        //scope(int32_t* buf,float f,uint16_t begline,bool fd,bool blk,uint8_t refr,uint8_t wf)
+        if(mode_scope && i2s_buf_scope!=nullptr){scope(voiceScopeBuffer,voices[currVoice].frequency,begline,false,firstScope,3,0);firstScope=false;}   
     }
 }
 
@@ -626,12 +627,12 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
                 }        
             }
             if(mode_scope){
-                if(type==LFOS){      
-                    scope(&lfoScopeBuffer[line*OSC_SCOPE_BUFFER_LEN],lfosFrequency[line],begline,false,firstScope,0,waveformTable[wave]);firstScope=false;
+                if(type==LFOS){     
+                    scope(&lfoScopeBuffer[line*OSC_SCOPE_BUFFER_LEN],lfosFrequency[line],begline,false,firstScope,0,wave);firstScope=false;
                     title_dsp(title,line,LFOS,lfosFrequency[line],0,lfosCoderCycleR[line]);         
                 }
                 else if(type==VOICES){      
-                    scope(voiceScopeBuffer+line*OSC_SCOPE_BUFFER_LEN,voices[line].frequency,begline,false,firstScope,0,waveformTable[wave]);firstScope=false;
+                    scope(voiceScopeBuffer+line*OSC_SCOPE_BUFFER_LEN,voices[line].frequency,begline,false,firstScope,0,wave);firstScope=false;
                     title_dsp(title,line,VOICES,voices[line].frequency,0,voices[line].coderCycleR);         
                 }
                 else mode_scope=false;

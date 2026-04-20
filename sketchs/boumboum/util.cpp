@@ -41,6 +41,8 @@ int32_t i2s_buf1[SAMPLE_BUFFER_SIZE*2];     // le buffer 1
 extern struct Voice voices[];
 extern uint16_t amplLevel[];
 
+extern int32_t voiceScopeBuffer[];
+
 extern volatile uint32_t millisCounter;
 
 #define R1 6
@@ -248,7 +250,10 @@ void setup(){
    
 //dumpVoices(voices);    
     // ****** scope check ******
-    scope(i2s_buf0,voices[0].frequency,0,true,true,0,nullptr);
+    //scope(int32_t* buf,float f,uint16_t begline,bool fd,bool blk,uint8_t refr,uint8_t wf);
+
+    dumpStr(voiceScopeBuffer,256);
+    scope(voiceScopeBuffer,voices[0].frequency,0,true,true,0,0);
     while(!gpio_irq_set){
         debug_ticker();
         ledblinkn(3);
