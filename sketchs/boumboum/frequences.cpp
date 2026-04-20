@@ -517,48 +517,15 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
 
       int32_t* vsBuffer=voiceScopeBuffer+voiceNum*OSC_SCOPE_BUFFER_LEN;
 
-      uint32_t t=lfosCoderCycleR[voiceNum]>>2;  // rc=0-127 ; t=0-31 32-63
+      uint32_t t = v->coderCycleR;              // t=0-30 31 32-62 ; 63 valeurs MAXCODER_RC=62
+      if(t>MAXCODER_RC/2){t=MAXCODER_RC-t;}     // 32->30 42->20 52->10 62->00
+
       const int16_t *p = &rc_tables[t][0][0];      
       
       uint32_t s = SAMPLE_BUFFER_SIZE;
       do
       {
-#define VMOI
-
-        #ifdef VCOPILOT
-        //  version copilot
         s--;
-
-        // maskDesc = 1 si 90° < currEch < 270°, sinon 0
-        uint32_t m1 = (currEch - LIM90)  >> 31;      // 1 si currEch < LIM90
-        uint32_t m2 = (LIM270 - currEch) >> 31;      // 1 si currEch >= LIM270
-        uint32_t maskDesc = ~(m1 | m2) & 1;          // 1 = descente, 0 = montée
-
-        // masque 0xFFFFFFFF ou 0x00000000
-        uint32_t mask = -maskDesc;
-
-        // sélection branchless
-        stepIntUse = (stepIntD & mask) | (stepInt & ~mask);
-        stepFraUse = (stepFraD & mask) | (stepFra & ~mask);
-
-        // avance DDS
-        currEchFra += stepFraUse;
-        uint32_t carry = (currEchFra > MAX_STEP_FRA);
-        currEchFra -= carry * MAX_STEP_FRA;
-
-        currEch += stepIntUse + carry;
-        currEch &= BASIC_WAVE_TABLE_LEN - 1;
-
-        tablech[s] = currEch;
-        #endif // VCOPILOT
-
-        #ifdef VMOI
-        // ma version (+0.7cyles/boucle !)
-        s--;
-        /*int32_t cond=(currEch>LIM90 && currEch<LIM270);
-        cond=0-cond;                        
-        stepIntUse=(stepInt&cond) | (stepIntD&(~cond));
-        stepFraUse=(stepFra&cond) | (stepFraD&(~cond));*/
 
         currEchFra += stepFra;
         uint32_t carry = (currEchFra > MAX_STEP_FRA);
@@ -568,11 +535,9 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
 
         tablech[s]=currEch;
 
-        vsBuffer[voiceScopeBufPtr]=currEch+0x00200000;  // currEch+n° de table rc (pour test fixe 32)
+        vsBuffer[voiceScopeBufPtr]=currEch|t;  // currEch + n° de table rc 
         voiceScopeBufPtr++;
         voiceScopeBufPtr&=OSC_SCOPE_BUFFER_LEN-1;
-
-        #endif // VMOI
       }
       while (s!=0);
 

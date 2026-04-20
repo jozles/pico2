@@ -178,9 +178,9 @@ void title_dsp(const char* title,uint8_t item,uint8_t type,float v0, float v1, u
     memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
     switch(type){
         case AMPS:sprintf(buf,"v:%d %4.3f amp",item,voices[item].frequency);break;
-        case LFOS:sprintf(buf,"%s:%u %1.3f %i",title,item,lfosFrequency[item],lfosCoderCycleR[item]);break;
-        case VOICES:sprintf(buf,"%s:%u %1.3f %i",title,item,voices[item].frequency,voices[item].coderCycleR);break;
-        case ADSR:sprintf(buf,"%s:%u %u %u %u %u %u",title,item,adsrAttCoder[item],adsrDecCoder[item],adsrSusCoder[item],adsrRelCoder[item],adsrLevCoder[item]);break;
+        case LFOS:sprintf(buf,"%s:%u %1.3f %i ",title,item,lfosFrequency[item],lfosCoderCycleR[item]-MAXCODER_RC/2);break;
+        case VOICES:sprintf(buf,"%s:%u %1.3f %i ",title,item,voices[item].frequency,voices[item].coderCycleR-MAXCODER_RC/2);break;
+        case ADSR:sprintf(buf,"%s:%u %u %u %u %u %u ",title,item,adsrAttCoder[item],adsrDecCoder[item],adsrSusCoder[item],adsrRelCoder[item],adsrLevCoder[item]);break;
         //case 2:sprintf(buf,"%s #%d %4.3f ",title,item,lfosFrequency[item]);break;
         default:sprintf(buf,"%s     ",title);break;
     }        
@@ -294,114 +294,6 @@ uint8_t coders_for_wavesAmpl(uint8_t currVoice)
     }
 }
 
-// ****** coders for voice[].freq ******
-
-/*uint8_t coders_for_freq(uint8_t currVoice)
-{
-    volatile bool firstDisplay=true;
-
-    tft_fill_rect_blank(begline,0,TFT_H-begline,TFT_W);
-    title_dsp("voices ",currVoice,99);   
-
-    coderSetup(voicesFreqCoders,voicesSw,voicesMaxFreqCoders,VOICES_NB);
-
-    while (1) {
-
-        fillVoices();
-        
-        ws_show_3(30);
-        ledblinkn(2);
-        test_st7789_2();    // animation balayage de lignes
-        debug_ticker();
-
-        for(uint8_t coder=0;coder<VOICES_NB;coder++){
-
-            int s=tst_switchs(coder,VOICES_NB);
-            if(s>=0 || s==-99){return s;}
-            
-            // gestions coders
-            float ccFreq=voices[coder].frequency;               // ccFreq prev freq value for voice[coder] (for display)
-            uint32_t cc=voicesFreqCoders[coder];                // cc     actual coder value
-            int16_t* cp=&voices[coder].coderFreq;
-            
-            if(cc!=voices[coder].coderFreq || firstDisplay){
-
-                #define LINE_LEN TFT_W/12+1
-                memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
-                 
-                if(cc!=voices[coder].coderFreq){                // if coder change only (not for first display)
-                    voices[coder].coderFreq=cc;
-                    setVoiceFrequency(calcFreq(cc),&voices[coder],0);          // update freq value for coder value
-                    ccFreq=voices[coder].frequency;          
-                }
-
-                // display
-                buf[0]=coder+48;                
-                sprintf(buf+2,"%4d  %4.2f     ",cc,ccFreq);     // actual freq value                
-                tft_draw_text_12x12_dma_mult(0,coder*(12*2+1)+27,buf,0x07EF,0x0000,1);
-
-                printf("coder:%d cc:%d coderFreq:%d frequency:%f b:%s\n",
-                    coder,cc,voices[coder].coderFreq,voices[coder].frequency,buf);                      
-            }
-        }
-        firstDisplay=false;            
-    }
-}*/
-
-// ****** coders for voices ampl ******
-
-/*uint8_t coders_for_genAmpl(uint8_t currVoice)
-{
-    volatile bool firstDisplay=true;    
-
-    tft_fill_rect_blank(begline,0,TFT_H-begline,TFT_W);
-    title_dsp("Voices Amplifier ",currVoice,99);
-
-    coderSetup(voicesAmplCoders,voicesSw,voicesMaxAmplCoders,VOICES_NB);
-
-    while (1) {
-
-        fillVoices();
-        
-        ws_show_3(30);
-        ledblinkn(2);
-        test_st7789_2();    // animation balayage de lignes
-        debug_ticker();
-
-        for(uint8_t coder=0;coder<VOICES_NB;coder++){
-
-            int s=tst_switchs(coder,VOICES_NB);            
-            if(s>=0){return s;}            
-            
-            // gestions coders
-            uint16_t ccAmpl=voices[coder].genAmpl;                      // ccAmpl prev genAmpl value for voice[coder] (for display)
-            int32_t cc=voicesAmplCoders[coder];
-            
-            if(cc!=voices[coder].coderGenAmpl || firstDisplay){
-
-                #define LINE_LEN TFT_W/12+1
-                memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
- 
-                if(cc!=voices[coder].coderGenAmpl){                     // if coder change only (not for first display)
-                    voicesAmplCoders[coder]=cc;
-                    voices[coder].coderGenAmpl=cc;
-                    ccAmpl=amplLevel[cc];
-                    voices[coder].genAmpl=ccAmpl;                       // update ampl value for coder value
-                }
-
-                // display
-                buf[0]=coder+48;                
-                sprintf(buf+2,"%2d  %d      ",cc,ccAmpl);               // actual ampl value                   
-                tft_draw_text_12x12_dma_mult(0,coder*(12*2+1)+27,buf,0x07EF,0x0000,1);
-
-                printf("coder:%d cc:%d coderGenAmpl:%d genAmpl:%d b:%s\n",
-                    coder,cc,voices[coder].coderGenAmpl,voices[coder].genAmpl,buf); 
-            }
-        }
-        firstDisplay=false;    
-    }
-}*/   
-
 // ****** coders for mapping ******
 
 #define NB_DSP_LINES 12
@@ -512,26 +404,27 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                 if(coder==OSCMENU){
                     setLfosFrequency(calcFreq(lfosCoders[line])/1000,line,lfosCoderCycleR[line]);
                 }
-                if(coder==OSCCODERFREQ && varChge){                  
+                else if(coder==OSCCODERFREQ && varChge){                  
                     setLfosFrequency(calcFreq(cc)/1000,line,lfosCoderCycleR[line]);
                 }
-                if(coder==OSCCODERRC && varChge){
-                    setLfosFrequency(lfosFrequency[line],line,cc);}                
+                else if(coder==OSCCODERRC && varChge){
+                    setLfosFrequency(lfosFrequency[line],line,cc);
+                }                
                 sprintf(buf+2,"%1.3f %1.3f %d   ",lfosFrequency[line],1/lfosFrequency[line],lfosCoderCycleR[line]-MAXCODER_RC/2);
                 break;  
             case VOICES:
                 if(coder==OSCMENU){                
                     setVoiceFrequency(calcFreq(voices[line].coderFreq),&voices[line],voices[line].coderCycleR);
                 }
-                if(coder==OSCCODERFREQ && varChge){                  
+                else if(coder==OSCCODERFREQ && varChge){                  
                     setVoiceFrequency(calcFreq(cc),&voices[line],voices[line].coderCycleR);
                     voices[line].coderFreq=cc;
                 }
-                if(coder==OSCCODERRC && varChge){
+                else if(coder==OSCCODERRC && varChge){
                     setVoiceFrequency(voices[line].frequency,&voices[line],cc);
                     voices[line].coderCycleR=cc;
                 }
-                if(coder==OSCGENAMP && varChge){
+                else if(coder==OSCGENAMP && varChge){
                     setVoiceFrequency(voices[line].frequency,&voices[line],voices[line].coderCycleR);
                     voices[line].coderGenAmpl=cc;voices[line].genAmpl=amplLevel[cc];               
                 }                
@@ -629,11 +522,11 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
             if(mode_scope){
                 if(type==LFOS){     
                     scope(&lfoScopeBuffer[line*OSC_SCOPE_BUFFER_LEN],lfosFrequency[line],begline,false,firstScope,0,wave);firstScope=false;
-                    title_dsp(title,line,LFOS,lfosFrequency[line],0,lfosCoderCycleR[line]);         
+                    title_dsp(title,line,LFOS);         
                 }
                 else if(type==VOICES){      
                     scope(voiceScopeBuffer+line*OSC_SCOPE_BUFFER_LEN,voices[line].frequency,begline,false,firstScope,0,wave);firstScope=false;
-                    title_dsp(title,line,VOICES,voices[line].frequency,0,voices[line].coderCycleR);         
+                    title_dsp(title,line,VOICES);         
                 }
                 else mode_scope=false;
             }          

@@ -133,7 +133,7 @@ typedef enum {
 #define BASIC_WAVE_TABLE_POW 11     // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
 #define BASIC_WAVE_TABLE_LEN 2048   // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
 
-#define MAXCODER_RC 127             // (-63 +63)
+#define MAXCODER_RC 62              // doit être pair (-31 0 +31)
 
 // ****** inputs ******
 

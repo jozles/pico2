@@ -647,47 +647,37 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
 
         st_dma_wait();
 
-        //if(blk){
             for (int i = 0; i < (TFT_H-begline)*TFT_W ; i++) {          // full buffer erasing
                 tft_frame[2*i]     = bgcolor >> 8;
                 tft_frame[2*i + 1] = bgcolor & 0xFF;
             }
-            //blk=false;
-        //}
-        /*else {
-            for(uint32_t i=0;i<TFT_W;i++){                              // prev waveform erasing
-                tft_frame[points[i]]=bgcolor;
-            }
-        }*/
         
         for(uint32_t i=0;i<TFT_W;i++){                                  // read buf and generate waveform
 
             uint32_t t0=buf[i];
-            uint16_t t=t0>>16;                                          // rc = numéro de table 
-            t0&=0x000007ff;                                             // n° ech 0-2047
-            const int16_t *p = &rc_tables[t][0][0]+3*t0;                // pointeur sur valeur ech
-            float b=(float)p[wf]/(float)0x7fff;                         // ech value
-            yy=(int32_t)(b*((TFT_H-begline)/2));                        // tft y value
-            if(abs(yy)>=(TFT_H-begline)/2){yy=(TFT_H-begline)/2-1;}
-            v=2*(((TFT_H-begline)/2-yy)*TFT_W+x);                       // pixel location in tft_frame
+            uint16_t t=t0>>16;                                          // rc = numéro de table
+            t0&=0x0000ffff;                                             // n° ech   
+                                            
+            int8_t sign=(t0<(BASIC_WAVE_TABLE_LEN/2)) ? 1 : -1;
+            uint16_t idx = t0 & (BASIC_WAVE_TABLE_LEN/2 - 1);           // n° ech 0-2047 devient 0-1023
+
+            const int16_t *w = &rc_tables[t][0][0] + 3 * idx;           // pointeur sur valeur ech           
+            float b=(float)w[wf]/(float)0x7fff;                         // ech full scale ratio
+
+            yy=(int32_t)(sign*b*((TFT_H-begline)/2));                   // tft y value
+
+            if(abs(yy)>(TFT_H-begline)/2){yy=sign*(TFT_H-begline)/2;}
+            v=2*(((TFT_H-begline)/2-yy)*TFT_W+i);                       // pixel location in tft_frame
             tft_frame[v]=fgcolor;
 
-printf("wf:%u rc:%u ech:%u p[wf]:%i vech:%1.3f yy:%d v:%u\n",wf,t,t0,p[wf],b,yy,v);
-
-            /*float b=(float)buf[i*2]/(float)0x7fffffff;
-            if(wtable!=nullptr){b=(float)wtable[buf[i]]/(float)0x7fff;}        
-            yy=(int32_t)(b*((TFT_H-begline)/2));
-            if(abs(yy)>=(TFT_H-begline)/2){yy=(TFT_H-begline)/2-1;}               
-            x=i;
-            points[i]=2*(((TFT_H-begline)/2-yy)*TFT_W+x);         
-            tft_frame[points[i]]=fgcolor;*/
+//printf("wf:%u rc:%u ech:%u p[wf]:%d vech:%1.3f yy:%d v:%u\n",wf, t, t0, w[wf], b, yy, v);
         }
 
         for(uint8_t i=0;i<TFT_W;i+=3){tft_frame[2*(((TFT_H-begline)/2)*TFT_W+i)]=fgcolor;}        // 0 line
 
         st_dma_launch(tft_frame,0,begline,TFT_W,TFT_H-begline);
 
-        if(fd){tft_draw_float_12x12_dma_mult(TFT_W*1/3,begline,0xf81f,0,1,f,6);}
+        if(fd){tft_draw_float_12x12_dma_mult(TFT_W*1/3,0,0xf81f,0,1,f,6);}
     }
     else refrCnt++;
 }

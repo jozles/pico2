@@ -64,11 +64,11 @@ if (watchdog_caused_reboot()) {
 
         switch(menu){
             //case VOICES_FR: currVoice=coders_for_freq(currVoice);break;
-            case VOICES_FR: coders_for_menu("voice",(const char*)nullptr,VOICES_NB,0,VOICES,menuVcesCoders,voicesSw,menuMaxVcesCoders,vcesVar,VCE_VAR_NB,BASIC_WAVES_NB);break;
+            case VOICES_FR: coders_for_menu("V",(const char*)nullptr,VOICES_NB,0,VOICES,menuVcesCoders,voicesSw,menuMaxVcesCoders,vcesVar,VCE_VAR_NB,BASIC_WAVES_NB);break;
             case WAVES_AMP: coders_for_wavesAmpl(currVoice);break;
             //case GEN_AMPL_: coders_for_genAmpl(currVoice);break;
-            case LFOS_____: coders_for_menu("lfo",(const char*)nullptr,LFOS_NB,0,LFOS,menuLfosCoders,voicesSw,menuMaxLfosCoders,lfosVar,LFO_VAR_NB,BASIC_WAVES_NB);break;
-            case ADSRL____: coders_for_menu("adsr",(const char*)nullptr,ADSR_NB,0,ADSR,menuAdsrCoders,voicesSw,menuMaxAdsrCoders,adsrVar,ADSR_VAR_NB,BASIC_WAVES_NB);break;
+            case LFOS_____: coders_for_menu("L",(const char*)nullptr,LFOS_NB,0,LFOS,menuLfosCoders,voicesSw,menuMaxLfosCoders,lfosVar,LFO_VAR_NB,BASIC_WAVES_NB);break;
+            case ADSRL____: coders_for_menu("A",(const char*)nullptr,ADSR_NB,0,ADSR,menuAdsrCoders,voicesSw,menuMaxAdsrCoders,adsrVar,ADSR_VAR_NB,BASIC_WAVES_NB);break;
             case MAPPING__: coders_for_mapping();break;
 
             default:break;

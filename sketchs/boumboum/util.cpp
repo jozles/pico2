@@ -253,7 +253,7 @@ void setup(){
     //scope(int32_t* buf,float f,uint16_t begline,bool fd,bool blk,uint8_t refr,uint8_t wf);
 
     dumpStr(voiceScopeBuffer,256);
-    scope(voiceScopeBuffer,voices[0].frequency,0,true,true,0,0);
+    scope(voiceScopeBuffer,voices[0].frequency,14,true,true,0,0);
     while(!gpio_irq_set){
         debug_ticker();
         ledblinkn(3);
