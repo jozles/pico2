@@ -246,13 +246,14 @@ void setup(){
     voices[0].coderAmpl[W_SINUS]=31;
     voices[0].basicWaveAmpl[W_SINUS]=getAmpl(&voices[0],W_SINUS);
     printf("demo sinus ampl:%d\n",voices[0].basicWaveAmpl[W_SINUS]);delay_ms(100);      
+    voices[0].coderCycleR=10;
     fillVoices();           // après i2sSetup
    
 //dumpVoices(voices);    
     // ****** scope check ******
     //scope(int32_t* buf,float f,uint16_t begline,bool fd,bool blk,uint8_t refr,uint8_t wf);
 
-    dumpStr(voiceScopeBuffer,256);
+//dumpStr(voiceScopeBuffer,256);
     scope(voiceScopeBuffer,voices[0].frequency,14,true,true,0,0);
     while(!gpio_irq_set){
         debug_ticker();

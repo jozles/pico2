@@ -635,7 +635,7 @@ uint16_t tft_draw_float_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_
 }
 // display scope lookout of buf values ; len =buf size ; f freq ; begline first available line ; fd freq display ; wf required waveform
 void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bool blk,uint8_t refr,uint8_t wf){
-
+        uint16_t half = BASIC_WAVE_TABLE_LEN / 2;   // 1024
     if(refrCnt>=refr){
 
         refrCnt=0;   
@@ -651,17 +651,43 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
                 tft_frame[2*i]     = bgcolor >> 8;
                 tft_frame[2*i + 1] = bgcolor & 0xFF;
             }
-        
+
         for(uint32_t i=0;i<TFT_W;i++){                                  // read buf and generate waveform
 
             uint32_t t0=buf[i];
-            uint16_t t=t0>>16;                                          // rc = numéro de table
-            t0&=0x0000ffff;                                             // n° ech   
-                                            
-            int8_t sign=(t0<(BASIC_WAVE_TABLE_LEN/2)) ? 1 : -1;
-            uint16_t idx = t0 & (BASIC_WAVE_TABLE_LEN/2 - 1);           // n° ech 0-2047 devient 0-1023
+            uint32_t t=t0>>16;                                          // rc = numéro de table
+            t0&=0x0000ffff;                                             // n° ech  
 
-            const int16_t *w = &rc_tables[t][0][0] + 3 * idx;           // pointeur sur valeur ech           
+uint8_t rc_base = t & 31;                  // 0..31
+
+// table RC = 0..31 (toujours)
+uint8_t t_eff = rc_base; if(t>31) {t_eff=MAXCODER_RC-t;}
+
+uint16_t idx;
+int8_t sign;
+
+// --- reconstruction 360° standard ---
+
+if (t0 < half) {
+    idx  = t0;                     // montée 0→1023
+    sign = +1;
+} else {
+    idx  = (2*half - 1) - t0;      // descente 1023→0
+    sign = -1;
+}
+
+// --- LA SEULE DIFFÉRENCE ENTRE 0–31 ET 32–63 ---
+// RC 32–63 → inverser la demi-table
+if (t >= 32) {
+    sign=-sign;
+    //idx = (half - 1) - idx;
+}
+
+
+            //int8_t sign=(t0<(BASIC_WAVE_TABLE_LEN/2)) ? 1 : -1;
+            //uint16_t idx = t0 & (BASIC_WAVE_TABLE_LEN/2 - 1);           // n° ech 0-2047 devient 0-1023
+
+            const int16_t *w = &rc_tables[t_eff][0][0] + 3 * idx;           // pointeur sur valeur ech           
             float b=(float)w[wf]/(float)0x7fff;                         // ech full scale ratio
 
             yy=(int32_t)(sign*b*((TFT_H-begline)/2));                   // tft y value
@@ -670,7 +696,8 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
             v=2*(((TFT_H-begline)/2-yy)*TFT_W+i);                       // pixel location in tft_frame
             tft_frame[v]=fgcolor;
 
-//printf("wf:%u rc:%u ech:%u p[wf]:%d vech:%1.3f yy:%d v:%u\n",wf, t, t0, w[wf], b, yy, v);
+//printf("%d wf:%u rc:%u ech:%u w[wf]:%0x vech:%1.3f yy:%d v:%u\n",i,wf, t, t0, w[wf], b, yy, v);
+
         }
 
         for(uint8_t i=0;i<TFT_W;i+=3){tft_frame[2*(((TFT_H-begline)/2)*TFT_W+i)]=fgcolor;}        // 0 line
@@ -678,6 +705,8 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
         st_dma_launch(tft_frame,0,begline,TFT_W,TFT_H-begline);
 
         if(fd){tft_draw_float_12x12_dma_mult(TFT_W*1/3,0,0xf81f,0,1,f,6);}
+
+
     }
     else refrCnt++;
 }

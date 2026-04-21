@@ -181,7 +181,7 @@ void title_dsp(const char* title,uint8_t item,uint8_t type,float v0, float v1, u
         case LFOS:sprintf(buf,"%s:%u %1.3f %i ",title,item,lfosFrequency[item],lfosCoderCycleR[item]-MAXCODER_RC/2);break;
         case VOICES:sprintf(buf,"%s:%u %1.3f %i ",title,item,voices[item].frequency,voices[item].coderCycleR-MAXCODER_RC/2);break;
         case ADSR:sprintf(buf,"%s:%u %u %u %u %u %u ",title,item,adsrAttCoder[item],adsrDecCoder[item],adsrSusCoder[item],adsrRelCoder[item],adsrLevCoder[item]);break;
-        //case 2:sprintf(buf,"%s #%d %4.3f ",title,item,lfosFrequency[item]);break;
+
         default:sprintf(buf,"%s     ",title);break;
     }        
     tft_draw_text_12x12_dma_mult(0,0,buf,0x001f,0x0000,1);
@@ -524,7 +524,8 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
                     scope(&lfoScopeBuffer[line*OSC_SCOPE_BUFFER_LEN],lfosFrequency[line],begline,false,firstScope,0,wave);firstScope=false;
                     title_dsp(title,line,LFOS);         
                 }
-                else if(type==VOICES){      
+                else if(type==VOICES){ 
+                    //dumpStr(voiceScopeBuffer,256);     
                     scope(voiceScopeBuffer+line*OSC_SCOPE_BUFFER_LEN,voices[line].frequency,begline,false,firstScope,0,wave);firstScope=false;
                     title_dsp(title,line,VOICES);         
                 }

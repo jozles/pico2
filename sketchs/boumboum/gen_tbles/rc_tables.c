@@ -8,12 +8,33 @@
 #define RC_N_SAMPLES  1024   // 180°
 #define RC_N_VOICES   3
 
-static int16_t gen_value(int t, int s, int v) {
-    double phase_table  = 2.0 * M_PI * t / RC_N_TABLES;
-    double phase_sample = M_PI * s / RC_N_SAMPLES;      // 0..180°
-    double phase_voice  = 2.0 * M_PI * v / RC_N_VOICES;
+static int16_t gen_value(int t, int s, int v)
+{
+    // RC = 0 → montée = 1 échantillon
+    // RC = 31 → montée = 512 échantillons
+    double rise_len = 1.0 + (double)t * (512.0 - 1.0) / 31.0;
+    double fall_len = 1024.0 - rise_len;
 
-    double x = sin(phase_table + phase_sample + phase_voice);
+    double ph;
+
+    if (s < rise_len) {
+        // montée compressée : sinus 0→90°
+        double u = s / rise_len;       // 0..1
+        ph = u * (M_PI / 2.0);         // 0..90°
+    } else {
+        // descente étirée : sinus 90→180°
+        double u = (s - rise_len) / fall_len;  // 0..1
+        ph = (M_PI / 2.0) + u * (M_PI / 2.0);  // 90..180°
+    }
+
+    // forme d’onde
+    double x;
+    switch (v) {
+        case 0: x = sin(ph); break;                     // sinus
+        case 1: x = asin(sin(ph)) * (2.0/M_PI); break;  // triangle
+        case 2: x = 2.0*(ph/M_PI) - 1.0; break;         // saw
+    }
+
     return (int16_t)lrint(32767.0 * x);
 }
 

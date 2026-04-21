@@ -4,7 +4,7 @@
 #include "pico/stdlib.h"
 #include "util.h"
 
-#define VERSION "v1.3u"
+#define VERSION "v1.3v"
 
 #define PI 3.141592636
 

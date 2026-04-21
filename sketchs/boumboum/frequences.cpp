@@ -517,14 +517,17 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
 
       int32_t* vsBuffer=voiceScopeBuffer+voiceNum*OSC_SCOPE_BUFFER_LEN;
 
-      uint32_t t = v->coderCycleR;              // t=0-30 31 32-62 ; 63 valeurs MAXCODER_RC=62
-      if(t>MAXCODER_RC/2){t=MAXCODER_RC-t;}     // 32->30 42->20 52->10 62->00
+      uint32_t table = v->coderCycleR;
+      uint32_t tscope=table<<16;                      // t=0-30 31 32-62 ; 63 valeurs MAXCODER_RC=62
+      if(table>MAXCODER_RC/2){table=MAXCODER_RC-table;}     // 32->30 42->20 52->10 62->00
 
-      const int16_t *p = &rc_tables[t][0][0];      
+//printf("t:%x\n",table);
+
+      const int16_t *p = &rc_tables[table][0][0];     
       
       uint32_t s = SAMPLE_BUFFER_SIZE;
-      do
-      {
+
+      do {
         s--;
 
         currEchFra += stepFra;
@@ -535,7 +538,7 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
 
         tablech[s]=currEch;
 
-        vsBuffer[voiceScopeBufPtr]=currEch|t;  // currEch + n° de table rc 
+        vsBuffer[voiceScopeBufPtr]=currEch+tscope;  // currEch + n° de table rc 
         voiceScopeBufPtr++;
         voiceScopeBufPtr&=OSC_SCOPE_BUFFER_LEN-1;
       }
@@ -625,8 +628,8 @@ void fillVoices()
 {
 gpio_put(TST_PIN,1);
 
-    if(i2s_buf_free[0]){fillVoiceBuffer(i2s_buffer[0],voices,0);i2s_buf_scope=i2s_buffer[0];}
-    if(i2s_buf_free[1]){fillVoiceBuffer(i2s_buffer[1],voices,1);i2s_buf_scope=i2s_buffer[1];}
+    if(i2s_buf_free[0]){fillVoiceBuffer(i2s_buffer[0],voices,0);}
+    if(i2s_buf_free[1]){fillVoiceBuffer(i2s_buffer[1],voices,1);}
 
 gpio_put(TST_PIN,0);
 }
