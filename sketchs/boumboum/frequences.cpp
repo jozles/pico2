@@ -54,12 +54,12 @@ uint16_t    triangleLfo[LFOS_NB];
 uint16_t    sawtoothLfo[LFOS_NB];
 uint32_t    lfoTime=0;
 uint32_t    lfoTimingInterval=1000/LFOS_SAMPLE_RATE;
-int32_t     lfoScopeBuffer[LFOS_NB*OSC_SCOPE_BUFFER_LEN];  // n° echantillons 
+int32_t     lfoScopeBuffer[LFOS_NB*OSC_SCOPE_BUFFER_LEN];  // n° echantillons+rc_table 
 uint16_t    lfoScopeBufPtr=0;
-uint16_t    lfosCoderCycleR[LFOS_NB];                 // rapport cyclique -64/+64 pour coder
+uint16_t    lfosCoderCycleR[LFOS_NB];                 // rapport cyclique -64/+64 pour coder 
 
-int32_t     voiceScopeBuffer[VOICES_NB*OSC_SCOPE_BUFFER_LEN];  // n° echantillons
-uint16_t    voiceScopeBufPtr=0;
+
+int32_t     voicesDataBuffer[VOICES_NB*SAMPLE_BUFFER_SIZE];  // all voices data buffer : 16bits low currech nb, 16 bits high rc table nb 
 
 // i2s
 
@@ -100,8 +100,8 @@ void automixer(uint8_t nb,uint16_t* ampl,uint8_t chgd){
 
 // **********************  noises  *********************************
 
-#define N 4093
-int16_t noise_table[N];
+#define NOISE_TABLE_SIZE 4093
+int16_t noise_table[NOISE_TABLE_SIZE];
 
 uint32_t nPhase = 0;           // Q16.16
 uint32_t nStep  = 60817408;    // Q16.16
@@ -120,7 +120,7 @@ static inline uint32_t xrnd() {
 }
 
 void init_noise(){
-  for (int i = 0; i < N; i++)
+  for (int i = 0; i < NOISE_TABLE_SIZE; i++)
     noise_table[i] =  (int16_t)(xrnd() >> 16);
         
         /*// option
@@ -134,7 +134,7 @@ static inline void get_noise(int16_t *white, int16_t *pink)
 {
     // --- Bruit blanc bande limitée ---
     nPhase += nStep;
-    uint32_t limit = (uint32_t)N << 16;
+    uint32_t limit = (uint32_t)NOISE_TABLE_SIZE << 16;
 
     // branchless wrap using subtraction and conditional negation
     uint32_t tmp = nPhase - limit;
@@ -432,25 +432,16 @@ void __not_in_flash_func(lfosHandler)()
 
   if((millisCounter-lfoTime)>lfoTimingInterval){
     lfoTime=millisCounter;
-    //uint32_t stepIntUse;
-    //uint32_t stepFraUse; 
     
     for(uint8_t l=0;l<LFOS_NB;l++){
 
-        uint32_t ce=currLfoEch[l];
+        uint32_t ce=currLfoEch[l];                      
         uint16_t cf=currLfoEchFra[l];
 
-        /*int32_t cond=(ce>LIM90 && ce<LIM270);
-        cond=0-cond;                        
-        stepIntUse=(lfosStepInt[l]&cond) | (lfosStepIntD[l]&(~cond));
-        stepFraUse=(lfosStepFra[l]&cond) | (lfosStepFraD[l]&(~cond));
-
-        cf += stepFraUse;
-        uint32_t carry = (cf > MAX_STEP_FRA);
-        cf -= carry * MAX_STEP_FRA;
-        ce += stepIntUse + carry;
-        ce &= BASIC_WAVE_TABLE_LEN-1;
-        */
+        uint32_t rcTableNb = lfosCoderCycleR[l];     // rc==0-31-62
+        uint32_t tscope=rcTableNb<<16;
+        int8_t sign0 = (rcTableNb<=RC_TABLES_NB)*2-1;   // invert value if 32-62 table        
+        if(rcTableNb>RC_TABLES_NB-1){rcTableNb=(RC_TABLES_NB-1)*2-rcTableNb;}
 
         cf += lfosStepFra[l];
         uint32_t carry = (cf > MAX_STEP_FRA);
@@ -458,23 +449,21 @@ void __not_in_flash_func(lfosHandler)()
         ce += lfosStepInt[l] + carry;
         ce &= BASIC_WAVE_TABLE_LEN-1;
 
-        uint32_t t=lfosCoderCycleR[l]>>1;  // rc=0-127 ; t=0-31 32-63
-        const int16_t *p = &rc_tables[t][0][0]+3*ce;
+        currLfoEch[l]=ce;                               // long term value
+        lfoScopeBuffer[l*OSC_SCOPE_BUFFER_LEN+lfoScopeBufPtr]=ce+tscope;
 
-        /*sineLfo[l]=sineWaveform[ce];
-        squareLfo[l]=squareWaveform[ce];
-        triangleLfo[l]=triangleWaveform[ce];
-        sawtoothLfo[l]=sawtoothWaveform[ce];*/
+        bool vv=(ce<RC_TABLES_LEN);
+        int sign=sign0*(vv*2-1);                        // invert 180-360°
 
-        int32_t sign=(ce<1023)*2-1;
+        ce ^= (!vv) * (BASIC_WAVE_TABLE_LEN - 1);       // ce = vv*ce+!vv*((BASIC_WAVE_TABLE_LEN-1) - currEch);  // invert 180-360°       
+        ce &= RC_TABLES_LEN-1;
+        
+        const int16_t *w = &rc_tables[rcTableNb][0][0]+3*ce;    // rc_table values ptr
 
-        sineLfo[l]=sign*p[0];
-        triangleLfo[l]=sign*p[1];
-        sawtoothLfo[l]=sign*p[2];
-
-        currLfoEch[l]=ce;
-
-        lfoScopeBuffer[l*OSC_SCOPE_BUFFER_LEN+lfoScopeBufPtr]=ce+t<<16;
+        sineLfo[l]=sign*w[0];
+        triangleLfo[l]=sign*w[1];
+        sawtoothLfo[l]=sign*w[2];
+     
     }
     lfoScopeBufPtr++;
     lfoScopeBufPtr&=OSC_SCOPE_BUFFER_LEN-1;
@@ -488,9 +477,7 @@ uint16_t getAmpl(Voice* v,uint8_t wav){
 // ***************************  voices producer  ******************************
 
 // 223uS  producer 1 voice for i2s   (see prev versions for other implementations - this one the fastest)
-void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* v,uint8_t bufNum,uint8_t voiceNum){   // 5.8mS pour les 6 sources @512 samples (23mS@44100Hz)
-
-      uint16_t tablech[SAMPLE_BUFFER_SIZE];
+void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* v,uint8_t voiceNum){   // 5.8mS pour les 6 sources @512 samples (23mS@44100Hz)
 
       #define LIM90  BASIC_WAVE_TABLE_LEN/4
       #define LIM270 BASIC_WAVE_TABLE_LEN*3/4
@@ -499,13 +486,9 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
       uint32_t currEchFra   = v->currEchFra;
       uint32_t stepInt      = v->stepInt;
       uint32_t stepFra      = v->stepFra;
-      //uint32_t stepIntD     = v->stepInt;
-      //uint32_t stepFraD     = v->stepFra;
-      //uint32_t stepIntUse;
-      //uint32_t stepFraUse;
       nPhase       = v->noisePhase;
       nStep        = v->noiseStep;
-      uint32_t limit = (uint32_t)N << 16;
+      uint32_t limit = (uint32_t)NOISE_TABLE_SIZE << 16;
       int32_t  genAmpl      = v->genAmpl;
       int32_t  waveAmplSin  = v->basicWaveAmpl[W_SINUS];
       int32_t  waveAmplTri  = v->basicWaveAmpl[W_TRIANGLE];
@@ -513,20 +496,18 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
       int32_t  waveAmplSqr  = v->basicWaveAmpl[W_SQUARE];    
       int32_t  waveAmplWhi  = v->basicWaveAmpl[W_WHITE_NOISE];
       int32_t  waveAmplPnk  = v->basicWaveAmpl[W_PINK_NOISE];
-      volatile int32_t* voiceBuffer=vBuffer;
 
-      int32_t* vsBuffer=voiceScopeBuffer+voiceNum*OSC_SCOPE_BUFFER_LEN;
+      int32_t* vsBuffer=voicesDataBuffer+voiceNum*SAMPLE_BUFFER_SIZE; // voicesDataBuffer stores 32 bits data for scope AND inside fillVoice 
 
-      uint32_t table = v->coderCycleR;
-      uint32_t tscope=table<<16;                      // t=0-30 31 32-62 ; 63 valeurs MAXCODER_RC=62
-      if(table>MAXCODER_RC/2){table=MAXCODER_RC-table;}     // 32->30 42->20 52->10 62->00
-
-//printf("t:%x\n",table);
-
-      const int16_t *p = &rc_tables[table][0][0];     
+      uint32_t rcTableNb = v->coderCycleR;
+      int8_t sign0 = (rcTableNb<=RC_TABLES_NB)*2-1;                           // invert value if 32-62 table
+      uint32_t tscope=rcTableNb<<16;                                          // t=0-30 31 32-62 ; 63 valeurs MAXCODER_RC=62
+      if(rcTableNb>RC_TABLES_NB-1){rcTableNb=(RC_TABLES_NB-1)*2-rcTableNb;}   // 32->30 42->20 52->10 62->00
+      const int16_t *p = &rc_tables[rcTableNb][0][0];     
       
       uint32_t s = SAMPLE_BUFFER_SIZE;
 
+      // filling sample nbs
       do {
         s--;
 
@@ -536,21 +517,23 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
         currEch += stepInt + carry;
         currEch &= BASIC_WAVE_TABLE_LEN-1;      // currEch 0-2047
 
-        tablech[s]=currEch;
-
-        vsBuffer[voiceScopeBufPtr]=currEch+tscope;  // currEch + n° de table rc 
-        voiceScopeBufPtr++;
-        voiceScopeBufPtr&=OSC_SCOPE_BUFFER_LEN-1;
+        vsBuffer[s]=currEch+tscope;             // currEch + rc table nb
       }
       while (s!=0);
+      
+      // filling i2s data
 
-      uint16_t sbs2=SAMPLE_BUFFER_SIZE/2;
       for(uint32_t s = 0; s < SAMPLE_BUFFER_SIZE; s++)
       {
-        uint16_t currEch=tablech[s];
-        int8_t sign=(currEch<sbs2)*2-1;
-        currEch&=0x03ff;
-        const int16_t* w=p+3*currEch;
+        uint16_t ce=vsBuffer[s] & (BASIC_WAVE_TABLE_LEN-1);   // local currEch (cyclic ratio managment)
+
+        bool vv=(ce<RC_TABLES_LEN);
+        int sign=sign0*(vv*2-1);                              // invert 180-360°
+  
+        ce ^= (!vv) * (BASIC_WAVE_TABLE_LEN - 1);             // ce = vv*ce+!vv*((BASIC_WAVE_TABLE_LEN-1) - ce);  // invert 180-360°           
+        ce &= RC_TABLES_LEN-1;
+
+        const int16_t* w=p+3*ce;                              // rc_table values ptr 
 
         int32_t pre=sign*w[0]*waveAmplSin;  
         pre += sign*w[1]*waveAmplTri;
@@ -569,10 +552,11 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
         pink_state=(alpha * pink_state + (32768 - alpha) * (white)) >> 15;    
         pre += (int16_t)pink_state * waveAmplPnk;
 
-        *voiceBuffer+=pre;
-        voiceBuffer++;
-        *voiceBuffer+=pre;
-        voiceBuffer++;
+        *vBuffer+=pre;
+        vBuffer++;
+        *vBuffer+=pre;
+        vBuffer++;
+
       }
 
     v->currEch    = currEch;
@@ -618,7 +602,7 @@ void __not_in_flash_func(fillVoiceBuffer)(int32_t* vBuffer, Voice* voices, uint8
     //memset((char*)vBuffer,0x00,SAMPLE_BUFFER_SIZE*8);
 
     for(uint8_t v=0;v<VOICES_NB;v++){
-      fillVoiceBuffer_mono(vBuffer, &voices[v], bufNum,v);
+      fillVoiceBuffer_mono(vBuffer, &voices[v],v);
     }
 
     i2s_buf_free[bufNum] = false;

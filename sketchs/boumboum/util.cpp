@@ -35,13 +35,13 @@ static int st_dma_channel;
 static int ws_dma_channel;
 
 int32_t* i2s_dma_buffers[2];                // les 2 pointeurs sur les 2 buffers dma
-int32_t i2s_buf0[SAMPLE_BUFFER_SIZE*2];     // le buffer 0 (512*4*2 bytes = 8k)
+int32_t i2s_buf0[SAMPLE_BUFFER_SIZE*2];     // le buffer 0 (512*2*4 bytes = 4k)
 int32_t i2s_buf1[SAMPLE_BUFFER_SIZE*2];     // le buffer 1
 
 extern struct Voice voices[];
 extern uint16_t amplLevel[];
 
-extern int32_t voiceScopeBuffer[];
+extern int32_t voicesDataBuffer[];
 
 extern volatile uint32_t millisCounter;
 
@@ -245,16 +245,17 @@ void setup(){
 
     voices[0].coderAmpl[W_SINUS]=31;
     voices[0].basicWaveAmpl[W_SINUS]=getAmpl(&voices[0],W_SINUS);
-    printf("demo sinus ampl:%d\n",voices[0].basicWaveAmpl[W_SINUS]);delay_ms(100);      
     voices[0].coderCycleR=10;
+    printf("demo sinus f:%f rc:%i ampl:%d\n",fr0,voices[0].coderCycleR=10,voices[0].basicWaveAmpl[W_SINUS]);delay_ms(100);      
+    
     fillVoices();           // après i2sSetup
    
-//dumpVoices(voices);    
-    // ****** scope check ******
-    //scope(int32_t* buf,float f,uint16_t begline,bool fd,bool blk,uint8_t refr,uint8_t wf);
-
+//dumpVoices(voices);
 //dumpStr(voiceScopeBuffer,256);
-    scope(voiceScopeBuffer,voices[0].frequency,14,true,true,0,0);
+//dumpStr(i2s_buf0,256);
+    // ****** scope check ******
+    //scope(voicesDataBuffer,voices[0].frequency,14,true,true,0,0,true);    // scope mode_calcul
+    scope(i2s_buf0,voices[0].frequency,14,true,true,0,0,false);     // scope mode_data
     while(!gpio_irq_set){
         debug_ticker();
         ledblinkn(3);

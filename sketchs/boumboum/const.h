@@ -4,7 +4,9 @@
 #include "pico/stdlib.h"
 #include "util.h"
 
-#define VERSION "v1.3v"
+#include "rc_tables.h"
+
+#define VERSION "v1.3w"
 
 #define PI 3.141592636
 
@@ -78,7 +80,7 @@ typedef enum {
 #define LFOS_SAMPLE_RATE 40
 #define LFOS_MAX_FREQ_CODERS 3000
 #define LFOS_MIN_FREQ_CODERS 420    // 30sec
-#define OSC_SCOPE_BUFFER_LEN 256   // power of 2 !!!
+#define OSC_SCOPE_BUFFER_LEN SAMPLE_BUFFER_SIZE         // OSC_SCOPE
 
 /* Adsrl */
 
@@ -115,25 +117,27 @@ typedef enum {
 
 #define PICO_I2S_PIO 0
 #define _i2s_pio __CONCAT(pio, PICO_I2S_PIO)   
-#define PICO_AUDIO_I2S_DATA_PIN 13  // 2 consecutive gpios
+#define PICO_AUDIO_I2S_DATA_PIN 13                      // 2 consecutive gpios
 #define SAMPLE_RATE 44100
-#define MAX_16B_LINEAR_VALUE 32     // 0 to 31 => 0,1,1.414,2,2.828,4,5.656,8,11.312,16,22.624 ... 8192,11583,16384,23167,32768,46334
+#define MAX_16B_LINEAR_VALUE 32                         // 0 to 31 => 0,1,1.414,2,2.828,4,5.656,8,11.312,16,22.624 ... 8192,11583,16384,23167,32768,46334
 #define MIN_16B_LINEAR_VALUE 0
 
 /* frequencies/voices */
 
-#define SAMPLE_F SAMPLE_RATE        // fréquence d'échantillonnage audio   
+#define SAMPLE_F SAMPLE_RATE                            // fréquence d'échantillonnage audio   
 #define SAMPLE_PER (float)1/SAMPLE_F
-//#define FREQUENCY_DECIM 1000      // pour travailler en milliHz
+
 #define NUMBER_OF_OCTAVES 10
 #define OCTAVE0_FREQ SAMPLE_F/SAMPLE_BUFFER_SIZE
-#define SAMPLES_PER_BUFFER 512      // nombre d'échantillons (L+R) par buffer (1024 trop lent)  
-#define SAMPLE_BUFFER_SIZE SAMPLES_PER_BUFFER  // taille du buffer (doit être multiple de 4 pour le dma i2s)
+#define SAMPLES_PER_BUFFER 512                          // nombre d'échantillons (L+R) par buffer (1024 trop lent)  
+#define SAMPLE_BUFFER_SIZE SAMPLES_PER_BUFFER           // taille du buffer (doit être multiple de 4 pour le dma i2s)
 
-#define BASIC_WAVE_TABLE_POW 11     // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
-#define BASIC_WAVE_TABLE_LEN 2048   // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
+#define RC_TABLES_LEN RC_N_SAMPLES                      // ***** POWER OF 2 *****  nombre d'échantillons dans les 1/2 tables d'ondes
+#define RC_TABLES_NB RC_N_TABLES                        // nombre de tables RC (MAXCODER_RC possible values)
+#define MAXCODER_RC (RC_TABLES_NB-1)*2                  // DOIT ETRE PAIR (-31 0 +31 : 63 values 0-62 ) le nombre total de tables doit être impair pour le mirroring
 
-#define MAXCODER_RC 62              // doit être pair (-31 0 +31)
+#define BASIC_WAVE_TABLE_POW 11                         // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
+#define BASIC_WAVE_TABLE_LEN RC_TABLES_LEN*2            // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
 
 // ****** inputs ******
 

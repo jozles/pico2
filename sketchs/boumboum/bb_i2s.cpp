@@ -104,12 +104,12 @@ int i2sSetup(PIO pio,uint8_t i2sDataPin,int32_t* buf[2]) {
     pio_sm_set_consecutive_pindirs(i2s_pio, i2s_sm, i2sDataPin, 3, true);     // 1er,nbre,direction des gpio de la sm (correspond pour le pilotage sm à "gpio_set_dir()" en pilotage processeur)
 
     pio_sm_config c = i2s_program_get_default_config(offset);       // créé la structure de la config de la sm
-    sm_config_set_sideset_pins(&c, i2sDataPin+1);                     // gpio de base de la sm qui sera associée à la structure                 
+    sm_config_set_sideset_pins(&c, i2sDataPin+1);                   // gpio de base de la sm qui sera associée à la structure                 
     sm_config_set_out_pins(&c, i2sDataPin, 1);                      // direction des GPIOs de la sm (pas compris pourquoi il y a 2 couches de direction avec pio_sm_consecutive_pindirs)                 
     sm_config_set_out_shift(&c, false, true, 32);                   // controle du shift register alimenté par le TX FIFO (,right,autopull,threshold)
     sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);                  // concatène FIFO TX et RX (8 bytes)
    
-    sm_config_set_clkdiv(&c, 5.2816f);                             // (31*10+1*12)*2=644 ; 150000/44.1/644=5.2816  voir i2s.pio
+    sm_config_set_clkdiv(&c, 5.2816f);                              // (31*10+1*12)*2=644 ; 150000/44.1/644=5.2816  voir i2s.pio
     pio_sm_init(i2s_pio, i2s_sm, offset, &c);                       // attache le programme et la structure à la sm                 
     
     pio_sm_clear_fifos(i2s_pio, i2s_sm);

@@ -59,7 +59,7 @@ struct Voice {
     float       frequency;                      // current freq
     int16_t     coderFreq;                      // last coder value for freq
     uint16_t    maxCoderFreq;                   // pmax value for coderFreq
-    uint8_t     coderCycleR;                    // rapport cyclique -64/+64 pour coder
+    uint8_t     coderCycleR;                    // rapport cyclique -64/+64 pour coder ; one value for all waveforms
     uint8_t     maxCoderCycleR;
 
 };

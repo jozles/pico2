@@ -58,7 +58,7 @@ uint16_t tempVceCoderFreq[VOICES_NB];
 uint16_t tempVceCoderCycleR[VOICES_NB];
 uint16_t tempVceCoderGenAmp[VOICES_NB];
 extern volatile int16_t menuVcesCoders[];
-extern int32_t voiceScopeBuffer[];
+extern int32_t voicesDataBuffer[];
 
 extern uint16_t adsrAttCoder[ADSR_NB];                       // current lfo freq
 extern uint16_t adsrDecCoder[ADSR_NB];
@@ -290,7 +290,7 @@ uint8_t coders_for_wavesAmpl(uint8_t currVoice)
         //printf("%d %d\n",mode_scope,firstScope);
         firstDisplay=false;
         //scope(int32_t* buf,float f,uint16_t begline,bool fd,bool blk,uint8_t refr,uint8_t wf)
-        if(mode_scope && i2s_buf_scope!=nullptr){scope(voiceScopeBuffer,voices[currVoice].frequency,begline,false,firstScope,3,0);firstScope=false;}   
+        if(mode_scope && i2s_buf_scope!=nullptr){scope(voicesDataBuffer,voices[currVoice].frequency,begline,false,firstScope,3,0,true);firstScope=false;}   
     }
 }
 
@@ -471,6 +471,7 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
 
     uint8_t line=0;
     bool mode_scope=false;
+    bool type_scope=false;
     bool firstScope=true;
     uint8_t wave=0;
     uint8_t debug=false;
@@ -490,7 +491,7 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
 
             int s=tst_switchs_(switchsNb);            
             if(s==0 || s==-99){return line;}
-            if(s>0){mode_scope=true;firstScope=true;wave=s-1;}
+            if(s>0){mode_scope=true;firstScope=true;wave=s-1;type_scope=!type_scope;}
 
             for(uint8_t coder=0;coder<varNb+1;coder++){       
 
@@ -521,12 +522,12 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
             }
             if(mode_scope){
                 if(type==LFOS){     
-                    scope(&lfoScopeBuffer[line*OSC_SCOPE_BUFFER_LEN],lfosFrequency[line],begline,false,firstScope,0,wave);firstScope=false;
+                    scope(&lfoScopeBuffer[line*OSC_SCOPE_BUFFER_LEN],lfosFrequency[line],begline,false,firstScope,0,wave,true);firstScope=false;
                     title_dsp(title,line,LFOS);         
                 }
                 else if(type==VOICES){ 
                     //dumpStr(voiceScopeBuffer,256);     
-                    scope(voiceScopeBuffer+line*OSC_SCOPE_BUFFER_LEN,voices[line].frequency,begline,false,firstScope,0,wave);firstScope=false;
+                    scope(voicesDataBuffer+line*OSC_SCOPE_BUFFER_LEN,voices[line].frequency,begline,false,firstScope,0,wave,type_scope);firstScope=false;
                     title_dsp(title,line,VOICES);         
                 }
                 else mode_scope=false;
