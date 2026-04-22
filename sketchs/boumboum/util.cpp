@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <unistd.h>
+#include <malloc.h>
 #include "pico/stdlib.h"
 #include "pico/time.h"
 #include "hardware/timer.h"
@@ -778,4 +780,51 @@ void ledblinkn(uint8_t n){
         else led=0;
         gpio_put(LED,led&0x01);
     }
+}
+
+
+extern char __bss_end__;   // Fin des statiques (DATA+BSS)
+
+static inline uint32_t get_msp(void) {
+    uint32_t msp;
+    __asm volatile ("mrs %0, msp" : "=r" (msp));
+    return msp;
+}
+
+void print_memory_report(void) {
+
+    const uint32_t RAM_START = 0x20000000u;
+    const uint32_t RAM_END   = 0x20080000u;   // 512 Ko
+
+    uint32_t bss_end   = (uint32_t)&__bss_end__;
+    uint32_t heap_curr = (uint32_t)sbrk(0);
+    uint32_t msp       = get_msp();
+
+    struct mallinfo mi = mallinfo();
+
+    uint32_t ram_total      = RAM_END - RAM_START;
+    uint32_t ram_static     = bss_end - RAM_START;
+    uint32_t ram_heap_used  = (heap_curr > bss_end) ? (heap_curr - bss_end) : 0;
+    uint32_t ram_stack_used = (RAM_END > msp) ? (RAM_END - msp) : 0;
+    uint32_t ram_free       = (msp > heap_curr) ? (msp - heap_curr) : 0;
+
+    printf("\n========== RAPPORT MEMOIRE ==========\n");
+
+    printf("RAM totale          : %u bytes\n", ram_total);
+    printf("Statiques (DATA+BSS): %u bytes\n", ram_static);
+
+    printf("\n--- Heap ---\n");
+    printf("Heap courant (sbrk) : 0x%08X\n", heap_curr);
+    printf("Heap utilisé (approx): %u bytes\n", ram_heap_used);
+    printf("mallinfo.uordblks   : %d bytes\n", mi.uordblks);
+    printf("mallinfo.fordblks   : %d bytes\n", mi.fordblks);
+
+    printf("\n--- Stack ---\n");
+    printf("MSP                 : 0x%08X\n", msp);
+    printf("Stack utilisée      : %u bytes\n", ram_stack_used);
+
+    printf("\n--- RAM libre ---\n");
+    printf("RAM libre (heap→stack): %u bytes\n", ram_free);
+
+    printf("\n=====================================\n\n");
 }
