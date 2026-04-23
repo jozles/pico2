@@ -34,7 +34,7 @@
 #define WAVE_PINKNOISE 5
 #define MAX_AMP_VAL 32767
 
-#define MAX_STEP_FRA 10000  // décimales ratio sampleFreq/currFreq
+#define MAX_STEP_FRA 65536  // décimales ratio sampleFreq/currFreq
 
 struct Voice {
     uint16_t    sampleNbToFill;                 // sample Nb for 1 period    

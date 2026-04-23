@@ -9,6 +9,9 @@
 #include "leds.h"
 #include "frequences.h"
 #include "miscControls.h"
+#include "bb_i2s.h"
+
+extern int32_t* i2s_buffer[];
 
 volatile uint32_t millisCounter=0;
 
@@ -122,8 +125,8 @@ void menus_init(){
         voicesMaxFreqCoders[v]=voices[v].maxCoderFreq;
         voicesAmplCoders[v]=voices[v].coderGenAmpl;
         voicesMaxAmplCoders[v]=voices[v].maxCoderGenAmpl;
-        voices[v].coderAmpl[W_SINUS]=25;    // 5793
-        voices[v].basicWaveAmpl[W_SINUS]=amplLevel[voices[v].coderAmpl[W_SINUS]];
+        //voices[v].coderAmpl[W_SINUS]=31;    // 5793
+        //voices[v].basicWaveAmpl[W_SINUS]=amplLevel[voices[v].coderAmpl[W_SINUS]];
         
         for(uint8_t a=0;a<W_NB;a++){
             voices[v].coderSw[a]=true;
@@ -526,9 +529,15 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
                     title_dsp(title,line,LFOS);         
                 }
                 else if(type==VOICES){ 
-                    //dumpStr(voiceScopeBuffer,256);     
-                    scope(voicesDataBuffer+line*OSC_SCOPE_BUFFER_LEN,voices[line].frequency,begline,false,firstScope,0,wave,type_scope);firstScope=false;
-                    title_dsp(title,line,VOICES);         
+                    if(firstScope){
+                        //printf("i2s_buffer f:%f rc:%i ampl:%d\n",voices[0].frequency,voices[0].coderCycleR,voices[0].basicWaveAmpl[W_SINUS]);delay_ms(100);
+                        //dumpStr(i2s_buffer[0],256);
+                        title_dsp(title,line,VOICES);
+                    }
+                    if(type_scope){scope(voicesDataBuffer+line*OSC_SCOPE_BUFFER_LEN,voices[line].frequency,begline,false,firstScope,0,wave,true);}
+                    //scope(i2s_buffer[0],voices[0].frequency,14,false,true,0,0,false);firstScope=false;     // scope mode_data
+                    else{scope(i2s_buf_scope,voices[line].frequency,begline,false,firstScope,0,wave,false);}
+                    firstScope=false;         
                 }
                 else mode_scope=false;
             }          

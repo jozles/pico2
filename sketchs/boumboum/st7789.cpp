@@ -57,6 +57,8 @@ uint8_t tft_frame_blk[FRAME_SIZE];    // 2bytes/pixel
 static uint32_t points[TFT_W];
 static uint8_t refrCnt=0;
 
+extern int16_t rc_tables[][RC_N_SAMPLES][RC_N_VOICES];
+
 static void tft_init(void);
 
 // ---------------------------------------------------------

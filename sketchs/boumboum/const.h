@@ -6,7 +6,7 @@
 
 #include "rc_tables.h"
 
-#define VERSION "v1.3w"
+#define VERSION "v1.3x"
 
 #define PI 3.141592636
 

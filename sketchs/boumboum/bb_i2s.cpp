@@ -16,8 +16,8 @@ extern volatile uint32_t millisCounter;
 
 volatile bool i2s_buf_free[2]; // false busy : buffer ready for dma
 
-static int i2s_dma_chan0;
-static int i2s_dma_chan1;
+int i2s_dma_chan0;
+int i2s_dma_chan1;
 static dma_channel_config dma_cfg0;
 static dma_channel_config dma_cfg1;
 
@@ -32,12 +32,10 @@ void __not_in_flash_func(dma_i2s_handler)() {
 
     if (status & (1u << i2s_dma_chan0)) {
         i2s_buf_free[0]=true;
-        dma_channel_set_read_addr(i2s_dma_chan0, i2s_buffer[0], false);
         dma_hw->ints0 = (1u << i2s_dma_chan0);
     }
     if (status & (1u << i2s_dma_chan1)) {
         i2s_buf_free[1]=true;
-        dma_channel_set_read_addr(i2s_dma_chan1, i2s_buffer[1], false);
         dma_hw->ints0 = (1u << i2s_dma_chan1);
     }
 }
@@ -80,8 +78,8 @@ int init_dma_i2s() {
 void i2s_start(){
 
     dma_channel_configure(i2s_dma_chan0, &dma_cfg0,&i2s_pio->txf[i2s_sm], i2s_buffer[0], SAMPLE_BUFFER_SIZE*2,false);
-    dma_channel_configure(i2s_dma_chan1, &dma_cfg1,&i2s_pio->txf[i2s_sm], i2s_buffer[1], SAMPLE_BUFFER_SIZE*2,true);
-
+    dma_channel_configure(i2s_dma_chan1, &dma_cfg1,&i2s_pio->txf[i2s_sm], i2s_buffer[1], SAMPLE_BUFFER_SIZE*2,false);
+     dma_start_channel_mask(1u << i2s_dma_chan0);
 }
 
 int i2sSetup(PIO pio,uint8_t i2sDataPin,int32_t* buf[2]) {

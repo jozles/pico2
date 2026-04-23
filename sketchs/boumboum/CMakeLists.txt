@@ -64,6 +64,7 @@ add_executable(boumboum
 	outputs.def
 	blank.S
 	miscControls.cpp
+	rc_tables.cpp
 	)
 
 pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/ws2812.pio)

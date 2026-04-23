@@ -45,7 +45,7 @@ int main() {
 
     stdio_init_all();
     sleep_ms(2000);
-    printf("\n+boumboum\n");    // %s\n",version);
+    printf("\n+boumboum \n");    // %s\n",version);
 
     print_memory_report();
 

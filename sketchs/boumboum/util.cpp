@@ -248,7 +248,7 @@ void setup(){
     voices[0].coderAmpl[W_SINUS]=31;
     voices[0].basicWaveAmpl[W_SINUS]=getAmpl(&voices[0],W_SINUS);
     voices[0].coderCycleR=10;
-    printf("demo sinus f:%f rc:%i ampl:%d\n",fr0,voices[0].coderCycleR=10,voices[0].basicWaveAmpl[W_SINUS]);delay_ms(100);      
+    printf("demo sinus f:%f rc:%i ampl:%d\n",fr0,voices[0].coderCycleR,voices[0].basicWaveAmpl[W_SINUS]);delay_ms(100);      
     
     fillVoices();           // après i2sSetup
    
