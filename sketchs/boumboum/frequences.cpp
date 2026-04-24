@@ -72,7 +72,7 @@ extern volatile bool i2s_buf_free[];
 extern int32_t* i2s_buffer[];
 volatile int32_t* i2s_buf_scope;       // last loaded buffer for scope
 
-extern int16_t rc_tables[][RC_N_SAMPLES][RC_N_VOICES];
+
 
 
 //
@@ -649,25 +649,60 @@ void __not_in_flash_func(fillVoiceBuffer)(int32_t* vBuffer, Voice* voices, uint8
 
 void fillVoices()
 {
-//gpio_put(TST_PIN,1);
-
     if(i2s_buf_free[0]){
 gpio_put(TST_PIN,1);      
       fillVoiceBuffer(i2s_buffer[0],voices,0);
-      //dma_channel_set_read_addr(i2s_dma_chan0, i2s_buffer[0], true);
-      //dma_channel_set_trans_count(i2s_dma_chan0, SAMPLE_BUFFER_SIZE*2, true);
       i2s_buf_free[0] = false;
 gpio_put(TST_PIN,0);     
     }
     if(i2s_buf_free[1]){
 gpio_put(TST_PIN,1);       
       fillVoiceBuffer(i2s_buffer[1],voices,1);
-      //dma_channel_set_read_addr(i2s_dma_chan1, i2s_buffer[1], true);
-      //dma_channel_set_trans_count(i2s_dma_chan1, SAMPLE_BUFFER_SIZE*2, true);
       i2s_buf_free[1] = false;
 gpio_put(TST_PIN,0);       
     }
-
-//gpio_put(TST_PIN,0);
 }
 
+/*
+void dmaDiags(uint8_t dma){
+
+  printf("%u DMA0: busy=%d, trans=%u, read=0x%08x\n",
+       dma,   
+       dma_channel_is_busy(i2s_dma_chan0),
+       dma_hw->ch[i2s_dma_chan0].transfer_count,
+       dma_hw->ch[i2s_dma_chan0].read_addr);
+
+  printf("%u DMA1: busy=%d, trans=%u, read=0x%08x\n",
+       dma,
+       dma_channel_is_busy(i2s_dma_chan1),
+       dma_hw->ch[i2s_dma_chan1].transfer_count,
+       dma_hw->ch[i2s_dma_chan1].read_addr);
+
+}
+
+
+uint8_t fillVoicesCnt0=0;
+uint8_t fillVoicesCnt1=0;
+void fillVoices()
+{
+    if(i2s_buf_free[0]){
+gpio_put(TST_PIN,1); 
+        fillVoicesCnt0++;       
+        for (int i = 0; i < SAMPLE_BUFFER_SIZE*2; i++) {
+            i2s_buffer[0][i] = 0x00FF00FF;   // n’importe quel pattern non nul
+        }
+        i2s_buf_free[0] = false;
+        if(fillVoicesCnt0>20){dmaDiags(0);}
+gpio_put(TST_PIN,0);          
+    }
+    if(i2s_buf_free[1]){
+gpio_put(TST_PIN,1);
+        fillVoicesCnt1++;        
+        for (int i = 0; i < SAMPLE_BUFFER_SIZE*2; i++) {
+            i2s_buffer[1][i] = 0x00FF00FF;
+        }
+        i2s_buf_free[1] = false;
+        if(fillVoicesCnt1>20){dmaDiags(1);}
+gpio_put(TST_PIN,0);          
+    }
+}*/

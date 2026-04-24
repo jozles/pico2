@@ -7,4 +7,6 @@
 #define RC_N_SAMPLES 1024
 #define RC_N_VOICES 3
 
+extern const int16_t rc_tables[RC_N_TABLES][RC_N_SAMPLES][RC_N_VOICES];
+
 #endif

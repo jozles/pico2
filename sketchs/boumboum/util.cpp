@@ -221,6 +221,7 @@ void setup(){
     // ****** st7789 ******
     st_dma_channel=st7789_setup(ST7789_SPI_SPEED);
     if(st_dma_channel<0){LEDBLINK_ERROR_DMA}
+    printf("ws:%i st:%i\n",ws_dma_channel,st_dma_channel);
 
     // ****** global irq (st+ws) ******
     init_global_dma_irq();
@@ -767,6 +768,10 @@ void show_cnt(uint32_t cnt,uint16_t x,uint16_t y){
     show_cnt(cnt,x,y,1);
 }
 
+uint32_t last_c2=0;
+uint32_t last_c3=0;
+uint32_t c2 = dma_hw->ch[2].ctrl_trig;
+uint32_t c3 = dma_hw->ch[3].ctrl_trig;
 void ledblinkn(uint8_t n){
     if(
         (led==0 && (millisCounter-ledBlinker)>(durOffOn[led]-durOffOn[led+1]-(n-1)*(durOffOn[led+2]+durOffOn[led+3]))) 
@@ -774,6 +779,13 @@ void ledblinkn(uint8_t n){
         (led!=0 && (millisCounter-ledBlinker)>(durOffOn[led]))
     )
     {
+
+if (c2 != last_c2 || c3 != last_c3) {
+    printf("DMA2/3 MODIFIED: c2=%08x c3=%08x\n", c2, c3);
+}
+last_c2 = c2;
+last_c3 = c3;
+
         if(n>MAXBLK){n=MAXBLK;}
         ledBlinker=millisCounter;
         if(led<((2*n)-1)){led++;}

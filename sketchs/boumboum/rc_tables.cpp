@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include "rc_tables.h"
 
-int16_t rc_tables[RC_N_TABLES][RC_N_SAMPLES][RC_N_VOICES] = {
+const int16_t rc_tables[RC_N_TABLES][RC_N_SAMPLES][RC_N_VOICES] = {
     {
     {0, 0, -32767},
     {32767, 32767, 0},

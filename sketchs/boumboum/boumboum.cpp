@@ -58,6 +58,9 @@ if (watchdog_caused_reboot()) {
     init_test_7789(20,25*8,0,TFT_H-12*8,TFT_H,1);       // init screen animation
 
     i2s_start();                                        // launch sound output
+printf("I2S DMA2 ctrl=%08x\n", dma_hw->ch[2].ctrl_trig);
+printf("I2S DMA3 ctrl=%08x\n", dma_hw->ch[3].ctrl_trig);
+
 
     menus_init();
 

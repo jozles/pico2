@@ -27,8 +27,9 @@ int32_t* i2s_buffer[2];
 static PIO i2s_pio;
 static int i2s_sm;
 
+
 void __not_in_flash_func(dma_i2s_handler)() {
-    uint32_t status = dma_hw->intr;
+    uint32_t status = dma_hw->ints0;    //dma_hw->intr;
 
     if (status & (1u << i2s_dma_chan0)) {
         i2s_buf_free[0]=true;
@@ -71,7 +72,6 @@ int init_dma_i2s() {
     irq_set_exclusive_handler(DMA_IRQ_0, dma_i2s_handler);
     irq_set_enabled(DMA_IRQ_0, true);
 
-
     return 1;
 }
 
@@ -79,7 +79,7 @@ void i2s_start(){
 
     dma_channel_configure(i2s_dma_chan0, &dma_cfg0,&i2s_pio->txf[i2s_sm], i2s_buffer[0], SAMPLE_BUFFER_SIZE*2,false);
     dma_channel_configure(i2s_dma_chan1, &dma_cfg1,&i2s_pio->txf[i2s_sm], i2s_buffer[1], SAMPLE_BUFFER_SIZE*2,false);
-     dma_start_channel_mask(1u << i2s_dma_chan0);
+    dma_start_channel_mask(1u << i2s_dma_chan0); // seulement chan0
 }
 
 int i2sSetup(PIO pio,uint8_t i2sDataPin,int32_t* buf[2]) {
@@ -114,13 +114,13 @@ int i2sSetup(PIO pio,uint8_t i2sDataPin,int32_t* buf[2]) {
     pio_sm_set_enabled(i2s_pio, i2s_sm, true);
 
     // dma init
-    int v=init_dma_i2s();
-    if(v<0){printf("i2sSetup: no dma channel available\n");return v;}   // -1 ou -2
+    int i2s_dma_channel=init_dma_i2s();
+    if(i2s_dma_channel<0){printf("i2sSetup: no dma channel available\n");return i2s_dma_channel;}   // -1 ou -2
 
     i2s_buf_free[0]=true;
     i2s_buf_free[1]=true;
 
-    printf("début i2s\n");
+    printf("début i2s dma0:%i dma1:%i\n",i2s_dma_chan0,i2s_dma_chan1);
     return 0;
 }
 

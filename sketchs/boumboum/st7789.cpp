@@ -24,7 +24,7 @@ uint32_t ticker10=0;
 extern uint32_t millisCounter;
 extern uint32_t st_dma_tfr_count;
 
-static int st_dma_chan;
+static int st_dma_chan=-1;
 static dma_channel_config dma_cfg;
 //static 
 volatile bool st_dma_free = true;      // false busy : dma en cours sur buffer
@@ -56,8 +56,6 @@ static uint8_t tft_frame[FRAME_SIZE];    // 2bytes/pixel
 uint8_t tft_frame_blk[FRAME_SIZE];    // 2bytes/pixel 
 static uint32_t points[TFT_W];
 static uint8_t refrCnt=0;
-
-extern int16_t rc_tables[][RC_N_SAMPLES][RC_N_VOICES];
 
 static void tft_init(void);
 
