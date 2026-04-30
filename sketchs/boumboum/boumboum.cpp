@@ -33,12 +33,12 @@ uint16_t* vcesVar[CODER_NB];                        // inits dans menu.cpp ; les
 
 #define LFO_VAR_NB 2
 volatile int16_t menuLfosCoders[LFO_VAR_NB+1];      // [0] curr input nb ; [1] curr coder value for freq ; [2] curr coder value for rc
-uint16_t menuMaxLfosCoders[]={LFOS_NB-1,LFOS_MAX_FREQ_CODERS,MAXCODER_RC};
+uint16_t menuMaxLfosCoders[]={MAX_LFO-1,LFOS_MAX_FREQ_CODERS,MAXCODER_RC};
 uint16_t* lfosVar[CODER_NB];                        // inits dans menu.cpp ; les éléments inutilisés sont nullptr                
 
 #define ADSR_VAR_NB 5
 volatile int16_t menuAdsrCoders[ADSR_VAR_NB+1];      // [0] curr input nb ; [1] curr coder value for freq ; [2] curr coder value for rc
-uint16_t menuMaxAdsrCoders[]={ADSR_NB-1,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_LEVEL_CODERS};
+uint16_t menuMaxAdsrCoders[]={MAX_LFO-1,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_LEVEL_CODERS};
 uint16_t* adsrVar[CODER_NB];                        // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
 
 int main() {
@@ -72,8 +72,8 @@ printf("I2S DMA3 ctrl=%08x\n", dma_hw->ch[3].ctrl_trig);
             case VOICES_FR: coders_for_menu("V",(const char*)nullptr,VOICES_NB,0,VOICES,menuVcesCoders,voicesSw,menuMaxVcesCoders,vcesVar,VCE_VAR_NB,BASIC_WAVES_NB);break;
             case WAVES_AMP: coders_for_wavesAmpl(currVoice);break;
             //case GEN_AMPL_: coders_for_genAmpl(currVoice);break;
-            case LFOS_____: coders_for_menu("L",(const char*)nullptr,LFOS_NB,0,LFOS,menuLfosCoders,voicesSw,menuMaxLfosCoders,lfosVar,LFO_VAR_NB,BASIC_WAVES_NB);break;
-            case ADSRL____: coders_for_menu("A",(const char*)nullptr,ADSR_NB,0,ADSR,menuAdsrCoders,voicesSw,menuMaxAdsrCoders,adsrVar,ADSR_VAR_NB,BASIC_WAVES_NB);break;
+            case LFOS_____: coders_for_menu("L",(const char*)nullptr,MAX_LFO,0,LFOS,menuLfosCoders,voicesSw,menuMaxLfosCoders,lfosVar,LFO_VAR_NB,BASIC_WAVES_NB);break;
+            case ADSRL____: coders_for_menu("A",(const char*)nullptr,MAX_LFO,0,ADSR,menuAdsrCoders,voicesSw,menuMaxAdsrCoders,adsrVar,ADSR_VAR_NB,BASIC_WAVES_NB);break;
             case MAPPING__: coders_for_mapping();break;
 
             default:break;

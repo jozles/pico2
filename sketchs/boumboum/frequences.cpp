@@ -39,24 +39,25 @@ uint16_t amplLevel[MAX_16B_LINEAR_VALUE];
 extern uint32_t millisCounter;
 
 // current lfo values (lfoHandler triger'd by pwmIrqHandler)
-float       lfosFrequency[LFOS_NB];                   // current lfo freq
-uint16_t    lfosCoders[LFOS_NB];                      // last coder value for freq
-uint16_t    lfosMaxCoderFreq[LFOS_NB];                // pmax value for lfo coderFreq
-uint16_t    lfosStepInt[LFOS_NB];                     // partie entière du step lfo
-uint32_t    lfosStepFra[LFOS_NB];                     // partie fractionnaire du step lfo
-uint16_t    lfosStepIntD[LFOS_NB];                    // partie entière du step descendant
-uint32_t    lfosStepFraD[LFOS_NB];                    // partie fractionnaire du step descendant  
-uint16_t    currLfoEch[LFOS_NB];
-uint32_t    currLfoEchFra[LFOS_NB];
-uint16_t    sineLfo[LFOS_NB];
-uint16_t    squareLfo[LFOS_NB];
-uint16_t    triangleLfo[LFOS_NB];
-uint16_t    sawtoothLfo[LFOS_NB];
+float       lfosFrequency[MAX_LFO];                   // current lfo freq
+uint16_t    lfosCoders[MAX_LFO];                      // last coder value for freq
+uint16_t    lfosMaxCoderFreq[MAX_LFO];                // pmax value for lfo coderFreq
+uint16_t    lfosStepInt[MAX_LFO];                     // partie entière du step lfo
+uint32_t    lfosStepFra[MAX_LFO];                     // partie fractionnaire du step lfo
+uint16_t    lfosStepIntD[MAX_LFO];                    // partie entière du step descendant
+uint32_t    lfosStepFraD[MAX_LFO];                    // partie fractionnaire du step descendant  
+uint16_t    currLfoEch[MAX_LFO];
+uint32_t    currLfoEchFra[MAX_LFO];
+uint16_t    sineLfo[MAX_LFO];
+uint16_t    squareLfo[MAX_LFO];
+uint16_t    triangleLfo[MAX_LFO];
+uint16_t    sawtoothLfo[MAX_LFO];
 uint32_t    lfoTime=0;
 uint32_t    lfoTimingInterval=1000/LFOS_SAMPLE_RATE;
-int32_t     lfoScopeBuffer[LFOS_NB*OSC_SCOPE_BUFFER_LEN];  // n° echantillons+rc_table 
+int32_t     lfoScopeBuffer[MAX_LFO*OSC_SCOPE_BUFFER_LEN];  // n° echantillons+rc_table 
 uint16_t    lfoScopeBufPtr=0;
-uint16_t    lfosCoderCycleR[LFOS_NB];                 // rapport cyclique -64/+64 pour coder 
+uint16_t    lfosCoderCycleR[MAX_LFO];                 // rapport cyclique -64/+64 pour coder
+int16_t     lfo_in_table_id[MAX_LFO][MAX_OUTPUTS_PER_OBJ];
 
 
 int32_t     voicesDataBuffer[VOICES_NB*SAMPLE_BUFFER_SIZE];  // all voices data buffer : 16bits low currech nb, 16 bits high rc table nb 
@@ -95,13 +96,13 @@ volatile int32_t* i2s_buf_scope;       // last loaded buffer for scope
 // la valeur codeur 0->(MAX_16B_LINEAR_VALUE-1)*fact(nb-1)/2 et la valeur 16 bits de sortie
 //
 //
-void automixer(uint8_t nb,uint16_t* ampl,uint8_t chgd){
+/*void automixer(uint8_t nb,uint16_t* ampl,uint8_t chgd){
   uint8_t stepNb=1;
   for(uint8_t i=3;i<nb-1;i++){
     stepNb*=i;
   }
 
-}
+}*/
 
 // **********************  noises  *********************************
 
@@ -402,7 +403,7 @@ void __not_in_flash_func(setLfosFrequency)(float freq,uint8_t l,int8_t rc){
 }
 
 void lfosInit(){
-    for(uint8_t l=0;l<LFOS_NB;l++){
+    for(uint8_t l=0;l<MAX_LFO;l++){
 
         lfosCoders[l]=1768;    // 1.5s
         lfosFrequency[l]=calcFreq(lfosCoders[l])/1000;
@@ -424,7 +425,7 @@ void lfosInit(){
 
         lfoTime=0;
     }
-    memset(lfoScopeBuffer,0x0000,LFOS_NB*OSC_SCOPE_BUFFER_LEN);
+    memset(lfoScopeBuffer,0x0000,MAX_LFO*OSC_SCOPE_BUFFER_LEN);
 
 }
 
@@ -438,7 +439,7 @@ void __not_in_flash_func(lfosHandler)()
   if((millisCounter-lfoTime)>lfoTimingInterval){
     lfoTime=millisCounter;
     
-    for(uint8_t l=0;l<LFOS_NB;l++){
+    for(uint8_t l=0;l<MAX_LFO;l++){
 
         uint32_t ce=currLfoEch[l];                      
         uint16_t cf=currLfoEchFra[l];

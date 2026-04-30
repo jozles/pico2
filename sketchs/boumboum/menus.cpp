@@ -37,7 +37,7 @@ void inputsInit(){
 
 extern Voice voices[VOICES_NB];
 
-//Lfo lfos[LFOS_NB];
+//Lfo lfos[MAX_LFO];
 
 // frequences/ampl/lfos
 
@@ -63,11 +63,11 @@ uint16_t tempVceCoderGenAmp[VOICES_NB];
 extern volatile int16_t menuVcesCoders[];
 extern int32_t voicesDataBuffer[];
 
-extern uint16_t adsrAttCoder[ADSR_NB];                       // current lfo freq
-extern uint16_t adsrDecCoder[ADSR_NB];
-extern uint16_t adsrSusCoder[ADSR_NB];
-extern uint16_t adsrRelCoder[ADSR_NB];
-extern uint16_t adsrLevCoder[ADSR_NB];
+extern uint16_t adsrAttCoder[MAX_ADSR];                       // current lfo freq
+extern uint16_t adsrDecCoder[MAX_ADSR];
+extern uint16_t adsrSusCoder[MAX_ADSR];
+extern uint16_t adsrRelCoder[MAX_ADSR];
+extern uint16_t adsrLevCoder[MAX_ADSR];
 extern volatile int16_t menuAdsrCoders[];
 extern uint16_t* adsrVar[];
 

@@ -26,6 +26,8 @@
 #define DMA_LOCK 5
 #define WS_LOCK  3
 
+/* */
+
 /* coders */
 
 #define CODER_GPIO_CLOCK       10          
@@ -76,7 +78,7 @@ typedef enum {
 
 /* lfos */
 
-#define LFOS_NB 4
+#define MAX_LFO 4
 #define LFOS_SAMPLE_RATE 40
 #define LFOS_MAX_FREQ_CODERS 3000
 #define LFOS_MIN_FREQ_CODERS 420    // 30sec
@@ -84,7 +86,7 @@ typedef enum {
 
 /* Adsrl */
 
-#define ADSR_NB 4
+#define MAX_ADSR 4
 #define ADSR_MAX_TIME_CODERS 128
 #define ADSR_MAX_LEVEL_CODERS MAX_16B_LINEAR_VALUE-1
 
@@ -138,6 +140,14 @@ typedef enum {
 
 #define BASIC_WAVE_TABLE_POW 11                         // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
 #define BASIC_WAVE_TABLE_LEN RC_TABLES_LEN*2            // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
+
+//
+
+#define MAX_OBJ             100
+#define MAX_OUTPUTS_PER_OBJ  8
+#define MAX_OUTPUTS         MAX_OBJ*MAX_OUTPUTS_PER_OBJ
+#define MAX_INPUTS_PER_OBJ  8
+#define NO_LINK             (-1)
 
 // ****** inputs ******
 
