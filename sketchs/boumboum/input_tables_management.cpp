@@ -44,7 +44,6 @@ bool init_objects_output_ptr(void)
 {
     //for (uint16_t i=0;i<MAX_OUTPUTS;i++){outputs[i]=nullptr;}
     memset(outputs,0x00,MAX_OUTPUTS*sizeof(int16_t*));
-    memset(in_table_name,0x00,MAX_INPUTS*LEN_INPUTS_NAMES);
 
     int16_t curr_output=0;
 
@@ -77,6 +76,8 @@ bool init_objects_output_ptr(void)
 
 bool init_objects_input_ptr(void)
 {
+    memset(in_table_name,0x00,MAX_INPUTS*LEN_INPUTS_NAMES);
+    
     for (uint16_t i=0;i<MAX_INPUTS;i++){
         in_table_id[i]=NO_LINK;
     }
@@ -90,7 +91,8 @@ bool init_objects_input_ptr(void)
             lfo_in_table_id[lfo][ins]=curr_input;
             if(ins<LFO_INPUTS_NB){
                 char buf[LEN_INPUTS_NAMES]={'L','F','O','S'};
-                convIntToString(buf+4,lfo,2);
+                uint8_t v=convIntToString(buf+4,lfo,2);
+                //if(v<2){buf[5]=' ';}
                 memcpy(buf+6,&lfo_inputs_names[ins],OBJ_IN_NAME_LEN);
                 memcpy(in_table_name[curr_input],buf,LEN_INPUTS_NAMES);
             }
@@ -105,8 +107,9 @@ bool init_objects_input_ptr(void)
         {
             adsr_in_table_id[adsr][ins]=curr_input;
             if(ins<ADSR_INPUTS_NB){
-            char buf[LEN_INPUTS_NAMES]={'A','D','S','R'};
-                convIntToString(buf+3,adsr,2);
+                char buf[LEN_INPUTS_NAMES]={'A','D','S','R'};
+                uint8_t v=convIntToString(buf+4,adsr,2);
+                //if(v<2){buf[5]=' ';}
                 memcpy(buf+6,&adsr_inputs_names[ins],OBJ_IN_NAME_LEN);
                 memcpy(in_table_name[curr_input],buf,LEN_INPUTS_NAMES);
             }
@@ -122,7 +125,8 @@ bool init_objects_input_ptr(void)
             voices[vce].voice_in_table_id[ins]=curr_input;
             if(ins<VOICES_INPUTS_NB){
                 char buf[LEN_INPUTS_NAMES]={'V','C','E','S'};
-                convIntToString(buf+3,(uint32_t)vce,2);
+                uint8_t v=convIntToString(buf+4,(uint32_t)vce,2);
+                //if(v<2){buf[5]=' ';}
                 memcpy(buf+6,&voices_inputs_names[ins],OBJ_IN_NAME_LEN);
                 memcpy(in_table_name[curr_input],buf,LEN_INPUTS_NAMES);
             }

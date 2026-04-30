@@ -308,14 +308,16 @@ uint8_t coders_for_wavesAmpl(uint8_t currVoice)
 
 void mappingLineDsp(uint8_t inp,uint8_t line,bool rev){
     memset(buf,0x00,LINE_LEN);
-    uint8_t v=convIntToString(buf,(int32_t)inp);
-    if(v<2){buf[1]=' ';}
+    uint8_t v=convIntToString(buf,(int32_t)inp,2);
+    //if(v<2){buf[1]=' ';}
     buf[2]=' ';
-    v=convIntToString(buf+3,(int32_t)inputs[inp]);
-    if(v<2){buf[4]=' ';}
+    v=convIntToString(buf+3,(int32_t)inputs[inp],2);
+    //if(v<2){buf[4]=' ';}
     buf[5]=' ';
-    uint8_t ln=IN_OUT_NAME_LEN-2;
-    memcpy(buf+6,&in_table_name[inp],ln);//inputs_names[inp],ln);
+    uint8_t ln=IN_OUT_NAME_LEN;
+    memcpy(buf+6,&in_table_name[inp][0],ln);//inputs_names[inp],ln);
+    //printf("%s i:%d %s\n",buf,inp,in_table_name[inp]);
+
     buf[6+ln]=' ';
     memcpy(buf+6+ln+1,&outputs_names[inputs[inp]],6); //IN_OUT_NAME_LEN);
     uint16_t fgc=0x07EF;

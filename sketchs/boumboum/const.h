@@ -157,6 +157,13 @@ typedef enum {
 
 typedef enum {
 #define X(name,text) name,    
+#include "vces_inputs_names.def"
+        VOICES_INPUTS_NB  
+#undef X
+}  Vces_inputs_names;
+
+typedef enum {
+#define X(name,text) name,    
 #include "lfos_inputs_names.def"
         LFO_INPUTS_NB  
 #undef X
@@ -168,14 +175,6 @@ typedef enum {
         ADSR_INPUTS_NB  
 #undef X
 }  Adsr_inputs_names;
-
-typedef enum {
-#define X(name,text) name,    
-#include "vces_inputs_names.def"
-        VOICES_INPUTS_NB  
-#undef X
-}  Vces_inputs_names;
-
 
 
 #define IN_OUT_NAME_LEN 9
