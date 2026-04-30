@@ -5,6 +5,7 @@
 #include "frequences.h"
 #include "miscControls.h"
 #include "input_tables_management.h"
+#include "util.h"
 
 #include "hardware/sync.h"
 
@@ -16,14 +17,34 @@ extern Voice voices[MAX_VOICES];
 int16_t in_table_val[MAX_INPUTS];
 int16_t in_table_id[MAX_INPUTS];
 int16_t in_table_type_norm[MAX_INPUTS];
-uint8_t type_norm[MAX_INPUTS];
+char    in_table_name[MAX_INPUTS][LEN_INPUTS_NAMES];
 
 // pointeurs vers les premiers indices des sorties
 static int16_t*  outputs[MAX_OUTPUTS];
 
+const char lfo_inputs_names[][OBJ_IN_NAME_LEN]={
+    #define X(name,text) text,
+    #include "lfos_inputs_names.def"   
+    #undef X   
+};
+
+const char adsr_inputs_names[][OBJ_IN_NAME_LEN]={
+    #define X(name,text) text,
+    #include "adsr_inputs_names.def"   
+    #undef X   
+};
+
+const char voices_inputs_names[][OBJ_IN_NAME_LEN]={
+    #define X(name,text) text,
+    #include "vces_inputs_names.def"   
+    #undef X   
+};
+
 bool init_objects_output_ptr(void)
 {
-    for (uint16_t i=0;i<MAX_OUTPUTS;i++){outputs[i]=nullptr;}
+    //for (uint16_t i=0;i<MAX_OUTPUTS;i++){outputs[i]=nullptr;}
+    memset(outputs,0x00,MAX_OUTPUTS*sizeof(int16_t*));
+    memset(in_table_name,0x00,MAX_INPUTS*LEN_INPUTS_NAMES);
 
     int16_t curr_output=0;
 
@@ -67,6 +88,12 @@ bool init_objects_input_ptr(void)
         for(uint8_t ins=0;ins<MAX_INPUTS_PER_OBJ;ins++)
         {
             lfo_in_table_id[lfo][ins]=curr_input;
+            if(ins<LFO_INPUTS_NB){
+                char buf[LEN_INPUTS_NAMES]={'L','F','O','S'};
+                convIntToString(buf+4,lfo,2);
+                memcpy(buf+6,&lfo_inputs_names[ins],OBJ_IN_NAME_LEN);
+                memcpy(in_table_name[curr_input],buf,LEN_INPUTS_NAMES);
+            }
             curr_input++;
             if(curr_input>=MAX_INPUTS){return false;}
         }
@@ -77,6 +104,12 @@ bool init_objects_input_ptr(void)
         for(uint8_t ins=0;ins<MAX_INPUTS_PER_OBJ;ins++)
         {
             adsr_in_table_id[adsr][ins]=curr_input;
+            if(ins<ADSR_INPUTS_NB){
+            char buf[LEN_INPUTS_NAMES]={'A','D','S','R'};
+                convIntToString(buf+3,adsr,2);
+                memcpy(buf+6,&adsr_inputs_names[ins],OBJ_IN_NAME_LEN);
+                memcpy(in_table_name[curr_input],buf,LEN_INPUTS_NAMES);
+            }
             curr_input++;
             if(curr_input>=MAX_INPUTS){return false;}
         }
@@ -87,6 +120,12 @@ bool init_objects_input_ptr(void)
         for(uint8_t ins=0;ins<MAX_INPUTS_PER_OBJ;ins++)
         {
             voices[vce].voice_in_table_id[ins]=curr_input;
+            if(ins<VOICES_INPUTS_NB){
+                char buf[LEN_INPUTS_NAMES]={'V','C','E','S'};
+                convIntToString(buf+3,(uint32_t)vce,2);
+                memcpy(buf+6,&voices_inputs_names[ins],OBJ_IN_NAME_LEN);
+                memcpy(in_table_name[curr_input],buf,LEN_INPUTS_NAMES);
+            }
             curr_input++;
             if(curr_input>=MAX_INPUTS){return false;}
         }
@@ -95,9 +134,21 @@ bool init_objects_input_ptr(void)
     // ajouter ici d'autres entrées  (sequencers etc)
 
     return true;
-}    
+}  
+
+void in_table_init()
+{
+    init_objects_input_ptr();
+    for (int16_t k=0;k<MAX_INPUTS;k++){
+        if(in_table_name[k][0]!=0){
+            printf("%i n:%s\n",k,in_table_name[k]);
+        }
+    }
+    init_objects_output_ptr();
+}
 
 static spin_lock_t *inputs_id__lock;
+
 void connect_input(uint16_t id, uint16_t output, uint8_t type_norm)
 {
     uint32_t f = spin_lock_blocking(inputs_id__lock);

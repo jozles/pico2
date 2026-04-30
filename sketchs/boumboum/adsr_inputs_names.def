@@ -1,0 +1,7 @@
+/* inputs names for adsr */
+
+    X(ATTK,"ATTK")
+    X(DECA,"DECA")
+    X(SUST,"SUST")
+    X(RELE,"RELE")
+    X(LEVE,"LEVE")

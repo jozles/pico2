@@ -62,6 +62,9 @@ add_executable(boumboum
 	menu.def
 	inputs.def
 	outputs.def
+	adsr_inputs_names.def
+	lfos_inputs_names.def
+	vces_inputs_names.def
 	blank.S
 	miscControls.cpp
 	rc_tables.cpp

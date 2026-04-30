@@ -10,8 +10,12 @@
 #include "frequences.h"
 #include "miscControls.h"
 #include "bb_i2s.h"
+#include "input_tables_management.h"
 
 extern int32_t* i2s_buffer[];
+
+extern char    in_table_name[MAX_INPUTS][LEN_INPUTS_NAMES];
+
 
 volatile uint32_t millisCounter=0;
 
@@ -311,7 +315,7 @@ void mappingLineDsp(uint8_t inp,uint8_t line,bool rev){
     if(v<2){buf[4]=' ';}
     buf[5]=' ';
     uint8_t ln=IN_OUT_NAME_LEN-2;
-    memcpy(buf+6,&inputs_names[inp],ln);
+    memcpy(buf+6,&in_table_name[inp],ln);//inputs_names[inp],ln);
     buf[6+ln]=' ';
     memcpy(buf+6+ln+1,&outputs_names[inputs[inp]],6); //IN_OUT_NAME_LEN);
     uint16_t fgc=0x07EF;
@@ -355,7 +359,7 @@ uint8_t coders_for_mapping(){
                 uint32_t cc=mappingCoders[coder];
                 if(coder==0){                                           // coder 0 mouvemements verticaux
 
-                        if(currInput<INPUTS_NB && cc>currInput){                // cursor move down
+                        if(currInput<MAX_INPUTS && cc>currInput){                // cursor move down
                                               
                             mappingCoders[1]=inputs[currInput+1];
                             if(currDsp<NB_DSP_LINES){                           // no scroll

@@ -1,0 +1,4 @@
+/* inputs names for lfos */
+
+    X(LFRQ,"FREQ")
+    X(LCRA,"CRAT")

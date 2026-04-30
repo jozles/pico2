@@ -21,6 +21,7 @@
 #include "leds.h"
 #include "st7789.h"
 #include "menus.h"
+#include "input_tables_management.h"
 
 #define SYSTICK_BASE 0xE000E010UL
 
@@ -207,6 +208,7 @@ void setup(){
     
     // ****** inputs ******
     inputsInit();
+    in_table_init();
 
     // ****** coders ******
     coderInit(CODER_GPIO_CLOCK,CODER_GPIO_DATA,CODER_GPIO_SW,CODER_GPIO_VCC,CODER_PIO_SEL0,CODER_SEL_NB,CODER_NB,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER);

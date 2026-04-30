@@ -1,0 +1,11 @@
+/* inputs names for voices */
+
+    X(VFRQ,"FREQ")
+    X(VCRA,"CRAT")
+    X(WAV0,"WSIN")
+    X(WAV1,"WTRI")
+    X(WAV2,"WSAW")
+    X(WAV3,"WSQR") 
+    X(WHIT,"WHIT")
+    X(PINK,"PINK")           
+    X(GAMP,"GAMP")    

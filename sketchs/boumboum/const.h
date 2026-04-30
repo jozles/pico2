@@ -147,11 +147,36 @@ typedef enum {
 #define MAX_OUTPUTS_PER_OBJ     8
 #define MAX_OUTPUTS             MAX_OUTPUT_OBJ*MAX_OUTPUTS_PER_OBJ
 #define MAX_INPUT_OBJ           100
-#define MAX_INPUTS_PER_OBJ      8
+#define MAX_INPUTS_PER_OBJ      10
 #define MAX_INPUTS              MAX_INPUT_OBJ*MAX_INPUTS_PER_OBJ
 #define NO_LINK                 (-1)
+#define LEN_INPUTS_NAMES        12
+#define OBJ_IN_NAME_LEN         5
 
 // ****** inputs ******
+
+typedef enum {
+#define X(name,text) name,    
+#include "lfos_inputs_names.def"
+        LFO_INPUTS_NB  
+#undef X
+}  Lfo_inputs_names;
+
+typedef enum {
+#define X(name,text) name,    
+#include "adsr_inputs_names.def"
+        ADSR_INPUTS_NB  
+#undef X
+}  Adsr_inputs_names;
+
+typedef enum {
+#define X(name,text) name,    
+#include "vces_inputs_names.def"
+        VOICES_INPUTS_NB  
+#undef X
+}  Vces_inputs_names;
+
+
 
 #define IN_OUT_NAME_LEN 9
 typedef enum {
