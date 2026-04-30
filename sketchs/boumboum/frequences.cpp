@@ -60,11 +60,11 @@ uint16_t    lfosCoderCycleR[MAX_LFO];                 // rapport cyclique -64/+6
 int16_t     lfo_in_table_id[MAX_LFO][MAX_OUTPUTS_PER_OBJ];
 
 
-int32_t     voicesDataBuffer[VOICES_NB*SAMPLE_BUFFER_SIZE];  // all voices data buffer : 16bits low currech nb, 16 bits high rc table nb 
+int32_t     voicesDataBuffer[MAX_VOICES*SAMPLE_BUFFER_SIZE];  // all voices data buffer : 16bits low currech nb, 16 bits high rc table nb 
 
 // i2s
 
-Voice voices[VOICES_NB];
+Voice voices[MAX_VOICES];
 
 extern int i2s_dma_chan0;
 extern int i2s_dma_chan1;
@@ -269,7 +269,7 @@ void sound_tables_init()
 
 void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)
 {
-    for(uint8_t v=0;v<VOICES_NB;v++){
+    for(uint8_t v=0;v<MAX_VOICES;v++){
         voices[v].maxCoderFreq=VCES_MAX_FREQ_CODERS;
         voices[v].genAmpl=0x7fff;
         voices[v].coderCycleR=MAXCODER_RC/2;
@@ -306,7 +306,7 @@ void voicesInit(Voice* voices,float freq,uint8_t cga){
 void dumpVoices(Voice* v)
 {
   printf("   frequency(c/M/f)   sampleNb currSample stepInt stepFra currEch currEchFra noisePhase noiseStep                                    WaveAmpl(c-M-b)                                             genAmpl(c=M=g)     switchs     \n");
-  for(uint8_t n=0;n<VOICES_NB;n++){  
+  for(uint8_t n=0;n<MAX_VOICES;n++){  
     printf("%d %d-%d-%4.3f    %d       %d        %d      %d      %d       %d           %d        %d  ",n,v[n].coderFreq,v[n].maxCoderFreq,v[n].frequency,v[n].sampleNbToFill,v[n].currentSample,v[n].stepInt,v[n].stepFra,v[n].currEch,v[n].currEchFra,v[n].noisePhase,v[n].noiseStep);
     for(uint8_t wa=0;wa<BASIC_WAVES_NB;wa++){printf("%d-%d-%d ",v[n].coderAmpl[wa],v[n].maxCoderAmpl[wa],v[n].basicWaveAmpl[wa]);}
     printf("%d=%d=%d ",v[n].coderGenAmpl,v[n].maxCoderGenAmpl,v[n].genAmpl);
@@ -639,7 +639,7 @@ void __not_in_flash_func(fillVoiceBuffer)(int32_t* vBuffer, Voice* voices, uint8
     blank((char*)vBuffer,SAMPLE_BUFFER_SIZE*8);
     //memset((char*)vBuffer,0x00,SAMPLE_BUFFER_SIZE*8);
 //gpio_put(TST_PIN,0);
-    for(uint8_t v=0;v<VOICES_NB;v++){
+    for(uint8_t v=0;v<MAX_VOICES;v++){
 //gpio_put(TST_PIN,1);      
       fillVoiceBuffer_mono(vBuffer, &voices[v],v); //                  dumpStr(vBuffer,256);
 //gpio_put(TST_PIN,0);      

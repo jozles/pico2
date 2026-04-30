@@ -35,7 +35,7 @@ void inputsInit(){
     memset(inputs,0x00,INPUTS_NB);
 }
 
-extern Voice voices[VOICES_NB];
+extern Voice voices[MAX_VOICES];
 
 //Lfo lfos[MAX_LFO];
 
@@ -43,10 +43,10 @@ extern Voice voices[VOICES_NB];
 
 volatile int16_t voicesWaveAmplCoders[W_NB];
 uint16_t voicesMaxWaveAmplCoders[W_NB];
-volatile int16_t voicesFreqCoders[VOICES_NB];
-uint16_t voicesMaxFreqCoders[VOICES_NB];
-volatile int16_t voicesAmplCoders[VOICES_NB];
-uint16_t voicesMaxAmplCoders[VOICES_NB];
+volatile int16_t voicesFreqCoders[MAX_VOICES];
+uint16_t voicesMaxFreqCoders[MAX_VOICES];
+volatile int16_t voicesAmplCoders[MAX_VOICES];
+uint16_t voicesMaxAmplCoders[MAX_VOICES];
 
 extern float lfosFrequency[];                       // current lfo freq
 extern uint16_t lfosCoders[];
@@ -57,9 +57,9 @@ extern int32_t* waveformTable[];
 extern volatile int16_t menuLfosCoders[];
 
 extern uint16_t* vcesVar[];
-uint16_t tempVceCoderFreq[VOICES_NB];
-uint16_t tempVceCoderCycleR[VOICES_NB];
-uint16_t tempVceCoderGenAmp[VOICES_NB];
+uint16_t tempVceCoderFreq[MAX_VOICES];
+uint16_t tempVceCoderCycleR[MAX_VOICES];
+uint16_t tempVceCoderGenAmp[MAX_VOICES];
 extern volatile int16_t menuVcesCoders[];
 extern int32_t voicesDataBuffer[];
 
@@ -120,7 +120,7 @@ enum AdsrCoders {        // coders pour menu voices et lfos
 
 // ****** inits ******
 void menus_init(){    
-    for(uint8_t v=0;v<VOICES_NB;v++){
+    for(uint8_t v=0;v<MAX_VOICES;v++){
         voicesFreqCoders[v]=voices[v].coderFreq; // 440Hz @1943 _ 1944 force first display
         voicesMaxFreqCoders[v]=voices[v].maxCoderFreq;
         voicesAmplCoders[v]=voices[v].coderGenAmpl;

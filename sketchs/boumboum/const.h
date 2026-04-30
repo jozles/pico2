@@ -73,7 +73,7 @@ typedef enum {
 
 /* Voices */
 
-#define VOICES_NB 2 
+#define MAX_VOICES 2 
 #define VCES_MAX_FREQ_CODERS 10000
 
 /* lfos */
@@ -143,11 +143,13 @@ typedef enum {
 
 //
 
-#define MAX_OBJ             100
-#define MAX_OUTPUTS_PER_OBJ  8
-#define MAX_OUTPUTS         MAX_OBJ*MAX_OUTPUTS_PER_OBJ
-#define MAX_INPUTS_PER_OBJ  8
-#define NO_LINK             (-1)
+#define MAX_OUTPUT_OBJ          48
+#define MAX_OUTPUTS_PER_OBJ     8
+#define MAX_OUTPUTS             MAX_OUTPUT_OBJ*MAX_OUTPUTS_PER_OBJ
+#define MAX_INPUT_OBJ           100
+#define MAX_INPUTS_PER_OBJ      8
+#define MAX_INPUTS              MAX_INPUT_OBJ*MAX_INPUTS_PER_OBJ
+#define NO_LINK                 (-1)
 
 // ****** inputs ******
 

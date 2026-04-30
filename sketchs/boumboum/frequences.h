@@ -61,6 +61,7 @@ struct Voice {
     uint16_t    maxCoderFreq;                   // pmax value for coderFreq
     uint8_t     coderCycleR;                    // rapport cyclique -64/+64 pour coder ; one value for all waveforms
     uint8_t     maxCoderCycleR;
+    int16_t     voice_in_table_id[MAX_INPUTS_PER_OBJ];
 
 };
 
