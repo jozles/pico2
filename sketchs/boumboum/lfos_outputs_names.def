@@ -1,0 +1,6 @@
+/* outputs names for lfos */
+
+    X(LSIN,"SINE")
+    X(LTRI,"TRI ")
+    X(LSAW,"SAW ")
+    X(LSQR,"SQR ")

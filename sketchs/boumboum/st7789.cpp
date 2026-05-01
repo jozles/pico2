@@ -13,6 +13,7 @@
 #include "hardware/sync.h"
 
 #include "font12x12.h"
+#include "font11x12.h"
 
 #include "const.h"
 #include "util.h"
@@ -461,6 +462,41 @@ void __not_in_flash_func(tft_draw_rect)(uint16_t beg_line,uint16_t beg_col,uint1
 }
 
 // ---------------------------------------------------------
+// CHARACTER 11x12 dma
+// ---------------------------------------------------------
+void tft_draw_char_11x12(uint16_t y, uint16_t x,
+                         char c,
+                         uint16_t color_fg,
+                         uint16_t color_bg)
+{
+    
+    st_dma_wait();
+    
+    const uint16_t *glyph = font11x12[(uint8_t)c];
+
+    int w = 11;
+    int h = 12;
+
+    int idx = 0;
+
+    for (int row = 0; row < h; row++) {
+        uint16_t bits = glyph[row];
+
+        for (int col = 0; col < w; col++) {
+            uint16_t color =
+                (bits & (1 << (w - 1 - col))) ? color_fg : color_bg;
+                //(bits & (1 << col)) ? color_fg : color_bg;
+
+            tft_frame[idx++] = color >> 8;
+            tft_frame[idx++] = color & 0xFF;
+        }
+    }
+
+    st_dma_launch(tft_frame,x,y,w,h);      
+
+}
+
+// ---------------------------------------------------------
 // CHARACTER 12x12 dma
 // ---------------------------------------------------------
 void tft_draw_char_12x12(uint16_t y, uint16_t x,
@@ -493,6 +529,23 @@ void tft_draw_char_12x12(uint16_t y, uint16_t x,
 
     st_dma_launch(tft_frame,x,y,w,h);      
 
+}
+
+// ---------------------------------------------------------
+// TEXTE 11x12 dma
+// ---------------------------------------------------------
+void tft_draw_text_11x12_dma(uint16_t y, uint16_t x,
+                         const char *s,
+                         uint16_t color_fg,
+                         uint16_t color_bg)
+{
+    st_dma_wait();
+    
+    while (*s) {
+        tft_draw_char_11x12(y, x, *s, color_fg, color_bg);
+        x += 11;   // avance de 12 pixels
+        s++;
+    }
 }
 
 // ---------------------------------------------------------
@@ -551,6 +604,58 @@ void tft_draw_text_12x12_block(
     }
 
     st_dma_launch(tft_frame,x,y,w,h);         
+
+}
+
+// ---------------------------------------------------------
+// TEXTE multiple de 11x12 dma
+// ---------------------------------------------------------
+void tft_draw_text_11x12_dma_mult(uint16_t x,uint16_t y,const char *s,uint16_t fg,uint16_t bg,int8_t mult)
+{
+
+    st_dma_wait();
+
+    if(mult<1){mult=1;}
+
+    int len = 0;
+    while (s[len]) len++;if(len>31){printf("tft_draw_text_11x12_dma_mult ovf\n");while(1){sleep_ms(250);gpio_put(LED,0);sleep_ms(250);gpio_put(LED,1);}};
+
+    uint8_t st=0;if(mult>1){st=2;}  // rétrécit la largeur/hauteur des caractères en mode mult
+    int idx = 0;
+
+    int w = len * (11-st);
+    int h = 12-st;
+
+    for (int ligne = 0; ligne < (12-st); ligne++) {
+
+        for (int car =0; car < len; car++) {
+
+            const uint16_t *glyph = font11x12[(uint8_t)s[car]];
+            uint16_t bits = glyph[ligne];
+
+            for (int bit = 0; bit < (11-st); bit++) {       // la fonte est 11x12 on utilise 10x10 en mult
+
+                uint16_t color =
+                    (bits & (1 << (10 - bit-st))) ? fg : bg;
+
+                tft_frame[idx++] = color >> 8;
+                tft_frame[idx++] = color & 0xFF;
+                for(int8_t i=0;i<mult-1;i++){               // duplic horizontale
+                    tft_frame[idx] = tft_frame[idx-2];
+                    tft_frame[idx+1] = tft_frame[idx-1];
+                    idx+=2;                    
+                }
+            }
+        }
+        uint16_t curr=idx;                                  // duplic verticale
+        for(int8_t i=0;i<(mult-1);i++){
+            memcpy(&tft_frame[curr+(len*(11-st)*2*mult)*i], &tft_frame[curr - len * (11-st) * 2 * mult], len * (11-st) * 2 * mult);
+            idx+=len*(11-st)*2*mult;
+        }
+    }
+
+    //printf("dt12dmam x:%d y:%d w:%d h:%d s:%s\n",x,y,w*mult,h*mult,s);
+    st_dma_launch(tft_frame,x,y,w*mult,h*mult);    
 
 }
 

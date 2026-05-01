@@ -14,29 +14,29 @@
 
 extern int32_t* i2s_buffer[];
 
-extern char    in_table_name[MAX_INPUTS][LEN_INPUTS_NAMES];
+extern char     in_table_name[MAX_INPUTS][IN_OUT_NAME_LEN];
+extern uint16_t in_table_srce[MAX_INPUTS];
+extern char     out_table_name[MAX_OUTPUTS][IN_OUT_NAME_LEN];
 
 
 volatile uint32_t millisCounter=0;
 
 // mapping
 
-const char inputs_names[][IN_OUT_NAME_LEN]={
+/*const char inputs_names[][IN_OUT_NAME_LEN]={
     #define X(name,text) text,
     #include "inputs.def"   
     #undef X   
-};
+};*/
 
-const char outputs_names[][IN_OUT_NAME_LEN]={
+/*const char out_table_names[][IN_OUT_NAME_LEN]={
     #define Y(name,text) text,
     #include "outputs.def"
     #undef Y
-};
-
-uint8_t  inputs[INPUTS_NB];
+};*/
 
 void inputsInit(){
-    memset(inputs,0x00,INPUTS_NB);
+    memset(in_table_srce,0x00,MAX_INPUTS);
 }
 
 extern Voice voices[MAX_VOICES];
@@ -83,7 +83,7 @@ extern uint16_t amplLevel[];                        // table des amplitudes
 
 #define MAPPING_CODER_NB 2
 volatile int16_t mappingCoders[MAPPING_CODER_NB];   // [0] curr input nb ; [1] curr_input value
-uint16_t maxMappingCoders[]={INPUTS_NB,OUTPUTS_NB};
+uint16_t maxMappingCoders[]={MAX_INPUTS,MAX_OUTPUTS};
 
 // i2s
 
@@ -96,6 +96,7 @@ uint32_t swIgnore=millisCounter;
 
 #define LINE_LEN TFT_W/12+1
 char buf[LINE_LEN];
+char buf11x12[TFT_W/11+1];
 
 uint16_t begline=27;
 
@@ -307,24 +308,22 @@ uint8_t coders_for_wavesAmpl(uint8_t currVoice)
 #define FIRSTLINEH 20
 
 void mappingLineDsp(uint8_t inp,uint8_t line,bool rev){
-    memset(buf,0x00,LINE_LEN);
-    uint8_t v=convIntToString(buf,(int32_t)inp,2);
-    //if(v<2){buf[1]=' ';}
-    buf[2]=' ';
-    v=convIntToString(buf+3,(int32_t)inputs[inp],2);
-    //if(v<2){buf[4]=' ';}
-    buf[5]=' ';
-    uint8_t ln=IN_OUT_NAME_LEN;
-    memcpy(buf+6,&in_table_name[inp][0],ln);//inputs_names[inp],ln);
+    
+    memset(buf11x12,0x00,LINE_LEN);
+    convIntToString(buf11x12,(int32_t)inp,2);                        //  2 input#
+    buf11x12[2]=' ';                                                 // +1
+    uint8_t ln=IN_OUT_NAME_LEN-2;
+    memcpy(buf11x12+3,&in_table_name[inp][0],ln);                    // +8 input name
     //printf("%s i:%d %s\n",buf,inp,in_table_name[inp]);
 
-    buf[6+ln]=' ';
-    memcpy(buf+6+ln+1,&outputs_names[inputs[inp]],6); //IN_OUT_NAME_LEN);
+    buf11x12[3+ln]=' ';                                              // +1
+    memcpy(buf11x12+3+ln+1,&out_table_name[in_table_srce[inp]],9);   // +7 //IN_OUT_NAME_LEN);
     uint16_t fgc=0x07EF;
     uint16_t bgc=0x0000;
     uint16_t buc=fgc;
     if(rev){fgc=bgc;bgc=buc;}
-    tft_draw_text_12x12_dma_mult(0,line*((12+2))+FIRSTLINEH,buf,fgc,bgc,1);
+    //tft_draw_text_12x12_dma_mult(0,line*((12+2))+FIRSTLINEH,buf,fgc,bgc,1);
+    tft_draw_text_11x12_dma_mult(0,line*((11+2))+FIRSTLINEH,buf11x12,fgc,bgc,1);
 }
 
 void fullMappingDsp(uint8_t firstInput,uint8_t currDspInput){
@@ -361,9 +360,9 @@ uint8_t coders_for_mapping(){
                 uint32_t cc=mappingCoders[coder];
                 if(coder==0){                                           // coder 0 mouvemements verticaux
 
-                        if(currInput<MAX_INPUTS && cc>currInput){                // cursor move down
+                        if(currInput<MAX_INPUTS && cc>currInput){               // cursor move down
                                               
-                            mappingCoders[1]=inputs[currInput+1];
+                            mappingCoders[1]=in_table_srce[currInput+1];
                             if(currDsp<NB_DSP_LINES){                           // no scroll
                                 mappingLineDsp(currInput,currDsp,false);        // restore prev
                                 currDsp++;currInput++;
@@ -376,19 +375,21 @@ uint8_t coders_for_mapping(){
                         else if(currInput>0 && cc<currInput){                   // cursor move up
                         
                             
-                            mappingCoders[1]=inputs[currInput-1];
+                            mappingCoders[1]=in_table_srce[currInput-1];
                             if(currDsp>0){                                      // no scroll
                                 mappingLineDsp(currInput,currDsp,false);        // restore prev
                                 currDsp--;currInput--;
                                 mappingLineDsp(currInput,currDsp,true);    
                             }
-                            else {                                             // scroll up
+                            else {                                              // scroll up
                                 fullMappingDsp(currInput--,currDsp);                                
                             }
                         }
                 }
-                if(coder==1 && cc!=inputs[currInput]){                          // choix de la sortie sur l'input courante
-                    inputs[currInput]=cc;
+                if(coder==1 && cc!=in_table_srce[currInput]){                   // choix de la sortie sur l'input courante
+                    // mask empty outputs
+                    //if(out_table_name[])
+                    in_table_srce[currInput]=cc;
                     mappingLineDsp(currInput,currDsp,true);
                 }
             }

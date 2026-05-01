@@ -58,6 +58,7 @@ add_executable(boumboum
 	leds.cpp
 	st7789.cpp
 	font12x12.c
+	font11x12.c
 	menus.cpp
 	menu.def
 	inputs.def
@@ -65,6 +66,8 @@ add_executable(boumboum
 	adsr_inputs_names.def
 	lfos_inputs_names.def
 	vces_inputs_names.def
+	adsr_outputs_names.def
+	lfos_outputs_names.def
 	blank.S
 	miscControls.cpp
 	rc_tables.cpp

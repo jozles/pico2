@@ -1,0 +1,7 @@
+/* outputs names for adsr */
+
+    X(ATT_,"ATTK")
+    X(DEC_,"DECA")
+    X(SUS_,"SUST")
+    X(REL_,"RELE")
+    X(LEV_,"LEVE")
