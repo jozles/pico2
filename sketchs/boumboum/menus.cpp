@@ -387,10 +387,26 @@ uint8_t coders_for_mapping(){
                         }
                 }
                 if(coder==1 && cc!=in_table_srce[currInput]){                   // choix de la sortie sur l'input courante
-                    // mask empty outputs
-                    //if(out_table_name[])
-                    in_table_srce[currInput]=cc;
-                    mappingLineDsp(currInput,currDsp,true);
+                    // ignore empty outputs
+                    //printf("out_name:%c  cc:%d\n",out_table_name[cc][0],cc);
+                    if(out_table_name[cc][0]=='-'){
+                        
+                        if(cc>in_table_srce[currInput]){
+                            while(out_table_name[cc][0]=='-' && cc<MAX_OUTPUTS-1){cc++;}
+                        }
+                        else {
+                            while(out_table_name[cc][0]=='-' && cc>0){cc--;}
+                        } 
+                        mappingCoders[coder]=cc; 
+                    }
+                    //else {
+                        //printf("***********out_name:%c  cc:%d\n",out_table_name[cc][0],cc);
+                        if(cc<(MAX_OUTPUTS-1) && (cc>0)){
+                            //printf("***********out_name:%c  cc:%d\n",out_table_name[cc][0],cc);
+                            in_table_srce[currInput]=cc;
+                            mappingLineDsp(currInput,currDsp,true);
+                        }
+                    //}
                 }
             }
         }          

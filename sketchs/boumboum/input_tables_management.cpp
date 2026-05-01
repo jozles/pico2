@@ -66,8 +66,7 @@ const char adsr_outputs_names[][OBJ_IO_NAME_LEN]={
 bool init_objects_outputs(void)
 {
     memset(out_table_val,0x00,MAX_OUTPUTS*sizeof(int16_t*));
-
-    memcpy(out_table_name[0],"---",3);
+    memset(out_table_name,'-',MAX_OUTPUTS*IN_OUT_NAME_LEN);
     int16_t curr_output=1;
 
     for (uint8_t lfo=0;lfo<MAX_LFO;lfo++)
@@ -94,7 +93,7 @@ bool init_objects_outputs(void)
             if(outs<ADSR_OUTPUTS_NB){
                 char buf[IN_OUT_NAME_LEN]={'A','D','S','R'};
                 convIntToString(buf+4,adsr,2);
-                memcpy(buf+6,&lfo_outputs_names[outs],OBJ_IO_NAME_LEN-1);
+                memcpy(buf+6,&adsr_outputs_names[outs],OBJ_IO_NAME_LEN-1);
                 memcpy(out_table_name[curr_output],buf,IN_OUT_NAME_LEN);
             }            
             curr_output++;
