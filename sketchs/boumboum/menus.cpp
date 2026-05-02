@@ -337,12 +337,12 @@ uint8_t coders_for_mapping(){
 
     bool mode_scope=false;
     
-    uint8_t currInput=0;    // input for current cursor 
+    uint8_t currInput=1;    // input for current cursor 
     uint8_t currDsp=0;      // line for current cursor
 
     coderSetup(mappingCoders,voicesSw,maxMappingCoders,3);
 
-    fullMappingDsp(0,0);
+    fullMappingDsp(currInput,currDsp);
 
         while(1){
 
@@ -363,18 +363,18 @@ uint8_t coders_for_mapping(){
                         if(currInput<MAX_INPUTS && cc>currInput){               // cursor move down
                                               
                             mappingCoders[1]=in_table_srce[currInput+1];
-                            if(currDsp<NB_DSP_LINES){                           // no scroll
+                            if(currDsp<NB_DSP_LINES-1){                         // no scroll
                                 mappingLineDsp(currInput,currDsp,false);        // restore prev
                                 currDsp++;currInput++;
                                 mappingLineDsp(currInput,currDsp,true);    
                             }
-                            else {                                              // scroll down
-                                fullMappingDsp(currInput++ - NB_DSP_LINES,currDsp);
+                            else {             
+                                currInput++;                                    // scroll down
+                                fullMappingDsp(currInput - NB_DSP_LINES + 1,currDsp);
                             }
                         }
-                        else if(currInput>0 && cc<currInput){                   // cursor move up
-                        
-                            
+                        else if(currInput>1 && cc<currInput){                   // cursor move up
+                                               
                             mappingCoders[1]=in_table_srce[currInput-1];
                             if(currDsp>0){                                      // no scroll
                                 mappingLineDsp(currInput,currDsp,false);        // restore prev
@@ -382,13 +382,12 @@ uint8_t coders_for_mapping(){
                                 mappingLineDsp(currInput,currDsp,true);    
                             }
                             else {                                              // scroll up
-                                fullMappingDsp(currInput--,currDsp);                                
+                                currInput--;
+                                fullMappingDsp(currInput,currDsp);                                
                             }
                         }
                 }
                 if(coder==1 && cc!=in_table_srce[currInput]){                   // choix de la sortie sur l'input courante
-                    // ignore empty outputs
-                    //printf("out_name:%c  cc:%d\n",out_table_name[cc][0],cc);
                     if(out_table_name[cc][0]=='-'){
                         
                         if(cc>in_table_srce[currInput]){
@@ -399,14 +398,10 @@ uint8_t coders_for_mapping(){
                         } 
                         mappingCoders[coder]=cc; 
                     }
-                    //else {
-                        //printf("***********out_name:%c  cc:%d\n",out_table_name[cc][0],cc);
                         if(cc<(MAX_OUTPUTS-1) && (cc>0)){
-                            //printf("***********out_name:%c  cc:%d\n",out_table_name[cc][0],cc);
                             in_table_srce[currInput]=cc;
                             mappingLineDsp(currInput,currDsp,true);
                         }
-                    //}
                 }
             }
         }          
