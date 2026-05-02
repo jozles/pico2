@@ -85,9 +85,6 @@ void init_timer_1khz() {
 */
 uint pwm_irq_slice=PWM_IRQ_SLICE;
 
-
-
-
 void __not_in_flash_func(pwm_irq_handler)() {
 
     //gpio_put(TST_PIN,HIGH);

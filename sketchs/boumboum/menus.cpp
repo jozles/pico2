@@ -14,9 +14,14 @@
 
 extern int32_t* i2s_buffer[];
 
+extern int16_t  in_table_id[MAX_INPUTS];
 extern char     in_table_name[MAX_INPUTS][IN_OUT_NAME_LEN];
 extern uint16_t in_table_srce[MAX_INPUTS];
 extern char     out_table_name[MAX_OUTPUTS][IN_OUT_NAME_LEN];
+extern uint16_t in_table_norm[MAX_INPUTS];
+extern uint8_t  in_table_shft[MAX_INPUTS];                      // all inputs values shift type (0 no shift ; 1 +0x8000)
+extern uint8_t  in_table_trig[MAX_INPUTS];                      // all inputs trig type (0 no trig ; 1 up ; 2 down ; 3 both)
+extern int16_t  in_table_tlev[MAX_INPUTS];                      // all inputs trig level
 
 
 volatile uint32_t millisCounter=0;
@@ -81,9 +86,9 @@ extern uint16_t amplLevel[];                        // table des amplitudes
 
 // mapping
 
-#define MAPPING_CODER_NB 2
-volatile int16_t mappingCoders[MAPPING_CODER_NB];   // [0] curr input nb ; [1] curr_input value
-uint16_t maxMappingCoders[]={MAX_INPUTS,MAX_OUTPUTS};
+#define MAPPING_CODER_NB 6
+volatile int16_t mappingCoders[MAPPING_CODER_NB];   // [0] curr input nb ; [1] curr_input value ; [2] norm ; [3] shift ; [4] trig ; [5] trig level
+uint16_t maxMappingCoders[]={MAX_INPUTS,MAX_OUTPUTS,3,2,4,0xffff};
 
 // i2s
 
@@ -96,7 +101,7 @@ uint32_t swIgnore=millisCounter;
 
 #define LINE_LEN TFT_W/12+1
 char buf[LINE_LEN];
-char buf11x12[TFT_W/11+1];
+char buf11x12[TFT_W/11+2];
 
 uint16_t begline=27;
 
@@ -304,7 +309,7 @@ uint8_t coders_for_wavesAmpl(uint8_t currVoice)
 
 // ****** coders for mapping ******
 
-#define NB_DSP_LINES 12
+#define NB_DSP_LINES 13
 #define FIRSTLINEH 20
 
 void mappingLineDsp(uint8_t inp,uint8_t line,bool rev){
@@ -312,7 +317,7 @@ void mappingLineDsp(uint8_t inp,uint8_t line,bool rev){
     memset(buf11x12,0x00,LINE_LEN);
     convIntToString(buf11x12,(int32_t)inp,2);                        //  2 input#
     buf11x12[2]=' ';                                                 // +1
-    uint8_t ln=IN_OUT_NAME_LEN-2;
+    uint8_t ln=IN_OUT_NAME_LEN-1;
     memcpy(buf11x12+3,&in_table_name[inp][0],ln);                    // +8 input name
     //printf("%s i:%d %s\n",buf,inp,in_table_name[inp]);
 
@@ -329,6 +334,7 @@ void mappingLineDsp(uint8_t inp,uint8_t line,bool rev){
 void fullMappingDsp(uint8_t firstInput,uint8_t currDspInput){
     tft_fill_rect_blank(FIRSTLINEH,0,TFT_H,TFT_W);
     for(uint8_t l=0;l<NB_DSP_LINES;l++){
+        while(in_table_name[firstInput+l][0]==0 && firstInput+l<MAX_INPUTS){firstInput++;}
         mappingLineDsp(firstInput+l,l,currDspInput==l);
     }
 }
@@ -353,56 +359,87 @@ uint8_t coders_for_mapping(){
             if(!mode_scope){test_st7789_2();}       // animation balayage de lignes
             debug_ticker();
 
-            for(uint8_t coder=0;coder<MAPPING_CODER_NB;coder++){        // 1 codeur pour la ligne et 1 codeur pour le choix de la sortie
+            for(uint8_t coder=0;coder<MAPPING_CODER_NB;coder++){        // coder 0 line ; coder 1 output ; coder 2 Shifted or not
                 int s=tst_switchs(coder,MAPPING_CODER_NB);            
                 if(s>=0 || s<=-99){return s;}
 
                 uint32_t cc=mappingCoders[coder];
-                if(coder==0){                                           // coder 0 mouvemements verticaux
+                if(coder==0){                                           // coder 0 vertical movements
 
-                        if(currInput<MAX_INPUTS && cc>currInput){               // cursor move down
+                        if(currInput<MAX_INPUTS-1 && cc>currInput){             // cursor moves down
                                               
-                            mappingCoders[1]=in_table_srce[currInput+1];
-                            if(currDsp<NB_DSP_LINES-1){                         // no scroll
+                            if(currDsp<NB_DSP_LINES-1){                         // no scroll                                
                                 mappingLineDsp(currInput,currDsp,false);        // restore prev
                                 currDsp++;currInput++;
+                                while(in_table_name[currInput][0]==0 && currInput<MAX_INPUTS-1){currInput++;}
                                 mappingLineDsp(currInput,currDsp,true);    
                             }
-                            else {             
-                                currInput++;                                    // scroll down
-                                fullMappingDsp(currInput - NB_DSP_LINES + 1,currDsp);
+                            else {                                              // scroll down
+                                currInput++;                                    
+                                while(in_table_name[currInput][0]==0 && currInput<MAX_INPUTS-1){currInput++;} // get next Input to display
+                                uint8_t schdInput=currInput;
+                                for(uint8_t l=0;l<NB_DSP_LINES-1;l++){          // search first displayable input
+                                    // INPUT 1 MUST BE DISPLAYABLE
+                                    schdInput--;
+                                    while(in_table_name[schdInput][0]==0 && schdInput>1){schdInput--;}
+                                }                                         
+                                fullMappingDsp(schdInput,currDsp);
                             }
+                            mappingCoders[1]=in_table_srce[currInput];
                         }
-                        else if(currInput>1 && cc<currInput){                   // cursor move up
+                        else if(currInput>1 && cc<currInput){                   // cursor moves up
                                                
-                            mappingCoders[1]=in_table_srce[currInput-1];
                             if(currDsp>0){                                      // no scroll
                                 mappingLineDsp(currInput,currDsp,false);        // restore prev
                                 currDsp--;currInput--;
+                                while(in_table_name[currInput][0]==0 && currInput>1){currInput--;}
                                 mappingLineDsp(currInput,currDsp,true);    
                             }
                             else {                                              // scroll up
                                 currInput--;
+                                while(in_table_name[currInput][0]==0 && currInput>1){currInput--;}
                                 fullMappingDsp(currInput,currDsp);                                
                             }
+                            mappingCoders[1]=in_table_srce[currInput];
                         }
+                        mappingCoders[0]=currInput;
                 }
-                if(coder==1 && cc!=in_table_srce[currInput]){                   // choix de la sortie sur l'input courante
+                if(coder==1 && cc!=in_table_srce[currInput]){                   // coder 1 output choice 
+                    
                     if(out_table_name[cc][0]=='-'){
                         
                         if(cc>in_table_srce[currInput]){
                             while(out_table_name[cc][0]=='-' && cc<MAX_OUTPUTS-1){cc++;}
+                            if(out_table_name[cc][0]=='-'){cc=in_table_srce[currInput];continue;}   
                         }
                         else {
                             while(out_table_name[cc][0]=='-' && cc>0){cc--;}
-                        } 
-                        mappingCoders[coder]=cc; 
+                        }  
                     }
-                        if(cc<(MAX_OUTPUTS-1) && (cc>0)){
-                            in_table_srce[currInput]=cc;
-                            mappingLineDsp(currInput,currDsp,true);
-                        }
+                    if(cc<(MAX_OUTPUTS-1) && (cc>=0)){
+                        disconnect_input(currInput,in_table_srce[currInput]);
+                        mappingCoders[coder]=cc;
+                        in_table_srce[currInput]=cc;
+                        connect_input(currInput,in_table_srce[currInput]);
+                        mappingLineDsp(currInput,currDsp,true);
+                    }
                 }
+                if(coder==2 && cc!=in_table_norm[currInput]){                   // coder 2 output normalisation
+                    in_table_norm[currInput]=cc;
+                    mappingLineDsp(currInput,currDsp,true);
+                }
+                if(coder==3 && cc!=in_table_shft[currInput]){                   // coder 2 output shift
+                    in_table_shft[currInput]=cc;
+                    mappingLineDsp(currInput,currDsp,true);
+                }    
+                if(coder==4 && cc!=in_table_trig[currInput]){                   // coder 2 output trig
+                    in_table_trig[currInput]=cc;
+                    mappingLineDsp(currInput,currDsp,true);
+                }                    
+                if(coder==5 && cc!=in_table_tlev[currInput]){                   // coder 2 output trig level
+                    in_table_tlev[currInput]=cc;
+                    mappingLineDsp(currInput,currDsp,true);
+                }                    
             }
         }          
 }

@@ -9,6 +9,7 @@
 #include "bb_i2s.h"
 #include "const.h"
 #include "rc_tables.h"
+#include "input_tables_management.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -48,10 +49,11 @@ uint16_t    lfosStepIntD[MAX_LFO];                    // partie entière du step
 uint32_t    lfosStepFraD[MAX_LFO];                    // partie fractionnaire du step descendant  
 uint16_t    currLfoEch[MAX_LFO];
 uint32_t    currLfoEchFra[MAX_LFO];
-uint16_t    sineLfo[MAX_LFO];
-uint16_t    squareLfo[MAX_LFO];
-uint16_t    triangleLfo[MAX_LFO];
-uint16_t    sawtoothLfo[MAX_LFO];
+//uint16_t    sineLfo[MAX_LFO];
+//uint16_t    squareLfo[MAX_LFO];
+//uint16_t    triangleLfo[MAX_LFO];
+//uint16_t    sawtoothLfo[MAX_LFO];
+int16_t     lfosOutputsValues[MAX_LFO][MAX_OUTPUTS_PER_OBJ];
 uint32_t    lfoTime=0;
 uint32_t    lfoTimingInterval=1000/LFOS_SAMPLE_RATE;
 int32_t     lfoScopeBuffer[MAX_LFO*OSC_SCOPE_BUFFER_LEN];  // n° echantillons+rc_table 
@@ -415,10 +417,11 @@ void lfosInit(){
         lfosStepIntD[l]=0;
         lfosStepFraD[l]=0;
 
-        sineLfo[l]=0;
-        squareLfo[l]=0;        
-        triangleLfo[l]=0;
-        sawtoothLfo[l]=0;
+        //sineLfo[l]=0;
+        //squareLfo[l]=0;        
+        //triangleLfo[l]=0;
+        //sawtoothLfo[l]=0;
+        for(uint8_t v=0;v<MAX_OUTPUTS_PER_OBJ;v++){lfosOutputsValues[l][v]=0;}
 
         lfosCoderCycleR[l]=MAXCODER_RC/2;
         setLfosFrequency(lfosFrequency[l],l,lfosCoderCycleR[l]);        
@@ -444,7 +447,7 @@ void __not_in_flash_func(lfosHandler)()
         uint32_t ce=currLfoEch[l];                      
         uint16_t cf=currLfoEchFra[l];
 
-        uint32_t rcTableNb = lfosCoderCycleR[l];     // rc==0-31-62
+        uint32_t rcTableNb = lfosCoderCycleR[l];        // rc==0-31-62
         uint32_t tscope=rcTableNb<<16;
         int8_t sign0 = (rcTableNb<=RC_TABLES_NB)*2-1;   // invert value if 32-62 table        
         if(rcTableNb>RC_TABLES_NB-1){rcTableNb=(RC_TABLES_NB-1)*2-rcTableNb;}
@@ -466,10 +469,19 @@ void __not_in_flash_func(lfosHandler)()
         
         const int16_t *w = &rc_tables[rcTableNb][0][0]+3*ce;    // rc_table values ptr
 
-        sineLfo[l]=sign*w[0];
-        triangleLfo[l]=sign*w[1];
-        sawtoothLfo[l]=sign*w[2];
-     
+        //sineLfo[l]=sign*w[0];
+        //triangleLfo[l]=sign*w[1];
+        //sawtoothLfo[l]=sign*w[2];
+        //squareLfo[l]=....
+
+        int16_t c0=sign*w[LSIN];
+        int16_t c1=sign*w[LTRI];
+        int16_t c2=sign*w[LSAW];
+        int16_t c3=(currLfoEch[l] & (BASIC_WAVE_TABLE_LEN>>1)) ? -0x7fff : 0x7fff;;
+        lfosOutputsValues[l][LSIN]=c0;update_inputs(lfo_in_table_id[l][LSIN],c0);
+        lfosOutputsValues[l][LTRI]=c1;update_inputs(lfo_in_table_id[l][LTRI],c1);
+        lfosOutputsValues[l][LSAW]=c2;update_inputs(lfo_in_table_id[l][LSAW],c2);
+        lfosOutputsValues[l][LSQR]=c3;update_inputs(lfo_in_table_id[l][LSQR],c3);
     }
     lfoScopeBufPtr++;
     lfoScopeBufPtr&=OSC_SCOPE_BUFFER_LEN-1;
@@ -554,16 +566,17 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
 
         const int16_t* w=p+3*ce;                              // rc_table values ptr 
 
-        int32_t pre=w[0]*waveAmplSaw; //waveAmplSin;    
+        int32_t pre=w[0]*waveAmplSin;    
         int32_t tri32 = w[1];
         pre += tri32*waveAmplTri;
         
         uint32_t tri_u = (uint32_t)(tri32 + 32767);   // 0..65534
         uint32_t saw = (tri32 ^ -mask) + mask;
-        pre += saw*waveAmplSin; //waveAmplSaw;
+        pre += saw*waveAmplSaw;
+
         pre *= sign;
      
-        // pre +=  square
+        // pre +=  square*waveAmplSin        
 
 /*tri_phase += tri_step;
 

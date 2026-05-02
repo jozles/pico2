@@ -3,4 +3,4 @@
     X(LSIN,"SINE")
     X(LTRI,"TRI ")
     X(LSAW,"SAW ")
-    X(LSQR,"SQR ")
+    X(LSQR,"SQR ")      // !!! MUST BE THE LAST for lfoHandler() !!! 

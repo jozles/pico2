@@ -18,10 +18,13 @@ extern Voice voices[MAX_VOICES];
 // each object has an [object]_in_table_id table with [object#][input#] elements (the ids)
 // so the id is available from the object/input to access its value,source,norm,name
 
-int16_t in_table_val[MAX_INPUTS];                       // all objects inputs values
+int16_t in_table_val[MAX_INPUTS];                       // all inputs values
 int16_t in_table_id[MAX_INPUTS];                        // chain : next id(input) with same output (-1/NO_LINK if nothing)
-int16_t in_table_srce[MAX_INPUTS];                      // all objects inputs sources# 
-int16_t in_table_type_norm[MAX_INPUTS];                 // all objects norm type values
+int16_t in_table_srce[MAX_INPUTS];                      // all inputs sources# 
+uint8_t in_table_norm[MAX_INPUTS];                      // all inputs norm type (0 nothing ; 1 0-31, 2 0-63 etc)
+uint8_t in_table_shft[MAX_INPUTS];                      // all inputs values shift type (0 no shift ; 1 +0x8000)
+uint8_t in_table_trig[MAX_INPUTS];                      // all inputs trig type (0 no trig ; 1 up ; 2 down ; 3 both)
+int16_t in_table_tlev[MAX_INPUTS];                      // all inputs trig level
 char    in_table_name[MAX_INPUTS][IN_OUT_NAME_LEN];     // all objects inputs names
 
 // each output of each object has an unique id wich give the value ptr and the name
@@ -112,6 +115,9 @@ bool init_objects_inputs(void)
 {
     memset(in_table_name,0x00,MAX_INPUTS*IN_OUT_NAME_LEN);
     memset(in_table_srce,0x00,MAX_INPUTS);
+    memset(in_table_shft,0x00,MAX_INPUTS);
+    memset(in_table_trig,0x00,MAX_INPUTS);
+    memset(in_table_tlev,0x00,MAX_INPUTS);
     
     for (uint16_t i=0;i<MAX_INPUTS;i++){
         in_table_id[i]=NO_LINK;
@@ -176,23 +182,17 @@ bool init_objects_inputs(void)
 void objects_table_init()
 {
     init_objects_inputs();
-    /*for (int16_t k=0;k<MAX_INPUTS;k++){
-        if(in_table_name[k][0]!=0){
-            printf("%i n:%s\n",k,in_table_name[k]);
-        }
-    }*/
     init_objects_outputs();
 }
 
 static spin_lock_t *inputs_id__lock;
 
-void connect_input(uint16_t id, uint16_t output, uint8_t type_norm)
+void connect_input(uint16_t id, uint16_t output)
 {
     uint32_t f = spin_lock_blocking(inputs_id__lock);
 
-    // Initialisation du maillon
-    in_table_type_norm[id]     = type_norm;
-    in_table_id[id]            = NO_LINK;
+    // link init (norm/shft/trig/tlev update by menu_mapping)
+    in_table_id[id]       = NO_LINK;
 
     int16_t next_id = *out_table_val[output];
 
@@ -201,7 +201,7 @@ void connect_input(uint16_t id, uint16_t output, uint8_t type_norm)
     else {
         int16_t prev=next_id;
 
-        while (next_id != NO_LINK) {                  // fin de chaine ? 
+        while (next_id != NO_LINK) {            // end of chain ? 
             prev=next_id;
             next_id=in_table_id[next_id];
         }        
@@ -226,7 +226,7 @@ void disconnect_input(uint16_t id, uint16_t output)
     // cas 1 : le maillon à retirer est en tête
     if (first == id) {
         *out_table_val[output] = in_table_id[id];   // nouveau head = suivant
-        in_table_id[id] = NO_LINK;            // nettoie le maillon
+        in_table_id[id] = NO_LINK;                  
         spin_unlock(inputs_id__lock, f);
         return;
     }
@@ -243,7 +243,7 @@ void disconnect_input(uint16_t id, uint16_t output)
     if (curr == id) {
         // on saute le maillon courant
         in_table_id[prev] = in_table_id[curr];
-        in_table_id[curr] = NO_LINK;         // nettoie le maillon
+        in_table_id[curr] = NO_LINK;  
     }
 
     spin_unlock(inputs_id__lock, f);
