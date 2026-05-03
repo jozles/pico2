@@ -54,20 +54,18 @@ add_executable(boumboum
 	frequences.cpp 
 	oscillator.cpp
 	bb_i2s.cpp
-	test.cpp
 	leds.cpp
 	st7789.cpp
 	font12x12.c
 	font11x12.c
 	menus.cpp
 	menu.def
-	inputs.def
-	outputs.def
 	adsr_inputs_names.def
 	lfos_inputs_names.def
 	vces_inputs_names.def
 	adsr_outputs_names.def
 	lfos_outputs_names.def
+	norm_types.def
 	blank.S
 	miscControls.cpp
 	rc_tables.cpp

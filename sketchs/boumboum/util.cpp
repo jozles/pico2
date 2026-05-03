@@ -17,7 +17,6 @@
 #include "util.h"
 #include "coder.h"
 #include "frequences.h"
-#include "test.h"
 #include "leds.h"
 #include "st7789.h"
 #include "menus.h"

@@ -15,6 +15,7 @@
 extern int32_t* i2s_buffer[];
 
 extern int16_t  ctl_input_id[MAX_INPUTS];
+extern int16_t  ctl_input_val[MAX_INPUTS];
 extern char     ctl_input_name[MAX_INPUTS][IN_OUT_NAME_LEN];
 extern uint16_t ctl_input_srce[MAX_INPUTS];
 extern uint16_t ctl_input_norm[MAX_INPUTS];
@@ -479,26 +480,38 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                 sprintf(buf+2,"%1.3f %1.3f %d   ",lfosFrequency[line],1/lfosFrequency[line],lfosCoderCycleR[line]-MAXCODER_RC/2);
                 break;  
             case VOICES:
-                if(coder==OSCMENU){                
-                    setVoiceFrequency(calcFreq(voices[line].coderFreq),&voices[line],voices[line].coderCycleR);
+                switch (coder){
+                    case OSCMENU:                
+                        setVoiceFrequency(calcFreq(voices[line].coderFreq),&voices[line],voices[line].coderCycleR);
+                        break;
+                    case OSCCODERFREQ:if(varChge){
+                        setVoiceFrequency(calcFreq(cc),&voices[line],voices[line].coderCycleR);
+                        voices[line].coderFreq=cc;}
+                        break;
+                    case OSCCODERCRA:if(varChge){
+                        setVoiceFrequency(voices[line].frequency,&voices[line],cc);
+                        voices[line].coderCycleR=cc;}
+                        break;
+                    case OSCCODERATTFREQ:if(varChge){
+                        voices[line].coderAttFreq=cc;
+                        int16_t valeur = ctl_input_val[voices[line].voice_ctl_input_id[VFRQ]]>>3;
+                        uint16_t f = voices[line].coderFreq+valeur*cc/0x00ff;   // ajouter un ctl d'overflow
+                        setVoiceFrequency(calcFreq(f),&voices[line],voices[line].coderCycleR);}
+                        break;
+                    case OSCGENAMP:if(varChge){
+                        setVoiceFrequency(voices[line].frequency,&voices[line],voices[line].coderCycleR);
+                        voices[line].coderGenAmpl=cc;voices[line].genAmpl=amplLevel[cc];}
+                        break;             
+                    case OSCCODERATTCRA:if(varChge){
+                        voices[line].coderCycleRAtt=cc;
+                        int16_t valeur = ctl_input_val[voices[line].voice_ctl_input_id[VCRA]]>>10;
+                        int16_t v = voices[line].coderCycleR+valeur*cc/0x00ff;  // ajouter un ctl d'overflow
+                        setVoiceFrequency(voices[line].frequency,&voices[line],v);
+                        voices[line].coderCycleR=cc;}
+                        break;
+                    default:break;
                 }
-                else if(coder==OSCCODERFREQ && varChge){                  
-                    setVoiceFrequency(calcFreq(cc),&voices[line],voices[line].coderCycleR);
-                    voices[line].coderFreq=cc;
-                }
-                else if(coder==OSCCODERCRA && varChge){
-                    setVoiceFrequency(voices[line].frequency,&voices[line],cc);
-                    voices[line].coderCycleR=cc;
-                }
-                else if(coder==OSCCODERATTFREQ && varChge){
-                    voices[line].coderAttFreq=cc;
-                    setVoiceFrequency(voices[line].frequency,&voices[line],cc);
-                }
-                else if(coder==OSCGENAMP && varChge){
-                    setVoiceFrequency(voices[line].frequency,&voices[line],voices[line].coderCycleR);
-                    voices[line].coderGenAmpl=cc;voices[line].genAmpl=amplLevel[cc];               
-                }                
-                sprintf(buf+2,"%4.3f %i %u",voices[line].frequency,voices[line].coderCycleR-MAXCODER_RC/2,voices[line].coderGenAmpl);
+                sprintf(buf+2,"%4.3f %i %u",voices[line].frequency,voices[line].coderCycleR-MAXCODER_RC/2,voices[line].coderGenAmpl);               
                 break;
             case ADSR:
                 switch (coder){
