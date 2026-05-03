@@ -42,6 +42,7 @@ void delayBlk(uint8_t sec);
 void ledblinkn(uint8_t n);
 
 void print_memory_report(void);
+void system_error(const char* s);
 
 
 #endif  //_UTIL_H_

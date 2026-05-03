@@ -153,6 +153,11 @@ typedef enum {
 #define OBJ_IO_NAME_LEN         5
 #define IN_OUT_NAME_LEN         10
 
+#define MAX_CTL_ATT             256
+
+#define NO_ATTENUATION_VALUE    0x7fff
+#define FULL_ATTENUATION_VALUE  0x0000
+
 // ****** inputs ******
 
 typedef enum {
@@ -176,14 +181,12 @@ typedef enum {
 #undef X
 }  Adsr_inputs_names;
 
-
-
-/*typedef enum {
+typedef enum {
 #define X(name,text) name,    
-#include "inputs.def"
-        INPUTS_NB  
+#include "norm_types.def"
+        NORM_TYPES_NB  
 #undef X
-}  Inputs;*/
+}  Norm_types_names;
 
 // ****** outputs ******
 
@@ -200,13 +203,6 @@ typedef enum {
         ADSR_OUTPUTS_NB  
 #undef X
 }  Adsr_outputs_names;
-
-/*typedef enum {
-#define Y(name,text) name,    
-#include "outputs.def"
-        OUTPUTS_NB
-#undef Y
-}  Outputs;*/
 
 // ****** menus codes ******
 

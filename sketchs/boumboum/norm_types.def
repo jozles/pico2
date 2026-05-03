@@ -1,0 +1,7 @@
+/* types names for normalization scheme of control inputs values */
+
+    X(VCE_FREQ,"OFRQ")
+    X(VCE_CRA ,"OCRA")   
+    X(SND_AMPL,"SAMP")
+    X(LFO_FREQ,"LFRQ")
+    X(LFO_CRA ,"LCRA")

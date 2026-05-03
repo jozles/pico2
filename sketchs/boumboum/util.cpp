@@ -57,32 +57,14 @@ volatile uint32_t ledBlinker=0;
 
 static repeating_timer millisTimer;
 
-//float amplIncr[MAX_16B_LINEAR_VALUE];
 
-
-// ******** coders functions handling ********
-
-// ******** global setup ********
-
-/*
-void timer1_irq_handler() {
-
-    if (timer_hw->intr & (1u << 3)) {
-        millisCounter++;
-        timer_hw->alarm[3] = timer_hw->timerawl + 1000; // 1 ms
-        timer_hw->intr = 1u << 3; // clear
-    }
+void system_error(const char* s)
+{
+   tft_draw_text_12x12_dma_mult(0,0,s,0xf81f,0,2);
+   while(1){} 
 }
 
-void init_timer_1khz() {
-    // Armer la première alarme dans 1 ms
-    timer_hw->alarm[3] = timer_hw->timerawl + 1000;
 
-    // Associer l’IRQ à notre handler
-    irq_set_exclusive_handler(TIMER1_IRQ_0, timer1_irq_handler);
-    irq_set_enabled(TIMER1_IRQ_0, true);
-}
-*/
 uint pwm_irq_slice=PWM_IRQ_SLICE;
 
 void __not_in_flash_func(pwm_irq_handler)() {

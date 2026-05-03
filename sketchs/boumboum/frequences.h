@@ -58,10 +58,13 @@ struct Voice {
     uint16_t    adsrlCc[CODER_BANK_NB];
     float       frequency;                      // current freq
     int16_t     coderFreq;                      // last coder value for freq
+    int16_t     coderAttFreq;                   // attenuateur 0-7fff pour ctl_input freq
     uint16_t    maxCoderFreq;                   // pmax value for coderFreq
     uint8_t     coderCycleR;                    // rapport cyclique -64/+64 pour coder ; one value for all waveforms
+    uint8_t     cycleR;                         // somme coderCycleR et ctl_input_val
+    int16_t     coderCycleRAtt;                 // attenuateur 0-7fff pour ctl_input cra
     uint8_t     maxCoderCycleR;
-    int16_t     voice_in_table_id[MAX_INPUTS_PER_OBJ];
+    int16_t     voice_ctl_input_id[MAX_INPUTS_PER_OBJ];
 
 };
 

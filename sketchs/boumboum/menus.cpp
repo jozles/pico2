@@ -14,15 +14,15 @@
 
 extern int32_t* i2s_buffer[];
 
-extern int16_t  in_table_id[MAX_INPUTS];
-extern char     in_table_name[MAX_INPUTS][IN_OUT_NAME_LEN];
-extern uint16_t in_table_srce[MAX_INPUTS];
-extern char     out_table_name[MAX_OUTPUTS][IN_OUT_NAME_LEN];
-extern uint16_t in_table_norm[MAX_INPUTS];
-extern uint8_t  in_table_shft[MAX_INPUTS];                      // all inputs values shift type (0 no shift ; 1 +0x8000)
-extern uint8_t  in_table_trig[MAX_INPUTS];                      // all inputs trig type (0 no trig ; 1 up ; 2 down ; 3 both)
-extern int16_t  in_table_tlev[MAX_INPUTS];                      // all inputs trig level
+extern int16_t  ctl_input_id[MAX_INPUTS];
+extern char     ctl_input_name[MAX_INPUTS][IN_OUT_NAME_LEN];
+extern uint16_t ctl_input_srce[MAX_INPUTS];
+extern uint16_t ctl_input_norm[MAX_INPUTS];
+extern uint8_t  ctl_input_shft[MAX_INPUTS];                      // all inputs values shift type (0 no shift ; 1 +0x8000)
+extern uint8_t  ctl_input_trig[MAX_INPUTS];                      // all inputs trig type (0 no trig ; 1 up ; 2 down ; 3 both)
+extern int16_t  ctl_input_tlev[MAX_INPUTS];                      // all inputs trig level
 
+extern char     ctl_output_name[MAX_OUTPUTS][IN_OUT_NAME_LEN];
 
 volatile uint32_t millisCounter=0;
 
@@ -34,14 +34,14 @@ volatile uint32_t millisCounter=0;
     #undef X   
 };*/
 
-/*const char out_table_names[][IN_OUT_NAME_LEN]={
+/*const char ctl_output_names[][IN_OUT_NAME_LEN]={
     #define Y(name,text) text,
     #include "outputs.def"
     #undef Y
 };*/
 
 void inputsInit(){
-    memset(in_table_srce,0x00,MAX_INPUTS);
+    memset(ctl_input_srce,0x00,MAX_INPUTS);
 }
 
 extern Voice voices[MAX_VOICES];
@@ -59,7 +59,9 @@ uint16_t voicesMaxAmplCoders[MAX_VOICES];
 
 extern float lfosFrequency[];                       // current lfo freq
 extern uint16_t lfosCoders[];
+extern uint16_t lfosCodersAttFreq[];
 extern uint16_t lfosCoderCycleR[];
+extern uint16_t lfosCoderCycleRAtt[];
 extern uint16_t* lfosVar[];
 extern int32_t lfoScopeBuffer[];
 extern int32_t* waveformTable[];
@@ -115,7 +117,9 @@ const char menu0_names[][MENU_NAME_LEN]={
 enum OscCoders {        // coders pour menu voices et lfos
      OSCMENU,
      OSCCODERFREQ,
-     OSCCODERRC,
+     OSCCODERCRA,
+     OSCCODERATTFREQ,
+     OSCCODERATTCRA,
      OSCGENAMP
 };
 
@@ -157,17 +161,21 @@ void menus_init(){
     }
     // ***   lfos  ***
     lfosVar[OSCCODERFREQ-1]=lfosCoders;         // lfosVar[0]
-    lfosVar[OSCCODERRC-1]=lfosCoderCycleR;      // lfosVar[1]
+    lfosVar[OSCCODERCRA-1]=lfosCoderCycleR;      // lfosVar[1]
     menuLfosCoders[OSCMENU]=0;                  // line 0 du menu
     menuLfosCoders[1]=lfosCoders[0];
     menuLfosCoders[2]=lfosCoderCycleR[0];
+    menuLfosCoders[3]=lfosCodersAttFreq[0];
+    menuLfosCoders[4]=lfosCoderCycleRAtt[0];
     // ***  voices  ***
     vcesVar[OSCCODERFREQ-1]=tempVceCoderFreq;   // vcesVar[0]
-    vcesVar[OSCCODERRC-1]=tempVceCoderCycleR;   // vcesVar[1]
+    vcesVar[OSCCODERCRA-1]=tempVceCoderCycleR;   // vcesVar[1]
     vcesVar[OSCGENAMP-1]=tempVceCoderGenAmp;    // vcesVar[1]
     menuVcesCoders[OSCMENU]=0;                  // line 0 du menu
     menuVcesCoders[OSCCODERFREQ]=voices[0].coderFreq;
-    menuVcesCoders[OSCCODERRC]=voices[0].coderCycleR;
+    menuVcesCoders[OSCCODERCRA]=voices[0].coderCycleR;
+    menuVcesCoders[OSCCODERATTFREQ]=voices[0].coderAttFreq;
+    menuVcesCoders[OSCCODERATTCRA]=voices[0].coderCycleRAtt;
     menuVcesCoders[OSCGENAMP]=voices[0].genAmpl;
     // ***  Adsr  ****
     adsrVar[ADSRATT-1]=adsrAttCoder;            // lfosVar[0]
@@ -315,26 +323,26 @@ uint8_t coders_for_wavesAmpl(uint8_t currVoice)
 void mappingLineDsp(uint8_t inp,uint8_t line,bool rev){
     
     memset(buf11x12,0x00,LINE_LEN);
-    convIntToString(buf11x12,(int32_t)inp,2);                        //  2 input#
-    buf11x12[2]=' ';                                                 // +1
+    convIntToString(buf11x12,(int32_t)inp,2);                           //  2 input#
+    buf11x12[2]=' ';                                                    // +1
     uint8_t ln=IN_OUT_NAME_LEN-1;
-    memcpy(buf11x12+3,&in_table_name[inp][0],ln);                    // +8 input name
-    //printf("%s i:%d %s\n",buf,inp,in_table_name[inp]);
+    memcpy(buf11x12+3,&ctl_input_name[inp][0],ln);                      // +8 input name
+    //printf("%s i:%d %s\n",buf,inp,ctl_input_name[inp]);
 
-    buf11x12[3+ln]=' ';                                              // +1
-    memcpy(buf11x12+3+ln+1,&out_table_name[in_table_srce[inp]],9);   // +7 //IN_OUT_NAME_LEN);
+    buf11x12[3+ln]=' ';                                                 // +1
+    memcpy(buf11x12+3+ln+1,&ctl_output_name[ctl_input_srce[inp]],9);    // +7 //IN_OUT_NAME_LEN);
     uint16_t fgc=0x07EF;
     uint16_t bgc=0x0000;
     uint16_t buc=fgc;
     if(rev){fgc=bgc;bgc=buc;}
-    //tft_draw_text_12x12_dma_mult(0,line*((12+2))+FIRSTLINEH,buf,fgc,bgc,1);
+
     tft_draw_text_11x12_dma_mult(0,line*((11+2))+FIRSTLINEH,buf11x12,fgc,bgc,1);
 }
 
 void fullMappingDsp(uint8_t firstInput,uint8_t currDspInput){
     tft_fill_rect_blank(FIRSTLINEH,0,TFT_H,TFT_W);
     for(uint8_t l=0;l<NB_DSP_LINES;l++){
-        while(in_table_name[firstInput+l][0]==0 && firstInput+l<MAX_INPUTS){firstInput++;}
+        while(ctl_input_name[firstInput+l][0]==0 && firstInput+l<MAX_INPUTS){firstInput++;}
         mappingLineDsp(firstInput+l,l,currDspInput==l);
     }
 }
@@ -371,73 +379,73 @@ uint8_t coders_for_mapping(){
                             if(currDsp<NB_DSP_LINES-1){                         // no scroll                                
                                 mappingLineDsp(currInput,currDsp,false);        // restore prev
                                 currDsp++;currInput++;
-                                while(in_table_name[currInput][0]==0 && currInput<MAX_INPUTS-1){currInput++;}
+                                while(ctl_input_name[currInput][0]==0 && currInput<MAX_INPUTS-1){currInput++;}
                                 mappingLineDsp(currInput,currDsp,true);    
                             }
                             else {                                              // scroll down
                                 currInput++;                                    
-                                while(in_table_name[currInput][0]==0 && currInput<MAX_INPUTS-1){currInput++;} // get next Input to display
+                                while(ctl_input_name[currInput][0]==0 && currInput<MAX_INPUTS-1){currInput++;} // get next Input to display
                                 uint8_t schdInput=currInput;
                                 for(uint8_t l=0;l<NB_DSP_LINES-1;l++){          // search first displayable input
                                     // INPUT 1 MUST BE DISPLAYABLE
                                     schdInput--;
-                                    while(in_table_name[schdInput][0]==0 && schdInput>1){schdInput--;}
+                                    while(ctl_input_name[schdInput][0]==0 && schdInput>1){schdInput--;}
                                 }                                         
                                 fullMappingDsp(schdInput,currDsp);
                             }
-                            mappingCoders[1]=in_table_srce[currInput];
+                            mappingCoders[1]=ctl_input_srce[currInput];
                         }
                         else if(currInput>1 && cc<currInput){                   // cursor moves up
                                                
                             if(currDsp>0){                                      // no scroll
                                 mappingLineDsp(currInput,currDsp,false);        // restore prev
                                 currDsp--;currInput--;
-                                while(in_table_name[currInput][0]==0 && currInput>1){currInput--;}
+                                while(ctl_input_name[currInput][0]==0 && currInput>1){currInput--;}
                                 mappingLineDsp(currInput,currDsp,true);    
                             }
                             else {                                              // scroll up
                                 currInput--;
-                                while(in_table_name[currInput][0]==0 && currInput>1){currInput--;}
+                                while(ctl_input_name[currInput][0]==0 && currInput>1){currInput--;}
                                 fullMappingDsp(currInput,currDsp);                                
                             }
-                            mappingCoders[1]=in_table_srce[currInput];
+                            mappingCoders[1]=ctl_input_srce[currInput];
                         }
                         mappingCoders[0]=currInput;
                 }
-                if(coder==1 && cc!=in_table_srce[currInput]){                   // coder 1 output choice 
+                if(coder==1 && cc!=ctl_input_srce[currInput]){                   // coder 1 output choice 
                     
-                    if(out_table_name[cc][0]=='-'){
+                    if(ctl_output_name[cc][0]=='-'){
                         
-                        if(cc>in_table_srce[currInput]){
-                            while(out_table_name[cc][0]=='-' && cc<MAX_OUTPUTS-1){cc++;}
-                            if(out_table_name[cc][0]=='-'){cc=in_table_srce[currInput];continue;}   
+                        if(cc>ctl_input_srce[currInput]){
+                            while(ctl_output_name[cc][0]=='-' && cc<MAX_OUTPUTS-1){cc++;}
+                            if(ctl_output_name[cc][0]=='-'){cc=ctl_input_srce[currInput];continue;}   
                         }
                         else {
-                            while(out_table_name[cc][0]=='-' && cc>0){cc--;}
+                            while(ctl_output_name[cc][0]=='-' && cc>0){cc--;}
                         }  
                     }
                     if(cc<(MAX_OUTPUTS-1) && (cc>=0)){
-                        disconnect_input(currInput,in_table_srce[currInput]);
+                        disconnect_input(currInput,ctl_input_srce[currInput]);
                         mappingCoders[coder]=cc;
-                        in_table_srce[currInput]=cc;
-                        connect_input(currInput,in_table_srce[currInput]);
+                        ctl_input_srce[currInput]=cc;
+                        connect_input(currInput,ctl_input_srce[currInput]);
                         mappingLineDsp(currInput,currDsp,true);
                     }
                 }
-                if(coder==2 && cc!=in_table_norm[currInput]){                   // coder 2 output normalisation
-                    in_table_norm[currInput]=cc;
+                if(coder==2 && cc!=ctl_input_norm[currInput]){                   // coder 2 output normalisation
+                    ctl_input_norm[currInput]=cc;
                     mappingLineDsp(currInput,currDsp,true);
                 }
-                if(coder==3 && cc!=in_table_shft[currInput]){                   // coder 2 output shift
-                    in_table_shft[currInput]=cc;
+                if(coder==3 && cc!=ctl_input_shft[currInput]){                   // coder 2 output shift
+                    ctl_input_shft[currInput]=cc;
                     mappingLineDsp(currInput,currDsp,true);
                 }    
-                if(coder==4 && cc!=in_table_trig[currInput]){                   // coder 2 output trig
-                    in_table_trig[currInput]=cc;
+                if(coder==4 && cc!=ctl_input_trig[currInput]){                   // coder 2 output trig
+                    ctl_input_trig[currInput]=cc;
                     mappingLineDsp(currInput,currDsp,true);
                 }                    
-                if(coder==5 && cc!=in_table_tlev[currInput]){                   // coder 2 output trig level
-                    in_table_tlev[currInput]=cc;
+                if(coder==5 && cc!=ctl_input_tlev[currInput]){                   // coder 2 output trig level
+                    ctl_input_tlev[currInput]=cc;
                     mappingLineDsp(currInput,currDsp,true);
                 }                    
             }
@@ -465,7 +473,7 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                 else if(coder==OSCCODERFREQ && varChge){                  
                     setLfosFrequency(calcFreq(cc)/1000,line,lfosCoderCycleR[line]);
                 }
-                else if(coder==OSCCODERRC && varChge){
+                else if(coder==OSCCODERCRA && varChge){
                     setLfosFrequency(lfosFrequency[line],line,cc);
                 }                
                 sprintf(buf+2,"%1.3f %1.3f %d   ",lfosFrequency[line],1/lfosFrequency[line],lfosCoderCycleR[line]-MAXCODER_RC/2);
@@ -478,9 +486,13 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                     setVoiceFrequency(calcFreq(cc),&voices[line],voices[line].coderCycleR);
                     voices[line].coderFreq=cc;
                 }
-                else if(coder==OSCCODERRC && varChge){
+                else if(coder==OSCCODERCRA && varChge){
                     setVoiceFrequency(voices[line].frequency,&voices[line],cc);
                     voices[line].coderCycleR=cc;
+                }
+                else if(coder==OSCCODERATTFREQ && varChge){
+                    voices[line].coderAttFreq=cc;
+                    setVoiceFrequency(voices[line].frequency,&voices[line],cc);
                 }
                 else if(coder==OSCGENAMP && varChge){
                     setVoiceFrequency(voices[line].frequency,&voices[line],voices[line].coderCycleR);

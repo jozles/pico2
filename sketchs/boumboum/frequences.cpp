@@ -24,12 +24,12 @@ void __not_in_flash_func(blank)(char *var, uint16_t len);    // 268uS pour 2048 
 const uint8_t octNb = OCTNB;
 float baseFreq = FREQ0;
 float octFreq[octNb+1];
-int32_t sineWaveform[BASIC_WAVE_TABLE_LEN];
-int32_t squareWaveform[BASIC_WAVE_TABLE_LEN];
-int32_t triangleWaveform[BASIC_WAVE_TABLE_LEN];
-int32_t sawtoothWaveform[BASIC_WAVE_TABLE_LEN];
-int32_t pinkNoiseWaveform[BASIC_WAVE_TABLE_LEN];
-int32_t whiteNoiseWaveform[BASIC_WAVE_TABLE_LEN];
+//int32_t sineWaveform[BASIC_WAVE_TABLE_LEN];
+//int32_t squareWaveform[BASIC_WAVE_TABLE_LEN];
+//int32_t triangleWaveform[BASIC_WAVE_TABLE_LEN];
+//int32_t sawtoothWaveform[BASIC_WAVE_TABLE_LEN];
+//int32_t pinkNoiseWaveform[BASIC_WAVE_TABLE_LEN];
+//int32_t whiteNoiseWaveform[BASIC_WAVE_TABLE_LEN];
 
 const uint16_t octIncrNb = 409;
 float octIncr[octIncrNb];
@@ -42,6 +42,7 @@ extern uint32_t millisCounter;
 // current lfo values (lfoHandler triger'd by pwmIrqHandler)
 float       lfosFrequency[MAX_LFO];                   // current lfo freq
 uint16_t    lfosCoders[MAX_LFO];                      // last coder value for freq
+uint16_t    lfosCodersAttFreq[MAX_LFO];               // coder pour atténuateur ctl_input_val (freq)
 uint16_t    lfosMaxCoderFreq[MAX_LFO];                // pmax value for lfo coderFreq
 uint16_t    lfosStepInt[MAX_LFO];                     // partie entière du step lfo
 uint32_t    lfosStepFra[MAX_LFO];                     // partie fractionnaire du step lfo
@@ -49,17 +50,15 @@ uint16_t    lfosStepIntD[MAX_LFO];                    // partie entière du step
 uint32_t    lfosStepFraD[MAX_LFO];                    // partie fractionnaire du step descendant  
 uint16_t    currLfoEch[MAX_LFO];
 uint32_t    currLfoEchFra[MAX_LFO];
-//uint16_t    sineLfo[MAX_LFO];
-//uint16_t    squareLfo[MAX_LFO];
-//uint16_t    triangleLfo[MAX_LFO];
-//uint16_t    sawtoothLfo[MAX_LFO];
 int16_t     lfosOutputsValues[MAX_LFO][MAX_OUTPUTS_PER_OBJ];
 uint32_t    lfoTime=0;
 uint32_t    lfoTimingInterval=1000/LFOS_SAMPLE_RATE;
 int32_t     lfoScopeBuffer[MAX_LFO*OSC_SCOPE_BUFFER_LEN];  // n° echantillons+rc_table 
 uint16_t    lfoScopeBufPtr=0;
 uint16_t    lfosCoderCycleR[MAX_LFO];                 // rapport cyclique -64/+64 pour coder
-int16_t     lfo_in_table_id[MAX_LFO][MAX_OUTPUTS_PER_OBJ];
+uint16_t    lfosCycleR[MAX_LFO];                      // somme lfosCoderCycleR et ctl_input_val
+uint16_t    lfosCoderCycleRAtt[MAX_LFO];              // coder pour atténuateur ctl_input_val  (cra)
+int16_t     lfo_ctl_input_id[MAX_LFO][MAX_OUTPUTS_PER_OBJ];
 
 
 int32_t     voicesDataBuffer[MAX_VOICES*SAMPLE_BUFFER_SIZE];  // all voices data buffer : 16bits low currech nb, 16 bits high rc table nb 
@@ -76,35 +75,6 @@ extern int32_t* i2s_buffer[];
 volatile int32_t* i2s_buf_scope;       // last loaded buffer for scope
 
 
-
-
-//
-// Les amplitudes sont des valeurs 16 bits positives utilisées pour multiplier
-// les échantillons et former des 32 bits signés pour le CODEC
-// les coders d'amplitude ont un nombre d'incréments limité à MAX_16B_LINEAR_VALUE
-// MAX_16B_LINEAR_VALUE / 16 (les 16 bits des valeurs d'amplitude) donne le nombre d'intervalles stepAmpl entre 2 incréments
-// la valeur d'amplitude est : 2 ^ ( (n° d'incr / stepAmpl) + (1/stepAmpl) )
-// soit 0 à 46341 avec stepAmpl=2 : 0=>0 1=>1 2=>2 3=>3 4=>4 5=>6 6=>8 7=>11 8=>16 9=>23 10=>32... 30=>32768 31=>46341 (si 33 incréments 32=65536)
-//
-// les amplitudes sont stockées en valeur d'amplitude 16 bits et en valeur linéaire de coder
-//
-// lorsque les amplitudes proviennent d'une balance (mode automixer), 
-// l'intervalle des coders est :
-// fact(nb-1)/2 (PPCM) et les valeurs 0->MAX_16B_LINEAR_VALUE-1 deviennent 0->(MAX_16B_LINEAR_VALUE-1)*fact(nb-1)/2
-// pour utiliser ces amplitudes, 
-// diviser la valeur par fact(nb-1)/2 pour obtenir le n° d'incrément 0->MAX_16B_LINEAR_VALUE-1
-// le reste vaut 0->fact(nb-1)/2 ; une table des proportions permet de faire (delta incr)*proportion pour obtenir l'ampl exacte
-// comme l'inverse est pénible à effectuer, les 2 valeurs sont stockées : 
-// la valeur codeur 0->(MAX_16B_LINEAR_VALUE-1)*fact(nb-1)/2 et la valeur 16 bits de sortie
-//
-//
-/*void automixer(uint8_t nb,uint16_t* ampl,uint8_t chgd){
-  uint8_t stepNb=1;
-  for(uint8_t i=3;i<nb-1;i++){
-    stepNb*=i;
-  }
-
-}*/
 
 // **********************  noises  *********************************
 
@@ -130,12 +100,6 @@ static inline uint32_t xrnd() {
 void init_noise(){
   for (int i = 0; i < NOISE_TABLE_SIZE; i++)
     noise_table[i] =  (int16_t)(xrnd() >> 16);
-        
-        /*// option
-        int32_t a = (int16_t)(xrnd() >> 16);
-        int32_t b = (int16_t)(xrnd() >> 16);
-        int32_t c = (int16_t)(xrnd() >> 16);
-        noise_table[i] = (int16_t)((a + b + c) / 3);*/
 }
 
 static inline void get_noise(int16_t *white, int16_t *pink)
@@ -181,7 +145,7 @@ void fillAmplIncr(){          // fonctionne avec stepAmpl mini 2 !!!
 }
 
 // production des valeurs d'échantillon pour les différentes formes d'onde
-void fillBasicWaveForms(){
+/*void fillBasicWaveForms(){
     printf("  filling basic %d %d %d\n",(BASIC_WAVE_TABLE_LEN/4),(BASIC_WAVE_TABLE_LEN/2),BASIC_WAVE_TABLE_LEN-1);
     for(uint16_t i=0;i<BASIC_WAVE_TABLE_LEN/4;i++){
         sineWaveform[i]= (uint16_t)(sin(((float)i)/BASIC_WAVE_TABLE_LEN*2*PI)*MAX_AMP_VAL);
@@ -205,7 +169,7 @@ void fillBasicWaveForms(){
         sawtoothWaveform[BASIC_WAVE_TABLE_LEN-1-i]=-sawtoothWaveform[i];        
 
     }
-}
+}*/
 
 // tableau des fréquences d'octaves
 void fillOctFreq() { 
@@ -262,7 +226,7 @@ void sound_tables_init()
   
   fillOctFreq();
   fillOctIncr();
-  fillBasicWaveForms();
+  //fillBasicWaveForms();
   init_noise();
   fillAmplIncr();
 }
@@ -275,6 +239,8 @@ void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)
         voices[v].maxCoderFreq=VCES_MAX_FREQ_CODERS;
         voices[v].genAmpl=0x7fff;
         voices[v].coderCycleR=MAXCODER_RC/2;
+        voices[v].cycleR=voices[v].coderCycleR;
+        voices[v].coderCycleRAtt=FULL_ATTENUATION_VALUE;
 
         voices[v].genAmpl=amplLevel[cga];
         voices[v].coderGenAmpl=cga;
@@ -282,7 +248,8 @@ void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)
 
         voices[v].coderFreq=coderF;
         float f=calcFreq(voices[v].coderFreq);          // 440Hz
-        setVoiceFrequency(f,&voices[v],voices[v].coderCycleR);    
+        setVoiceFrequency(f,&voices[v],voices[v].coderCycleR);
+        voices[v].coderAttFreq=FULL_ATTENUATION_VALUE;    
 
         voices[v].sampleNbToFill=SAMPLE_BUFFER_SIZE;    
         voices[v].currentSample=0;
@@ -352,56 +319,22 @@ void __not_in_flash_func(setVoiceFrequency)(float freq,Voice* v,int8_t rc){
 
     float k=(float)BASIC_WAVE_TABLE_LEN*v->frequency/SAMPLE_RATE;
 
-   // mapping rc -> ratio r
-    //float t = ((float)rc - 64.0f) / 64.0f;   // [-1 ; +1]
-    //float R = 4.0f;                          // ratio max (à régler selon ce que tu veux)
-    //float r = powf(R, t);                    // [1/R ; R]
-
-    // steps UP / DOWN avec fréquence conservée
-    //float stepDown_f = k * (1.0f + r) / (2.0f * r);
-    //float stepUp_f   = k * (1.0f + r) / 2.0f;
-
-    // conversion en entier + fraction
-    //float s;
-
-    //s = stepUp_f;
     v->stepInt = (uint32_t)k;
     v->stepFra = (uint32_t)((k - (float)v->stepInt) * (MAX_STEP_FRA));
-
-    //s = stepDown_f;
-    //v->stepIntD = (uint32_t)s;
-    //v->stepFraD = (uint32_t)((s - (float)v->stepIntD) * (MAX_STEP_FRA + 1));
 }
 
 // *************************** lfos ****************************
 
-// update voice[].lfosFrequency - compute steps
-void __not_in_flash_func(setLfosFrequency)(float freq,uint8_t l,int8_t rc){ 
+void __not_in_flash_func(setLfosFrequency)(float freq,uint8_t lfo,int8_t rc){ 
     
-    lfosFrequency[l]=freq;
-    lfosCoderCycleR[l]=rc;
+    lfosFrequency[lfo]=freq;
+    lfosCoderCycleR[lfo]=rc;
 
-    float k = (float)BASIC_WAVE_TABLE_LEN * lfosFrequency[l] / LFOS_SAMPLE_RATE;
+    float k = (float)BASIC_WAVE_TABLE_LEN * lfosFrequency[lfo] / LFOS_SAMPLE_RATE;
 
-   // mapping rc -> ratio r
-    //float t = ((float)rc - 64.0f) / 64.0f;   // [-1 ; +1]
-    //float R = 4.0f;                          // ratio max (à régler selon ce que tu veux)
-    //float r = powf(R, t);                    // [1/R ; R]
+    lfosStepInt[lfo] = (uint32_t)k;
+    lfosStepFra[lfo] = (uint32_t)((k - (float)lfosStepInt[lfo]) * (MAX_STEP_FRA));
 
-    // steps UP / DOWN avec fréquence conservée
-    //float stepDown_f = k * (1.0f + r) / (2.0f * r);
-    //float stepUp_f   = k * (1.0f + r) / 2.0f;
-
-    // conversion en entier + fraction
-    //float s;
-
-    //s = stepUp_f;
-    lfosStepInt[l] = (uint32_t)k;
-    lfosStepFra[l] = (uint32_t)((k - (float)lfosStepInt[l]) * (MAX_STEP_FRA));
-
-    //s = stepDown_f;
-    //lfosStepIntD[l] = (uint32_t)s;
-    //lfosStepFraD[l] = (uint32_t)((s - (float)lfosStepIntD[l]) * (MAX_STEP_FRA + 1));
 }
 
 void lfosInit(){
@@ -410,6 +343,7 @@ void lfosInit(){
         lfosCoders[l]=1768;    // 1.5s
         lfosFrequency[l]=calcFreq(lfosCoders[l])/1000;
         lfosMaxCoderFreq[l]=LFOS_MAX_FREQ_CODERS;
+        lfosCodersAttFreq[l]=FULL_ATTENUATION_VALUE;
         currLfoEch[l]=0;
         currLfoEchFra[l]=0;
         lfosStepInt[l]=0;
@@ -417,13 +351,11 @@ void lfosInit(){
         lfosStepIntD[l]=0;
         lfosStepFraD[l]=0;
 
-        //sineLfo[l]=0;
-        //squareLfo[l]=0;        
-        //triangleLfo[l]=0;
-        //sawtoothLfo[l]=0;
         for(uint8_t v=0;v<MAX_OUTPUTS_PER_OBJ;v++){lfosOutputsValues[l][v]=0;}
 
         lfosCoderCycleR[l]=MAXCODER_RC/2;
+        lfosCycleR[l]=lfosCoderCycleR[l];
+        lfosCoderCycleRAtt[l]=FULL_ATTENUATION_VALUE;
         setLfosFrequency(lfosFrequency[l],l,lfosCoderCycleR[l]);        
 
         lfoTime=0;
@@ -432,7 +364,7 @@ void lfosInit(){
 
 }
 
-int32_t* waveformTable[]={sineWaveform,squareWaveform,triangleWaveform,sawtoothWaveform};
+//int32_t* waveformTable[]={sineWaveform,squareWaveform,triangleWaveform,sawtoothWaveform};
 
 void __not_in_flash_func(lfosHandler)()
 {
@@ -447,7 +379,7 @@ void __not_in_flash_func(lfosHandler)()
         uint32_t ce=currLfoEch[l];                      
         uint16_t cf=currLfoEchFra[l];
 
-        uint32_t rcTableNb = lfosCoderCycleR[l];        // rc==0-31-62
+        uint32_t rcTableNb = lfosCycleR[l];        // rc==0-31-62
         uint32_t tscope=rcTableNb<<16;
         int8_t sign0 = (rcTableNb<=RC_TABLES_NB)*2-1;   // invert value if 32-62 table        
         if(rcTableNb>RC_TABLES_NB-1){rcTableNb=(RC_TABLES_NB-1)*2-rcTableNb;}
@@ -469,19 +401,14 @@ void __not_in_flash_func(lfosHandler)()
         
         const int16_t *w = &rc_tables[rcTableNb][0][0]+3*ce;    // rc_table values ptr
 
-        //sineLfo[l]=sign*w[0];
-        //triangleLfo[l]=sign*w[1];
-        //sawtoothLfo[l]=sign*w[2];
-        //squareLfo[l]=....
-
         int16_t c0=sign*w[LSIN];
         int16_t c1=sign*w[LTRI];
         int16_t c2=sign*w[LSAW];
         int16_t c3=(currLfoEch[l] & (BASIC_WAVE_TABLE_LEN>>1)) ? -0x7fff : 0x7fff;;
-        lfosOutputsValues[l][LSIN]=c0;update_inputs(lfo_in_table_id[l][LSIN],c0);
-        lfosOutputsValues[l][LTRI]=c1;update_inputs(lfo_in_table_id[l][LTRI],c1);
-        lfosOutputsValues[l][LSAW]=c2;update_inputs(lfo_in_table_id[l][LSAW],c2);
-        lfosOutputsValues[l][LSQR]=c3;update_inputs(lfo_in_table_id[l][LSQR],c3);
+        lfosOutputsValues[l][LSIN]=c0;update_inputs(lfo_ctl_input_id[l][LSIN],c0);
+        lfosOutputsValues[l][LTRI]=c1;update_inputs(lfo_ctl_input_id[l][LTRI],c1);
+        lfosOutputsValues[l][LSAW]=c2;update_inputs(lfo_ctl_input_id[l][LSAW],c2);
+        lfosOutputsValues[l][LSQR]=c3;update_inputs(lfo_ctl_input_id[l][LSQR],c3);
     }
     lfoScopeBufPtr++;
     lfoScopeBufPtr&=OSC_SCOPE_BUFFER_LEN-1;
@@ -513,7 +440,7 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
 
       i2s_buf_scope=vBuffer;
 
-      uint32_t rcTableNb = v->coderCycleR;
+      uint32_t rcTableNb = v->cycleR;
       int8_t sign0 = (rcTableNb<=RC_TABLES_NB)*2-1;                           // invert value if 32-62 table
       uint32_t tscope=rcTableNb<<16;                                          // t=0-30 31 32-62 ; 63 valeurs MAXCODER_RC=62
       if(rcTableNb>RC_TABLES_NB-1){rcTableNb=(RC_TABLES_NB-1)*2-rcTableNb;}   // 32->30 42->20 52->10 62->00
