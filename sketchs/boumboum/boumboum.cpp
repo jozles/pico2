@@ -25,17 +25,17 @@ uint16_t menu0MaxCoders[]={MENU0_NB-1};
 
 extern const char menu0_names[][MENU_NAME_LEN];
 
-#define VCE_VAR_NB 5
+#define VCE_VAR_NB 6
 volatile int16_t menuVcesCoders[VCE_VAR_NB+1];      // [0] curr input nb ; [1] curr coder value for freq ; [2] curr coder value for rc ; [3] curr coder value for genAmpl
 uint16_t menuMaxVcesCoders[]={MAX_VOICES-1,VCES_MAX_FREQ_CODERS,MAXCODER_RC,MAX_CTL_ATT,MAX_CTL_ATT,MAX_16B_LINEAR_VALUE-1};
 uint16_t* vcesVar[CODER_NB];                        // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
 
-#define LFO_VAR_NB 4
-volatile int16_t menuLfosCoders[LFO_VAR_NB+1];      // [0] curr input nb ; [1] curr coder value for freq ; [2] curr coder value for rc
+#define LFO_VAR_NB 5
+volatile int16_t menuLfosCoders[LFO_VAR_NB+1];      // [0] curr input nb ; [1] curr coder value freq ; [2] curr coder value cr ; [3] att value freq ; [4] att value cr
 uint16_t menuMaxLfosCoders[]={MAX_LFO-1,LFOS_MAX_FREQ_CODERS,MAXCODER_RC,MAX_CTL_ATT,MAX_CTL_ATT};
 uint16_t* lfosVar[CODER_NB];                        // inits dans menu.cpp ; les éléments inutilisés sont nullptr                
 
-#define ADSR_VAR_NB 5
+#define ADSR_VAR_NB 6
 volatile int16_t menuAdsrCoders[ADSR_VAR_NB+1];      // [0] curr input nb ; [1] curr coder value for freq ; [2] curr coder value for rc
 uint16_t menuMaxAdsrCoders[]={MAX_LFO-1,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_LEVEL_CODERS};
 uint16_t* adsrVar[CODER_NB];                        // inits dans menu.cpp ; les éléments inutilisés sont nullptr 

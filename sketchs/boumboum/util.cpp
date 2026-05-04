@@ -59,8 +59,19 @@ static repeating_timer millisTimer;
 
 void system_error(const char* s)
 {
-   tft_draw_text_12x12_dma_mult(0,0,s,0xf81f,0,2);
+   tft_draw_text_12x12_dma_mult(0,0,s,0x001f,0,2);
    while(1){} 
+}
+
+uint32_t signal_overflow(const char* s,uint16_t id,int32_t val,uint32_t max)
+{
+    if((val)>max){
+        char buf[TFT_W/(2*12)+1];
+        uint8_t l=strlen(s);
+        memcpy(buf,s,l);buf[l]=':';convIntToString(buf+l+1,val);
+        tft_draw_text_12x12_dma_mult(0,0,s,0x001f,0,2);
+        while(val>max){val>>1;}}
+    return val;
 }
 
 

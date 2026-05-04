@@ -271,8 +271,8 @@ int st7789_setup(uint32_t spiSpeed)
     if(init_dma_spi()<0){printf("st7789_Setup: no spi dma channel available\n");return -1;}
  
     st_dma_free = true;
-    spin_lock_init(DMA_LOCK);
-    st_dma_lock = spin_lock_instance(DMA_LOCK);
+    st_dma_lock = spin_lock_init(DMA_LOCK);
+    //st_dma_lock = spin_lock_instance(DMA_LOCK);
     st_dma_done_blank = true;
     st_sched_free = true;
 
@@ -741,7 +741,7 @@ uint16_t tft_draw_float_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_
 // display scope lookout of buf values ; len =buf size ; f freq ; begline first available line ; 
 // fd freq display ; wf required waveform ; mode source buffer (true=calcul ; false=i2s true data)
 
-void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bool blk,uint8_t refr,uint8_t wf,bool mode_calcul){
+void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bool blk,uint8_t refr,uint8_t wf,uint8_t mode_calcul,uint8_t object){
         
     if(refrCnt>=refr){
 
@@ -763,7 +763,7 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
         float b;
         for(uint32_t i=0;i<TFT_W;i++){                                    // read buf and generate waveform
             
-            if(mode_calcul){
+            if(mode_calcul==1){
                 uint32_t rcTableNb=buf[i]>>16;                            // rc = numéro de table 0-62
                 sign = (rcTableNb<=RC_TABLES_NB)*2-1;                     // invert value if 32-62 table 0-31:1 32-62:-1
 
@@ -780,12 +780,18 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
                 const int16_t *w = &rc_tables[rcTableNb][0][0] + 3 * echNb;   // pointeur sur valeur ech           
                 b=(float)w[wf]/(float)0x7fff;                             // ech full scale ratio             
             }
-            else {
+            else if(mode_calcul==0){
                 int32_t t=buf[i*2];            
                 b=(float)t/(float)0x7fffffff;
             }
+            else if(mode_calcul==2){
+                int32_t t=buf[object*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB + i*BASIC_WAVES_NB+wf];     
+                b=(float)t/(float)0x7fff;     
+            }            
 
             yy=(int32_t)(sign*b*((TFT_H-begline)/2));                     // tft y value
+
+                            //printf("obj:%d i:%d wf:%d b:%f yy:%i\n",object,i,wf,b,yy);
 
             if(abs(yy)>(TFT_H-begline)/2){yy=sign*(TFT_H-begline)/2;}
             v=2*(((TFT_H-begline)/2-yy)*TFT_W+i);                         // pixel location in tft_frame
@@ -800,6 +806,10 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
     }
     else refrCnt++;
 }
+
+void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bool blk,uint8_t refr,uint8_t wf,uint8_t mode_calcul){
+    scope(buf,f,begline,fd,blk,refr,wf,mode_calcul,0);
+}        
 
 void debug_ticker(){
     if((millisCounter-ticker10)>10000){

@@ -25,7 +25,6 @@
 #define OCTNB 11
 #define INCRNB 409    // int(4096/10)=409
 #define FREQ0 16.345  // pour avoir un LA à 440Hz avecc 409 incréments par octave 
-#define BASIC_WAVES_NB 6 // sinus, carré, triangle, dent de scie, bruit blanc,bruit rose 
 #define WAVE_SINUS 0
 #define WAVE_SQUARE 1
 #define WAVE_TRIANGLE 2
@@ -65,10 +64,6 @@ struct Voice {
     int16_t     coderCycleRAtt;                 // attenuateur 0-7fff pour ctl_input cra
     uint8_t     maxCoderCycleR;
     int16_t     voice_ctl_input_id[MAX_INPUTS_PER_OBJ];
-
-};
-
-struct Lfo {
 
 };
 

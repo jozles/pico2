@@ -43,6 +43,7 @@ void ledblinkn(uint8_t n);
 
 void print_memory_report(void);
 void system_error(const char* s);
+uint32_t signal_overflow(const char* s,uint16_t id,int32_t val,uint32_t max);
 
 
 #endif  //_UTIL_H_

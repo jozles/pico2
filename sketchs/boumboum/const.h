@@ -25,6 +25,7 @@
 
 #define DMA_LOCK 5
 #define WS_LOCK  3
+#define CTL_INPUTS_LOCK 7
 
 /* */
 
@@ -82,7 +83,7 @@ typedef enum {
 #define LFOS_SAMPLE_RATE 40
 #define LFOS_MAX_FREQ_CODERS 3000
 #define LFOS_MIN_FREQ_CODERS 420    // 30sec
-#define OSC_SCOPE_BUFFER_LEN SAMPLE_BUFFER_SIZE         // OSC_SCOPE
+#define OSC_SCOPE_BUFFER_LEN 256 //SAMPLE_BUFFER_SIZE         // OSC_SCOPE
 
 /* Adsrl */
 
@@ -140,6 +141,8 @@ typedef enum {
 
 #define BASIC_WAVE_TABLE_POW 11                         // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
 #define BASIC_WAVE_TABLE_LEN RC_TABLES_LEN*2            // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
+
+#define BASIC_WAVES_NB 6 // sinus, carré, triangle, dent de scie, bruit blanc,bruit rose 
 
 //
 

@@ -41,7 +41,7 @@ extern uint32_t millisCounter;
 
 // current lfo values (lfoHandler triger'd by pwmIrqHandler)
 float       lfosFrequency[MAX_LFO];                   // current lfo freq
-uint16_t    lfosCoders[MAX_LFO];                      // last coder value for freq
+uint16_t    lfosCodersFreq[MAX_LFO];                      // last coder value for freq
 uint16_t    lfosCodersAttFreq[MAX_LFO];               // coder pour atténuateur ctl_input_val (freq)
 uint16_t    lfosMaxCoderFreq[MAX_LFO];                // pmax value for lfo coderFreq
 uint16_t    lfosStepInt[MAX_LFO];                     // partie entière du step lfo
@@ -53,7 +53,8 @@ uint32_t    currLfoEchFra[MAX_LFO];
 int16_t     lfosOutputsValues[MAX_LFO][MAX_OUTPUTS_PER_OBJ];
 uint32_t    lfoTime=0;
 uint32_t    lfoTimingInterval=1000/LFOS_SAMPLE_RATE;
-int32_t     lfoScopeBuffer[MAX_LFO*OSC_SCOPE_BUFFER_LEN];  // n° echantillons+rc_table 
+int32_t     lfoScopeBuffer[MAX_LFO*OSC_SCOPE_BUFFER_LEN];   // n° echantillons+rc_table 
+int32_t     lfoScopeBufReal[MAX_LFO*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB];  // real values
 uint16_t    lfoScopeBufPtr=0;
 uint16_t    lfosCoderCycleR[MAX_LFO];                 // rapport cyclique -64/+64 pour coder
 uint16_t    lfosCycleR[MAX_LFO];                      // somme lfosCoderCycleR et ctl_input_val
@@ -315,7 +316,7 @@ float calcFreq(uint16_t val) // from lin value (0-octIncrNb*OCTNB) to snd value 
 void __not_in_flash_func(setVoiceFrequency)(float freq,Voice* v,int8_t rc){
     
     v->frequency=freq;
-    v->coderCycleR=rc;
+    v->cycleR=rc;
 
     float k=(float)BASIC_WAVE_TABLE_LEN*v->frequency/SAMPLE_RATE;
 
@@ -328,7 +329,7 @@ void __not_in_flash_func(setVoiceFrequency)(float freq,Voice* v,int8_t rc){
 void __not_in_flash_func(setLfosFrequency)(float freq,uint8_t lfo,int8_t rc){ 
     
     lfosFrequency[lfo]=freq;
-    lfosCoderCycleR[lfo]=rc;
+    lfosCycleR[lfo]=rc;
 
     float k = (float)BASIC_WAVE_TABLE_LEN * lfosFrequency[lfo] / LFOS_SAMPLE_RATE;
 
@@ -340,8 +341,8 @@ void __not_in_flash_func(setLfosFrequency)(float freq,uint8_t lfo,int8_t rc){
 void lfosInit(){
     for(uint8_t l=0;l<MAX_LFO;l++){
 
-        lfosCoders[l]=1768;    // 1.5s
-        lfosFrequency[l]=calcFreq(lfosCoders[l])/1000;
+        lfosCodersFreq[l]=1768;    // 1.5s
+        lfosFrequency[l]=calcFreq(lfosCodersFreq[l])/1000;
         lfosMaxCoderFreq[l]=LFOS_MAX_FREQ_CODERS;
         lfosCodersAttFreq[l]=FULL_ATTENUATION_VALUE;
         currLfoEch[l]=0;
@@ -409,9 +410,15 @@ void __not_in_flash_func(lfosHandler)()
         lfosOutputsValues[l][LTRI]=c1;update_inputs(lfo_ctl_input_id[l][LTRI],c1);
         lfosOutputsValues[l][LSAW]=c2;update_inputs(lfo_ctl_input_id[l][LSAW],c2);
         lfosOutputsValues[l][LSQR]=c3;update_inputs(lfo_ctl_input_id[l][LSQR],c3);
-    }
+        lfoScopeBufReal[l*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB + lfoScopeBufPtr*BASIC_WAVES_NB+LSIN]=c0;
+        lfoScopeBufReal[l*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB + lfoScopeBufPtr*BASIC_WAVES_NB+LTRI]=c1;
+        lfoScopeBufReal[l*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB + lfoScopeBufPtr*BASIC_WAVES_NB+LSAW]=c2;
+        lfoScopeBufReal[l*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB + lfoScopeBufPtr*BASIC_WAVES_NB+LSQR]=c3;
+        //if(l==0){printf("ptr:%d obj:%d c0:%i c1:%i c2:%i c3:%i\n",lfoScopeBufPtr,l,c0,c1,c2,c3);}
+      }
     lfoScopeBufPtr++;
     lfoScopeBufPtr&=OSC_SCOPE_BUFFER_LEN-1;
+    //printf("ptr:%d c0:%i c1:%i c2:%i c3:%i\n",lfoScopeBufPtr,lfoScopeBufReal[0*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB + lfoScopeBufPtr*BASIC_WAVES_NB+LSIN]);
   }
 }
 
@@ -588,12 +595,16 @@ void __not_in_flash_func(fillVoiceBuffer)(int32_t* vBuffer, Voice* voices, uint8
     i2s_buf_free[bufNum] = false;
 }
 
+uint8_t se=0;
+#define MAX_SE 4
 void fillVoices()
 {
     if(i2s_buf_free[0]){
 gpio_put(TST_PIN,1);      
       fillVoiceBuffer(i2s_buffer[0],voices,0);
       i2s_buf_free[0] = false;
+      if(i2s_buf_free[1]&&se>MAX_SE){system_error("fillVoices");}
+      se=true;
 gpio_put(TST_PIN,0);     
     }
     if(i2s_buf_free[1]){

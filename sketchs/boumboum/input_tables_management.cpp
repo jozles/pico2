@@ -19,7 +19,7 @@ extern int16_t   adsrOutputsValues[MAX_ADSR][MAX_OUTPUTS_PER_OBJ];
 extern uint16_t  lfosCoderCycleR[MAX_LFO];
 extern uint16_t  lfosCycleR[MAX_LFO];
 extern uint16_t  lfosCoderCycleRAtt[MAX_LFO];
-extern uint16_t  lfosCoders[MAX_LFO];
+extern uint16_t  lfosCodersFreq[MAX_LFO];
 extern uint16_t  lfosCodersAttFreq[MAX_LFO]; 
 
 /* ************ control inputs and outputs ************* */
@@ -211,13 +211,15 @@ bool init_objects_inputs(void)
     return true;
 }  
 
+static spin_lock_t *inputs_id__lock;
+
 void objects_table_init()
 {
+    inputs_id__lock = spin_lock_init(CTL_INPUTS_LOCK);
+
     init_objects_inputs();
     init_objects_outputs();
 }
-
-static spin_lock_t *inputs_id__lock;
 
 void connect_input(uint16_t input_id, uint16_t output)
 {
@@ -249,17 +251,19 @@ void connect_input(uint16_t input_id, uint16_t output)
 
 void disconnect_input(uint16_t input_id, uint16_t output)
 {
+    printf("@:");sleep_ms(1);
     uint32_t f = spin_lock_blocking(inputs_id__lock);
-
+    printf("&:");sleep_ms(1);
     int16_t first = ctl_output_id_chain[output];
 
     // chaîne vide → rien à faire
     if (first == NO_LINK) {
         ctl_input_id_chain[input_id] = NO_LINK;
         spin_unlock(inputs_id__lock, f);
+        printf("a:");sleep_ms(1);
         return;
     }
-
+printf("b:");
     // cas 1 : le maillon à retirer est en tête
     if (first == input_id) {
         ctl_output_id_chain[output] = ctl_input_id_chain[input_id];   // nouveau head = suivant
@@ -308,22 +312,22 @@ void update_inputs(uint16_t output,int16_t valeur)
             switch(ctl_input_update_type[id]){
                 case VCE_FREQ: voice=ctl_input_object[id];
                                ctl_input_val[id] = valeur;
-                               val=(valeur>>3)*voices[voice].coderAttFreq/0x00ff;   // 8k max VCES_MAX_FREQ_CODERS ; att 0-255
+                               val=(valeur>>3)*voices[voice].coderAttFreq/MAX_CTL_ATT;   // 8k max VCES_MAX_FREQ_CODERS ; att 0-255
                                setVoiceFrequency(calcFreq(val+voices[voice].coderFreq),&voices[voice],voices[voice].coderCycleR);   // ajouter un ctl d'overflow
                                break;
                 case VCE_CRA : voice=ctl_input_object[id];
-                               val=(valeur>>10)*voices[voice].coderCycleRAtt/0x00ff; // 0-62 ; att 0-255
+                               val=(valeur>>10)*voices[voice].coderCycleRAtt/MAX_CTL_ATT; // 0-62 ; att 0-255
                                ctl_input_val[id] = val;                
                                voices[voice].cycleR = val+voices[voice].coderCycleR;
                                break;
                 case SND_AMPL: break;
                 case LFO_FREQ: lfo=ctl_input_object[id];
                                ctl_input_val[id] = valeur;
-                               val=(valeur>>3)*lfosCodersAttFreq[lfo]/0x00ff;   // 8k max VCES_MAX_FREQ_CODERS ; att 0-255                
-                               setLfosFrequency(calcFreq(val+lfosCoders[lfo]),lfo,lfosCoderCycleR[lfo]);    // ajouter un ctl d'overflow
+                               val=(valeur>>3)*lfosCodersAttFreq[lfo]/MAX_CTL_ATT;   // 8k max VCES_MAX_FREQ_CODERS ; att 0-255                
+                               setLfosFrequency(calcFreq(val+lfosCodersFreq[lfo]),lfo,lfosCoderCycleR[lfo]);    // ajouter un ctl d'overflow
                                break;
                 case LFO_CRA : lfo=ctl_input_object[id];
-                               val=(valeur>>10)*lfosCoderCycleRAtt[lfo]/0x00ff; // 0-62 ; att 0-255
+                               val=(valeur>>10)*lfosCoderCycleRAtt[lfo]/MAX_CTL_ATT; // 0-62 ; att 0-255
                                ctl_input_val[id] = val;
                                lfosCycleR[lfo]= val+lfosCoderCycleR[lfo];
                                break;
