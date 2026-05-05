@@ -59,8 +59,10 @@ uint16_t    lfoScopeBufPtr=0;
 uint16_t    lfosCoderCycleR[MAX_LFO];                 // rapport cyclique -64/+64 pour coder
 uint16_t    lfosCycleR[MAX_LFO];                      // somme lfosCoderCycleR et ctl_input_val
 uint16_t    lfosCoderCycleRAtt[MAX_LFO];              // coder pour atténuateur ctl_input_val  (cra)
-int16_t     lfo_ctl_input_id[MAX_LFO][MAX_OUTPUTS_PER_OBJ];
+int16_t     lfo_ctl_input_id[MAX_LFO][MAX_INPUTS_PER_OBJ];    // id des inputs du lfo dans ctl_input_xxx[]
+int16_t     lfo_ctl_output_id[MAX_LFO][MAX_OUTPUTS_PER_OBJ];  // id des outputs du lfo dans ctl_output_xxx[]
 
+extern int16_t ctl_input_val[MAX_INPUTS];
 
 int32_t     voicesDataBuffer[MAX_VOICES*SAMPLE_BUFFER_SIZE];  // all voices data buffer : 16bits low currech nb, 16 bits high rc table nb 
 
@@ -365,7 +367,12 @@ void lfosInit(){
 
 }
 
-//int32_t* waveformTable[]={sineWaveform,squareWaveform,triangleWaveform,sawtoothWaveform};
+void dumpLfos()
+{
+  for(uint8_t lfo=0;lfo<1;lfo++){
+    printf("l:%d cf:%d fr:%f inf:%i\n",lfo,lfosCodersFreq[lfo],lfosFrequency[lfo],ctl_input_val[lfo_ctl_input_id[lfo][LTRI]]);
+  }
+}
 
 void __not_in_flash_func(lfosHandler)()
 {
@@ -405,11 +412,11 @@ void __not_in_flash_func(lfosHandler)()
         int16_t c0=sign*w[LSIN];
         int16_t c1=sign*w[LTRI];
         int16_t c2=sign*w[LSAW];
-        int16_t c3=(currLfoEch[l] & (BASIC_WAVE_TABLE_LEN>>1)) ? -0x7fff : 0x7fff;;
-        lfosOutputsValues[l][LSIN]=c0;update_inputs(lfo_ctl_input_id[l][LSIN],c0);
-        lfosOutputsValues[l][LTRI]=c1;update_inputs(lfo_ctl_input_id[l][LTRI],c1);
-        lfosOutputsValues[l][LSAW]=c2;update_inputs(lfo_ctl_input_id[l][LSAW],c2);
-        lfosOutputsValues[l][LSQR]=c3;update_inputs(lfo_ctl_input_id[l][LSQR],c3);
+        int16_t c3=(currLfoEch[l] & (BASIC_WAVE_TABLE_LEN>>1)) ? -0x7fff : 0x7fff;
+        lfosOutputsValues[l][LSIN]=c0;update_inputs(lfo_ctl_output_id[l][LSIN],c0);
+        lfosOutputsValues[l][LTRI]=c1;update_inputs(lfo_ctl_output_id[l][LTRI],c1); //if(l==1){printf("c:%i id:%i\n",c1,lfo_ctl_output_id[l][LTRI]);}
+        lfosOutputsValues[l][LSAW]=c2;update_inputs(lfo_ctl_output_id[l][LSAW],c2);
+        lfosOutputsValues[l][LSQR]=c3;update_inputs(lfo_ctl_output_id[l][LSQR],c3);
         lfoScopeBufReal[l*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB + lfoScopeBufPtr*BASIC_WAVES_NB+LSIN]=c0;
         lfoScopeBufReal[l*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB + lfoScopeBufPtr*BASIC_WAVES_NB+LTRI]=c1;
         lfoScopeBufReal[l*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB + lfoScopeBufPtr*BASIC_WAVES_NB+LSAW]=c2;
@@ -500,7 +507,8 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
 
         const int16_t* w=p+3*ce;                              // rc_table values ptr 
 
-        int32_t pre=w[0]*waveAmplSin;    
+        int32_t pre=w[0]*waveAmplSin; 
+
         int32_t tri32 = w[1];
         pre += tri32*waveAmplTri;
         
@@ -508,22 +516,10 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
         uint32_t saw = (tri32 ^ -mask) + mask;
         pre += saw*waveAmplSaw;
 
+        int16_t sqr=(ce & (BASIC_WAVE_TABLE_LEN>>1)) ? -0x7fff : 0x7fff;    // sqr cr not implemented
+        pre += sqr*waveAmplSqr;
+
         pre *= sign;
-     
-        // pre +=  square*waveAmplSin        
-
-/*tri_phase += tri_step;
-
-// on prend les 16 bits de poids fort de la phase
-uint16_t p = tri_phase >> 16;      // 0..65535
-
-// pliage en triangle 0..32767
-uint16_t t = (p & 0x8000) ? (uint16_t)(0xFFFF - p) : p;  // 0..32767
-
-// mise à l'échelle en signé -32767..+32767
-int32_t tri = ((int32_t)t << 1) - 32767;
-
-pre+=tri*waveAmplTri;*/
 
         // noises
 

@@ -9,8 +9,10 @@
 
 #include "hardware/sync.h"
 
-extern int16_t   lfo_ctl_input_id[][MAX_OUTPUTS_PER_OBJ];
-extern int16_t   adsr_ctl_input_id[][MAX_OUTPUTS_PER_OBJ];
+extern int16_t   lfo_ctl_input_id[][MAX_INPUTS_PER_OBJ];
+extern int16_t   lfo_ctl_output_id[][MAX_OUTPUTS_PER_OBJ];
+extern int16_t   adsr_ctl_input_id[][MAX_INPUTS_PER_OBJ];
+extern int16_t   adsr_ctl_output_id[][MAX_OUTPUTS_PER_OBJ];
 
 extern Voice voices[MAX_VOICES];
 
@@ -22,12 +24,54 @@ extern uint16_t  lfosCoderCycleRAtt[MAX_LFO];
 extern uint16_t  lfosCodersFreq[MAX_LFO];
 extern uint16_t  lfosCodersAttFreq[MAX_LFO]; 
 
+/* ************            objets           ************ */
+
+// les objets de l'application sont des boites munies d'entrées et de sorties
+//
+// il y a 3 types d'entrées : 
+//      les coders incrémentaux pour modifier manuellement les paramètres
+//      les controles (à chacune est associé un coder d'atténuation) 
+//      les signaux audio 
+// chaque paramètre a un codeur + une entrée avec coder d'atténuation
+// un paramètre interne de "normalisation" associé à chaque entrée sert à leur mise à l'échelle
+// la valeur des paramètres est la somme entre valeur du coder et valeur de l'entrée normalisée et atténuée
+// le nombre d'entrées est fixe pour tous les objets et en général excédentaires
+//
+// il y a 2 types de sorties :
+//      les signaux audio
+//      les contrôles
+// les contrôles sont des valeurs 16 bits signés
+// le nombre de sorties est fixe pour tous les objets et le plus souvent excédentaires
+// 
+// les variables décrivant les objets sont réparties entre
+//      les objets (jeu de tables indicées sur le numéro d'objet)
+//      les entrées de controle (jeu de tables indicées sur le numéro d'entrée)
+//      les sorties de controle (jeu de tables indicées sur le numéro de sortie)
+// le "cablage" entre entrées et sorties se fait au moyen de ces tables (voir description ci-après)
+// 
+// la production des valeurs de sortie de chaque objet est cadencée via plusieurs horloges (irq)
+// la fabrication des valeurs est incorporée au producteur pour les basses fréquences 
+// 
+// objets :
+//      voices  =   oscillateurs à fréquences audio fournissant sinus, triangle, dent de scie, carré
+//                  l'ensemble à rapport cyclique réglable, bruit blanc et rose. Les 6 signaux mixés
+//      lfos    =   oscillateurs à fréquences audio fournissant sinus, triangle, dent de scie, carré
+//                  l'ensemble à rapport cyclique réglable
+//      shapers =   séquences à 4 étapes (adsr) + niveau de sustain ; déclenchement sur flanc (shift et niveau réglable)
+//      mixers  =   mélangeurs audio ou de controles (atténuateurs pour chaque entrée ; ampli de sortie pour les audio)
+//      séquenceurs = générateur d'impulsions programmables
+//      générateurs d'écho = délai, niveau
+//      générateurs de réverbération, durée, niveau
+//
+
 /* ************ control inputs and outputs ************* */
 
 // each control input of each object has an unique id wich gives access to its parameters (value, source, norm, name etc)
 // each object type has an [object_type]_ctl_input_id table with [object_type#][input#] elements 
 // (the ids table for the inputs of every objects of this type)
-// ex: lfo#2 input#3 has the id : lfo_ctl_input_id[2][3] wich is the index in the tables ctl_input_xxx[]
+// the inputs of the objects are described in files [object_type]_input_names.def (ex: lfos_inputs_names.def)
+// ex: lfo#3 input#1 has the id : lfo_ctl_input_id[3][1] wich is the index in the tables ctl_input_xxx[]
+// or: lfo_ctl_input_id[3][LCRA]
 // the table ctl_input_id_chain[] allows to chain the inputs wich are connected to the same output for faster access
 
 int16_t ctl_input_val[MAX_INPUTS];                       // all inputs values
@@ -47,7 +91,9 @@ uint8_t norm_dividers[]={0,16-5,16-6,16-3};
 // each control output of each object has an unique id wich gives access to the name and input link chain of the output
 // each object type has an [object]_ctl_output_id table with [object_type#][output#] elements
 // (the ids table for the outputs of every objects of this type)
+// the outputs of the objects are described in files [object_type]_output_names.def (ex: lfos_outputs_names.def)
 // ex: lfo#2 output#3 has the id : lfo_ctl_output_id[2][3] wich is the index in the tables ctl_output_xxx[] 
+// or: lfo_ctl_output_id[2][LSAW]
 // the table ctl_output_id_chain[] (one element per output) allows to chain the inputs wich are connected to this output for faster access
 // contains first input id of the chain or -1/NO_LINK
 
@@ -91,7 +137,7 @@ bool init_objects_outputs(void)
 {
     //memset(ctl_output_val,0x00,MAX_OUTPUTS*sizeof(int16_t*));
     memset(ctl_output_name,'-',MAX_OUTPUTS*IN_OUT_NAME_LEN);
-    int16_t curr_output=1;
+    int16_t curr_output=1;            // output 0 is null
 
     for (uint8_t lfo=0;lfo<MAX_LFO;lfo++)
     {
@@ -99,6 +145,7 @@ bool init_objects_outputs(void)
         {
             //ctl_output_val[curr_output]=&lfosOutputsValues[lfo][outs];   //lfo_ctl_input_id[lfo][outs];
             ctl_output_id_chain[curr_output]=NO_LINK;
+            lfo_ctl_output_id[lfo][outs]=curr_output;
             if(outs<LFO_OUTPUTS_NB){
                 char buf[IN_OUT_NAME_LEN]={'L','F','O','S'};
                 convIntToString(buf+4,lfo,2);
@@ -116,6 +163,7 @@ bool init_objects_outputs(void)
         {
             //ctl_output_val[curr_output]=&adsrOutputsValues[adsr][outs];
             ctl_output_id_chain[curr_output]=NO_LINK;
+            adsr_ctl_output_id[adsr][outs]=curr_output;
             if(outs<ADSR_OUTPUTS_NB){
                 char buf[IN_OUT_NAME_LEN]={'A','D','S','R'};
                 convIntToString(buf+4,adsr,2);
@@ -238,10 +286,10 @@ void connect_input(uint16_t input_id, uint16_t output)
 
         while (next_id != NO_LINK) {            // end of chain ? 
             prev=next_id;
-            next_id=ctl_input_id_chain[next_id];
-            if(next_id>MAX_INPUTS || next_id<0){
+            next_id=ctl_input_id_chain[prev];
+            if(next_id>MAX_INPUTS || next_id<NO_LINK){
                 spin_unlock(inputs_id__lock, f);
-                system_error("input_id overflow");}
+                system_error("input_id overflow c",next_id);}
         }        
         ctl_input_id_chain[prev]=input_id;
     }        
@@ -251,19 +299,17 @@ void connect_input(uint16_t input_id, uint16_t output)
 
 void disconnect_input(uint16_t input_id, uint16_t output)
 {
-    printf("@:");sleep_ms(1);
+    if(output==0){return;}
+
     uint32_t f = spin_lock_blocking(inputs_id__lock);
-    printf("&:");sleep_ms(1);
-    int16_t first = ctl_output_id_chain[output];
+    int16_t first = ctl_output_id_chain[output];            // que faire quand output = 0 ??????????????????????????????????????????????????????????????
 
     // chaîne vide → rien à faire
     if (first == NO_LINK) {
         ctl_input_id_chain[input_id] = NO_LINK;
         spin_unlock(inputs_id__lock, f);
-        printf("a:");sleep_ms(1);
         return;
     }
-printf("b:");
     // cas 1 : le maillon à retirer est en tête
     if (first == input_id) {
         ctl_output_id_chain[output] = ctl_input_id_chain[input_id];   // nouveau head = suivant
@@ -276,17 +322,17 @@ printf("b:");
     int16_t prev = first;
     int16_t curr = ctl_input_id_chain[first];
    
-    if(prev>MAX_INPUTS || prev<0 || curr>MAX_INPUTS || curr<0){
+    if(prev>MAX_INPUTS || prev<NO_LINK || curr>MAX_INPUTS || curr<NO_LINK){
         spin_unlock(inputs_id__lock, f);
-        system_error("input_id overflow");}
+        system_error("input_id overflow d1");}
 
     while (curr != NO_LINK && curr != input_id) {
         prev = curr;
         curr = ctl_input_id_chain[curr];
         
-        if(curr>MAX_INPUTS || curr<0){
+        if(curr>MAX_INPUTS || curr<NO_LINK){
             spin_unlock(inputs_id__lock, f);
-            system_error("input_id overflow");}
+            system_error("input_id overflow d2");}
     }
 
     if (curr == input_id) {
@@ -321,11 +367,13 @@ void update_inputs(uint16_t output,int16_t valeur)
                                voices[voice].cycleR = val+voices[voice].coderCycleR;
                                break;
                 case SND_AMPL: break;
-                case LFO_FREQ: lfo=ctl_input_object[id];
+                case LFO_FREQ: {lfo=ctl_input_object[id];
                                ctl_input_val[id] = valeur;
-                               val=(valeur>>3)*lfosCodersAttFreq[lfo]/MAX_CTL_ATT;   // 8k max VCES_MAX_FREQ_CODERS ; att 0-255                
-                               setLfosFrequency(calcFreq(val+lfosCodersFreq[lfo]),lfo,lfosCoderCycleR[lfo]);    // ajouter un ctl d'overflow
-                               break;
+                               val=(valeur>>3)*lfosCodersAttFreq[lfo]/MAX_CTL_ATT;   // 8k max VCES_MAX_FREQ_CODERS ; att 0-255 
+                               float fr=calcFreq(val+lfosCodersFreq[lfo])/1000;
+                               if(lfo==1){printf("v:%i val:%i out:%d fc:%i f:%f\n",valeur,val,output,lfosCodersFreq[lfo],fr);}
+                               setLfosFrequency(fr,lfo,lfosCoderCycleR[lfo]);    // ajouter un ctl d'overflow
+                               }break;
                 case LFO_CRA : lfo=ctl_input_object[id];
                                val=(valeur>>10)*lfosCoderCycleRAtt[lfo]/MAX_CTL_ATT; // 0-62 ; att 0-255
                                ctl_input_val[id] = val;

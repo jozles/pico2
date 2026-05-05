@@ -24,6 +24,7 @@ extern uint8_t  ctl_input_trig[MAX_INPUTS];                      // all inputs t
 extern int16_t  ctl_input_tlev[MAX_INPUTS];                      // all inputs trig level
 
 extern char     ctl_output_name[MAX_OUTPUTS][IN_OUT_NAME_LEN];
+extern int16_t  ctl_output_id_chain[MAX_OUTPUTS];
 
 volatile uint32_t millisCounter=0;
 
@@ -233,19 +234,18 @@ int8_t tst_switchs(uint8_t coder,uint8_t maxi){
 } 
 
 // ****** switchs
-// return -1 if nothing, 0-n coder number, -99 return button 
-#define SCOPE_MODE -2
+#define SCOPE_MODE -2       
 extern bool gpio_irq_set;
-int8_t tst_switchs_(uint8_t maxi){
+int8_t tst_switchs_(uint8_t max_sw){      // return -1 if nothing, 0-n coder number, -99 return button 
     if((millisCounter-swIgnore)>=SWIGNORE){ 
-        for(uint8_t c=0;c<maxi;c++){
+        for(uint8_t c=0;c<max_sw;c++){
             volatile int vs=voicesSw[c];          
-            if(gpio_irq_set){gpio_irq_set=false;return -99;}      // button return
-            if((volatile int)vs==0){        // coder[coder] on
+            if(gpio_irq_set){gpio_irq_set=false;return -99;}      // return button 
+            if((volatile int)vs==0){    // coder[coder] on
                 swIgnore=millisCounter;
                 voicesSw[c]=1;                     
-                return c;          // coder number
-            }                              // if maxi == 4 values are -2,-3
+                return c;               // coder number
+            }      
         }
     }
     return -1;                          // nothing
@@ -358,16 +358,20 @@ uint8_t coders_for_mapping(){
 
         while(1){
 
-            fillVoices();
-
             ws_show_3(30);
             ledblinkn(2);
             if(!mode_scope){test_st7789_2();}       // animation balayage de lignes
             debug_ticker();
 
             for(uint8_t coder=0;coder<MAPPING_CODER_NB;coder++){        // coder 0 line ; coder 1 output ; coder 2 Shifted or not
-                int s=tst_switchs(coder,MAPPING_CODER_NB);            
-                if(s>=0 || s<=-99){return s;}
+
+                fillVoices();
+
+                int s=tst_switchs_(MAPPING_CODER_NB);            
+                if(s>=0 || s<=-99){
+                    // erase line 0 (tft_draw_text_11x12_dma_mult(0,line*((11+2))+FIRSTLINEH,buf11x12,fgc,bgc,1);)
+                    tft_fill_rect_blank(FIRSTLINEH,0,11+3,TFT_W);
+                    return s;}
 
                 uint32_t cc=mappingCoders[coder];
                 if(coder==0){                                           // coder 0 vertical movements
@@ -412,7 +416,7 @@ uint8_t coders_for_mapping(){
                 }
                 if(coder==1 && cc!=ctl_input_srce[currInput]){                   // coder 1 output choice 
                     
-                    if(ctl_output_name[cc][0]=='-'){
+                    if(ctl_output_name[cc][0]=='-'){                             // search valid output
                         
                         if(cc>ctl_input_srce[currInput]){
                             while(ctl_output_name[cc][0]=='-' && cc<MAX_OUTPUTS-1){cc++;}
@@ -422,30 +426,30 @@ uint8_t coders_for_mapping(){
                             while(ctl_output_name[cc][0]=='-' && cc>0){cc--;}
                         }  
                     }
-                    if(cc<(MAX_OUTPUTS-1) && (cc>=0)){
-                        printf("1:%c curr:%d src:%d cc:%d ",ctl_output_name[cc][0],currInput,ctl_input_srce[currInput],cc);
-                        disconnect_input(currInput,ctl_input_srce[currInput]);
-                        printf("2:%c curr:%d src:%d cc:%d ",ctl_output_name[cc][0],currInput,ctl_input_srce[currInput],cc);
-                        mappingCoders[coder]=cc;
-                        ctl_input_srce[currInput]=cc;
-                        connect_input(currInput,ctl_input_srce[currInput]);
-                        printf("3:%c curr:%d src:%d cc:%d\n",ctl_output_name[cc][0],currInput,ctl_input_srce[currInput],cc);
+                    if(cc<(MAX_OUTPUTS-1) && (cc>=0)){                           // cc output sélectionnée
+
+                        disconnect_input(currInput,ctl_input_srce[currInput]);   // previous srce output
+                        mappingCoders[coder]=cc;                                 // valid output store
+                        ctl_input_srce[currInput]=cc;                            // update srce output
+                        connect_input(currInput,ctl_input_srce[currInput]);      // connect new srce
+
                         mappingLineDsp(currInput,currDsp,true);
+                        printf("(%c)out#(cc):%d out_chain:%d input#:%d src:%d \n",ctl_output_name[cc][0],cc,ctl_output_id_chain[ctl_input_srce[currInput]],currInput,ctl_input_srce[currInput]);
                     }
                 }
                 if(coder==2 && cc!=ctl_input_norm[currInput]){                   // coder 2 output normalisation
                     ctl_input_norm[currInput]=cc;
                     mappingLineDsp(currInput,currDsp,true);
                 }
-                if(coder==3 && cc!=ctl_input_shft[currInput]){                   // coder 2 output shift
+                if(coder==3 && cc!=ctl_input_shft[currInput]){                   // coder 3 output shift
                     ctl_input_shft[currInput]=cc;
                     mappingLineDsp(currInput,currDsp,true);
                 }    
-                if(coder==4 && cc!=ctl_input_trig[currInput]){                   // coder 2 output trig
+                if(coder==4 && cc!=ctl_input_trig[currInput]){                   // coder 4 output trig
                     ctl_input_trig[currInput]=cc;
                     mappingLineDsp(currInput,currDsp,true);
                 }                    
-                if(coder==5 && cc!=ctl_input_tlev[currInput]){                   // coder 2 output trig level
+                if(coder==5 && cc!=ctl_input_tlev[currInput]){                   // coder 5 output trig level
                     ctl_input_tlev[currInput]=cc;
                     mappingLineDsp(currInput,currDsp,true);
                 }                    
@@ -472,21 +476,26 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                     case OSCMENU:
                         setLfosFrequency(calcFreq(lfosCodersFreq[line])/1000,line,lfosCoderCycleR[line]);
                         break;
-                    case OSCCODERFREQ:if(varChge){                  
-                        setLfosFrequency(calcFreq(cc)/1000,line,lfosCoderCycleR[line]);}
+                    case OSCCODERFREQ:if(varChge){                                          // cc=coder freq
+                        int16_t fi = ctl_input_val[lfo_ctl_input_id[line][VFRQ]]>>3;        // normalisation ctl_input_freq 
+                        uint16_t fc = cc+fi*lfosCodersAttFreq[line]/MAX_CTL_ATT;            // fc=coderFreq+ctl_input_freq atténué                
+                        setLfosFrequency(calcFreq(fc)/1000,line,lfosCoderCycleR[line]);}
                         break;
-                    case OSCCODERCRA:if(varChge){
-                        setLfosFrequency(lfosFrequency[line],line,cc);}
+                    case OSCCODERCRA:if(varChge){                                           // cc=coder cra
+                        int16_t cra = ctl_input_val[lfo_ctl_input_id[line][VCRA]]>>10;      // normalisation ctl_input_cra 
+                        int16_t cr = lfosCoderCycleR[line]+cra*cc/MAX_CTL_ATT;              // cr=coderCra+ctl_input_cra atténué 
+                        setLfosFrequency(lfosFrequency[line],line,cr);}
                         break;
-                    case OSCCODERATTFREQ:if(varChge){           
-                        lfosCodersAttFreq[line]=cc;                                         // atténuateur pour ctl_input_freq
+                    case OSCCODERATTFREQ:if(varChge){                                       // cc=coder attenuator input freq          
+                        lfosCodersAttFreq[line]=cc;                                        
                         int16_t fi = ctl_input_val[lfo_ctl_input_id[line][VFRQ]]>>3;        // normalisation ctl_input_freq
                         uint16_t fc = lfosCodersFreq[line]+fi*cc/MAX_CTL_ATT;               // fc=coderFreq+ctl_input_freq atténué
+                        printf("l:%d cc:%d fi:%i fc:%i\n",line,cc,fi,fc);
                         signal_overflow("vce_freq:",line,fc,VCES_MAX_FREQ_CODERS);
                         setLfosFrequency(calcFreq(fc)/1000,line,lfosCoderCycleR[line]);}
                         break;
-                    case OSCCODERATTCRA:if(varChge){            
-                        lfosCoderCycleRAtt[line]=cc;                                        // atténuateur pour ctl_input_cra
+                    case OSCCODERATTCRA:if(varChge){                                        // cc=coder attenuator input cra
+                        lfosCoderCycleRAtt[line]=cc;                                      
                         int16_t cra = ctl_input_val[lfo_ctl_input_id[line][VCRA]]>>10;      // normalisation ctl_input_cra
                         int16_t cr = lfosCoderCycleR[line]+cra*cc/MAX_CTL_ATT;              // cr=coderCra+ctl_input_cra atténué
                         signal_overflow("vce_cra:",line,cr,MAXCODER_RC);
