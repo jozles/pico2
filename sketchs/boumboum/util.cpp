@@ -262,7 +262,7 @@ void setup(){
 //dumpStr(i2s_buf0,256);
     // ****** scope check ******
     //scope(voicesDataBuffer,voices[0].frequency,14,true,true,0,0,true);    // scope mode_calcul
-    scope(i2s_buf0,voices[0].frequency,14,true,true,0,0,false);     // scope mode_data
+    scope(i2s_buf0,voices[0].frequency,14,true,true,0,0,0);     // scope mode_data
     while(!gpio_irq_set){
         debug_ticker();
         ledblinkn(3);

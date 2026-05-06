@@ -381,6 +381,8 @@ void __not_in_flash_func(lfosHandler)()
 
   if((millisCounter-lfoTime)>lfoTimingInterval){
     lfoTime=millisCounter;
+
+    const int16_t *base32 = &rc_tables[32][0][0];                           // base table 32 pour saw
     
     for(uint8_t l=0;l<MAX_LFO;l++){
 
@@ -419,21 +421,22 @@ void __not_in_flash_func(lfosHandler)()
         out_id=ctl_output_id_chain[lfo_ctl_output_id[l][LSIN]];
         lfosOutputsValues[l][LSIN]=c0;
         if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,c0);}
+
         int16_t c1=sign*w[LTRI];
         out_id=ctl_output_id_chain[lfo_ctl_output_id[l][LTRI]];
         lfosOutputsValues[l][LTRI]=c1;
         if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,c1);}
-        int16_t tri=*(&rc_tables[32][0][0]+RC_N_WAVES*ce+LTRI);
-        int16_t c2;
-        ce=currLfoEch[l];
-        //if(currLfoEch[l]<(RC_N_SAMPLES >> 1)){c2= tri;}//-32768+(tri/2);}
-        //else c2=tri;//-32768+(tri/2);
-        if ((unsigned)(ce - (RC_N_SAMPLES >> 2)) < (unsigned)(RC_N_SAMPLES >> 1)) {c2 = tri >> 1;} 
-        else {int32_t k = (ce >= (3 * (RC_N_SAMPLES >> 2))) ? -32768 : 32768; c2 = k - tri;}
-        if (rc >= 32) c2 = -c2;
+
+        int16_t tri=base32[RC_N_WAVES*ce+LTRI];
+        int32_t c2;
+        if(ce<(RC_N_SAMPLES >> 1)){c2=(65536-tri)/2;}
+        else c2=tri/2;
+        c2=sign*c2;
+        if(rc>=32){c2=-c2;}
         out_id=ctl_output_id_chain[lfo_ctl_output_id[l][LSAW]];
         lfosOutputsValues[l][LSAW]=c2;
         if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,c2);}
+
         int16_t c3=(currLfoEch[l] & (BASIC_WAVE_TABLE_LEN>>1)) ? -0x7fff : 0x7fff;
         out_id=ctl_output_id_chain[lfo_ctl_output_id[l][LSQR]];
         lfosOutputsValues[l][LSQR]=c3;
@@ -480,7 +483,9 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
       int8_t sign0 = (rcTableNb<=RC_TABLES_NB)*2-1;                           // invert value if 32-62 table
       uint32_t tscope=rcTableNb<<16;                                          // t=0-30 31 32-62 ; 63 valeurs MAXCODER_RC=62
       if(rcTableNb>RC_TABLES_NB-1){rcTableNb=(RC_TABLES_NB-1)*2-rcTableNb;}   // 32->30 42->20 52->10 62->00
-      const int16_t *p = &rc_tables[rcTableNb][0][0];  
+      const int16_t *p = &rc_tables[rcTableNb][0][0];
+      
+      const int16_t *base32 = &rc_tables[32][0][0];                           // base table 32 pour saw
       
       int32_t  waveAmplSin  = v->basicWaveAmpl[W_SINUS]*sign0;
       int32_t  waveAmplTri  = v->basicWaveAmpl[W_TRIANGLE]*sign0;
@@ -516,26 +521,25 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
       {
 
         uint16_t ce=vsBuffer[s];          // ce : 16 bits gauche = rc, 16 bits droite num ech
-        uint32_t rc=ce>>16;
-        uint32_t mask = (rc >= 32);       // pour saw        
+        uint32_t rc=ce>>16;  
         
         ce &= (BASIC_WAVE_TABLE_LEN-1);   // local currEch (cyclic ratio managment)
 
         bool vv=(ce<RC_TABLES_LEN);
-        int sign=(vv*2-1);                                    // invert 180-360°
+        int sign=(vv*2-1);                            // invert 180-360°
   
-        ce ^= (!vv) * (BASIC_WAVE_TABLE_LEN - 1);             // ce = vv*ce+!vv*((BASIC_WAVE_TABLE_LEN-1) - ce);  // invert 180-360°           
+        ce ^= (!vv) * (BASIC_WAVE_TABLE_LEN - 1);     // ce = vv*ce+!vv*((BASIC_WAVE_TABLE_LEN-1) - ce);  // invert 180-360°           
         ce &= RC_TABLES_LEN-1;
 
-        const int16_t* w=p+3*ce;                              // rc_table values ptr 
+        const int16_t* w=p+RC_N_WAVES*ce;             // rc_table values ptr 
 
-        int32_t pre=w[0]*waveAmplSin; 
-
-        int32_t tri32 = w[1];
-        pre += tri32*waveAmplTri;
+        int32_t pre=w[WSIN]*waveAmplSin; 
+        pre += w[1]*waveAmplTri;
         
-        uint32_t tri_u = (uint32_t)(tri32 + 32767);   // 0..65534
-        uint32_t saw = (tri32 ^ -mask) + mask;
+        int16_t tri2=base32[RC_N_WAVES*ce+WTRI]>>1;    // saw utilise la table 32 du triangle
+        uint32_t mask = (ce >= (RC_N_SAMPLES >> 1));   //if(ce<(RC_N_SAMPLES >> 1)){saw=(65536-tri)>>1;}
+        int32_t base = 32768-tri2;                    
+        int32_t saw = (tri2 & -mask) | (base & ~(-mask));            //else saw=tri>>1;
         pre += saw*waveAmplSaw;
 
         int16_t sqr=(ce & (BASIC_WAVE_TABLE_LEN>>1)) ? -0x7fff : 0x7fff;    // sqr cr not implemented

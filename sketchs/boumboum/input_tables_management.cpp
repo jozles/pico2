@@ -150,6 +150,12 @@ const char adsr_outputs_names[][OBJ_IO_NAME_LEN]={
     #undef X   
 };
 
+const char vces_outputs_names[][OBJ_IO_NAME_LEN]={
+    #define X(name,text) text,
+    #include "vces_outputs_names.def"   
+    #undef X   
+};
+
 bool init_objects_outputs(void)
 {
     //memset(ctl_output_val,0x00,MAX_OUTPUTS*sizeof(int16_t*));

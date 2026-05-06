@@ -211,6 +211,13 @@ typedef enum {
 #undef X
 }  Adsr_outputs_names;
 
+typedef enum {
+#define X(name,text) name,    
+#include "vces_outputs_names.def"
+        VCES_OUTPUTS_NB  
+#undef X
+}  Vces_outputs_names;
+
 // ****** menus codes ******
 
 enum Menus {
