@@ -1,0 +1,9 @@
+/* outputs names for voices */
+
+    X(WAV0,"WSIN")
+    X(WAV1,"WTRI")
+    X(WAV2,"WSAW")
+    X(WAV3,"WSQR") 
+    X(WHIT,"WHIT")
+    X(PONK,"PONK")           
+    X(GAMP,"GAMP")

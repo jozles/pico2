@@ -69,15 +69,21 @@ void system_error(const char* s)
     system_error(s,0);
 }
 
-uint32_t signal_overflow(const char* s,uint16_t id,int32_t val,uint32_t max)
+
+
+uint32_t signal_overflow(const char* s,uint16_t id,int32_t val,int32_t min,int32_t max)
 {
-    if((val)>max){
+    if(val>max || val<min){
         printf("signal ovf:%s id:%d\n",s,id);
-        char buf[TFT_W/(2*12)+1];
-        uint8_t l=strlen(s);
-        memcpy(buf,s,l);buf[l]=':';convIntToString(buf+l+1,val);
         tft_draw_text_12x12_dma_mult(0,0,s,0x001f,0,2);
-        while(val>max){val>>1;}}
+        char buf[TFT_W/12+1];
+        int8_t l=convIntToString(buf,val);buf[l]=';';
+        l+=convIntToString(buf+l+1,min);buf[l++]=':';
+        l+=convIntToString(buf+l+1,max);buf[l++]='\0';
+        tft_draw_text_12x12_dma_mult(0,27,buf,0x001f,0,1);
+        if(val>max){val=max;}
+        else val=min;
+    }
     return val;
 }
 

@@ -435,7 +435,7 @@ uint16_t getAmpl(Voice* v,uint8_t wav){
 
 // ***************************  voices producer  ******************************
 
-// 223uS  producer 1 voice for i2s   (see prev versions for other implementations - this one the fastest)
+// 
 void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* v,uint8_t voiceNum){   // 5.8mS pour les 6 sources @512 samples (23mS@44100Hz)
 
       #define LIM90  BASIC_WAVE_TABLE_LEN/4

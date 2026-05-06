@@ -6,7 +6,7 @@
 
 #include "rc_tables.h"
 
-#define VERSION "v1.3x"
+#define VERSION "v1.3y"
 
 #define PI 3.141592636
 
@@ -76,6 +76,7 @@ typedef enum {
 
 #define MAX_VOICES 2 
 #define VCES_MAX_FREQ_CODERS 10000
+#define VCES_MIN_FREQ_CODERS 25
 
 /* lfos */
 
@@ -138,6 +139,7 @@ typedef enum {
 #define RC_TABLES_LEN RC_N_SAMPLES                      // ***** POWER OF 2 *****  nombre d'échantillons dans les 1/2 tables d'ondes
 #define RC_TABLES_NB RC_N_TABLES                        // nombre de tables RC (MAXCODER_RC possible values)
 #define MAXCODER_RC (RC_TABLES_NB-1)*2                  // DOIT ETRE PAIR (-31 0 +31 : 63 values 0-62 ) le nombre total de tables doit être impair pour le mirroring
+#define MINCODER_RC 0
 
 #define BASIC_WAVE_TABLE_POW 11                         // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
 #define BASIC_WAVE_TABLE_LEN RC_TABLES_LEN*2            // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes

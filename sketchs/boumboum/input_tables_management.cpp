@@ -76,7 +76,7 @@ extern uint16_t  lfosCodersAttFreq[MAX_LFO];
 
 int16_t ctl_input_val[MAX_INPUTS];                       // all inputs values
 int16_t ctl_input_srce[MAX_INPUTS];                      // all inputs sources# 
-uint8_t ctl_input_norm[MAX_INPUTS];                      // all inputs norm type (0 nothing ; 1 lfo_freq ; 2 vce freq ; 3 rc ; 4 ampl 0-31 etc)
+//uint8_t ctl_input_norm[MAX_INPUTS];                      // all inputs norm type (0 nothing ; 1 lfo_freq ; 2 vce freq ; 3 rc ; 4 ampl 0-31 etc)
 uint8_t ctl_input_shft[MAX_INPUTS];                      // all inputs values shift type (0 no shift ; 1 +0x8000)
 uint8_t ctl_input_trig[MAX_INPUTS];                      // all inputs trig type (0 no trig ; 1 up ; 2 down ; 3 both)
 int16_t ctl_input_tlev[MAX_INPUTS];                      // all inputs trig level
@@ -96,6 +96,13 @@ uint8_t norm_dividers[]={0,16-5,16-6,16-3};
 // or: lfo_ctl_output_id[2][LSAW]
 // the table ctl_output_id_chain[] (one element per output) allows to chain the inputs wich are connected to this output for faster access
 // contains first input id of the chain or -1/NO_LINK
+
+/* ************** fichiers *.def des enum *************** */
+
+// chaque objet a une liste de ses entrées (0-n) avec un mnémo associé pour l'utilitaire de cablage [objet]_inputs_names.def
+// pareil pour ses sorties [objet]_outputs_names.def
+// une autre liste concerne les procédures de mise à jour des valeurs des entrées
+//
 
 //int16_t*  ctl_output_val[MAX_OUTPUTS];                    // all objects ptrs to outputs values
 char      ctl_output_name[MAX_OUTPUTS][IN_OUT_NAME_LEN];  // all objects outputs names
@@ -205,8 +212,8 @@ bool init_objects_inputs(void)
             ctl_input_id_chain[curr_input]=NO_LINK;
             ctl_input_object[curr_input]=lfo;
             switch(ins){
-                case LFRQ:ctl_input_norm[curr_input]=LFO_FREQ;break;
-                case LCRA:ctl_input_norm[curr_input]=LFO_CRA;break;
+                case LFRQ:ctl_input_update_type[curr_input]=LFO_FREQ;break;
+                case LCRA:ctl_input_update_type[curr_input]=LFO_CRA;break;
             }
             
             if(ins<LFO_INPUTS_NB){
@@ -226,6 +233,14 @@ bool init_objects_inputs(void)
         {
             adsr_ctl_input_id[adsr][ins]=curr_input;
             ctl_input_id_chain[curr_input]=NO_LINK;
+            ctl_input_object[curr_input]=adsr;
+            switch(ins){
+                case ATTK:ctl_input_update_type[curr_input]=A_ATTACK;break;
+                case DECA:ctl_input_update_type[curr_input]=A_DECAY ;break;
+                case SUST:ctl_input_update_type[curr_input]=A_SUST  ;break;
+                case RELE:ctl_input_update_type[curr_input]=A_RELEAS;break;
+                case LEVE:ctl_input_update_type[curr_input]=A_LEVEL ;break;
+            }           
             if(ins<ADSR_INPUTS_NB){
                 char buf[IN_OUT_NAME_LEN]={'A','D','S','R'};
                 convIntToString(buf+4,adsr,2);
@@ -295,6 +310,8 @@ void connect_input(uint16_t input_id, uint16_t output)
     }        
 
     spin_unlock(inputs_id__lock, f);
+
+    //printf("out#:%d in_id:%d out_id_chain:%i inp_id_chain:%i\n",output,input_id,ctl_output_id_chain[output],ctl_input_id_chain[input_id]);
 }
 
 void disconnect_input(uint16_t input_id, uint16_t output)
@@ -351,10 +368,12 @@ void update_inputs(uint16_t output,int16_t valeur)
     uint8_t voice=0;
     int16_t val;
 
+    //if(output==10){printf("out#:%d input_id:%i inp_type:%d val:%i \n",output,id,ctl_input_update_type[id],valeur);}
+
     if (__builtin_expect(id != NO_LINK, 0))
     {
         do {
-            int16_t next = ctl_input_id_chain[id];
+            int16_t next_id = ctl_input_id_chain[id];
             switch(ctl_input_update_type[id]){
                 case VCE_FREQ: voice=ctl_input_object[id];
                                ctl_input_val[id] = valeur;
@@ -371,7 +390,7 @@ void update_inputs(uint16_t output,int16_t valeur)
                                ctl_input_val[id] = valeur;
                                val=(valeur>>3)*lfosCodersAttFreq[lfo]/MAX_CTL_ATT;   // 8k max VCES_MAX_FREQ_CODERS ; att 0-255 
                                float fr=calcFreq(val+lfosCodersFreq[lfo])/1000;
-                               if(lfo==1){printf("v:%i val:%i out:%d fc:%i f:%f\n",valeur,val,output,lfosCodersFreq[lfo],fr);}
+                               //if(lfo==0){printf("l%d id:%d v:%i val:%i out#:%d fc:%i f:%f\n",lfo,id,valeur,val,output,lfosCodersFreq[lfo],fr);}
                                setLfosFrequency(fr,lfo,lfosCoderCycleR[lfo]);    // ajouter un ctl d'overflow
                                }break;
                 case LFO_CRA : lfo=ctl_input_object[id];
@@ -381,7 +400,8 @@ void update_inputs(uint16_t output,int16_t valeur)
                                break;
                 default: break;
             }
-            id = next;
+            id = next_id;
         } while (id != NO_LINK);
     }
 }
+//ctl_input_val[lfo_ctl_input_id[line][VFRQ]]

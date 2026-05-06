@@ -18,7 +18,7 @@ extern int16_t  ctl_input_id[MAX_INPUTS];
 extern int16_t  ctl_input_val[MAX_INPUTS];
 extern char     ctl_input_name[MAX_INPUTS][IN_OUT_NAME_LEN];
 extern uint16_t ctl_input_srce[MAX_INPUTS];
-extern uint16_t ctl_input_norm[MAX_INPUTS];
+//extern uint16_t ctl_input_norm[MAX_INPUTS];
 extern uint8_t  ctl_input_shft[MAX_INPUTS];                      // all inputs values shift type (0 no shift ; 1 +0x8000)
 extern uint8_t  ctl_input_trig[MAX_INPUTS];                      // all inputs trig type (0 no trig ; 1 up ; 2 down ; 3 both)
 extern int16_t  ctl_input_tlev[MAX_INPUTS];                      // all inputs trig level
@@ -114,7 +114,7 @@ enum OscCoders {        // coders pour menu voices et lfos
      OSCGENAMP
 };
 
-enum AdsrCoders {        // coders pour menu voices et lfos
+enum AdsrCoders {        // coders pour menu adsr
      ADSRMENU,
      ADSRATT,
      ADSRDEC,
@@ -437,19 +437,15 @@ uint8_t coders_for_mapping(){
                         printf("(%c)out#(cc):%d out_chain:%d input#:%d src:%d \n",ctl_output_name[cc][0],cc,ctl_output_id_chain[ctl_input_srce[currInput]],currInput,ctl_input_srce[currInput]);
                     }
                 }
-                if(coder==2 && cc!=ctl_input_norm[currInput]){                   // coder 2 output normalisation
-                    ctl_input_norm[currInput]=cc;
-                    mappingLineDsp(currInput,currDsp,true);
-                }
-                if(coder==3 && cc!=ctl_input_shft[currInput]){                   // coder 3 output shift
+                if(coder==2 && cc!=ctl_input_shft[currInput]){                   // coder 3 output shift
                     ctl_input_shft[currInput]=cc;
                     mappingLineDsp(currInput,currDsp,true);
                 }    
-                if(coder==4 && cc!=ctl_input_trig[currInput]){                   // coder 4 output trig
+                if(coder==3 && cc!=ctl_input_trig[currInput]){                   // coder 4 output trig
                     ctl_input_trig[currInput]=cc;
                     mappingLineDsp(currInput,currDsp,true);
                 }                    
-                if(coder==5 && cc!=ctl_input_tlev[currInput]){                   // coder 5 output trig level
+                if(coder==4 && cc!=ctl_input_tlev[currInput]){                   // coder 5 output trig level
                     ctl_input_tlev[currInput]=cc;
                     mappingLineDsp(currInput,currDsp,true);
                 }                    
@@ -489,16 +485,16 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                     case OSCCODERATTFREQ:if(varChge){                                       // cc=coder attenuator input freq          
                         lfosCodersAttFreq[line]=cc;                                        
                         int16_t fi = ctl_input_val[lfo_ctl_input_id[line][VFRQ]]>>3;        // normalisation ctl_input_freq
-                        uint16_t fc = lfosCodersFreq[line]+fi*cc/MAX_CTL_ATT;               // fc=coderFreq+ctl_input_freq atténué
-                        printf("l:%d cc:%d fi:%i fc:%i\n",line,cc,fi,fc);
-                        signal_overflow("vce_freq:",line,fc,VCES_MAX_FREQ_CODERS);
+                        int16_t fc = lfosCodersFreq[line]+fi*cc/MAX_CTL_ATT;                // fc=coderFreq+ctl_input_freq atténué
+                        printf("lfo#:%d cc(att):%d finp:%i fc:%i f_id:%d \n",line,cc,fi,fc,lfo_ctl_input_id[line][VFRQ]);
+                        signal_overflow("vce_freq:",line,fc,LFOS_MIN_FREQ_CODERS,LFOS_MAX_FREQ_CODERS);
                         setLfosFrequency(calcFreq(fc)/1000,line,lfosCoderCycleR[line]);}
                         break;
                     case OSCCODERATTCRA:if(varChge){                                        // cc=coder attenuator input cra
                         lfosCoderCycleRAtt[line]=cc;                                      
                         int16_t cra = ctl_input_val[lfo_ctl_input_id[line][VCRA]]>>10;      // normalisation ctl_input_cra
                         int16_t cr = lfosCoderCycleR[line]+cra*cc/MAX_CTL_ATT;              // cr=coderCra+ctl_input_cra atténué
-                        signal_overflow("vce_cra:",line,cr,MAXCODER_RC);
+                        signal_overflow("vce_cra:",line,cr,MINCODER_RC,MAXCODER_RC);
                         setLfosFrequency(lfosFrequency[line],line,cr);}
                         break;
                     default:break;
@@ -526,14 +522,14 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                         voices[line].coderAttFreq=cc;                                               // atténuateur pour ctl_input_freq 
                         int16_t fi = ctl_input_val[voices[line].voice_ctl_input_id[VFRQ]]>>3;       // normalisation ctl_input_freq
                         uint32_t fc = voices[line].coderFreq+fi*cc/MAX_CTL_ATT;                     // fc=coderFreq+ctl_input_freq atténué 
-                        signal_overflow("lfo_freq:",line,fc,VCES_MAX_FREQ_CODERS);
+                        signal_overflow("lfo_freq:",line,fc,VCES_MIN_FREQ_CODERS,VCES_MAX_FREQ_CODERS);
                         setVoiceFrequency(calcFreq(fc),&voices[line],voices[line].coderCycleR);}
                         break;                                    
                     case OSCCODERATTCRA:if(varChge){
                         voices[line].coderCycleRAtt=cc;                                             // atténuateur pour ctl_input_cra
                         int16_t cra = ctl_input_val[voices[line].voice_ctl_input_id[VCRA]]>>10;     // normalisation ctl_input_cra
                         int16_t cr = voices[line].coderCycleR+cra*cc/MAX_CTL_ATT;                   // cr=coderCra+ctl_input_cra atténué 
-                        signal_overflow("lfo_cra:",line,cr,MAXCODER_RC);
+                        signal_overflow("lfo_cra:",line,cr,MINCODER_RC,MAXCODER_RC);
                         setVoiceFrequency(voices[line].frequency,&voices[line],cr);}
                         break;
                     default:break;

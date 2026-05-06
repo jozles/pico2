@@ -5,3 +5,8 @@
     X(SND_AMPL,"SAMP")
     X(LFO_FREQ,"LFRQ")
     X(LFO_CRA ,"LCRA")
+    X(A_ATTACK,"AATA")
+    X(A_DECAY ,"ADEC")
+    X(A_SUST  ,"ASUS")
+    X(A_RELEAS,"AREL")
+    X(A_LEVEL ,"ALEV")
