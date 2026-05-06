@@ -18,8 +18,6 @@
 #include "const.h"
 #include "util.h"
 
-#include "rc_tables.h"
-
 uint32_t ticker10=0;
 
 extern uint32_t millisCounter;

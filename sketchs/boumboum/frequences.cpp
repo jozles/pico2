@@ -8,7 +8,7 @@
 #include "util.h"
 #include "bb_i2s.h"
 #include "const.h"
-#include "rc_tables.h"
+#include "rc_33tables.h"
 #include "input_tables_management.h"
 
 #ifdef __cplusplus
@@ -41,7 +41,7 @@ extern uint32_t millisCounter;
 
 // current lfo values (lfoHandler triger'd by pwmIrqHandler)
 float       lfosFrequency[MAX_LFO];                   // current lfo freq
-uint16_t    lfosCodersFreq[MAX_LFO];                      // last coder value for freq
+uint16_t    lfosCodersFreq[MAX_LFO];                  // last coder value for freq
 uint16_t    lfosCodersAttFreq[MAX_LFO];               // coder pour atténuateur ctl_input_val (freq)
 uint16_t    lfosMaxCoderFreq[MAX_LFO];                // pmax value for lfo coderFreq
 uint16_t    lfosStepInt[MAX_LFO];                     // partie entière du step lfo
@@ -63,6 +63,7 @@ int16_t     lfo_ctl_input_id[MAX_LFO][MAX_INPUTS_PER_OBJ];    // id des inputs d
 int16_t     lfo_ctl_output_id[MAX_LFO][MAX_OUTPUTS_PER_OBJ];  // id des outputs du lfo dans ctl_output_xxx[]
 
 extern int16_t ctl_input_val[MAX_INPUTS];
+extern int16_t ctl_output_id_chain[MAX_OUTPUTS];
 
 int32_t     voicesDataBuffer[MAX_VOICES*SAMPLE_BUFFER_SIZE];  // all voices data buffer : 16bits low currech nb, 16 bits high rc table nb 
 
@@ -229,7 +230,6 @@ void sound_tables_init()
   
   fillOctFreq();
   fillOctIncr();
-  //fillBasicWaveForms();
   init_noise();
   fillAmplIncr();
 }
@@ -344,7 +344,7 @@ void lfosInit(){
     for(uint8_t l=0;l<MAX_LFO;l++){
 
         lfosCodersFreq[l]=1768;    // 1.5s
-        lfosFrequency[l]=calcFreq(lfosCodersFreq[l])/1000;
+        lfosFrequency[l]=calcFreq(lfosCodersFreq[l])/VOICE_FREQ_DIVIDER;
         lfosMaxCoderFreq[l]=LFOS_MAX_FREQ_CODERS;
         lfosCodersAttFreq[l]=FULL_ATTENUATION_VALUE;
         currLfoEch[l]=0;
@@ -387,10 +387,15 @@ void __not_in_flash_func(lfosHandler)()
         uint32_t ce=currLfoEch[l];                      
         uint16_t cf=currLfoEchFra[l];
 
-        uint32_t rcTableNb = lfosCycleR[l];        // rc==0-31-62
+        uint32_t rc = lfosCycleR[l]&63;                   // rc=0-63
+        uint32_t rcTableNb = rc;
         uint32_t tscope=rcTableNb<<16;
-        int8_t sign0 = (rcTableNb<=RC_TABLES_NB)*2-1;   // invert value if 32-62 table        
-        if(rcTableNb>RC_TABLES_NB-1){rcTableNb=(RC_TABLES_NB-1)*2-rcTableNb;}
+        //int8_t sign0 = (rcTableNb<RC_TABLES_NB)*2-1;    // invert value if 32-62 table        
+        int8_t sign0 = +1;  //(rc < RC_TABLES_NB)*2 - 1;
+        //if(rcTableNb>RC_TABLES_NB-1){rcTableNb=(RC_TABLES_NB-1)*2-rcTableNb;}
+        //if(rc >= RC_TABLES_NB){rcTableNb = (RC_TABLES_NB*2 - 1) - rc;}
+        if(rc<=32){rcTableNb=rc;}
+        else{rcTableNb=64-rc;}
 
         cf += lfosStepFra[l];
         uint32_t carry = (cf >= MAX_STEP_FRA);
@@ -407,16 +412,33 @@ void __not_in_flash_func(lfosHandler)()
         ce ^= (!vv) * (BASIC_WAVE_TABLE_LEN - 1);       // ce = vv*ce+!vv*((BASIC_WAVE_TABLE_LEN-1) - currEch);  // invert 180-360°       
         ce &= RC_TABLES_LEN-1;
         
-        const int16_t *w = &rc_tables[rcTableNb][0][0]+3*ce;    // rc_table values ptr
+        const int16_t *w = &rc_tables[rcTableNb][0][0]+RC_N_WAVES*ce;    // rc_table values ptr
 
+        uint8_t out_id;
         int16_t c0=sign*w[LSIN];
+        out_id=ctl_output_id_chain[lfo_ctl_output_id[l][LSIN]];
+        lfosOutputsValues[l][LSIN]=c0;
+        if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,c0);}
         int16_t c1=sign*w[LTRI];
-        int16_t c2=sign*w[LSAW];
+        out_id=ctl_output_id_chain[lfo_ctl_output_id[l][LTRI]];
+        lfosOutputsValues[l][LTRI]=c1;
+        if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,c1);}
+        int16_t tri=*(&rc_tables[32][0][0]+RC_N_WAVES*ce+LTRI);
+        int16_t c2;
+        ce=currLfoEch[l];
+        //if(currLfoEch[l]<(RC_N_SAMPLES >> 1)){c2= tri;}//-32768+(tri/2);}
+        //else c2=tri;//-32768+(tri/2);
+        if ((unsigned)(ce - (RC_N_SAMPLES >> 2)) < (unsigned)(RC_N_SAMPLES >> 1)) {c2 = tri >> 1;} 
+        else {int32_t k = (ce >= (3 * (RC_N_SAMPLES >> 2))) ? -32768 : 32768; c2 = k - tri;}
+        if (rc >= 32) c2 = -c2;
+        out_id=ctl_output_id_chain[lfo_ctl_output_id[l][LSAW]];
+        lfosOutputsValues[l][LSAW]=c2;
+        if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,c2);}
         int16_t c3=(currLfoEch[l] & (BASIC_WAVE_TABLE_LEN>>1)) ? -0x7fff : 0x7fff;
-        lfosOutputsValues[l][LSIN]=c0;update_inputs(lfo_ctl_output_id[l][LSIN],c0);
-        lfosOutputsValues[l][LTRI]=c1;update_inputs(lfo_ctl_output_id[l][LTRI],c1); //if(l==1){printf("c:%i id:%i\n",c1,lfo_ctl_output_id[l][LTRI]);}
-        lfosOutputsValues[l][LSAW]=c2;update_inputs(lfo_ctl_output_id[l][LSAW],c2);
-        lfosOutputsValues[l][LSQR]=c3;update_inputs(lfo_ctl_output_id[l][LSQR],c3);
+        out_id=ctl_output_id_chain[lfo_ctl_output_id[l][LSQR]];
+        lfosOutputsValues[l][LSQR]=c3;
+        if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,c3);}
+        
         lfoScopeBufReal[l*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB + lfoScopeBufPtr*BASIC_WAVES_NB+LSIN]=c0;
         lfoScopeBufReal[l*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB + lfoScopeBufPtr*BASIC_WAVES_NB+LTRI]=c1;
         lfoScopeBufReal[l*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB + lfoScopeBufPtr*BASIC_WAVES_NB+LSAW]=c2;

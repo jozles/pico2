@@ -4,7 +4,7 @@
 #include "pico/stdlib.h"
 #include "util.h"
 
-#include "rc_tables.h"
+#include "rc_33tables.h"
 
 #define VERSION "v1.3y"
 
@@ -83,8 +83,9 @@ typedef enum {
 #define MAX_LFO 4
 #define LFOS_SAMPLE_RATE 40
 #define LFOS_MAX_FREQ_CODERS 3000
-#define LFOS_MIN_FREQ_CODERS 420    // 30sec
-#define OSC_SCOPE_BUFFER_LEN 256 //SAMPLE_BUFFER_SIZE         // OSC_SCOPE
+#define LFOS_MIN_FREQ_CODERS 420        // 30sec
+#define OSC_SCOPE_BUFFER_LEN 256        // SAMPLE_BUFFER_SIZE         // OSC_SCOPE
+#define VOICE_FREQ_DIVIDER  1024        // pour usage conjoint de calcFreq()
 
 /* Adsrl */
 
@@ -138,6 +139,7 @@ typedef enum {
 
 #define RC_TABLES_LEN RC_N_SAMPLES                      // ***** POWER OF 2 *****  nombre d'échantillons dans les 1/2 tables d'ondes
 #define RC_TABLES_NB RC_N_TABLES                        // nombre de tables RC (MAXCODER_RC possible values)
+#define CODER_CR_OFFSET RC_TABLES_NB
 #define MAXCODER_RC (RC_TABLES_NB-1)*2                  // DOIT ETRE PAIR (-31 0 +31 : 63 values 0-62 ) le nombre total de tables doit être impair pour le mirroring
 #define MINCODER_RC 0
 
@@ -146,7 +148,7 @@ typedef enum {
 
 #define BASIC_WAVES_NB 6 // sinus, carré, triangle, dent de scie, bruit blanc,bruit rose 
 
-//
+/* inputs/outputs */
 
 #define MAX_OUTPUT_OBJ          48
 #define MAX_OUTPUTS_PER_OBJ     8
@@ -255,5 +257,5 @@ enum Waves {
 #define ST7789_spi __CONCAT(spi, ST7789_SPI)
 #define ST7789_SPI_SPEED 40000000
 
-#endif  //_CONST_H_
+#endif  // _CONST_H_
 

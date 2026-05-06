@@ -9,20 +9,21 @@
 
 #include "hardware/sync.h"
 
-extern int16_t   lfo_ctl_input_id[][MAX_INPUTS_PER_OBJ];
-extern int16_t   lfo_ctl_output_id[][MAX_OUTPUTS_PER_OBJ];
 extern int16_t   adsr_ctl_input_id[][MAX_INPUTS_PER_OBJ];
 extern int16_t   adsr_ctl_output_id[][MAX_OUTPUTS_PER_OBJ];
 
 extern Voice voices[MAX_VOICES];
 
+extern float     lfosFrequency[MAX_LFO]; 
 extern int16_t   lfosOutputsValues[MAX_LFO][MAX_OUTPUTS_PER_OBJ];
 extern int16_t   adsrOutputsValues[MAX_ADSR][MAX_OUTPUTS_PER_OBJ];
 extern uint16_t  lfosCoderCycleR[MAX_LFO];
 extern uint16_t  lfosCycleR[MAX_LFO];
 extern uint16_t  lfosCoderCycleRAtt[MAX_LFO];
 extern uint16_t  lfosCodersFreq[MAX_LFO];
-extern uint16_t  lfosCodersAttFreq[MAX_LFO]; 
+extern uint16_t  lfosCodersAttFreq[MAX_LFO];
+extern int16_t   lfo_ctl_input_id[][MAX_INPUTS_PER_OBJ];
+extern int16_t   lfo_ctl_output_id[][MAX_OUTPUTS_PER_OBJ]; 
 
 /* ************            objets           ************ */
 
@@ -63,6 +64,15 @@ extern uint16_t  lfosCodersAttFreq[MAX_LFO];
 //      générateurs d'écho = délai, niveau
 //      générateurs de réverbération, durée, niveau
 //
+// Ajouter un objet nécessite plusieurs interventions :
+//      créer sa description (structure comme voice ou tables comme lfo)
+//      créer les 2 fichiers *.def pour décrire ses entrées et sorties ;
+//          (ajouter un paragraphe dans le chapitre nom des e/s des objets et dans inputs et outputs de const.h)
+//      ajouter pour chaque entrée un nom de type dans norm_types.def
+//      ajouter un paragraphe d'init dans init_objects_inputs et init_objects_outputs 
+//      ajouter le traitement d'update dans update_inputs
+//      ajouter un menu (ligne d'appel dans boumboum, inits dans boumboum et menu, traitement de ligne dans menu)
+//      ajouter un handler à l'endroit approprié
 
 /* ************ control inputs and outputs ************* */
 
@@ -80,13 +90,13 @@ int16_t ctl_input_srce[MAX_INPUTS];                      // all inputs sources#
 uint8_t ctl_input_shft[MAX_INPUTS];                      // all inputs values shift type (0 no shift ; 1 +0x8000)
 uint8_t ctl_input_trig[MAX_INPUTS];                      // all inputs trig type (0 no trig ; 1 up ; 2 down ; 3 both)
 int16_t ctl_input_tlev[MAX_INPUTS];                      // all inputs trig level
-char    ctl_input_name[MAX_INPUTS][IN_OUT_NAME_LEN];     // all objects inputs names
-uint8_t ctl_input_update_type[MAX_INPUTS];               // all objects inputs update specific job
-uint8_t ctl_input_object[MAX_INPUTS];                    // all objects inputs object#
+char    ctl_input_name[MAX_INPUTS][IN_OUT_NAME_LEN];     // all inputs names
+uint8_t ctl_input_update_type[MAX_INPUTS];               // all inputs update specific job
+uint8_t ctl_input_object[MAX_INPUTS];                    // all inputs object#
 
 int16_t ctl_input_id_chain[MAX_INPUTS];                  // next id(input) with same output (-1/NO_LINK if nothing)
 
-uint8_t norm_dividers[]={0,16-5,16-6,16-3};
+uint8_t norm_dividers[]={0,16-5,16-6,16-3};              // to add ; not used for now
 
 // each control output of each object has an unique id wich gives access to the name and input link chain of the output
 // each object type has an [object]_ctl_output_id table with [object_type#][output#] elements
@@ -258,6 +268,11 @@ bool init_objects_inputs(void)
         {
             voices[vce].voice_ctl_input_id[ins]=curr_input;
             ctl_input_id_chain[curr_input]=NO_LINK;
+            ctl_input_object[curr_input]=vce;
+            switch(ins){
+                case LFRQ:ctl_input_update_type[curr_input]=VCE_FREQ;break;
+                case LCRA:ctl_input_update_type[curr_input]=VCE_CRA;break;
+            }
             if(ins<VOICES_INPUTS_NB){
                 char buf[IN_OUT_NAME_LEN]={'V','C','E','S'};
                 convIntToString(buf+4,(uint32_t)vce,2);
@@ -361,47 +376,37 @@ void disconnect_input(uint16_t input_id, uint16_t output)
     spin_unlock(inputs_id__lock, f);
 }
 
-void update_inputs(uint16_t output,int16_t valeur)
+void update_inputs(int16_t id,int16_t valeur)
 {
-    int16_t id = ctl_output_id_chain[output];
-    uint8_t lfo=0;
-    uint8_t voice=0;
-    int16_t val;
+    //int16_t id = ctl_output_id_chain[output];
+    ctl_input_val[id] = valeur;
+    uint8_t object=ctl_input_object[id];
+    int32_t val;
+    float fr;
 
     //if(output==10){printf("out#:%d input_id:%i inp_type:%d val:%i \n",output,id,ctl_input_update_type[id],valeur);}
 
-    if (__builtin_expect(id != NO_LINK, 0))
-    {
         do {
             int16_t next_id = ctl_input_id_chain[id];
             switch(ctl_input_update_type[id]){
-                case VCE_FREQ: voice=ctl_input_object[id];
-                               ctl_input_val[id] = valeur;
-                               val=(valeur>>3)*voices[voice].coderAttFreq/MAX_CTL_ATT;   // 8k max VCES_MAX_FREQ_CODERS ; att 0-255
-                               setVoiceFrequency(calcFreq(val+voices[voice].coderFreq),&voices[voice],voices[voice].coderCycleR);   // ajouter un ctl d'overflow
-                               break;
-                case VCE_CRA : voice=ctl_input_object[id];
-                               val=(valeur>>10)*voices[voice].coderCycleRAtt/MAX_CTL_ATT; // 0-62 ; att 0-255
-                               ctl_input_val[id] = val;                
-                               voices[voice].cycleR = val+voices[voice].coderCycleR;
-                               break;
-                case SND_AMPL: break;
-                case LFO_FREQ: {lfo=ctl_input_object[id];
-                               ctl_input_val[id] = valeur;
-                               val=(valeur>>3)*lfosCodersAttFreq[lfo]/MAX_CTL_ATT;   // 8k max VCES_MAX_FREQ_CODERS ; att 0-255 
-                               float fr=calcFreq(val+lfosCodersFreq[lfo])/1000;
-                               //if(lfo==0){printf("l%d id:%d v:%i val:%i out#:%d fc:%i f:%f\n",lfo,id,valeur,val,output,lfosCodersFreq[lfo],fr);}
-                               setLfosFrequency(fr,lfo,lfosCoderCycleR[lfo]);    // ajouter un ctl d'overflow
-                               }break;
-                case LFO_CRA : lfo=ctl_input_object[id];
-                               val=(valeur>>10)*lfosCoderCycleRAtt[lfo]/MAX_CTL_ATT; // 0-62 ; att 0-255
-                               ctl_input_val[id] = val;
-                               lfosCycleR[lfo]= val+lfosCoderCycleR[lfo];
-                               break;
+                case VCE_FREQ:  val=(valeur>>3)*voices[object].coderAttFreq/MAX_CTL_ATT;                // 8k max VCES_MAX_FREQ_CODERS ; att 0-255
+                                fr=calcFreq(val+voices[object].coderFreq);
+                                setVoiceFrequency(fr,&voices[object],voices[object].coderCycleR);       // ajouter un ctl d'overflow
+                                break;
+                case VCE_CRA :  val=voices[object].coderCycleR+(valeur>>10)*voices[object].coderCycleRAtt/MAX_CTL_ATT; // 0-62 ; att 0-255                
+                                setVoiceFrequency(voices[object].frequency,&voices[object],val);        // ajouter un ctl d'overflow
+                                break;
+                case SND_AMPL:  break;
+                case LFO_FREQ:  val=(valeur>>3)*lfosCodersAttFreq[object]/MAX_CTL_ATT;                  // 8k max VCES_MAX_FREQ_CODERS ; att 0-255 
+                                fr=calcFreq(val+lfosCodersFreq[object])/VOICE_FREQ_DIVIDER;
+                                //if(lfo==0){printf("l%d id:%d v:%i val:%i out#:%d fc:%i f:%f\n",lfo,id,valeur,val,output,lfosCodersFreq[lfo],fr);}
+                                setLfosFrequency(fr,object,lfosCoderCycleR[object]);                    // ajouter un ctl d'overflow
+                                break;
+                case LFO_CRA :  val=lfosCoderCycleR[object]+(valeur>>10)*lfosCoderCycleRAtt[object]/MAX_CTL_ATT; // 0-62 ; att 0-255
+                                setLfosFrequency(lfosFrequency[object],object,val);                     // ajouter un ctl d'overflow
+                                break;
                 default: break;
             }
             id = next_id;
         } while (id != NO_LINK);
-    }
 }
-//ctl_input_val[lfo_ctl_input_id[line][VFRQ]]

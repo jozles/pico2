@@ -52,7 +52,6 @@ add_executable(boumboum
 	coder.cpp 
 	util.cpp 
 	frequences.cpp 
-	oscillator.cpp
 	bb_i2s.cpp
 	leds.cpp
 	st7789.cpp
@@ -68,7 +67,6 @@ add_executable(boumboum
 	norm_types.def
 	blank.S
 	miscControls.cpp
-	rc_tables.cpp
 	input_tables_management.cpp
 	)
 
