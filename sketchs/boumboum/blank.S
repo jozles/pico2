@@ -2,44 +2,55 @@
     .thumb
     .thumb_func
     .cpu cortex-m33
-    
-    .global blank
+
+.global blank
 blank:
-    push    {r4,r5,r6,lr}
+    push    {r4-r9, lr}
+
+    @ r0 = ptr
+    @ r1 = len24
+
+    lsls    r1, r1, #8     @ décaler à gauche
+    lsrs    r1, r1, #8     @ redécaler à droite → top 8 bits = 0
 
     cbz     r1, end
 
-align_loop:
-    tst     r0, #3
-    beq     aligned
-    movs    r2, #0
-    strb    r2, [r0], #1
-    subs    r1, r1, #1
-    beq     end
-    b       align_loop
-
-aligned:
+    @ r2..r9 = 0
     movs    r2, #0
     mov     r3, r2
     mov     r4, r2
     mov     r5, r2
+    mov     r6, r2
+    mov     r7, r2
+    mov     r8, r2
+    mov     r9, r2
 
-    lsrs    r6, r1, #4
+    @ --- boucle 32 octets ---
+    lsrs    r12, r1, #5        @ r12 = len / 32
+loop32:
+    cmp     r12, #0
+    beq     tail_words
+    stm     r0!, {r2-r9}
+    subs    r12, r12, #1
+    b       loop32
+
+tail_words:
+    ands    r1, r1, #31
+    lsrs    r12, r1, #2        @ mots 32 bits
+loop4:
+    cmp     r12, #0
     beq     tail_bytes
-
-word_loop:
-    stm     r0!, {r2,r3,r4,r5}
-    subs    r6, r6, #1
-    bne     word_loop
+    str     r2, [r0], #4
+    subs    r12, r12, #1
+    b       loop4
 
 tail_bytes:
-    ands    r1, r1, #0x0F
-    beq     end
-
+    ands    r1, r1, #3
+    cbz     r1, end
 byte_loop:
     strb    r2, [r0], #1
     subs    r1, r1, #1
     bne     byte_loop
 
 end:
-    pop     {r4,r5,r6,pc}
+    pop     {r4-r9, pc}

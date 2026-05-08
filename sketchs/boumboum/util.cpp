@@ -37,7 +37,9 @@ static int st_dma_channel;
 static int ws_dma_channel;
 
 int32_t* i2s_dma_buffers[2];                // les 2 pointeurs sur les 2 buffers dma
+__attribute__((aligned(32)))
 int32_t i2s_buf0[SAMPLE_BUFFER_SIZE*2];     // le buffer 0 (512*2*4 bytes = 4k)
+__attribute__((aligned(32)))
 int32_t i2s_buf1[SAMPLE_BUFFER_SIZE*2];     // le buffer 1
 
 extern struct Voice voices[];
@@ -57,6 +59,7 @@ volatile uint32_t ledBlinker=0;
 static repeating_timer millisTimer;
 
 
+
 void system_error(const char* s,int32_t v)
 {
     printf("syst err:%s :%i",s,v);
@@ -68,8 +71,6 @@ void system_error(const char* s)
 {
     system_error(s,0);
 }
-
-
 
 uint32_t signal_overflow(const char* s,uint16_t id,int32_t val,int32_t min,int32_t max)
 {
@@ -87,6 +88,24 @@ uint32_t signal_overflow(const char* s,uint16_t id,int32_t val,int32_t min,int32
     return val;
 }
 
+void __not_in_flash_func(blank32)(void *ptr, uint32_t len24)
+{
+    // longueur sur 24 bits
+    len24 &= 0x00FFFFFF;
+
+    uint32_t *p = (uint32_t *)ptr;
+    uint32_t n32 = len24 >> 2;      // nombre de mots 32 bits
+    uint32_t rem = len24 & 3;       // octets restants
+
+    while (n32--) {
+        *p++ = 0;
+    }
+
+    uint8_t *b = (uint8_t *)p;
+    while (rem--) {
+        *b++ = 0;
+    }
+}
 
 uint pwm_irq_slice=PWM_IRQ_SLICE;
 
@@ -239,7 +258,7 @@ void setup(){
     sound_tables_init();
 
     float fr0=440;
-    uint8_t cga=1;
+    uint8_t cga=10;
     voicesInit(voices,fr0,cga);
 
     // ****** lfos ******
@@ -252,8 +271,7 @@ void setup(){
 
     voices[0].coderAmpl[W_SINUS]=31;
     voices[0].basicWaveAmpl[W_SINUS]=getAmpl(&voices[0],W_SINUS);
-    voices[0].coderCycleR=10;
-    printf("demo sinus f:%f rc:%i ampl:%d\n",fr0,voices[0].coderCycleR,voices[0].basicWaveAmpl[W_SINUS]);delay_ms(100);      
+    printf("demo sinus f:%f rc:%i ampl:%d\n",fr0,cga,voices[0].basicWaveAmpl[W_SINUS]);delay_ms(100);      
     
     fillVoices();           // après i2sSetup
    

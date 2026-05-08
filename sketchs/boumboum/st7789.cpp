@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include "st7789.h"
 #include "st7789_fonts.h"
+#include "frequences.h"
 
 #include "pico/stdlib.h"
 #include "hardware/spi.h"
@@ -41,6 +42,8 @@ static volatile uint16_t sched_y;
 static volatile uint16_t sched_w;
 static volatile uint16_t sched_h;
 
+
+
 // --------------------------------------------------------
 // accélérateur uc pendant effacement écran :
 // buffer réservé pour effacement (on profite d'avoir plein de mémoire)
@@ -50,8 +53,10 @@ static volatile uint16_t sched_h;
 // --------------------------------------------------------
 
 #define FRAME_SIZE TFT_W * TFT_H * 2
+__attribute__((aligned(32)))
 static uint8_t tft_frame[FRAME_SIZE];    // 2bytes/pixel
 //static 
+__attribute__((aligned(4)))
 uint8_t tft_frame_blk[FRAME_SIZE];    // 2bytes/pixel 
 static uint32_t points[TFT_W];
 static uint8_t refrCnt=0;
@@ -77,6 +82,7 @@ void st_dma_wait(){                     // wait for end of current st buffer usa
 
         spin_unlock(st_dma_lock, f);            
         sleep_us(100);
+        fillVoices();
     }
 }
 
@@ -274,7 +280,8 @@ int st7789_setup(uint32_t spiSpeed)
     st_dma_done_blank = true;
     st_sched_free = true;
 
-    memset(tft_frame_blk,0x00,FRAME_SIZE);
+    //memset(tft_frame_blk,0x00,FRAME_SIZE);
+    blank(tft_frame_blk,FRAME_SIZE);
 
     tft_fill_rect_blank(0,0,TFT_H,TFT_W);//sleep_ms(50);
     gpio_put(ST7789_PIN_BL, 1);
@@ -752,20 +759,25 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
 
         st_dma_wait();
 
-        for (int i = 0; i < (TFT_H-begline)*TFT_W ; i++) {                // full buffer erasing
-            tft_frame[2*i]     = bgcolor >> 8;
-            tft_frame[2*i + 1] = bgcolor & 0xFF;
-        }
+        uint8_t* tftf=(uint8_t*)tft_frame;
+        uint32_t len=(TFT_H-begline)*TFT_W*2;
+
+        /*tftf--;
+        do {
+            *tftf++ = bgcolor;
+            len--;
+        } while (len > 0);*/
+        blank(tftf,len);
 
         int8_t sign=1;
         float b;
         for(uint32_t i=0;i<TFT_W;i++){                                    // read buf and generate waveform
             
-            if(mode_calcul==1){
-                uint32_t rcTableNb=buf[i]>>16;                            // rc = numéro de table 0-62
+            if(mode_calcul==1){                                           // computed view with ce&cr
+                uint32_t rcTableNb=buf[i]>>16;                            // cr = table nb 0-62
                 sign = (rcTableNb<=RC_TABLES_NB)*2-1;                     // invert value if 32-62 table 0-31:1 32-62:-1
 
-                uint16_t echNb=buf[i] & (BASIC_WAVE_TABLE_LEN-1);         // n° ech   
+                uint16_t echNb=buf[i] & (BASIC_WAVE_TABLE_LEN-1);         // ech nb   
                 if(rcTableNb>(RC_TABLES_NB-1)) {rcTableNb=(RC_TABLES_NB-1)*2-rcTableNb;}      // mirroring table for 32-62 
 
                 bool vv=(echNb<RC_TABLES_LEN);             
@@ -775,14 +787,14 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
                 echNb &= RC_TABLES_LEN-1;
 
                 // get value & translate to scope value 
-                const int16_t *w = &rc_tables[rcTableNb][0][0] + 3 * echNb;   // pointeur sur valeur ech           
-                b=(float)w[wf]/(float)0x7fff;                             // ech full scale ratio             
+                const int16_t *w = &rc_tables[rcTableNb][0][0] + 3 * echNb;   // sample value ptr           
+                b=(float)w[wf]/(float)0x7fff;                             // sample full scale ratio             
             }
-            else if(mode_calcul==0){
+            else if(mode_calcul==0){                                      // i2s true data
                 int32_t t=buf[i*2];            
                 b=(float)t/(float)0x7fffffff;
             }
-            else if(mode_calcul==2){
+            else if(mode_calcul==2){                                      // lfo real wave view 
                 int32_t t=buf[object*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB + i*BASIC_WAVES_NB+wf];     
                 b=(float)t/(float)0x7fff;     
             }            

@@ -74,7 +74,7 @@ typedef enum {
 
 /* Voices */
 
-#define MAX_VOICES 2 
+#define MAX_VOICES 4 
 #define VCES_MAX_FREQ_CODERS 10000
 #define VCES_MIN_FREQ_CODERS 25
 

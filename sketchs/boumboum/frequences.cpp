@@ -11,15 +11,7 @@
 #include "rc_33tables.h"
 #include "input_tables_management.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
-void __not_in_flash_func(blank)(char *var, uint16_t len);    // 268uS pour 2048 bytes ; memcpy(var,0x00,len) 375uS ; dma env 60uS si nécessaire et le tft_frame_blank peut être utilisé
-
-#ifdef __cplusplus
-}
-#endif
 
 const uint8_t octNb = OCTNB;
 float baseFreq = FREQ0;
@@ -391,11 +383,7 @@ void __not_in_flash_func(lfosHandler)()
 
         uint32_t rc = lfosCycleR[l]&63;                   // rc=0-63
         uint32_t rcTableNb = rc;
-        uint32_t tscope=rcTableNb<<16;
-        //int8_t sign0 = (rcTableNb<RC_TABLES_NB)*2-1;    // invert value if 32-62 table        
-        int8_t sign0 = +1;  //(rc < RC_TABLES_NB)*2 - 1;
-        //if(rcTableNb>RC_TABLES_NB-1){rcTableNb=(RC_TABLES_NB-1)*2-rcTableNb;}
-        //if(rc >= RC_TABLES_NB){rcTableNb = (RC_TABLES_NB*2 - 1) - rc;}
+        uint32_t rcnb16=rcTableNb<<16;
         if(rc<=32){rcTableNb=rc;}
         else{rcTableNb=64-rc;}
 
@@ -406,10 +394,10 @@ void __not_in_flash_func(lfosHandler)()
         ce &= BASIC_WAVE_TABLE_LEN-1;
 
         currLfoEch[l]=ce;                               // long term value
-        lfoScopeBuffer[l*OSC_SCOPE_BUFFER_LEN+lfoScopeBufPtr]=ce+tscope;
+        //lfoScopeBuffer[l*OSC_SCOPE_BUFFER_LEN+lfoScopeBufPtr]=ce+rcnb16;
 
         bool vv=(ce<RC_TABLES_LEN);
-        int sign=sign0*(vv*2-1);                        // invert 180-360°
+        int sign=(vv*2-1);                              // invert 180-360°
 
         ce ^= (!vv) * (BASIC_WAVE_TABLE_LEN - 1);       // ce = vv*ce+!vv*((BASIC_WAVE_TABLE_LEN-1) - currEch);  // invert 180-360°       
         ce &= RC_TABLES_LEN-1;
@@ -429,8 +417,8 @@ void __not_in_flash_func(lfosHandler)()
 
         int16_t tri=base32[RC_N_WAVES*ce+LTRI];
         int32_t c2;
-        if(ce<(RC_N_SAMPLES >> 1)){c2=(65536-tri)/2;}
-        else c2=tri/2;
+        if(ce<(RC_N_SAMPLES >> 1)){c2=(65536-tri)>>1;}
+        else c2=tri>>1;
         c2=sign*c2;
         if(rc>=32){c2=-c2;}
         out_id=ctl_output_id_chain[lfo_ctl_output_id[l][LSAW]];
@@ -461,47 +449,42 @@ uint16_t getAmpl(Voice* v,uint8_t wav){
 // ***************************  voices producer  ******************************
 
 // 
-void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* v,uint8_t voiceNum){   // 5.8mS pour les 6 sources @512 samples (23mS@44100Hz)
+void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* v,uint8_t voiceNum){   // 360uS ; >900uS avec rc_tables en flash pour les 6 sources @512 samples (23mS@44100Hz)
 
-      #define LIM90  BASIC_WAVE_TABLE_LEN/4
-      #define LIM270 BASIC_WAVE_TABLE_LEN*3/4
+      i2s_buf_scope=vBuffer;
 
+// init noise
+      nPhase       = v->noisePhase;
+      nStep        = v->noiseStep;
+      uint32_t limit = (uint32_t)NOISE_TABLE_SIZE << 16;
+
+// init waves      
       uint32_t currEch      = v->currEch;
       uint32_t currEchFra   = v->currEchFra;
       uint32_t stepInt      = v->stepInt;
       uint32_t stepFra      = v->stepFra;
-      nPhase       = v->noisePhase;
-      nStep        = v->noiseStep;
-      uint32_t limit = (uint32_t)NOISE_TABLE_SIZE << 16;
-      int32_t  genAmpl      = v->genAmpl;
 
-      int32_t* vsBuffer=voicesDataBuffer+voiceNum*SAMPLE_BUFFER_SIZE; // voicesDataBuffer stores 32 bits data for scope AND inside fillVoice 
+// init rc
+      uint32_t rc = v->cycleR&63;                   // rc=0-63
+      uint32_t rcTableNb = rc;
+      uint32_t rcnb16=rcTableNb<<16;
+      if(rc<=32){rcTableNb=rc;}
+      else{rcTableNb=64-rc;}
 
-      i2s_buf_scope=vBuffer;
+      const int16_t *rcTable32 = &rc_tables[32][0][0];                           // base table 32 pour saw      
 
-      uint32_t rcTableNb = v->cycleR;
-      int8_t sign0 = (rcTableNb<=RC_TABLES_NB)*2-1;                           // invert value if 32-62 table
-      uint32_t tscope=rcTableNb<<16;                                          // t=0-30 31 32-62 ; 63 valeurs MAXCODER_RC=62
-      if(rcTableNb>RC_TABLES_NB-1){rcTableNb=(RC_TABLES_NB-1)*2-rcTableNb;}   // 32->30 42->20 52->10 62->00
-      const int16_t *p = &rc_tables[rcTableNb][0][0];
-      
-      const int16_t *base32 = &rc_tables[32][0][0];                           // base table 32 pour saw
-      
-      int32_t  waveAmplSin  = v->basicWaveAmpl[W_SINUS]*sign0;
-      int32_t  waveAmplTri  = v->basicWaveAmpl[W_TRIANGLE]*sign0;
-      int32_t  waveAmplSaw  = v->basicWaveAmpl[W_SAWTOOTH]*sign0;        
-      int32_t  waveAmplSqr  = v->basicWaveAmpl[W_SQUARE];    
+// init waves ampl      
+      int32_t  waveAmplSin  = v->basicWaveAmpl[W_SINUS];
+      int32_t  waveAmplTri  = v->basicWaveAmpl[W_TRIANGLE];
+      int32_t  waveAmplSaw  = v->basicWaveAmpl[W_SAWTOOTH];        
+      int32_t  waveAmplSqr  = v->basicWaveAmpl[W_SQUARE]; 
       int32_t  waveAmplWhi  = v->basicWaveAmpl[W_WHITE_NOISE];
       int32_t  waveAmplPnk  = v->basicWaveAmpl[W_PINK_NOISE];
       
       uint32_t s = SAMPLE_BUFFER_SIZE;
 
-      /* ***** test triangle ***** */
-
-      uint32_t tri_phase=0;
-      uint32_t tri_step = (uint32_t)((v->frequency * 4294967296.0f) / 44100);
-
-      // filling sample nbs
+// fast loop computing samples index
+      int32_t* vsBuffer=voicesDataBuffer+voiceNum*SAMPLE_BUFFER_SIZE; // temporary buffer for fast currech computing       
       do {
         s--;
 
@@ -511,35 +494,46 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
         currEch += stepInt + carry;
         currEch &= BASIC_WAVE_TABLE_LEN-1;      // currEch 0-2047
 
-        vsBuffer[s]=currEch+tscope;             // currEch + rc table nb
+        vsBuffer[s]=currEch+rcnb16;             // currEch + rc table nb
       }
       while (s!=0);
-      
-      // filling i2s data
 
+// waves gen + noises (filling i2s data)
       for(uint32_t s = 0; s < SAMPLE_BUFFER_SIZE; s++)
       {
+
+        // !!!!! pour le scope un buffer séparé est nécessaire : !!!!! 
+        //le scope affiche lentement et i2sbuf est modifié rapidement 
+
+        // waves
 
         uint16_t ce=vsBuffer[s];          // ce : 16 bits gauche = rc, 16 bits droite num ech
         uint32_t rc=ce>>16;  
         
-        ce &= (BASIC_WAVE_TABLE_LEN-1);   // local currEch (cyclic ratio managment)
+        ce &= (BASIC_WAVE_TABLE_LEN-1);             // local currEch (cyclic ratio managment)
 
         bool vv=(ce<RC_TABLES_LEN);
-        int sign=(vv*2-1);                            // invert 180-360°
+        int sign=(vv*2-1);                          // invert 180-360°
   
-        ce ^= (!vv) * (BASIC_WAVE_TABLE_LEN - 1);     // ce = vv*ce+!vv*((BASIC_WAVE_TABLE_LEN-1) - ce);  // invert 180-360°           
+        ce ^= (!vv) * (BASIC_WAVE_TABLE_LEN - 1);   // ce = vv*ce+!vv*((BASIC_WAVE_TABLE_LEN-1) - ce);  // invert 180-360°           
         ce &= RC_TABLES_LEN-1;
 
-        const int16_t* w=p+RC_N_WAVES*ce;             // rc_table values ptr 
+        const int16_t* w=&rc_tables[rcTableNb][0][0]+RC_N_WAVES*ce;   // rc_table values ptr
 
         int32_t pre=w[WSIN]*waveAmplSin; 
-        pre += w[1]*waveAmplTri;
+        pre += w[WTRI]*waveAmplTri;
         
-        int16_t tri2=base32[RC_N_WAVES*ce+WTRI]>>1;    // saw utilise la table 32 du triangle
-        uint32_t mask = (ce >= (RC_N_SAMPLES >> 1));   //if(ce<(RC_N_SAMPLES >> 1)){saw=(65536-tri)>>1;}
-        int32_t base = 32768-tri2;                    
-        int32_t saw = (tri2 & -mask) | (base & ~(-mask));            //else saw=tri>>1;
+        int16_t tri=rcTable32[RC_N_WAVES*ce+WTRI];     // saw utilise la table 32 du triangle
+        int32_t saw;
+        if(ce<(RC_N_SAMPLES >> 1)){saw=(65536-tri)>>1;}
+        else saw=tri>>1;
+        if(rc>=32){saw=-saw;}
+        /*int16_t tri = rcTable32[RC_N_WAVES*ce + WTRI];
+        int32_t half = tri >> 1;
+        uint32_t mask1 = (ce - 512) >> 31;    // mask1 = 0xFFFFFFFF si ce < 512
+        int32_t saw = half + (mask1 & (32768 - (half << 1)));   // saw = half ou (32768 - half)
+        uint32_t mask2 = ~((rc - 32) >> 31);  // mask2 = 0xFFFFFFFF si rc >= 32
+        saw = (saw ^ mask2) - mask2;          // inversion branchless*/
         pre += saw*waveAmplSaw;
 
         int16_t sqr=(ce & (BASIC_WAVE_TABLE_LEN>>1)) ? -0x7fff : 0x7fff;    // sqr cr not implemented
@@ -571,47 +565,18 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
 
 }
 
-void blank(char *var, uint16_t len);
-
-/*void dma_clear(void* dst, uint32_t size_bytes) {
-    static const uint32_t zero = 0;
-
-    int chan = dma_claim_unused_channel(true);
-    //printf("dma_clear_test chan = %d\n", chan);
-
-    dma_channel_config c = dma_channel_get_default_config(chan);
-
-    channel_config_set_transfer_data_size(&c, DMA_SIZE_32);
-    channel_config_set_read_increment(&c, false);
-    channel_config_set_write_increment(&c, true);
-    channel_config_set_dreq(&c, DREQ_FORCE);      // <<< au lieu de 0
-    channel_config_set_irq_quiet(&c, true);
-
-    dma_channel_configure(
-        chan,
-        &c,
-        dst,
-        &zero,
-        size_bytes / 4,
-        true
-    );
-
-    dma_channel_wait_for_finish_blocking(chan);
-    dma_channel_unclaim(chan);
-}*/
-
-// <235uS/voix +265uS blank +35   (2 voix 771)
 void __not_in_flash_func(fillVoiceBuffer)(int32_t* vBuffer, Voice* voices, uint8_t bufNum)
 {
 //gpio_put(TST_PIN,1);
     //dma_clear(vBuffer, SAMPLE_BUFFER_SIZE * 8); // ne fonctionne pas (690uS)
-    blank((char*)vBuffer,SAMPLE_BUFFER_SIZE*8);
+//gpio_put(TST_PIN,1);        
+    blank(vBuffer,SAMPLE_BUFFER_SIZE*8);   // env 12uS
     //memset((char*)vBuffer,0x00,SAMPLE_BUFFER_SIZE*8);
-//gpio_put(TST_PIN,0);
+//gpio_put(TST_PIN,1);
     for(uint8_t v=0;v<MAX_VOICES;v++){
-//gpio_put(TST_PIN,1);      
-      fillVoiceBuffer_mono(vBuffer, &voices[v],v); //                  dumpStr(vBuffer,256);
-//gpio_put(TST_PIN,0);      
+gpio_put(TST_PIN,1);      
+      fillVoiceBuffer_mono(vBuffer, &voices[v],v);
+gpio_put(TST_PIN,0);      
     }
 
     i2s_buf_free[bufNum] = false;
@@ -622,18 +587,18 @@ uint8_t se=0;
 void fillVoices()
 {
     if(i2s_buf_free[0]){
-gpio_put(TST_PIN,1);      
+//gpio_put(TST_PIN,1);      
       fillVoiceBuffer(i2s_buffer[0],voices,0);
       i2s_buf_free[0] = false;
       if(i2s_buf_free[1]&&se>MAX_SE){system_error("fillVoices");}
       se=true;
-gpio_put(TST_PIN,0);     
+//gpio_put(TST_PIN,0);     
     }
     if(i2s_buf_free[1]){
-gpio_put(TST_PIN,1);       
+//gpio_put(TST_PIN,1);       
       fillVoiceBuffer(i2s_buffer[1],voices,1);
       i2s_buf_free[1] = false;
-gpio_put(TST_PIN,0);       
+//gpio_put(TST_PIN,0);       
     }
 }
 

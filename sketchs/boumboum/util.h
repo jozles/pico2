@@ -46,5 +46,17 @@ void system_error(const char* s);
 void system_error(const char* s,int32_t v);
 uint32_t signal_overflow(const char* s,uint16_t id,int32_t val,int32_t min,int32_t max);
 
+void blank32(void *ptr, uint32_t len24);
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+// assembleur 290uS pour 240*240*2 bytes ; la zone effacée doit etre alignée 32 bytes!!!
+// alignement 16 bytes : 336uS
+// memset 1.28mS ;
+void __not_in_flash_func(blank)(void *var, uint32_t len);    
+#ifdef __cplusplus
+}
+#endif
 
 #endif  //_UTIL_H_
