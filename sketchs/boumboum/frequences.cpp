@@ -381,11 +381,7 @@ void __not_in_flash_func(lfosHandler)()
         uint32_t ce=currLfoEch[l];                      
         uint16_t cf=currLfoEchFra[l];
 
-        uint32_t rc = lfosCycleR[l]&63;                   // rc=0-63
-        //uint32_t rcTableNb = rc;
-        //uint32_t rcnb16=rcTableNb<<16;
-        //if(rc<=32){rcTableNb=rc;}
-        //else{rcTableNb=64-rc;}
+        uint32_t rc = lfosCycleR[l]&63;                 // rc=0-63
         uint32_t rcTableNb = (rc <= 32) ? rc : (64 - rc);
 
         cf += lfosStepFra[l];
@@ -395,21 +391,22 @@ void __not_in_flash_func(lfosHandler)()
         ce &= BASIC_WAVE_TABLE_LEN-1;
 
         currLfoEch[l]=ce;                               // long term value
-        //lfoScopeBuffer[l*OSC_SCOPE_BUFFER_LEN+lfoScopeBufPtr]=ce+rcnb16;
+        //lfoScopeBuffer[l*OSC_SCOPE_BUFFER_LEN+lfoScopeBufPtr]=ce+rc<<16;
 
         bool vv=(ce<RC_TABLES_LEN);
         int sign=(vv*2-1);                              // invert 180-360°
-        //int sign = (rc < 32) ? +1 : -1;
 
         ce ^= (!vv) * (BASIC_WAVE_TABLE_LEN - 1);       // ce = vv*ce+!vv*((BASIC_WAVE_TABLE_LEN-1) - currEch);  // invert 180-360°       
         ce &= RC_TABLES_LEN-1;
-        //uint32_t ce_local = ce & (RC_TABLES_LEN - 1);
-        //if (ce >= RC_TABLES_LEN) ce_local = (RC_TABLES_LEN - 1) - ce_local;
-        
-        const int16_t *w = &rc_tables[rcTableNb][0][0]+RC_N_WAVES*ce;    // rc_table values ptr
 
-        uint8_t out_id;
+        uint32_t ce_idx = ce;
+        if (rc > 32)
+        ce_idx = (RC_TABLES_LEN - 1) - ce_idx;
+        
+        const int16_t *w = &rc_tables[rcTableNb][0][0]+RC_N_WAVES*ce_idx;    // rc_table values ptr 
+        
         int16_t c0=sign*w[LSIN];
+        uint8_t out_id;
         out_id=ctl_output_id_chain[lfo_ctl_output_id[l][LSIN]];
         lfosOutputsValues[l][LSIN]=c0;
         if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,c0);}
@@ -523,7 +520,10 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
         ce ^= (!vv) * (BASIC_WAVE_TABLE_LEN - 1);   // ce = vv*ce+!vv*((BASIC_WAVE_TABLE_LEN-1) - ce);  // invert 180-360°           
         ce &= RC_TABLES_LEN-1;
 
-        int16_t* w=rcTableCurr+RC_N_WAVES*ce;   // rc_table values ptr
+        uint32_t ce_idx = ce;
+        if (rc > 32) ce_idx = (RC_TABLES_LEN - 1) - ce_idx;
+
+        int16_t* w=rcTableCurr+RC_N_WAVES*ce_idx;   // rc_table values ptr
 
         int32_t pre=w[WSIN]*waveAmplSin; 
         pre += w[WTRI]*waveAmplTri;
