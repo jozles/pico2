@@ -744,8 +744,7 @@ uint16_t tft_draw_float_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_
     return tft_draw_float_12x12_dma_mult(x,y,fg,bg,mult,num,0);
 }
 // display scope lookout of buf values ; len =buf size ; f freq ; begline first available line ; 
-// fd freq display ; wf required waveform ; mode source buffer (true=calcul ; false=i2s true data)
-
+// fd freq display ; wf required waveform ; mode calcul (0=i2s true data ; 1=computed with ce & cr ; 2 =lfo_mode one waveform output)
 void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bool blk,uint8_t refr,uint8_t wf,uint8_t mode_calcul,uint8_t object){
         
     if(refrCnt>=refr){
@@ -771,10 +770,33 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
 
         int8_t sign=1;
         float b;
+        uint32_t rc;
+        int16_t *rcTableCurr;
+        int16_t *rcTable32;
+
+        if(mode_calcul==1){
+            rc=buf[1]>>16;
+            if(rc>32){rc=64-rc;}
+            rcTableCurr = &rc_tables[rc][0][0];
+            rcTable32 = &rc_tables[32][0][0]; 
+        }
+
         for(uint32_t i=0;i<TFT_W;i++){                                    // read buf and generate waveform
             
             if(mode_calcul==1){                                           // computed view with ce&cr
-                uint32_t rcTableNb=buf[i]>>16;                            // cr = table nb 0-62
+                uint16_t ce=buf[i];                         // ce : 16 bits gauche = rc, 16 bits droite num ech
+                uint32_t rc=ce>>16;  
+        
+                ce &= (BASIC_WAVE_TABLE_LEN-1);             // local currEch (cyclic ratio managment)
+
+                bool vv=(ce<RC_TABLES_LEN);
+                sign=(vv*2-1);                          // invert 180-360°
+  
+                ce ^= (!vv) * (BASIC_WAVE_TABLE_LEN - 1);   // ce = vv*ce+!vv*((BASIC_WAVE_TABLE_LEN-1) - ce);  // invert 180-360°           
+                ce &= RC_TABLES_LEN-1;
+
+                const int16_t* w=rcTableCurr+RC_N_WAVES*ce; // rc_table values ptr
+                /*uint32_t rcTableNb=buf[i]>>16;                                // cr = table nb 0-62
                 sign = (rcTableNb<=RC_TABLES_NB)*2-1;                     // invert value if 32-62 table 0-31:1 32-62:-1
 
                 uint16_t echNb=buf[i] & (BASIC_WAVE_TABLE_LEN-1);         // ech nb   
@@ -787,8 +809,21 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
                 echNb &= RC_TABLES_LEN-1;
 
                 // get value & translate to scope value 
-                const int16_t *w = &rc_tables[rcTableNb][0][0] + 3 * echNb;   // sample value ptr           
-                b=(float)w[wf]/(float)0x7fff;                             // sample full scale ratio             
+                const int16_t *w = &rc_tables[rcTableNb][0][0] + 3 * echNb;   // sample value ptr */          
+                if(wf==WSIN || wf==WTRI){b=(float)w[wf]/(float)0x7fff;}                       // sample full scale ratio
+                else if(wf==WSAW){
+                    int16_t tri=rcTable32[RC_N_WAVES*ce+WTRI];     // saw utilise la table 32 du triangle
+                    int32_t saw;
+                    if(ce<(RC_N_SAMPLES >> 1)){saw=(65536-tri)>>1;}
+                    else saw=tri>>1;
+                    if(rc>=32){saw=-saw;}
+                    b=(float)saw/(float)0x7fff;
+                }
+                else if(wf==WSQR){
+                    int16_t sqr=(ce & (BASIC_WAVE_TABLE_LEN>>1)) ? -0x7fff : 0x7fff;
+                    b=(float)sqr/(float)0x7fff;
+                }
+
             }
             else if(mode_calcul==0){                                      // i2s true data
                 int32_t t=buf[i*2];            
@@ -801,7 +836,7 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
 
             yy=(int32_t)(sign*b*((TFT_H-begline)/2));                     // tft y value
 
-                            //printf("obj:%d i:%d wf:%d b:%f yy:%i\n",object,i,wf,b,yy);
+//printf("obj:%d i:%d wf:%d b:%f yy:%i\n",object,i,wf,b,yy);
 
             if(abs(yy)>(TFT_H-begline)/2){yy=sign*(TFT_H-begline)/2;}
             v=2*(((TFT_H-begline)/2-yy)*TFT_W+i);                         // pixel location in tft_frame

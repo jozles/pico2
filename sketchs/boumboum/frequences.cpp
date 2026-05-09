@@ -382,10 +382,11 @@ void __not_in_flash_func(lfosHandler)()
         uint16_t cf=currLfoEchFra[l];
 
         uint32_t rc = lfosCycleR[l]&63;                   // rc=0-63
-        uint32_t rcTableNb = rc;
-        uint32_t rcnb16=rcTableNb<<16;
-        if(rc<=32){rcTableNb=rc;}
-        else{rcTableNb=64-rc;}
+        //uint32_t rcTableNb = rc;
+        //uint32_t rcnb16=rcTableNb<<16;
+        //if(rc<=32){rcTableNb=rc;}
+        //else{rcTableNb=64-rc;}
+        uint32_t rcTableNb = (rc <= 32) ? rc : (64 - rc);
 
         cf += lfosStepFra[l];
         uint32_t carry = (cf >= MAX_STEP_FRA);
@@ -398,9 +399,12 @@ void __not_in_flash_func(lfosHandler)()
 
         bool vv=(ce<RC_TABLES_LEN);
         int sign=(vv*2-1);                              // invert 180-360°
+        //int sign = (rc < 32) ? +1 : -1;
 
         ce ^= (!vv) * (BASIC_WAVE_TABLE_LEN - 1);       // ce = vv*ce+!vv*((BASIC_WAVE_TABLE_LEN-1) - currEch);  // invert 180-360°       
         ce &= RC_TABLES_LEN-1;
+        //uint32_t ce_local = ce & (RC_TABLES_LEN - 1);
+        //if (ce >= RC_TABLES_LEN) ce_local = (RC_TABLES_LEN - 1) - ce_local;
         
         const int16_t *w = &rc_tables[rcTableNb][0][0]+RC_N_WAVES*ce;    // rc_table values ptr
 
@@ -466,12 +470,13 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
 
 // init rc
       uint32_t rc = v->cycleR&63;                   // rc=0-63
-      uint32_t rcTableNb = rc;
-      uint32_t rcnb16=rcTableNb<<16;
+      uint32_t rcTableNb;
+      uint32_t rcnb16=rc<<16;
       if(rc<=32){rcTableNb=rc;}
       else{rcTableNb=64-rc;}
 
-      const int16_t *rcTable32 = &rc_tables[32][0][0];                           // base table 32 pour saw      
+      int16_t *rcTableCurr = &rc_tables[rcTableNb][0][0];
+      int16_t *rcTable32 = &rc_tables[32][0][0];                           // base table 32 pour saw      
 
 // init waves ampl      
       int32_t  waveAmplSin  = v->basicWaveAmpl[W_SINUS];
@@ -518,7 +523,7 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
         ce ^= (!vv) * (BASIC_WAVE_TABLE_LEN - 1);   // ce = vv*ce+!vv*((BASIC_WAVE_TABLE_LEN-1) - ce);  // invert 180-360°           
         ce &= RC_TABLES_LEN-1;
 
-        const int16_t* w=&rc_tables[rcTableNb][0][0]+RC_N_WAVES*ce;   // rc_table values ptr
+        int16_t* w=rcTableCurr+RC_N_WAVES*ce;   // rc_table values ptr
 
         int32_t pre=w[WSIN]*waveAmplSin; 
         pre += w[WTRI]*waveAmplTri;

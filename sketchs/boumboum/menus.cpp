@@ -187,17 +187,17 @@ void menus_init(){
 }
 
 // ****** display title ******
-void title_dsp(const char* title,uint8_t item,uint8_t type,float v0, float v1, uint32_t v2){
+void title_dsp(const char* title,uint8_t item,uint8_t type,float v0, int32_t v1, int32_t v2){
 
     memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
     memset(buf2,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
     switch(type){
         case AMPS:sprintf(buf,"v:%d %4.3f amp",item,voices[item].frequency);break;
-        case LFOS:  sprintf(buf,"%s:%u %1.3f %i ",title,item,lfosFrequency[item],lfosCoderCycleR[item]-MAXCODER_RC/2);
+        case LFOS:  sprintf(buf,"%s:%u %1.3f %i",title,item,lfosFrequency[item],lfosCoderCycleR[item]-MAXCODER_RC/2);
                     sprintf(buf2,"crAt:%i frAt:%i",lfosCoderCycleRAtt[item],lfosCodersAttFreq[item]);
                     break;
-        case VOICES:sprintf(buf,"%s:%u %1.3f %i ",title,item,voices[item].frequency,voices[item].coderCycleR-MAXCODER_RC/2);break;
-        case ADSR:sprintf(buf,"%s:%u %u %u %u %u %u ",title,item,adsrAttCoder[item],adsrDecCoder[item],adsrSusCoder[item],adsrRelCoder[item],adsrLevCoder[item]);break;
+        case VOICES:sprintf(buf,"%s:%u %1.3f%+i %i%i",title,item,voices[item].frequency,voices[item].coderCycleR-MAXCODER_RC/2,v1,v2);break;
+        case ADSR:sprintf(buf,"%s:%u %u %u%+u %u %u ",title,item,adsrAttCoder[item],adsrDecCoder[item],adsrSusCoder[item],adsrRelCoder[item],adsrLevCoder[item]);break;
         case MENU0:sprintf(buf,"%s  ",title);break;
 
         default:sprintf(buf,"%s           ",title);break;
@@ -579,7 +579,7 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
 
     uint8_t line=0;
     bool mode_scope=false;
-    bool type_scope=false;
+    uint8_t type_scope=0;
     bool firstScope=true;
     uint8_t wave=0;
     uint8_t debug=false;
@@ -599,7 +599,11 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
 
             int s=tst_switchs_(switchsNb);            
             if(s==0 || s==-99){return line;}
-            if(s>0){mode_scope=true;firstScope=true;wave=s-1;type_scope=!type_scope;}
+            if(s>0){mode_scope=true;firstScope=true;
+                if((s-1)!=wave){type_scope=1;}
+                else type_scope^=1;
+                wave=s-1;
+            }    
 
             for(uint8_t coder=0;coder<varNb+1;coder++){       
 
@@ -639,8 +643,8 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
                     firstScope=false;       
                 }
                 else if(type==VOICES){ 
-                    if(firstScope){title_dsp(title,line,VOICES);}
-                    if(type_scope){scope(voicesDataBuffer+line*OSC_SCOPE_BUFFER_LEN,voices[line].frequency,begline,false,firstScope,0,wave,1);}
+                    if(firstScope){title_dsp(title,line,VOICES,0,wave,type_scope);}
+                    if(type_scope==1){scope(voicesDataBuffer+line*OSC_SCOPE_BUFFER_LEN,voices[line].frequency,begline,false,firstScope,0,wave,1);}
                     else{scope(i2s_buf_scope,voices[line].frequency,begline,false,firstScope,0,wave,0);}
                     firstScope=false;         
                 }
