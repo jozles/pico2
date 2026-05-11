@@ -400,8 +400,7 @@ void __not_in_flash_func(lfosHandler)()
         ce &= RC_TABLES_LEN-1;
 
         uint32_t ce_idx = ce;
-        if (rc > 32)
-        ce_idx = (RC_TABLES_LEN - 1) - ce_idx;
+        if (rc > 32){ce_idx = (RC_TABLES_LEN - 1) - ce_idx;}
         
         const int16_t *w = &rc_tables[rcTableNb][0][0]+RC_N_WAVES*ce_idx;    // rc_table values ptr 
         
@@ -467,10 +466,12 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
 
 // init rc
       uint32_t rc = v->cycleR&63;                   // rc=0-63
-      uint32_t rcTableNb;
+      /*uint32_t rcTableNb;
       uint32_t rcnb16=rc<<16;
       if(rc<=32){rcTableNb=rc;}
-      else{rcTableNb=64-rc;}
+      else{rcTableNb=64-rc;}*/
+      uint32_t rcTableNb = (rc <= 32) ? rc : (64 - rc);
+      uint32_t rcnb16=rc<<16;
 
       int16_t *rcTableCurr = &rc_tables[rcTableNb][0][0];
       int16_t *rcTable32 = &rc_tables[32][0][0];                           // base table 32 pour saw      
@@ -509,7 +510,7 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
 
         // waves
 
-        uint16_t ce=vsBuffer[s];          // ce : 16 bits gauche = rc, 16 bits droite num ech
+        uint32_t ce=vsBuffer[s];          // ce : 16 bits gauche = rc, 16 bits droite num ech
         uint32_t rc=ce>>16;  
         
         ce &= (BASIC_WAVE_TABLE_LEN-1);             // local currEch (cyclic ratio managment)

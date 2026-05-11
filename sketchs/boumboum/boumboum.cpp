@@ -57,17 +57,14 @@ if (watchdog_caused_reboot()) {
     init_test_7789(20,25*8,0,TFT_H-12*8,TFT_H,1);       // init screen animation
 
     i2s_start();                                        // launch sound output
-printf("I2S DMA2 ctrl=%08x\n", dma_hw->ch[2].ctrl_trig);
-printf("I2S DMA3 ctrl=%08x\n", dma_hw->ch[3].ctrl_trig);
-
 
     menus_init();
 
     while(1){
+
         uint8_t menu=coders_for_menu("boumboum ",(const char*)menu0_names,MENU0_NB,MENU_NAME_LEN,MENU0,menu0Coders,voicesSw,menu0MaxCoders,nullptr,0,MENU0_CODER_NB);
 
         switch(menu){
-            //case VOICES_FR: currVoice=coders_for_freq(currVoice);break;
             case VOICES_FR: coders_for_menu("V",(const char*)nullptr,MAX_VOICES,0,VOICES,menuVcesCoders,voicesSw,menuMaxVcesCoders,vcesVar,VCE_VAR_NB,BASIC_WAVES_NB);break;
             case WAVES_AMP: coders_for_wavesAmpl(currVoice);break;
             //case GEN_AMPL_: coders_for_genAmpl(currVoice);break;

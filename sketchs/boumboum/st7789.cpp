@@ -133,11 +133,13 @@ static void tft_set_window(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) {
 // x,y window upper left corner ; w,h size
 // -----------------------------------------------------------
 void st_dma_launch(uint8_t* frame,uint16_t x,uint16_t y,uint16_t w,uint16_t h){       
-                                                            
+
+//uint8_t cnt=0;
+//printf("launch cnt:%d stdf:%d stddb:%d stsf:%d\n",cnt,st_dma_free,st_dma_done_blank,st_sched_free);    
     while(1){ 
         
         uint32_t f = spin_lock_blocking(st_dma_lock); //protège st_dma_done_xxx et sched_xxx contre un accès asynchrone
-    
+
         // si launch s'éxécute c'est que le buffer était dispo et 
         // st_dma_wait a mis st_buffer_free false pour bloquer d'autres demandes
         //
@@ -748,7 +750,7 @@ uint16_t tft_draw_float_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_
 void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bool blk,uint8_t refr,uint8_t wf,uint8_t mode_calcul,uint8_t object){
         
     if(refrCnt>=refr){
-
+        
         refrCnt=0;   
         uint32_t x;
         uint16_t bgcolor=0x0000;
@@ -770,46 +772,36 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
 
         int8_t sign=1;
         float b;
-        uint32_t rc;
+        int32_t rc;
         int16_t *rcTableCurr;
         int16_t *rcTable32;
 
         if(mode_calcul==1){
-            rc=buf[1]>>16;
+            rc=buf[0]>>16;
             if(rc>32){rc=64-rc;}
             rcTableCurr = &rc_tables[rc][0][0];
             rcTable32 = &rc_tables[32][0][0]; 
         }
 
-        for(uint32_t i=0;i<TFT_W;i++){                                    // read buf and generate waveform
+        for(uint32_t i=0;i<TFT_W;i++){                      // read buf and generate waveform
             
-            if(mode_calcul==1){                                           // computed view with ce&cr
-                uint16_t ce=buf[i];                         // ce : 16 bits gauche = rc, 16 bits droite num ech
+            if(mode_calcul==1){                             // computed view with ce&cr
+                uint32_t ce=buf[i];                         // ce : 16 bits gauche = rc, 16 bits droite num ech
                 uint32_t rc=ce>>16;  
         
                 ce &= (BASIC_WAVE_TABLE_LEN-1);             // local currEch (cyclic ratio managment)
 
                 bool vv=(ce<RC_TABLES_LEN);
-                sign=(vv*2-1);                          // invert 180-360°
+                sign=(vv*2-1);                              // invert 180-360°
   
                 ce ^= (!vv) * (BASIC_WAVE_TABLE_LEN - 1);   // ce = vv*ce+!vv*((BASIC_WAVE_TABLE_LEN-1) - ce);  // invert 180-360°           
                 ce &= RC_TABLES_LEN-1;
 
-                const int16_t* w=rcTableCurr+RC_N_WAVES*ce; // rc_table values ptr
-                /*uint32_t rcTableNb=buf[i]>>16;                                // cr = table nb 0-62
-                sign = (rcTableNb<=RC_TABLES_NB)*2-1;                     // invert value if 32-62 table 0-31:1 32-62:-1
+                uint32_t ce_idx = ce;
+                if (rc > 32){ce_idx = (RC_TABLES_LEN - 1) - ce_idx;}
 
-                uint16_t echNb=buf[i] & (BASIC_WAVE_TABLE_LEN-1);         // ech nb   
-                if(rcTableNb>(RC_TABLES_NB-1)) {rcTableNb=(RC_TABLES_NB-1)*2-rcTableNb;}      // mirroring table for 32-62 
-
-                bool vv=(echNb<RC_TABLES_LEN);             
-                sign=sign*(vv*2-1);                                       // invert 180-360°
-                echNb ^= (!vv) * (BASIC_WAVE_TABLE_LEN - 1);              // currEch = vv*currEch+!vv*((BASIC_WAVE_TABLE_LEN-1) - currEch);  // invert 180-360°
-            
-                echNb &= RC_TABLES_LEN-1;
-
-                // get value & translate to scope value 
-                const int16_t *w = &rc_tables[rcTableNb][0][0] + 3 * echNb;   // sample value ptr */          
+                const int16_t* w=rcTableCurr+RC_N_WAVES*ce_idx; // rc_table values ptr
+        
                 if(wf==WSIN || wf==WTRI){b=(float)w[wf]/(float)0x7fff;}                       // sample full scale ratio
                 else if(wf==WSAW){
                     int16_t tri=rcTable32[RC_N_WAVES*ce+WTRI];     // saw utilise la table 32 du triangle
@@ -823,7 +815,6 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
                     int16_t sqr=(ce & (BASIC_WAVE_TABLE_LEN>>1)) ? -0x7fff : 0x7fff;
                     b=(float)sqr/(float)0x7fff;
                 }
-
             }
             else if(mode_calcul==0){                                      // i2s true data
                 int32_t t=buf[i*2];            

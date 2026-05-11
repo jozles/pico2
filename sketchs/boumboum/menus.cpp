@@ -466,7 +466,7 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
         buf[1]=' ';
 
         switch(type){
-            case MENU0:sprintf(buf,"%2d  %s",line,menu+line*len);break; // général
+            case MENU0:sprintf(buf+2,"%s  ",menu+line*len);break; // général
             case LFOS:
                 switch(coder){
                     case OSCMENU:
@@ -560,6 +560,7 @@ void fullMenuDsp(const char* title,const char* menu,uint8_t linesNb,uint8_t line
 
     for(uint8_t l=0;l<linesNb;l++){
         fillVoices();
+        printf("beg:%d m:%s l:%d len:%d cl:%d type:%d cod:%d\n",begline,menu+line_len*l,l,line_len,currline==l,type,coder);//,cc,mode_scope,NO_VAR_CHANGE);
         menuLineDsp(menu,l,line_len,currline==l,type,coder,cc,mode_scope,NO_VAR_CHANGE);
     }
 }
@@ -607,6 +608,7 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
 
             for(uint8_t coder=0;coder<varNb+1;coder++){       
 
+                // sleep_ms(1); // needeed for coder stabilizes
                 uint32_t cc=cTC[coder];
                 
                 // coder 0 : depl vertical

@@ -198,7 +198,6 @@ uint32_t pin_irq_cnt=0;
 void gpio_irq_handler(uint gpio, uint32_t events) {
     if (events & GPIO_IRQ_EDGE_RISE) {
         gpio_irq_set=true;
-        //printf("irq_pin:%d\n",pin_irq_cnt++);
     }
 }
 
@@ -244,7 +243,7 @@ void setup(){
     // ****** st7789 ******
     st_dma_channel=st7789_setup(ST7789_SPI_SPEED);
     if(st_dma_channel<0){LEDBLINK_ERROR_DMA}
-    printf("ws:%i st:%i\n",ws_dma_channel,st_dma_channel);
+    printf("ws dma ch:%i st dma ch:%i\n",ws_dma_channel,st_dma_channel);
 
     // ****** global irq (st+ws) ******
     init_global_dma_irq();
@@ -281,6 +280,8 @@ void setup(){
     // ****** scope check ******
     //scope(voicesDataBuffer,voices[0].frequency,14,true,true,0,0,true);    // scope mode_calcul
     scope(i2s_buf0,voices[0].frequency,14,true,true,0,0,0);     // scope mode_data
+
+    gpio_irq_set = false;
     while(!gpio_irq_set){
         debug_ticker();
         ledblinkn(3);
