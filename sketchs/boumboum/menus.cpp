@@ -457,7 +457,9 @@ uint8_t coders_for_mapping(){
 #define NO_VAR_CHANGE   false       // pas de modif de variables
 #define VAR_CHANGE      true
 
-void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type,uint8_t coder,uint32_t cc,bool mode_scope,bool varChge){
+void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type,uint8_t coder,uint32_t cc,bool mode_scope,bool varChge)
+{
+//printf("line:%u rev:%u type:%u ",line,rev);    
         uint16_t fgc=GREEN;
         uint16_t bgc=0x0000;
         uint16_t buc=fgc;
@@ -548,8 +550,10 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                     default: break;
                 }
                 sprintf(buf+2,"%u %u %u %u %u",adsrAttCoder[line],adsrDecCoder[line],adsrSusCoder[line],adsrRelCoder[line],adsrLevCoder[line]);
+                break;
             default:break;
         }
+//printf("line:%u \n",line);
         if(!mode_scope){tft_draw_text_12x12_dma_mult(0,line*(12*2+1)+begline,buf,fgc,bgc,1);}
 }
 
@@ -575,10 +579,10 @@ void fullMenuDsp(const char* title,const char* menu,uint8_t linesNb,uint8_t line
 // les traitements associés à lamodif de variables sont appelés depuis menuLineDsp() ou l'affichage de la ligne est décrit
 // switch : la sortie est déclenchée soit par le "return button" soit par l'appui du coder 0 ; la valeur retournée est le n° de ligne
 // les autres switchs passent en mode scope si le type de menu le gère ; coderNb indique le nombre de coders valides (coder 0 inclu)
-uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8_t line_len,uint8_t type,volatile int16_t *cTC, volatile bool *cTS, uint16_t *maxi,uint16_t** var,uint8_t varNb,uint8_t switchsNb)
+uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8_t line_len,uint8_t type,volatile int16_t *cTC, volatile bool *cTS, uint16_t *maxi,uint16_t** var,uint8_t varNb,uint8_t switchsNb,uint8_t line0)
 {
 
-    uint8_t line=0;
+    uint8_t line=line0;
     bool mode_scope=false;
     uint8_t type_scope=0;
     bool firstScope=true;
@@ -587,7 +591,7 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
 
     coderSetup(cTC,cTS,maxi,linesNb);   // coderSetup ignore lineNb
 
-    fullMenuDsp(title,text,linesNb,line_len,0,type,0,0,false);
+    fullMenuDsp(title,text,linesNb,line_len,line,type,0,0,false);
 
     while(1){
             

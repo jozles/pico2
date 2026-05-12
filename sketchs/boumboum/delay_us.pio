@@ -1,0 +1,5 @@
+.program delay_us
+    pull block        ; récupérer la valeur envoyée par pio_sm_put_blocking
+    mov x, osr        ; charger X = nombre de µs
+loop:
+    jmp x-- loop      ; 1 µs par itération

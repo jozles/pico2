@@ -59,17 +59,18 @@ if (watchdog_caused_reboot()) {
     i2s_start();                                        // launch sound output
 
     menus_init();
+    uint8_t menu=0;
 
     while(1){
-
-        uint8_t menu=coders_for_menu("boumboum ",(const char*)menu0_names,MENU0_NB,MENU_NAME_LEN,MENU0,menu0Coders,voicesSw,menu0MaxCoders,nullptr,0,MENU0_CODER_NB);
+//printf("menu:%d \n");
+        menu=coders_for_menu("boumboum ",(const char*)menu0_names,MENU0_NB,MENU_NAME_LEN,MENU0,menu0Coders,voicesSw,menu0MaxCoders,nullptr,0,MENU0_CODER_NB,menu);
 
         switch(menu){
-            case VOICES_FR: coders_for_menu("V",(const char*)nullptr,MAX_VOICES,0,VOICES,menuVcesCoders,voicesSw,menuMaxVcesCoders,vcesVar,VCE_VAR_NB,BASIC_WAVES_NB);break;
+            case VOICES_FR: coders_for_menu("V",(const char*)nullptr,MAX_VOICES,0,VOICES,menuVcesCoders,voicesSw,menuMaxVcesCoders,vcesVar,VCE_VAR_NB,BASIC_WAVES_NB,0);break;
             case WAVES_AMP: coders_for_wavesAmpl(currVoice);break;
             //case GEN_AMPL_: coders_for_genAmpl(currVoice);break;
-            case LFOS_____: coders_for_menu("L",(const char*)nullptr,MAX_LFO,0,LFOS,menuLfosCoders,voicesSw,menuMaxLfosCoders,lfosVar,LFO_VAR_NB,BASIC_WAVES_NB);break;
-            case ADSRL____: coders_for_menu("A",(const char*)nullptr,MAX_LFO,0,ADSR,menuAdsrCoders,voicesSw,menuMaxAdsrCoders,adsrVar,ADSR_VAR_NB,BASIC_WAVES_NB);break;
+            case LFOS_____: coders_for_menu("L",(const char*)nullptr,MAX_LFO,0,LFOS,menuLfosCoders,voicesSw,menuMaxLfosCoders,lfosVar,LFO_VAR_NB,BASIC_WAVES_NB,0);break;
+            case ADSRL____: coders_for_menu("A",(const char*)nullptr,MAX_LFO,0,ADSR,menuAdsrCoders,voicesSw,menuMaxAdsrCoders,adsrVar,ADSR_VAR_NB,BASIC_WAVES_NB,0);break;
             case MAPPING__: coders_for_mapping();break;
 
             default:break;
