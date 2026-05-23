@@ -368,9 +368,6 @@ void dumpLfos()
 
 void __not_in_flash_func(lfosHandler)()
 {
-  #define LIM90  BASIC_WAVE_TABLE_LEN/4
-  #define LIM270 BASIC_WAVE_TABLE_LEN*3/4
-
   if((millisCounter-lfoTime)>lfoTimingInterval){
     lfoTime=millisCounter;
 
@@ -379,7 +376,7 @@ void __not_in_flash_func(lfosHandler)()
     for(uint8_t l=0;l<MAX_LFO;l++){
 
         uint32_t ce=currLfoEch[l];                      
-        uint16_t cf=currLfoEchFra[l];
+        uint32_t cf=currLfoEchFra[l];
 
         uint32_t rc = lfosCycleR[l]&63;                 // rc=0-63
         uint32_t rcTableNb = (rc <= 32) ? rc : (64 - rc);

@@ -37,7 +37,7 @@ uint16_t* lfosVar[CODER_NB];                        // inits dans menu.cpp ; les
 
 #define ADSR_VAR_NB 6
 volatile int16_t menuAdsrCoders[ADSR_VAR_NB+1];      // [0] curr input nb ; [1] curr coder value for freq ; [2] curr coder value for rc
-uint16_t menuMaxAdsrCoders[]={MAX_LFO-1,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_LEVEL_CODERS};
+uint16_t menuMaxAdsrCoders[]={MAX_ADSR-1,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_LEVEL_CODERS};
 uint16_t* adsrVar[CODER_NB];                        // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
 
 int main() {

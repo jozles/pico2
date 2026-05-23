@@ -26,8 +26,6 @@
 #define INCRNB 409    // int(4096/10)=409
 #define FREQ0 16.345  // pour avoir un LA à 440Hz avecc 409 incréments par octave 
 
-#define MAX_STEP_FRA 65536  // décimales ratio sampleFreq/currFreq
-
 struct Voice {
     uint16_t    sampleNbToFill;                 // sample Nb for 1 period    
     uint32_t    currentSample;                  // last value pushed in i2s buffer                  

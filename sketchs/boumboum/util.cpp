@@ -21,6 +21,7 @@
 #include "st7789.h"
 #include "menus.h"
 #include "input_tables_management.h"
+#include "miscControls.h"
 
 #define SYSTICK_BASE 0xE000E010UL
 
@@ -233,9 +234,6 @@ void setup(){
     // ****** coders ******
     coderInit(CODER_GPIO_CLOCK,CODER_GPIO_DATA,CODER_GPIO_SW,CODER_GPIO_VCC,CODER_PIO_SEL0,CODER_SEL_NB,CODER_NB,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER);
 
-    // ****** 1kHZ irq ******
-    init_pwm_timer_1khz();  // millitimers+coders+lfos
-
     // ****** ws2812 ******
     ws_dma_channel=ledsWs2812Setup(ws2812_pio,WS2812_LED_PIN);
     if(ws_dma_channel<0){LEDBLINK_ERROR_DMA}
@@ -263,16 +261,22 @@ void setup(){
     // ****** lfos ******
     lfosInit();
 
+    // ****** adsrs ******
+    adsrInit();
+
+    // ****** 1kHZ irq ******
+    init_pwm_timer_1khz();      // start engine for millitimers+coders+lfos+adsr
+
     // ****** i2s ******
     i2s_dma_buffers[0]=i2s_buf0;
     i2s_dma_buffers[1]=i2s_buf1;
-    i2sSetup(_i2s_pio,PICO_AUDIO_I2S_DATA_PIN,i2s_dma_buffers);
+    i2sSetup(_i2s_pio,PICO_AUDIO_I2S_DATA_PIN,i2s_dma_buffers);     // start i2s engine
 
     voices[0].coderAmpl[W_SINUS]=31;
     voices[0].basicWaveAmpl[W_SINUS]=getAmpl(&voices[0],W_SINUS);
     printf("demo sinus f:%f rc:%i ampl:%d\n",fr0,cga,voices[0].basicWaveAmpl[W_SINUS]);delay_ms(100);      
     
-    fillVoices();           // après i2sSetup
+    fillVoices();               // après i2sSetup
    
 //dumpVoices(voices);
 //dumpStr(voiceScopeBuffer,256);
