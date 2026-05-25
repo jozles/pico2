@@ -72,7 +72,8 @@ add_executable(boumboum
 	rc_33tables.cpp
 	)
 
-pico_set_binary_type(boumboum copy_to_ram)
+# tout le code en ram
+#pico_set_binary_type(boumboum copy_to_ram)
 
 pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/ws2812.pio)
 pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/i2s.pio)

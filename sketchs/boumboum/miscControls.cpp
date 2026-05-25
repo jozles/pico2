@@ -66,6 +66,7 @@ void __not_in_flash_func(adsrHandler)()
                 uint32_t  cx=0;
                 uint32_t* ce=&adsrCurrEch[a];
                 int16_t*  ov=&adsrOutputsValues[a][LSIN];
+                #define P15 (1<<15)
                 
 
                 // on utilise la cr table sinus n°32 dans ses 1er 90° donc BASIC_WAVE_TABLE_LEN / 4 samples            
@@ -78,7 +79,7 @@ void __not_in_flash_func(adsrHandler)()
                     case ADSR_DEC:
                         // valeurs 1-x
                         cx=(rc_tables[32][*ce][LSIN]);
-                        *ov=2^15-(cx*lev/2^15);
+                        *ov=P15-(cx*lev/P15);
                         break;
                     case ADSR_SUS:
                         // on utilise amplLevel[adsrLevCoder]
@@ -87,7 +88,7 @@ void __not_in_flash_func(adsrHandler)()
                     case ADSR_REL:            
                         // valeurs 1-x
                         cx=(rc_tables[32][*ce][LSIN]);
-                        *ov=lev-(cx*lev/2^15);
+                        *ov=lev-(cx*lev/P15);
                         break;
                     default:break;
                 }
