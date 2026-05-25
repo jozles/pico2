@@ -10,6 +10,7 @@ enum AdsrStates {
     ADSR_DEC,
     ADSR_SUS,
     ADSR_REL,
+    ADSR_MAX_STATES
 };
 
 
