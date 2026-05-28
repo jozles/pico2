@@ -305,7 +305,7 @@ void objects_table_init()
     init_objects_outputs();
 }
 
-void connect_input(uint16_t input_id, uint16_t output)
+void __not_in_flash_func(connect_input)(uint16_t input_id, uint16_t output)
 {
     uint32_t f = spin_lock_blocking(inputs_id__lock);
 
@@ -335,7 +335,7 @@ void connect_input(uint16_t input_id, uint16_t output)
     //printf("out#:%d in_id:%d out_id_chain:%i inp_id_chain:%i\n",output,input_id,ctl_output_id_chain[output],ctl_input_id_chain[input_id]);
 }
 
-void disconnect_input(uint16_t input_id, uint16_t output)
+void __not_in_flash_func(disconnect_input)(uint16_t input_id, uint16_t output)
 {
     if(output==0){return;}
 
@@ -382,7 +382,7 @@ void disconnect_input(uint16_t input_id, uint16_t output)
     spin_unlock(inputs_id__lock, f);
 }
 
-void update_inputs(int16_t id,int16_t valeur)
+void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)
 {
     //int16_t id = ctl_output_id_chain[output];
     ctl_input_val[id] = valeur;

@@ -279,7 +279,7 @@ void dumpVoices(Voice* v)
   }
 }
 
-uint16_t calcCoderFreq(float freq) // from freq value to coder value
+uint16_t __not_in_flash_func(calcCoderFreq)(float freq) // from freq value to coder value
 { 
     uint8_t oct = 0;
     while (octFreq[oct+1] <= freq && oct < OCTNB)
@@ -297,7 +297,7 @@ uint16_t calcCoderFreq(float freq) // from freq value to coder value
 }
 
 // calcul de la fréquence sonore à partir de la valeur linéaire
-float calcFreq(uint16_t val) // from lin value (0-octIncrNb*OCTNB) to snd value (baseF à baseF*2^OCTNB)
+float __not_in_flash_func(calcFreq)(uint16_t val) // from lin value (0-octIncrNb*OCTNB) to snd value (baseF à baseF*2^OCTNB)
 { 
   uint8_t oct = val/ octIncrNb;
   uint16_t incr = val % octIncrNb;
@@ -470,8 +470,8 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
       uint32_t rcTableNb = (rc <= 32) ? rc : (64 - rc);
       uint32_t rcnb16=rc<<16;
 
-      int16_t *rcTableCurr = &rc_tables[rcTableNb][0][0];
-      int16_t *rcTable32 = &rc_tables[32][0][0];                           // base table 32 pour saw      
+      const int16_t* rcTableCurr = &rc_tables[rcTableNb][0][0];
+      const int16_t* rcTable32 = &rc_tables[32][0][0];                           // base table 32 pour saw      
 
 // init waves ampl      
       int32_t  waveAmplSin  = v->basicWaveAmpl[W_SINUS];
@@ -521,7 +521,7 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
         uint32_t ce_idx = ce;
         if (rc > 32) ce_idx = (RC_TABLES_LEN - 1) - ce_idx;
 
-        int16_t* w=rcTableCurr+RC_N_WAVES*ce_idx;   // rc_table values ptr
+        const int16_t* w=rcTableCurr+RC_N_WAVES*ce_idx;   // rc_table values ptr
 
         int32_t pre=w[WSIN]*waveAmplSin; 
         pre += w[WTRI]*waveAmplTri;

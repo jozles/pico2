@@ -26,6 +26,8 @@ extern uint32_t st_dma_tfr_count;
 
 static int st_dma_chan=-1;
 static dma_channel_config dma_cfg;
+static dma_channel_config dma_cfg_single;
+static const uint16_t zero16=0x0000;
 //static 
 volatile bool st_dma_free = true;      // false busy : dma en cours sur buffer
 static spin_lock_t *st_dma_lock;
@@ -56,8 +58,8 @@ static volatile uint16_t sched_h;
 __attribute__((aligned(32)))
 static uint8_t tft_frame[FRAME_SIZE];    // 2bytes/pixel
 //static 
-__attribute__((aligned(4)))
-uint8_t tft_frame_blk[FRAME_SIZE];    // 2bytes/pixel 
+//__attribute__((aligned(4)))
+//uint8_t tft_frame_blk[FRAME_SIZE];    // 2bytes/pixel 
 static uint32_t points[TFT_W];
 static uint8_t refrCnt=0;
 
@@ -283,9 +285,9 @@ int st7789_setup(uint32_t spiSpeed)
     st_sched_free = true;
 
     //memset(tft_frame_blk,0x00,FRAME_SIZE);
-    blank(tft_frame_blk,FRAME_SIZE);
+    //blank(tft_frame_blk,FRAME_SIZE); inutile fill rect blk modifié un seul octet
 
-    tft_fill_rect_blank(0,0,TFT_H,TFT_W);//sleep_ms(50);
+    tft_fill_rect_blank(0,0,TFT_H,TFT_W);
     gpio_put(ST7789_PIN_BL, 1);
     printf("st7789_Setup done\n");
     delay_ms(100);
@@ -430,15 +432,14 @@ void __not_in_flash_func(tft_fill_rect_blank)(uint16_t beg_line,uint16_t beg_col
 
     st_dma_wait_blank();
 
-    // 1) buffer EXACT de la taille du pavé
     size_t total_pixels = lines_nb * col_nb;
     size_t total_bytes  = total_pixels * 2;
 
-    // 2) remplir le buffer                            // inutile le buffer tft_frame_blk est pret
-    //for (int i = 0; i < total_pixels; i++) {
-    //    tft_frame[2*i]     = color >> 8;
-    //    tft_frame[2*i + 1] = color & 0xFF;
-    //}
+    dma_channel_config dma_cfg_single = dma_channel_get_default_config(st_dma_chan);
+    channel_config_set_transfer_data_size(&dma_cfg_single, DMA_SIZE_16);
+    channel_config_set_read_increment(&dma_cfg_single, false);
+    channel_config_set_write_increment(&dma_cfg_single, false);
+    channel_config_set_dreq(&dma_cfg_single, DREQ_SPI0_TX);
 
     tft_set_window(beg_col,beg_line,beg_col+col_nb-1,beg_line+lines_nb-1);
 
@@ -447,9 +448,9 @@ void __not_in_flash_func(tft_fill_rect_blank)(uint16_t beg_line,uint16_t beg_col
 
     dma_channel_configure(
         st_dma_chan,
-        &dma_cfg,
+        &dma_cfg_single,
         &spi0_hw->dr,
-        tft_frame_blk,              // on peut s'affranchir du buffer et utiliser &zero (static const uint16_t zero = 0;) modifier l'init : canal temporaire sans irq
+        &zero16,          
         total_bytes,
         true
     );
@@ -773,8 +774,8 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
         int8_t sign=1;
         float b;
         int32_t rc;
-        int16_t *rcTableCurr;
-        int16_t *rcTable32;
+        const int16_t *rcTableCurr;
+        const int16_t *rcTable32;
 
         if(mode_calcul==1){
             rc=buf[0]>>16;

@@ -1,5 +1,6 @@
 #include "rc_33tables.h"
 
+//__attribute__((section(".flash"))) const 
 int16_t rc_tables[RC_N_TABLES][RC_N_SAMPLES][RC_N_WAVES] = {
   {
     {0, 0},
