@@ -34,7 +34,7 @@ extern uint32_t millisCounter;
 // current lfo values (lfoHandler triger'd by pwmIrqHandler)
 float       lfosFrequency[MAX_LFO];                   // current lfo freq
 uint16_t    lfosCodersFreq[MAX_LFO];                  // last coder value for freq
-uint16_t    lfosCodersAttFreq[MAX_LFO];               // coder pour atténuateur ctl_input_val (freq)
+uint16_t    lfosCodersFreqAtt[MAX_LFO];               // coder pour atténuateur ctl_input_val (freq)
 uint16_t    lfosMaxCoderFreq[MAX_LFO];                // pmax value for lfo coderFreq
 uint16_t    lfosStepInt[MAX_LFO];                     // partie entière du step lfo
 uint32_t    lfosStepFra[MAX_LFO];                     // partie fractionnaire du step lfo
@@ -338,7 +338,7 @@ void lfosInit(){
         lfosCodersFreq[l]=1768;    // 1.5s
         lfosFrequency[l]=calcFreq(lfosCodersFreq[l])/VOICE_FREQ_DIVIDER;
         lfosMaxCoderFreq[l]=LFOS_MAX_FREQ_CODERS;
-        lfosCodersAttFreq[l]=FULL_ATTENUATION_VALUE;
+        lfosCodersFreqAtt[l]=FULL_ATTENUATION_VALUE;
         currLfoEch[l]=0;
         currLfoEchFra[l]=0;
         lfosStepInt[l]=0;

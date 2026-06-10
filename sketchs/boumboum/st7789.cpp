@@ -245,13 +245,21 @@ void __not_in_flash_func(st_dma_irq_handler)() {
 int init_dma_spi() {
     st_dma_chan = dma_claim_unused_channel(true);
     if(st_dma_chan<0){return -1;}                   // no channel available
-    dma_cfg = dma_channel_get_default_config(st_dma_chan);
 
+    // dma_cfg 
+    dma_cfg = dma_channel_get_default_config(st_dma_chan);
     channel_config_set_transfer_data_size(&dma_cfg, DMA_SIZE_8);
     channel_config_set_read_increment(&dma_cfg, true);
     channel_config_set_write_increment(&dma_cfg, false);
     channel_config_set_dreq(&dma_cfg, DREQ_SPI0_TX);
    
+    // dma_cfg_single (blank only)
+    dma_cfg_single = dma_channel_get_default_config(st_dma_chan);
+    channel_config_set_transfer_data_size(&dma_cfg_single, DMA_SIZE_16);
+    channel_config_set_read_increment(&dma_cfg_single, false);
+    channel_config_set_write_increment(&dma_cfg_single, false);
+    channel_config_set_dreq(&dma_cfg_single, DREQ_SPI0_TX);
+
     dma_channel_set_irq1_enabled(st_dma_chan, true);
 #ifndef GLOBAL_DMA_IRQ_HANDLER 
     irq_set_exclusive_handler(DMA_IRQ_1, st_dma_irq_handler);
@@ -434,12 +442,6 @@ void __not_in_flash_func(tft_fill_rect_blank)(uint16_t beg_line,uint16_t beg_col
 
     size_t total_pixels = lines_nb * col_nb;
     size_t total_bytes  = total_pixels * 2;
-
-    dma_channel_config dma_cfg_single = dma_channel_get_default_config(st_dma_chan);
-    channel_config_set_transfer_data_size(&dma_cfg_single, DMA_SIZE_16);
-    channel_config_set_read_increment(&dma_cfg_single, false);
-    channel_config_set_write_increment(&dma_cfg_single, false);
-    channel_config_set_dreq(&dma_cfg_single, DREQ_SPI0_TX);
 
     tft_set_window(beg_col,beg_line,beg_col+col_nb-1,beg_line+lines_nb-1);
 

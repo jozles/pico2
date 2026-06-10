@@ -5,3 +5,4 @@
     X(SUST,"SUST")
     X(RELE,"RELE")
     X(LEVE,"LEVE")
+    X(STAR,"STAR")

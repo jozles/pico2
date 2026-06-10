@@ -9,21 +9,34 @@
 
 #include "hardware/sync.h"
 
+extern uint16_t  adsrCoderAtt[MAX_ADSR];
+extern uint16_t  adsrCoderDec[MAX_ADSR];
+extern uint16_t  adsrCoderSus[MAX_ADSR];
+extern uint16_t  adsrCoderRel[MAX_ADSR];
+extern uint16_t  adsrCoderLev[MAX_ADSR];
+extern uint16_t  adsrCoderAttAtt[MAX_ADSR];
+extern uint16_t  adsrCoderDecAtt[MAX_ADSR];
+extern uint16_t  adsrCoderSusAtt[MAX_ADSR];
+extern uint16_t  adsrCoderRelAtt[MAX_ADSR];
+extern uint16_t  adsrCoderLevAtt[MAX_ADSR];
+extern uint8_t   adsrStatus[MAX_ADSR];
 extern int16_t   adsr_ctl_input_id[][MAX_INPUTS_PER_OBJ];
 extern int16_t   adsr_ctl_output_id[][MAX_OUTPUTS_PER_OBJ];
+extern int16_t   adsrOutputsValues[MAX_ADSR][MAX_OUTPUTS_PER_OBJ];
 
 extern Voice voices[MAX_VOICES];
 
 extern float     lfosFrequency[MAX_LFO]; 
-extern int16_t   lfosOutputsValues[MAX_LFO][MAX_OUTPUTS_PER_OBJ];
-extern int16_t   adsrOutputsValues[MAX_ADSR][MAX_OUTPUTS_PER_OBJ];
 extern uint16_t  lfosCoderCycleR[MAX_LFO];
 extern uint16_t  lfosCycleR[MAX_LFO];
 extern uint16_t  lfosCoderCycleRAtt[MAX_LFO];
 extern uint16_t  lfosCodersFreq[MAX_LFO];
-extern uint16_t  lfosCodersAttFreq[MAX_LFO];
+extern uint16_t  lfosCodersFreqAtt[MAX_LFO];
 extern int16_t   lfo_ctl_input_id[][MAX_INPUTS_PER_OBJ];
-extern int16_t   lfo_ctl_output_id[][MAX_OUTPUTS_PER_OBJ]; 
+extern int16_t   lfo_ctl_output_id[][MAX_OUTPUTS_PER_OBJ];
+extern int16_t   lfosOutputsValues[MAX_LFO][MAX_OUTPUTS_PER_OBJ]; 
+
+ 
 
 /* ************            objets           ************ */
 
@@ -31,18 +44,18 @@ extern int16_t   lfo_ctl_output_id[][MAX_OUTPUTS_PER_OBJ];
 //
 // il y a 3 types d'entrées : 
 //      les coders incrémentaux pour modifier manuellement les paramètres
-//      les controles (à chacune est associé un coder d'atténuation) 
+//      les controles (à chacun est associé un coder d'atténuation) 
 //      les signaux audio 
 // chaque paramètre a un codeur + une entrée avec coder d'atténuation
 // un paramètre interne de "normalisation" associé à chaque entrée sert à leur mise à l'échelle
 // la valeur des paramètres est la somme entre valeur du coder et valeur de l'entrée normalisée et atténuée
-// le nombre d'entrées est fixe pour tous les objets et en général excédentaires
+// le nombre d'entrées est fixe pour tous les objets et en général excédentaire
 //
 // il y a 2 types de sorties :
 //      les signaux audio
 //      les contrôles
 // les contrôles sont des valeurs 16 bits signés
-// le nombre de sorties est fixe pour tous les objets et le plus souvent excédentaires
+// le nombre de sorties est fixe pour tous les objets et le plus souvent excédentaire
 // 
 // les variables décrivant les objets sont réparties entre
 //      les objets (jeu de tables indicées sur le numéro d'objet)
@@ -58,7 +71,7 @@ extern int16_t   lfo_ctl_output_id[][MAX_OUTPUTS_PER_OBJ];
 //                  l'ensemble à rapport cyclique réglable, bruit blanc et rose. Les 6 signaux mixés
 //      lfos    =   oscillateurs à fréquences audio fournissant sinus, triangle, dent de scie, carré
 //                  l'ensemble à rapport cyclique réglable
-//      shapers =   séquences à 4 étapes (adsr) + niveau de sustain ; déclenchement sur flanc (shift et niveau réglable)
+//      shapers =   séquences à 4 étapes (adsr) + niveau de sustain ; déclenchement selon trig et tlev
 //      mixers  =   mélangeurs audio ou de controles (atténuateurs pour chaque entrée ; ampli de sortie pour les audio)
 //      séquenceurs = générateur d'impulsions programmables
 //      générateurs d'écho = délai, niveau
@@ -85,10 +98,11 @@ extern int16_t   lfo_ctl_output_id[][MAX_OUTPUTS_PER_OBJ];
 // the table ctl_input_id_chain[] allows to chain the inputs wich are connected to the same output for faster access
 
 int16_t ctl_input_val[MAX_INPUTS];                       // all inputs values
+int16_t ctl_input_prev_val[MAX_INPUTS];                  // all inputs prev values for trig level identification
 int16_t ctl_input_srce[MAX_INPUTS];                      // all inputs sources# 
 //uint8_t ctl_input_norm[MAX_INPUTS];                      // all inputs norm type (0 nothing ; 1 lfo_freq ; 2 vce freq ; 3 rc ; 4 ampl 0-31 etc)
-uint8_t ctl_input_shft[MAX_INPUTS];                      // all inputs values shift type (0 no shift ; 1 +0x8000)
-uint8_t ctl_input_trig[MAX_INPUTS];                      // all inputs trig type (0 no trig ; 1 up ; 2 down ; 3 both)
+int16_t ctl_input_shft[MAX_INPUTS];                      // all inputs values shift type (0 no shift ; in)
+uint8_t ctl_input_trig[MAX_INPUTS];                      // all inputs trig type ; reset when read
 int16_t ctl_input_tlev[MAX_INPUTS];                      // all inputs trig level
 char    ctl_input_name[MAX_INPUTS][IN_OUT_NAME_LEN];     // all inputs names
 uint8_t ctl_input_update_type[MAX_INPUTS];               // all inputs update specific job
@@ -256,6 +270,7 @@ bool init_objects_inputs(void)
                 case SUST:ctl_input_update_type[curr_input]=A_SUST  ;break;
                 case RELE:ctl_input_update_type[curr_input]=A_RELEAS;break;
                 case LEVE:ctl_input_update_type[curr_input]=A_LEVEL ;break;
+                case STAR:ctl_input_trig[curr_input]=1;ctl_input_tlev[curr_input]=0;break;
             }           
             if(ins<ADSR_INPUTS_NB){
                 char buf[IN_OUT_NAME_LEN]={'A','D','S','R'};
@@ -385,10 +400,13 @@ void __not_in_flash_func(disconnect_input)(uint16_t input_id, uint16_t output)
 void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)
 {
     //int16_t id = ctl_output_id_chain[output];
+    int16_t prev = ctl_input_val[id];
+    int16_t tlev;
     ctl_input_val[id] = valeur;
     uint8_t object=ctl_input_object[id];
     int32_t val;
     float fr;
+
 
     //if(output==10){printf("out#:%d input_id:%i inp_type:%d val:%i \n",output,id,ctl_input_update_type[id],valeur);}
 
@@ -403,13 +421,38 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)
                                 setVoiceFrequency(voices[object].frequency,&voices[object],val);        // ajouter un ctl d'overflow
                                 break;
                 case SND_AMPL:  break;
-                case LFO_FREQ:  val=(valeur>>3)*lfosCodersAttFreq[object]/MAX_CTL_ATT;                  // 8k max VCES_MAX_FREQ_CODERS ; att 0-255 
+                case LFO_FREQ:  val=(valeur>>3)*lfosCodersFreqAtt[object]/MAX_CTL_ATT;                  // 8k max VCES_MAX_FREQ_CODERS ; att 0-255 
                                 fr=calcFreq(val+lfosCodersFreq[object])/VOICE_FREQ_DIVIDER;
                                 //if(lfo==0){printf("l%d id:%d v:%i val:%i out#:%d fc:%i f:%f\n",lfo,id,valeur,val,output,lfosCodersFreq[lfo],fr);}
                                 setLfosFrequency(fr,object,lfosCoderCycleR[object]);                    // ajouter un ctl d'overflow
                                 break;
                 case LFO_CRA :  val=lfosCoderCycleR[object]+(valeur>>10)*lfosCoderCycleRAtt[object]/MAX_CTL_ATT; // 0-62 ; att 0-255
                                 setLfosFrequency(lfosFrequency[object],object,val);                     // ajouter un ctl d'overflow
+                                break;
+                case A_ATTACK:  val=(valeur>>3)*adsrCoderAttAtt[object]/MAX_CTL_ATT;
+                                setAdsrDur(val,&adsrCoderAtt[object]);
+                                break;
+                case A_DECAY :  val=(valeur>>3)*adsrCoderDecAtt[object]/MAX_CTL_ATT;
+                                setAdsrDur(val,&adsrCoderDec[object]);
+                                break;
+                case A_SUST  :  val=(valeur>>3)*adsrCoderSusAtt[object]/MAX_CTL_ATT;
+                                setAdsrDur(val,&adsrCoderSus[object]);
+                                break;
+                case A_RELEAS:  val=(valeur>>3)*adsrCoderRelAtt[object]/MAX_CTL_ATT;
+                                setAdsrDur(val,&adsrCoderRel[object]);
+                                break;
+                case A_LEVEL :  val=(valeur>>3)*adsrCoderLevAtt[object]/MAX_CTL_ATT;
+                                setAdsrLev(val,object);
+                                break;                        
+                case A_START :  ctl_input_prev_val[id]=prev;                                            // start adsr
+                                tlev=ctl_input_tlev[id];
+                                switch(ctl_input_trig[id]){
+                                    case INP_NO_TRIG:break;
+                                    case INP_UP_TRIG:if(valeur>=tlev && prev<tlev){adsrStatus[object]=1;}break;
+                                    case INP_DOWN_TRIG:if(valeur<=tlev && prev>tlev){adsrStatus[object]=1;}break;
+                                    case INP_U_D_TRIG:if((valeur>tlev && prev<tlev) || (valeur<=tlev && prev>tlev)){adsrStatus[object]=1;}break;
+                                    default:break;
+                                }
                                 break;
                 default: break;
             }

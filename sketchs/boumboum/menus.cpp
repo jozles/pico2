@@ -47,7 +47,7 @@ uint16_t voicesMaxAmplCoders[MAX_VOICES];
 
 extern float lfosFrequency[];                       // current lfo freq
 extern uint16_t lfosCodersFreq[];
-extern uint16_t lfosCodersAttFreq[];
+extern uint16_t lfosCodersFreqAtt[];
 extern uint16_t lfosCoderCycleR[];
 extern uint16_t lfosCoderCycleRAtt[];
 extern uint16_t* lfosVar[];
@@ -64,11 +64,11 @@ uint16_t tempVceCoderGenAmp[MAX_VOICES];
 extern volatile int16_t menuVcesCoders[];
 extern int32_t voicesDataBuffer[];
 
-extern uint16_t adsrAttCoder[MAX_ADSR];                       // current lfo freq
-extern uint16_t adsrDecCoder[MAX_ADSR];
-extern uint16_t adsrSusCoder[MAX_ADSR];
-extern uint16_t adsrRelCoder[MAX_ADSR];
-extern uint16_t adsrLevCoder[MAX_ADSR];
+extern uint16_t adsrCoderAtt[MAX_ADSR];                       // current lfo freq
+extern uint16_t adsrCoderDec[MAX_ADSR];
+extern uint16_t adsrCoderSus[MAX_ADSR];
+extern uint16_t adsrCoderRel[MAX_ADSR];
+extern uint16_t adsrCoderLev[MAX_ADSR];
 extern volatile int16_t menuAdsrCoders[];
 extern uint16_t* adsrVar[];
 
@@ -154,11 +154,11 @@ void menus_init(){
     lfosVar[OSCCODERFREQ-1]=lfosCodersFreq;     // lfosVar[0]
     lfosVar[OSCCODERCRA-1]=lfosCoderCycleR;     // lfosVar[1]
     lfosVar[OSCCODERATTCRA-1]=lfosCoderCycleRAtt;     // lfosVar[2] 
-    lfosVar[OSCCODERATTFREQ-1]=lfosCodersAttFreq;     // lfosVar[3]   
+    lfosVar[OSCCODERATTFREQ-1]=lfosCodersFreqAtt;     // lfosVar[3]   
     menuLfosCoders[OSCMENU]=0;                  // line 0 du menu
     menuLfosCoders[1]=lfosCodersFreq[0];
     menuLfosCoders[2]=lfosCoderCycleR[0];
-    menuLfosCoders[3]=lfosCodersAttFreq[0];
+    menuLfosCoders[3]=lfosCodersFreqAtt[0];
     menuLfosCoders[4]=lfosCoderCycleRAtt[0];
     // ***  voices  ***
     vcesVar[OSCCODERFREQ-1]=tempVceCoderFreq;   // vcesVar[0]
@@ -171,17 +171,17 @@ void menus_init(){
     menuVcesCoders[OSCCODERATTCRA]=voices[0].coderCycleRAtt;
     menuVcesCoders[OSCGENAMP]=voices[0].genAmpl;
     // ***  Adsr  ****
-    adsrVar[ADSRATT-1]=adsrAttCoder;            // adsrVar[0]
-    adsrVar[ADSRDEC-1]=adsrDecCoder;            // adsrVar[1]
-    adsrVar[ADSRSUS-1]=adsrSusCoder;            // adsrVar[2]
-    adsrVar[ADSRREL-1]=adsrRelCoder;            // adsrVar[3]
-    adsrVar[ADSRLEV-1]=adsrLevCoder;            // adsrVar[4]
+    adsrVar[ADSRATT-1]=adsrCoderAtt;            // adsrVar[0]
+    adsrVar[ADSRDEC-1]=adsrCoderDec;            // adsrVar[1]
+    adsrVar[ADSRSUS-1]=adsrCoderSus;            // adsrVar[2]
+    adsrVar[ADSRREL-1]=adsrCoderRel;            // adsrVar[3]
+    adsrVar[ADSRLEV-1]=adsrCoderLev;            // adsrVar[4]
     menuAdsrCoders[ADSRMENU]=0;                 // line 0 du menu
-    menuAdsrCoders[ADSRATT]=adsrAttCoder[0];
-    menuAdsrCoders[ADSRDEC]=adsrDecCoder[0];
-    menuAdsrCoders[ADSRSUS]=adsrSusCoder[0];
-    menuAdsrCoders[ADSRREL]=adsrRelCoder[0];
-    menuAdsrCoders[ADSRLEV]=adsrLevCoder[0];
+    menuAdsrCoders[ADSRATT]=adsrCoderAtt[0];
+    menuAdsrCoders[ADSRDEC]=adsrCoderDec[0];
+    menuAdsrCoders[ADSRSUS]=adsrCoderSus[0];
+    menuAdsrCoders[ADSRREL]=adsrCoderRel[0];
+    menuAdsrCoders[ADSRLEV]=adsrCoderLev[0];
     
     mappingCoders[0]=0;     // ligne 0 
 }
@@ -194,10 +194,10 @@ void title_dsp(const char* title,uint8_t item,uint8_t type,float v0, int32_t v1,
     switch(type){
         case AMPS:sprintf(buf,"v:%d %4.3f amp",item,voices[item].frequency);break;
         case LFOS:  sprintf(buf,"%s:%u %1.3f %i",title,item,lfosFrequency[item],lfosCoderCycleR[item]-MAXCODER_RC/2);
-                    sprintf(buf2,"crAt:%i frAt:%i",lfosCoderCycleRAtt[item],lfosCodersAttFreq[item]);
+                    sprintf(buf2,"crAt:%i frAt:%i",lfosCoderCycleRAtt[item],lfosCodersFreqAtt[item]);
                     break;
         case VOICES:sprintf(buf,"%s:%u %1.3f%+i %i%i",title,item,voices[item].frequency,voices[item].coderCycleR-MAXCODER_RC/2,v1,v2);break;
-        case ADSR:sprintf(buf,"%s:%u %u %u%+u %u %u ",title,item,adsrAttCoder[item],adsrDecCoder[item],adsrSusCoder[item],adsrRelCoder[item],adsrLevCoder[item]);break;
+        case ADSR:sprintf(buf,"%s:%u %u %u%+u %u %u ",title,item,adsrCoderAtt[item],adsrCoderDec[item],adsrCoderSus[item],adsrCoderRel[item],adsrCoderLev[item]);break;
         case MENU0:sprintf(buf,"%s  ",title);break;
 
         default:sprintf(buf,"%s           ",title);break;
@@ -476,7 +476,7 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                         break;
                     case OSCCODERFREQ:if(varChge){                                          // cc=coder freq
                         int16_t fi = ctl_input_val[lfo_ctl_input_id[line][VFRQ]]>>3;        // normalisation ctl_input_freq 
-                        uint16_t fc = cc+fi*lfosCodersAttFreq[line]/MAX_CTL_ATT;            // fc=coderFreq+ctl_input_freq atténué                
+                        uint16_t fc = cc+fi*lfosCodersFreqAtt[line]/MAX_CTL_ATT;            // fc=coderFreq+ctl_input_freq atténué                
                         setLfosFrequency(calcFreq(fc)/VOICE_FREQ_DIVIDER,line,lfosCoderCycleR[line]);}
                         break;
                     case OSCCODERCRA:if(varChge){                                           // cc=coder cra
@@ -485,7 +485,7 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                         setLfosFrequency(lfosFrequency[line],line,cr);}
                         break;
                     case OSCCODERATTFREQ:if(varChge){                                       // cc=coder attenuator input freq          
-                        lfosCodersAttFreq[line]=cc;                                        
+                        lfosCodersFreqAtt[line]=cc;                                        
                         int16_t fi = ctl_input_val[lfo_ctl_input_id[line][VFRQ]]>>3;        // normalisation ctl_input_freq
                         int16_t fc = lfosCodersFreq[line]+fi*cc/MAX_CTL_ATT;                // fc=coderFreq+ctl_input_freq atténué
                         printf("lfo#:%d cc(att):%d finp:%i fc:%i f_id:%d \n",line,cc,fi,fc,lfo_ctl_input_id[line][VFRQ]);
@@ -542,14 +542,14 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
             case ADSR:
                 switch (coder){
                     case ADSRMENU: break;
-                    case ADSRATT:adsrAttCoder[line]==cc;
-                    case ADSRDEC:adsrDecCoder[line]==cc;
-                    case ADSRSUS:adsrSusCoder[line]==cc;
-                    case ADSRREL:adsrRelCoder[line]==cc;
-                    case ADSRLEV:adsrLevCoder[line]==cc;
+                    case ADSRATT:adsrCoderAtt[line]==cc;
+                    case ADSRDEC:adsrCoderDec[line]==cc;
+                    case ADSRSUS:adsrCoderSus[line]==cc;
+                    case ADSRREL:adsrCoderRel[line]==cc;
+                    case ADSRLEV:adsrCoderLev[line]==cc;
                     default: break;
                 }
-                sprintf(buf+2,"%u %u %u %u %u",adsrAttCoder[line],adsrDecCoder[line],adsrSusCoder[line],adsrRelCoder[line],adsrLevCoder[line]);
+                sprintf(buf+2,"%u %u %u %u %u",adsrCoderAtt[line],adsrCoderDec[line],adsrCoderSus[line],adsrCoderRel[line],adsrCoderLev[line]);
                 break;
             default:break;
         }

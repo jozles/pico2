@@ -10,3 +10,4 @@
     X(A_SUST  ,"ASUS")
     X(A_RELEAS,"AREL")
     X(A_LEVEL ,"ALEV")
+    X(A_START ,"ASTA")

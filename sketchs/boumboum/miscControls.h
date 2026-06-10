@@ -3,6 +3,8 @@
 
 void adsrInit();
 void adsrHandler();
+void setAdsrDur(int32_t val,uint16_t* what);
+void setAdsrLev(int32_t val,uint8_t adsr);
 
 enum AdsrStates {
     ADSR_OFF,
@@ -13,7 +15,7 @@ enum AdsrStates {
     ADSR_MAX_STATES
 };
 
-
+#define ADSR_SCOPE_BUFFER_LEN TFT_W
 
 
 #endif // _MISC_H_
