@@ -15,7 +15,5 @@ enum AdsrStates {
     ADSR_MAX_STATES
 };
 
-#define ADSR_SCOPE_BUFFER_LEN TFT_W
-
 
 #endif // _MISC_H_

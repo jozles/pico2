@@ -269,5 +269,7 @@ enum Waves {
 #define ST7789_spi __CONCAT(spi, ST7789_SPI)
 #define ST7789_SPI_SPEED 40000000
 
+#define ADSR_SCOPE_BUFFER_LEN TFT_W
+
 #endif  // _CONST_H_
 

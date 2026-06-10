@@ -121,6 +121,8 @@ void __not_in_flash_func(pwm_irq_handler)() {
     coderTimerHandler();
 
     lfosHandler();
+
+    adsrHandler();
     //gpio_put(TST_PIN,LOW);
 }
 

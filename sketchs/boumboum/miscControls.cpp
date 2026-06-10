@@ -55,10 +55,14 @@ void adsrInit()
 }
 
 void __not_in_flash_func(setAdsrLev)(int32_t val,uint8_t adsr)
-{}
+{
+    adsrCoderLev[adsr]=val;
+}
 
 void __not_in_flash_func(setAdsrDur)(int32_t val,uint16_t* what)
-{}
+{
+    *what=val;
+}
 
 void __not_in_flash_func(adsrEchTime)(uint8_t adsr_nb,uint8_t* state,uint32_t* ce,uint32_t* cf)
 {
@@ -94,7 +98,8 @@ void __not_in_flash_func(adsrHandler)()
 
                 switch(*as){
                     case ADSR_ATT:
-                        *ov=rc_tables[32][*ce][LSIN];        
+                        *ov=rc_tables[32][*ce][LSIN]; 
+                        printf("ov:%d ptr:%u\n",*ov,adsrScopeBufPtr[0]);       
                         break;
                     case ADSR_DEC:
                         // valeurs 1-x
@@ -117,7 +122,7 @@ void __not_in_flash_func(adsrHandler)()
                 if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,*ov);}
 
             }
-            adsrScopeBufReal[a*OSC_SCOPE_BUFFER_LEN + adsrScopeBufPtr[a]]=*ov;
+            adsrScopeBufReal[a*ADSR_SCOPE_BUFFER_LEN + adsrScopeBufPtr[a]]=*ov;
             adsrScopeBufPtr[a]++;if(__builtin_expect(adsrScopeBufPtr[a]>ADSR_SCOPE_BUFFER_LEN,0)){adsrScopeBufPtr[a]=0;}
         }
     }

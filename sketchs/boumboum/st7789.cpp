@@ -826,7 +826,11 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
             else if(mode_calcul==2){                                      // lfo real wave view 
                 int32_t t=buf[object*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB + i*BASIC_WAVES_NB+wf];     
                 b=(float)t/(float)0x7fff;     
-            }            
+            } 
+            else if(mode_calcul==3){                                      // adsr real wave view (ampl 16bits)
+                int32_t t=buf[object*ADSR_SCOPE_BUFFER_LEN+i];     
+                b=(float)t/(float)0x7fff;     
+            }                       
 
             yy=(int32_t)(sign*b*((TFT_H-begline)/2));                     // tft y value
 

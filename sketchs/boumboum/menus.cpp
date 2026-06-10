@@ -69,8 +69,10 @@ extern uint16_t adsrCoderDec[MAX_ADSR];
 extern uint16_t adsrCoderSus[MAX_ADSR];
 extern uint16_t adsrCoderRel[MAX_ADSR];
 extern uint16_t adsrCoderLev[MAX_ADSR];
+extern uint8_t  adsrStatus[MAX_ADSR];
 extern volatile int16_t menuAdsrCoders[];
 extern uint16_t* adsrVar[];
+extern int32_t  adsrScopeBufReal[MAX_ADSR*ADSR_SCOPE_BUFFER_LEN];
 
 extern volatile bool voicesSw[];                    // coder it handler scans all physical coders
 
@@ -109,8 +111,8 @@ enum OscCoders {        // coders pour menu voices et lfos
      OSCMENU,
      OSCCODERFREQ,
      OSCCODERCRA,
-     OSCCODERATTFREQ,
-     OSCCODERATTCRA,
+     OSCCODERFREQATT,
+     OSCCODERCRAATT,
      OSCGENAMP
 };
 
@@ -153,8 +155,8 @@ void menus_init(){
     // ***   lfos  ***
     lfosVar[OSCCODERFREQ-1]=lfosCodersFreq;     // lfosVar[0]
     lfosVar[OSCCODERCRA-1]=lfosCoderCycleR;     // lfosVar[1]
-    lfosVar[OSCCODERATTCRA-1]=lfosCoderCycleRAtt;     // lfosVar[2] 
-    lfosVar[OSCCODERATTFREQ-1]=lfosCodersFreqAtt;     // lfosVar[3]   
+    lfosVar[OSCCODERCRAATT-1]=lfosCoderCycleRAtt;     // lfosVar[2] 
+    lfosVar[OSCCODERFREQATT-1]=lfosCodersFreqAtt;     // lfosVar[3]   
     menuLfosCoders[OSCMENU]=0;                  // line 0 du menu
     menuLfosCoders[1]=lfosCodersFreq[0];
     menuLfosCoders[2]=lfosCoderCycleR[0];
@@ -167,8 +169,8 @@ void menus_init(){
     menuVcesCoders[OSCMENU]=0;                  // line 0 du menu
     menuVcesCoders[OSCCODERFREQ]=voices[0].coderFreq;
     menuVcesCoders[OSCCODERCRA]=voices[0].coderCycleR;
-    menuVcesCoders[OSCCODERATTFREQ]=voices[0].coderAttFreq;
-    menuVcesCoders[OSCCODERATTCRA]=voices[0].coderCycleRAtt;
+    menuVcesCoders[OSCCODERFREQATT]=voices[0].coderAttFreq;
+    menuVcesCoders[OSCCODERCRAATT]=voices[0].coderCycleRAtt;
     menuVcesCoders[OSCGENAMP]=voices[0].genAmpl;
     // ***  Adsr  ****
     adsrVar[ADSRATT-1]=adsrCoderAtt;            // adsrVar[0]
@@ -484,7 +486,7 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                         int16_t cr = lfosCoderCycleR[line]+cra*cc/MAX_CTL_ATT;              // cr=coderCra+ctl_input_cra atténué 
                         setLfosFrequency(lfosFrequency[line],line,cr);}
                         break;
-                    case OSCCODERATTFREQ:if(varChge){                                       // cc=coder attenuator input freq          
+                    case OSCCODERFREQATT:if(varChge){                                       // cc=coder attenuator input freq          
                         lfosCodersFreqAtt[line]=cc;                                        
                         int16_t fi = ctl_input_val[lfo_ctl_input_id[line][VFRQ]]>>3;        // normalisation ctl_input_freq
                         int16_t fc = lfosCodersFreq[line]+fi*cc/MAX_CTL_ATT;                // fc=coderFreq+ctl_input_freq atténué
@@ -492,7 +494,7 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                         signal_overflow("vce_freq:",line,fc,LFOS_MIN_FREQ_CODERS,LFOS_MAX_FREQ_CODERS);
                         setLfosFrequency(calcFreq(fc)/VOICE_FREQ_DIVIDER,line,lfosCoderCycleR[line]);}
                         break;
-                    case OSCCODERATTCRA:if(varChge){                                        // cc=coder attenuator input cra
+                    case OSCCODERCRAATT:if(varChge){                                        // cc=coder attenuator input cra
                         lfosCoderCycleRAtt[line]=cc;                                      
                         int16_t cra = ctl_input_val[lfo_ctl_input_id[line][VCRA]]>>10;      // normalisation ctl_input_cra
                         int16_t cr = lfosCoderCycleR[line]+cra*cc/MAX_CTL_ATT;              // cr=coderCra+ctl_input_cra atténué
@@ -521,14 +523,14 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                         setVoiceFrequency(voices[line].frequency,&voices[line],voices[line].coderCycleR);
                         voices[line].coderGenAmpl=cc;voices[line].genAmpl=amplLevel[cc];}
                         break; 
-                    case OSCCODERATTFREQ:if(varChge){
+                    case OSCCODERFREQATT:if(varChge){
                         voices[line].coderAttFreq=cc;                                               // atténuateur pour ctl_input_freq 
                         int16_t fi = ctl_input_val[voices[line].voice_ctl_input_id[VFRQ]]>>3;       // normalisation ctl_input_freq
                         uint32_t fc = voices[line].coderFreq+fi*cc/MAX_CTL_ATT;                     // fc=coderFreq+ctl_input_freq atténué 
                         signal_overflow("lfo_freq:",line,fc,VCES_MIN_FREQ_CODERS,VCES_MAX_FREQ_CODERS);
                         setVoiceFrequency(calcFreq(fc),&voices[line],voices[line].coderCycleR);}
                         break;                                    
-                    case OSCCODERATTCRA:if(varChge){
+                    case OSCCODERCRAATT:if(varChge){
                         voices[line].coderCycleRAtt=cc;                                             // atténuateur pour ctl_input_cra
                         int16_t cra = ctl_input_val[voices[line].voice_ctl_input_id[VCRA]]>>10;     // normalisation ctl_input_cra
                         int16_t cr = voices[line].coderCycleR+cra*cc/MAX_CTL_ATT;                   // cr=coderCra+ctl_input_cra atténué 
@@ -549,7 +551,7 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                     case ADSRLEV:adsrCoderLev[line]==cc;
                     default: break;
                 }
-                sprintf(buf+2,"%u %u %u %u %u",adsrCoderAtt[line],adsrCoderDec[line],adsrCoderSus[line],adsrCoderRel[line],adsrCoderLev[line]);
+                sprintf(buf+2,"%3u %3u %3u %3u %2u",adsrCoderAtt[line],adsrCoderDec[line],adsrCoderSus[line],adsrCoderRel[line],adsrCoderLev[line]);
                 break;
             default:break;
         }
@@ -594,6 +596,8 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
     fullMenuDsp(title,text,linesNb,line_len,line,type,0,0,false);
 
     while(1){
+
+            if((millisCounter&0x000007ff)<100 && adsrStatus[0]==0){printf("attack:\n");adsrStatus[0]=1;}
             
             fillVoices();
         
@@ -653,6 +657,10 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
                     if(type_scope==1){scope(voicesDataBuffer+line*OSC_SCOPE_BUFFER_LEN,voices[line].frequency,begline,false,firstScope,0,wave,1);}
                     else{scope(i2s_buf_scope,voices[line].frequency,begline,false,firstScope,0,wave,0);}
                     firstScope=false;         
+                }
+                else if(type==ADSR){
+                    if(firstScope){title_dsp(title,line,ADSR,0,wave,type_scope);}
+                    scope(adsrScopeBufReal,0,begline,false,firstScope,0,0,3,line);
                 }
                 else mode_scope=false;
             }          
