@@ -38,11 +38,11 @@ extern int16_t  ctl_output_id_chain[];
 void adsrInit()
 {
     for(uint8_t a=0;a<MAX_ADSR;a++){
-        adsrCoderAtt[a]=1;
-        adsrCoderDec[a]=1;
-        adsrCoderSus[a]=10;
-        adsrCoderRel[a]=100;
-        adsrCoderLev[a]=ADSR_MAX_LEVEL_CODERS/2;
+        adsrCoderAtt[a]=1;setAdsrDur(adsrCoderAtt[a],a,adsrStatus[a]);
+        adsrCoderDec[a]=1;setAdsrDur(adsrCoderDec[a],a,adsrStatus[a]);
+        adsrCoderSus[a]=10;setAdsrDur(adsrCoderSus[a],a,adsrStatus[a]);
+        adsrCoderRel[a]=100;setAdsrDur(adsrCoderRel[a],a,adsrStatus[a]);
+        adsrCoderLev[a]=ADSR_MAX_LEVEL_CODERS/2;setAdsrLev(adsrCoderLev[a],a);
         adsrStatus[a]=ADSR_OFF;
         adsrScopeBufPtr[a]=0;
 
@@ -59,21 +59,35 @@ void __not_in_flash_func(setAdsrLev)(int32_t val,uint8_t adsr)
     adsrCoderLev[adsr]=val;
 }
 
-void __not_in_flash_func(setAdsrDur)(int32_t val,uint16_t* what)
+void __not_in_flash_func(setAdsrDur)(int32_t val,uint8_t adsr,uint8_t adsrStatus)
 {
-    *what=val;
+
+    // Q16
+
+    #define DURMAX 127
+
+    int32_t A = ((BASIC_WAVE_TABLE_LEN / 4)/2) << 16;                 // step max
+    int32_t B = (((BASIC_WAVE_TABLE_LEN / 4)/2) << 16) - (1 << 15);   // (NBECH/2 - 0.5) << 16
+
+    int32_t stepQ16 = A - ((int64_t)val * B) / DURMAX;
+
+    adsrStepInt[adsr][adsrStatus]=stepQ16 >> 16;
+    adsrStepFra[adsr][adsrStatus]=stepQ16 & 0xFFFF;
 }
 
-void __not_in_flash_func(adsrEchTime)(uint8_t adsr_nb,uint8_t* state,uint32_t* ce,uint32_t* cf)
+void __not_in_flash_func(adsrEchTime)(uint8_t adsr_nb,uint8_t* adsrStatus,uint32_t* ce,uint32_t* cf)
 {
-    if(*ce >= ((BASIC_WAVE_TABLE_LEN / 4)-1)){*ce=0;}   // nouveau status
-    *cf+=adsrStepFra[adsr_nb][*state];
-    uint32_t carry = (*cf >= MAX_STEP_FRA);
-    *cf -= carry * MAX_STEP_FRA;
-    *ce += adsrStepInt[adsr_nb][*state] + carry;
     if(*ce >= ((BASIC_WAVE_TABLE_LEN / 4)-1)){
-        *ce=(BASIC_WAVE_TABLE_LEN / 4);
-        *state++;};                                     // changement de status
+        *ce=0;*cf=0;(*adsrStatus)++;   // nouveau status
+        if(*adsrStatus>ADSR_REL){*adsrStatus=ADSR_OFF;}
+    }
+    else {
+        *cf+=adsrStepFra[adsr_nb][*adsrStatus];
+        uint32_t carry = (*cf >= MAX_STEP_FRA);
+        *cf -= carry * MAX_STEP_FRA;
+        *ce += adsrStepInt[adsr_nb][*adsrStatus] + carry;
+        if(*ce >= ((BASIC_WAVE_TABLE_LEN / 4)-1)){*ce=(BASIC_WAVE_TABLE_LEN / 4);}
+    }        
 }
 
 void __not_in_flash_func(adsrHandler)()
@@ -99,7 +113,7 @@ void __not_in_flash_func(adsrHandler)()
                 switch(*as){
                     case ADSR_ATT:
                         *ov=rc_tables[32][*ce][LSIN]; 
-                        printf("ov:%d ptr:%u\n",*ov,adsrScopeBufPtr[0]);       
+                        //printf("ov:%d ce:%u sti:%u stf:%u ptr:%u\n",*ov,*ce,adsrStepInt[a][ADSR_ATT],adsrStepFra[a][ADSR_ATT],adsrScopeBufPtr[0]);       
                         break;
                     case ADSR_DEC:
                         // valeurs 1-x

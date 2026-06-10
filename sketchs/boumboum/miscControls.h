@@ -3,7 +3,7 @@
 
 void adsrInit();
 void adsrHandler();
-void setAdsrDur(int32_t val,uint16_t* what);
+void setAdsrDur(int32_t val,uint8_t adsr,uint8_t adsrStatus);
 void setAdsrLev(int32_t val,uint8_t adsr);
 
 enum AdsrStates {

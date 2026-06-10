@@ -544,11 +544,11 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
             case ADSR:
                 switch (coder){
                     case ADSRMENU: break;
-                    case ADSRATT:adsrCoderAtt[line]==cc;
-                    case ADSRDEC:adsrCoderDec[line]==cc;
-                    case ADSRSUS:adsrCoderSus[line]==cc;
-                    case ADSRREL:adsrCoderRel[line]==cc;
-                    case ADSRLEV:adsrCoderLev[line]==cc;
+                    case ADSRATT:adsrCoderAtt[line]==cc;setAdsrDur(cc,line,adsrStatus[line]);break;
+                    case ADSRDEC:adsrCoderDec[line]==cc;setAdsrDur(cc,line,adsrStatus[line]);break;
+                    case ADSRSUS:adsrCoderSus[line]==cc;setAdsrDur(cc,line,adsrStatus[line]);break;
+                    case ADSRREL:adsrCoderRel[line]==cc;setAdsrDur(cc,line,adsrStatus[line]);break;
+                    case ADSRLEV:adsrCoderLev[line]==cc;setAdsrLev(cc,line);break;
                     default: break;
                 }
                 sprintf(buf+2,"%3u %3u %3u %3u %2u",adsrCoderAtt[line],adsrCoderDec[line],adsrCoderSus[line],adsrCoderRel[line],adsrCoderLev[line]);
@@ -597,7 +597,7 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
 
     while(1){
 
-            if((millisCounter&0x000007ff)<100 && adsrStatus[0]==0){printf("attack:\n");adsrStatus[0]=1;}
+            if((millisCounter&0x000007ff)<5 && adsrStatus[0]==0){adsrStatus[0]=1;}
             
             fillVoices();
         

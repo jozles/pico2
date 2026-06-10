@@ -20,6 +20,8 @@ extern uint16_t  adsrCoderSusAtt[MAX_ADSR];
 extern uint16_t  adsrCoderRelAtt[MAX_ADSR];
 extern uint16_t  adsrCoderLevAtt[MAX_ADSR];
 extern uint8_t   adsrStatus[MAX_ADSR];
+extern uint32_t  adsrCurrEch[MAX_ADSR];
+extern uint32_t  adsrCurrEchFra[MAX_ADSR];
 extern int16_t   adsr_ctl_input_id[][MAX_INPUTS_PER_OBJ];
 extern int16_t   adsr_ctl_output_id[][MAX_OUTPUTS_PER_OBJ];
 extern int16_t   adsrOutputsValues[MAX_ADSR][MAX_OUTPUTS_PER_OBJ];
@@ -430,16 +432,16 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)
                                 setLfosFrequency(lfosFrequency[object],object,val);                     // ajouter un ctl d'overflow
                                 break;
                 case A_ATTACK:  val=(valeur>>3)*adsrCoderAttAtt[object]/MAX_CTL_ATT;
-                                setAdsrDur(val,&adsrCoderAtt[object]);
+                                setAdsrDur(val,object,adsrStatus[object]);
                                 break;
                 case A_DECAY :  val=(valeur>>3)*adsrCoderDecAtt[object]/MAX_CTL_ATT;
-                                setAdsrDur(val,&adsrCoderDec[object]);
+                                setAdsrDur(val,object,adsrStatus[object]);
                                 break;
                 case A_SUST  :  val=(valeur>>3)*adsrCoderSusAtt[object]/MAX_CTL_ATT;
-                                setAdsrDur(val,&adsrCoderSus[object]);
+                                setAdsrDur(val,object,adsrStatus[object]);
                                 break;
                 case A_RELEAS:  val=(valeur>>3)*adsrCoderRelAtt[object]/MAX_CTL_ATT;
-                                setAdsrDur(val,&adsrCoderRel[object]);
+                                setAdsrDur(val,object,adsrStatus[object]);
                                 break;
                 case A_LEVEL :  val=(valeur>>3)*adsrCoderLevAtt[object]/MAX_CTL_ATT;
                                 setAdsrLev(val,object);
@@ -448,9 +450,21 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)
                                 tlev=ctl_input_tlev[id];
                                 switch(ctl_input_trig[id]){
                                     case INP_NO_TRIG:break;
-                                    case INP_UP_TRIG:if(valeur>=tlev && prev<tlev){adsrStatus[object]=1;}break;
-                                    case INP_DOWN_TRIG:if(valeur<=tlev && prev>tlev){adsrStatus[object]=1;}break;
-                                    case INP_U_D_TRIG:if((valeur>tlev && prev<tlev) || (valeur<=tlev && prev>tlev)){adsrStatus[object]=1;}break;
+                                    case INP_UP_TRIG:if(valeur>=tlev && prev<tlev){
+                                        adsrStatus[object]=ADSR_ATT;
+                                        adsrCurrEch[object]=0;
+                                        adsrCurrEchFra[object]=0;}
+                                        break;
+                                    case INP_DOWN_TRIG:if(valeur<=tlev && prev>tlev){
+                                        adsrStatus[object]=ADSR_ATT;
+                                        adsrCurrEch[object]=0;
+                                        adsrCurrEchFra[object]=0;}
+                                        break;
+                                    case INP_U_D_TRIG:if((valeur>tlev && prev<tlev) || (valeur<=tlev && prev>tlev)){
+                                        adsrStatus[object]=ADSR_ATT;
+                                        adsrCurrEch[object]=0;
+                                        adsrCurrEchFra[object]=0;}
+                                        break;
                                     default:break;
                                 }
                                 break;
