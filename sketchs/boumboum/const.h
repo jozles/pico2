@@ -93,9 +93,9 @@ typedef enum {
 
 #define MAX_ADSR 4
 #define ADSR_SAMPLE_RATE 40
-#define ADSR_MAX_TIME_CODERS 128        // puissance de 2 !!! définit le pas dans les tables d'échantillons 
+#define DUR_ECH_NB 256                  // puissance de 2 !!! définit le pas dans les tables d'échantillons 
+#define ADSR_MAX_TIME_CODERS DUR_ECH_NB-1       // valeur maxi saisie par les coders      
 // multiplié par BASIC_WAVES_TABLE_LEN/ADSR_MAX_TIME_CODERS/2 : on utilise la table de cra 32 0-90° pour former les valeurs 
-#define ADSR_MAX_TIME_CODERS 128
 #define ADSR_MAX_LEVEL_CODERS MAX_16B_LINEAR_VALUE-1
 
 /* led */

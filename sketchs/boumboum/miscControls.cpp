@@ -34,7 +34,7 @@ extern uint32_t millisCounter;
 extern uint16_t amplLevel[];
 extern int16_t  ctl_output_id_chain[];
 
-#define DUR_ECH_NB 128
+
 
 uint32_t durTable[DUR_ECH_NB];
 
@@ -58,15 +58,101 @@ void adsrInit()
     }
 }
 
+static inline uint32_t exp_neg_q16(uint32_t zQ16)
+{
+    // zQ16 : Q16
+    uint64_t z2 = (uint64_t)zQ16 * zQ16 >> 16;      // z^2 en Q16
+    uint64_t denom = (1u << 16) + zQ16 + (z2 >> 1); // 1 + z + z^2/2
+
+    // retourne ~exp(-z) en Q16
+    return (uint32_t)(((uint64_t)1 << 32) / denom);
+}
+
+
 void fillDur(void)
 {
-    const uint32_t stepMaxQ16 = 512 << 16;      // 512.0
+    const uint32_t stepMaxQ16 = 512u << 16;      // 512.0
+    const uint32_t stepMinQ16 = (1u << 16) >> 1; // 0.5
+
+    const uint32_t maxIndex = DUR_ECH_NB - 1;
+
+    // k ~ 3.0 pour une forme RC réaliste
+    const uint32_t kQ16 = 3u << 16; // k = 3
+
+    // fEnd = exp(-k * 1) en Q16
+    uint32_t fEndQ16 = exp_neg_q16(kQ16);
+    uint32_t rangeFQ16 = (1u << 16) - fEndQ16; // 1 - fEnd
+
+    for (uint32_t i = 0; i < DUR_ECH_NB; i++)
+    {
+        // u = i / maxIndex en Q16
+        uint32_t uQ16 = ((uint64_t)i << 16) / maxIndex;
+
+        // z = k * u
+        uint32_t zQ16 = (uint64_t)kQ16 * uQ16 >> 16;
+
+        // f = exp(-k*u) en Q16
+        uint32_t fQ16 = exp_neg_q16(zQ16);
+
+        // normalisation pour respecter exactement les bornes
+        // fNorm = (f - fEnd) / (1 - fEnd)
+        uint32_t numF = fQ16 - fEndQ16;
+
+        // step = stepMin + (stepMax - stepMin) * fNorm
+        uint32_t stepQ16 =
+            stepMinQ16 +
+            (uint64_t)(stepMaxQ16 - stepMinQ16) * numF / rangeFQ16;
+
+        durTable[i] = stepQ16;
+    }
+}
+
+
+/*static inline uint32_t q16_sqrt(uint32_t x)
+{
+    // sqrt Q16 → Q16 (méthode de Newton rapide)
+    uint32_t r = x;
+    for (int i = 0; i < 4; i++)
+        r = (r + ((uint64_t)x << 16) / r) >> 1;
+    return r;
+}
+
+void fillDur(void)  // f=x^(3/2)
+{
+    const uint32_t stepMaxQ16 = (BASIC_WAVE_TABLE_LEN/4) << 16;      // 512.0
     const uint32_t stepMinQ16 = (1 << 16) >> 1; // 0.5
+
+    uint32_t maxIndex = DUR_ECH_NB - 1;
 
     for (int i = 0; i < DUR_ECH_NB; i++)
     {
         // x = (127 - i) / 127  en Q16
-        uint32_t xQ16 = ((uint64_t)(127 - i) << 16) / 127;
+        uint32_t xQ16 = ((uint64_t)(maxIndex) - i) << 16) / maxIndex;
+
+        // f = x * sqrt(x)
+        uint32_t sqrtX = q16_sqrt(xQ16);
+        uint32_t fQ16 = (uint64_t)xQ16 * sqrtX >> 16;
+
+        // step = stepMin + (stepMax - stepMin) * f
+        uint32_t stepQ16 =
+            stepMinQ16 +
+            (((uint64_t)(stepMaxQ16 - stepMinQ16) * fQ16) >> 16);
+
+        durTable[i] = stepQ16;
+    }
+}*/
+
+/*void fillDur(void)    // exp
+{
+    const uint32_t stepMaxQ16 = (BASIC_WAVE_TABLE_LEN/4) << 16;      // 512.0
+    const uint32_t stepMinQ16 = (1 << 16) >> 1; // 0.5
+
+    uint32_t maxIndex = DUR_ECH_NB - 1;
+
+    for (int i = 0; i < DUR_ECH_NB; i++)
+    {
+        // x = (127 - i) / 127  en Q16
+        uint32_t xQ16 = ((uint64_t)(maxIndex - i) << 16) / maxIndex;
 
         // f = x^2  (toujours en Q16)
         uint32_t fQ16 = (uint64_t)xQ16 * xQ16 >> 16;
@@ -78,7 +164,7 @@ void fillDur(void)
 
         durTable[i] = stepQ16;
     }
-}
+}*/
 
 void __not_in_flash_func(setAdsrLev)(uint8_t adsr,int32_t val)
 {

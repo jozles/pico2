@@ -544,11 +544,11 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
             case ADSR:
                 switch (coder){
                     case ADSRMENU: break;
-                    case ADSRATT:adsrCoderAtt[line]==cc;setAdsrDur(line,ADSR_ATT,cc);break;
-                    case ADSRDEC:adsrCoderDec[line]==cc;setAdsrDur(line,ADSR_DEC,cc);break;
-                    case ADSRSUS:adsrCoderSus[line]==cc;setAdsrDur(line,ADSR_SUS,cc);break;
-                    case ADSRREL:adsrCoderRel[line]==cc;setAdsrDur(line,ADSR_REL,cc);break;
-                    case ADSRLEV:adsrCoderLev[line]==cc;setAdsrLev(line,cc);break;
+                    case ADSRATT:adsrCoderAtt[line]=cc;setAdsrDur(line,ADSR_ATT,cc);break;
+                    case ADSRDEC:adsrCoderDec[line]=cc;setAdsrDur(line,ADSR_DEC,cc);break;
+                    case ADSRSUS:adsrCoderSus[line]=cc;setAdsrDur(line,ADSR_SUS,cc);break;
+                    case ADSRREL:adsrCoderRel[line]=cc;setAdsrDur(line,ADSR_REL,cc);break;
+                    case ADSRLEV:adsrCoderLev[line]=cc;setAdsrLev(line,cc);break;
                     default: break;
                 }
                 sprintf(buf+2,"%3u %3u %3u %3u %2u",adsrCoderAtt[line],adsrCoderDec[line],adsrCoderSus[line],adsrCoderRel[line],adsrCoderLev[line]);
@@ -596,10 +596,11 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
     fullMenuDsp(title,text,linesNb,line_len,line,type,0,0,false);
 
     // init adsr 0
-    setAdsrDur(0,ADSR_ATT,87);
-    setAdsrDur(0,ADSR_DEC,109);
-    setAdsrDur(0,ADSR_SUS,109);
-    setAdsrDur(0,ADSR_REL,116);
+    adsrCoderAtt[0]=94;setAdsrDur(0,ADSR_ATT,94);
+    adsrCoderDec[0]=110;setAdsrDur(0,ADSR_DEC,120);
+    adsrCoderSus[0]=110; //setAdsrDur(0,ADSR_SUS,110);
+    adsrCoderRel[0]=118; //setAdsrDur(0,ADSR_REL,118);
+    adsrCoderLev[0]=26;  //setAdsrLev(0,26);
     bool adsrNew=false;
 
     while(1){
