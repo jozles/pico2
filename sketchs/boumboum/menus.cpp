@@ -544,11 +544,11 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
             case ADSR:
                 switch (coder){
                     case ADSRMENU: break;
-                    case ADSRATT:adsrCoderAtt[line]==cc;setAdsrDur(cc,line,adsrStatus[line]);break;
-                    case ADSRDEC:adsrCoderDec[line]==cc;setAdsrDur(cc,line,adsrStatus[line]);break;
-                    case ADSRSUS:adsrCoderSus[line]==cc;setAdsrDur(cc,line,adsrStatus[line]);break;
-                    case ADSRREL:adsrCoderRel[line]==cc;setAdsrDur(cc,line,adsrStatus[line]);break;
-                    case ADSRLEV:adsrCoderLev[line]==cc;setAdsrLev(cc,line);break;
+                    case ADSRATT:adsrCoderAtt[line]==cc;setAdsrDur(line,ADSR_ATT,cc);break;
+                    case ADSRDEC:adsrCoderDec[line]==cc;setAdsrDur(line,ADSR_DEC,cc);break;
+                    case ADSRSUS:adsrCoderSus[line]==cc;setAdsrDur(line,ADSR_SUS,cc);break;
+                    case ADSRREL:adsrCoderRel[line]==cc;setAdsrDur(line,ADSR_REL,cc);break;
+                    case ADSRLEV:adsrCoderLev[line]==cc;setAdsrLev(line,cc);break;
                     default: break;
                 }
                 sprintf(buf+2,"%3u %3u %3u %3u %2u",adsrCoderAtt[line],adsrCoderDec[line],adsrCoderSus[line],adsrCoderRel[line],adsrCoderLev[line]);
@@ -595,16 +595,22 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
 
     fullMenuDsp(title,text,linesNb,line_len,line,type,0,0,false);
 
-    while(1){
+    // init adsr 0
+    setAdsrDur(0,ADSR_ATT,87);
+    setAdsrDur(0,ADSR_DEC,109);
+    setAdsrDur(0,ADSR_SUS,109);
+    setAdsrDur(0,ADSR_REL,116);
+    bool adsrNew=false;
 
-            if((millisCounter&0x000007ff)<5 && adsrStatus[0]==0){adsrStatus[0]=1;}
+    while(1){
             
             fillVoices();
         
             ws_show_3(30);
             ledblinkn(2);
             if(!mode_scope){test_st7789_2();}    // animation balayage de lignes
-            debug_ticker();          
+            
+            if(debug_ticker()){if(adsrStatus[0]==0){adsrStatus[0]=1;adsrNew=true;}};          
 
             int s=tst_switchs_(switchsNb);            
             if(s==0 || s==-99){return line;}
@@ -658,9 +664,10 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
                     else{scope(i2s_buf_scope,voices[line].frequency,begline,false,firstScope,0,wave,0);}
                     firstScope=false;         
                 }
-                else if(type==ADSR){
+                else if(type==ADSR && adsrNew==true){
+                    adsrNew=false;
                     if(firstScope){title_dsp(title,line,ADSR,0,wave,type_scope);}
-                    scope(adsrScopeBufReal,0,begline,false,firstScope,0,0,3,line);
+                    scope(&adsrScopeBufReal[line],0,begline,false,firstScope,0,0,3,line);
                 }
                 else mode_scope=false;
             }          

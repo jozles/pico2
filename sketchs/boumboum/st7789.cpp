@@ -854,11 +854,13 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
     scope(buf,f,begline,fd,blk,refr,wf,mode_calcul,0);
 }        
 
-void debug_ticker(){
-    if((millisCounter-ticker10)>10000){
-        printf("10sec_counter:%d\n",millisCounter/10000);ticker10=millisCounter;
-        tft_draw_int_12x12_dma_mult(TFT_W-4*12,0,0x001f,0x0000,1,millisCounter/10000);    
+bool debug_ticker(){
+    if(__builtin_expect((millisCounter-ticker10)>10000,0)){
+        printf("10s_cnt:%d\n",millisCounter/10000);ticker10=millisCounter;
+        tft_draw_int_12x12_dma_mult(TFT_W-4*12,0,0x001f,0x0000,1,millisCounter/10000); 
+        return true;   
     }
+    return false;
 }
 
 

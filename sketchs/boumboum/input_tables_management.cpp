@@ -432,19 +432,19 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)
                                 setLfosFrequency(lfosFrequency[object],object,val);                     // ajouter un ctl d'overflow
                                 break;
                 case A_ATTACK:  val=(valeur>>3)*adsrCoderAttAtt[object]/MAX_CTL_ATT;
-                                setAdsrDur(val,object,adsrStatus[object]);
+                                setAdsrDur(object,adsrStatus[object],val);
                                 break;
                 case A_DECAY :  val=(valeur>>3)*adsrCoderDecAtt[object]/MAX_CTL_ATT;
-                                setAdsrDur(val,object,adsrStatus[object]);
+                                setAdsrDur(object,adsrStatus[object],val);
                                 break;
                 case A_SUST  :  val=(valeur>>3)*adsrCoderSusAtt[object]/MAX_CTL_ATT;
-                                setAdsrDur(val,object,adsrStatus[object]);
+                                setAdsrDur(object,adsrStatus[object],val);
                                 break;
                 case A_RELEAS:  val=(valeur>>3)*adsrCoderRelAtt[object]/MAX_CTL_ATT;
-                                setAdsrDur(val,object,adsrStatus[object]);
+                                setAdsrDur(object,adsrStatus[object],val);
                                 break;
                 case A_LEVEL :  val=(valeur>>3)*adsrCoderLevAtt[object]/MAX_CTL_ATT;
-                                setAdsrLev(val,object);
+                                setAdsrLev(object,val);
                                 break;                        
                 case A_START :  ctl_input_prev_val[id]=prev;                                            // start adsr
                                 tlev=ctl_input_tlev[id];

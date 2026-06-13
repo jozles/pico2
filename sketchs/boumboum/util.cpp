@@ -264,6 +264,7 @@ void setup(){
     lfosInit();
 
     // ****** adsrs ******
+    fillDur();
     adsrInit();
 
     // ****** 1kHZ irq ******
