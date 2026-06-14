@@ -14,6 +14,8 @@
 
 #define TST_PIN 0
 
+#define GP_ANAL_PIN 6   // gpio analog output
+
 #define BUT_VCC_PIN 28
 #define BUTTON_PIN  27
 

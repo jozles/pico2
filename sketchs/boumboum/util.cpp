@@ -155,6 +155,24 @@ static bool __not_in_flash_func(millisTimerHandler)(repeating_timer *t){
 }
 */
 
+void init_out_anal()
+{
+    gpio_set_function(GP_ANAL_PIN, GPIO_FUNC_PWM);
+    uint slice = pwm_gpio_to_slice_num(GP_ANAL_PIN);
+
+    pwm_set_wrap(slice, 255);       // 8 bits → ~500 kHz
+    pwm_set_clkdiv(slice, 1.0f);    // fréquence max (à ajuster)
+    pwm_set_enabled(slice, true);
+}
+
+void out_anal(uint32_t val_u32)
+{
+    int32_t  val = (int32_t)val_u32;                // valeur audio signée
+    uint16_t pwm = (uint16_t)((val >> 24) + 128);   // Q1.31 -> 8 bits
+
+    pwm_set_gpio_level(GP_ANAL_PIN, pwm);     
+}
+
 
 void quick_delay(uint32_t us){           // 0/1-> 2.33uS 5->8.33 10->14.25  env 1.2uS par step +2.25 init
     for(uint32_t i=0;i<us-1;i++){

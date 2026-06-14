@@ -48,6 +48,9 @@ uint32_t signal_overflow(const char* s,uint16_t id,int32_t val,int32_t min,int32
 
 void blank32(void *ptr, uint32_t len24);
 
+void init_out_anal();
+void out_anal(uint32_t val_u32);
+
 #ifdef __cplusplus
 extern "C" {
 #endif

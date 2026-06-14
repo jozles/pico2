@@ -70,6 +70,7 @@ extern uint16_t adsrCoderSus[MAX_ADSR];
 extern uint16_t adsrCoderRel[MAX_ADSR];
 extern uint16_t adsrCoderLev[MAX_ADSR];
 extern uint8_t  adsrStatus[MAX_ADSR];
+extern uint32_t adsrCurrEch[MAX_ADSR];
 extern volatile int16_t menuAdsrCoders[];
 extern uint16_t* adsrVar[];
 extern int32_t  adsrScopeBufReal[MAX_ADSR*ADSR_SCOPE_BUFFER_LEN];
@@ -611,7 +612,7 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
             ledblinkn(2);
             if(!mode_scope){test_st7789_2();}    // animation balayage de lignes
             
-            if(debug_ticker()){if(adsrStatus[0]==0){adsrStatus[0]=1;adsrNew=true;}};          
+            if(debug_ticker()){if(adsrStatus[0]==ADSR_OFF){adsrStatus[0]=ADSR_ATT;adsrCurrEch[0]=0;adsrNew=true;}};          
 
             int s=tst_switchs_(switchsNb);            
             if(s==0 || s==-99){return line;}
