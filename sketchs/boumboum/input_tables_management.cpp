@@ -24,7 +24,7 @@ extern uint32_t  adsrCurrEch[MAX_ADSR];
 extern uint32_t  adsrCurrEchFra[MAX_ADSR];
 extern int16_t   adsr_ctl_input_id[][MAX_INPUTS_PER_OBJ];
 extern int16_t   adsr_ctl_output_id[][MAX_OUTPUTS_PER_OBJ];
-extern int16_t   adsrOutputsValues[MAX_ADSR][MAX_OUTPUTS_PER_OBJ];
+extern uint16_t  adsrOutputsValues[MAX_ADSR][MAX_OUTPUTS_PER_OBJ];
 
 extern Voice voices[MAX_VOICES];
 
