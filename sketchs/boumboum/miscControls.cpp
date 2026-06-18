@@ -58,9 +58,21 @@ void adsrInit()
     }
 }
 
+#define ONE_Q16     65532
+#define DUR_MAX     
+#define SAMPLES_NB  2048
 
-#define DUR_MAX     DUR_ECH_NB
-#define SAMPLES_NB  256
+#ifne 
+DUR_ECH_NB != DUR_MAX fail
+#endif
+
+const uint32_t yTableQ16[DUR_MAX] = {
+1,2,3,4,5,7,8,10,11,13,15,18,21,24,27,31,35,39,44,49,55,62,69,76,84,93,103,114,125,137,151,165,181,197,215,235,256,278,302,328,356,
+386,418,452,488,527,569,614,661,712,766,824,886,952,1021,1096,1175,1259,1348,1443,1544,1651,1765,1886,2014,2149,2293,2445,2606,2777,
+2957,3148,3350,3564,3790,4028,4281,4547,4828,5124,5438,5768,6116,6483,6871,7279,7709,8162,8639,9141,9669,10226,10811,11427,12074,
+12755,13471,14223,15014,15845,16717,17634,18596,19606,20666,21778,22946,24170,25454,26801,28213,29693,31245,32870,34574,36358,
+38227,40184,42233,44379,46624,48974,51434,54007,56698,59514,62458,65532
+};
 
 uint32_t stepTableQ16[DUR_MAX];     // coefficient RC par durée (Q16)
 uint16_t rcCurve[SAMPLES_NB]; // courbe RC 0..65535
@@ -74,29 +86,14 @@ uint32_t stepMaxQ16 = (SAMPLES_NB << 16);    // SAMPLES_NB en Q16
 
 void fillDur(void)
 {
-    const uint32_t ONE_Q16 = 65536;
-    // 1) stepTable : dur=0 -> SAMPLES_NB, dur=DUR_MAX -> 0.5
-    for (uint32_t d = 0; d < DUR_MAX; d++)
-    {
-        // x = 0..1 en Q16
-        uint32_t xQ16 = (d * 65535u) / (DUR_MAX - 1);
+    // 1) stepTableQ16
+    for (uint32_t x = 0; x < DUR_MAX; x++) {
+        uint32_t y = yTableQ16[x];
+        if (y == 0) y = 1;
+        stepTableQ16[x] = ((uint32_t)SAMPLES_NB << 16) / y;
+        printf("%u %u\n",x,stepTableQ16[x]);
+    }  
 
-        // courbe non linéaire simple : y = x²
-        uint32_t yQ16 = (uint32_t)(((uint64_t)xQ16 * xQ16) >> 16);
-
-        // stepMax = SAMPLES_NB
-        uint32_t stepMaxQ16 = (SAMPLES_NB << 16);
-
-        // stepMin = 0.5
-        uint32_t stepMinQ16 = ONE_Q16 >> 1;
-
-        uint32_t delta = stepMaxQ16 - stepMinQ16;
-
-        // interpolation non linéaire
-        uint64_t prod = (uint64_t)delta * (uint64_t)yQ16;
-        stepTableQ16[d] = stepMaxQ16 - (uint32_t)(prod >> 16);
-        printf("%u %u\n",d,stepTableQ16[d]);
-    }
 
     // 2) rcCurve : approximation tension condensateur RC
     uint32_t yQ16 = 0;
@@ -295,61 +292,64 @@ void __not_in_flash_func(adsrHandler)()
 
         for(uint8_t a=0;a<MAX_ADSR;a++)
         {
-            uint16_t* ov=&adsrOutputsValues[a];
+            uint16_t  ov=adsrOutputsValues[a];
             uint16_t  ov0;
-            uint8_t*  as=&adsrStatus[a];
+            uint8_t   as=adsrStatus[a];
             uint16_t* ap=&adsrScopeBufPtr[a];
-            if (__builtin_expect(*as != ADSR_OFF, 0)) {
+            if (__builtin_expect(as != ADSR_OFF, 0)) {
 
                 uint8_t   out_id;
                 uint16_t  lev=amplLevel[adsrCoderLev[a]];
-                uint32_t  cx=0;
+                uint32_t  cx=0;stepTableQ16[adsrCoderAtt[a]];
                 uint32_t* ce=&adsrCurrEch[a];              
                 #define P15 (1<<15) 
                 
-                printf("|s:%u x:%u/",*as,cx);
+                printf("|s:%u ce:%u/",as,*ce);
 
-                switch(*as){
+                switch(as){
                     case ADSR_ATT:
-                        
-                        cx=adsrNext(ce, adsrCoderAtt[a]);
-                        *ov=rcCurve[cx];
+                        ov=rcCurve[*ce];
+                        cx=stepTableQ16[adsrCoderAtt[a]];
                         printf("%u ",cx);
-                        if (cx == SAMPLES_NB - 1) { *ce = 0; *as = ADSR_DEC;}; 
+                        *ce+=cx;
+                        if (cx == SAMPLES_NB - 1) { *ce = 0; as = ADSR_DEC;break;}
+                        if (*ce >= SAMPLES_NB) { *ce=SAMPLES_NB-1;}  
                         break;
                     case ADSR_DEC:
                         // valeurs 1-x
-
-                        cx=adsrNext(ce, adsrCoderDec[a]);
-                        ov0=rcCurve[cx];
-                        *ov  = P15 - (P15 - lev) * ov0 / P15;
+                        ov0=rcCurve[*ce];
+                        ov  = P15 - (P15 - lev) * ov0 / P15;
+                        cx=stepTableQ16[adsrCoderDec[a]];
                         printf("%u ",cx);
-                        if (cx == SAMPLES_NB - 1) { *ce = 0; *as = ADSR_SUS;}; 
+                        *ce+=cx;
+                        if (*ce == SAMPLES_NB-1) {*ce = 0; as = ADSR_SUS;break;}
+                        if (*ce >= SAMPLES_NB) { *ce=SAMPLES_NB-1;}                         
                         break;
                     case ADSR_SUS:
-
-                        cx=adsrNext(ce, adsrCoderSus[a]);  // timing management
+                        ov=lev;
+                        cx=stepTableQ16[adsrCoderSus[a]];  // timing management
                         printf("%u ",cx);
-                        if (cx == SAMPLES_NB - 1) { *ce = 0; *as = ADSR_REL;} 
-                        *ov=lev;
+                        *ce+=cx;
+                        if (cx == SAMPLES_NB - 1) { *ce = 0; as = ADSR_REL;break;}
+                        if (*ce >= SAMPLES_NB) { *ce=SAMPLES_NB-1;}  
                         break;
                     case ADSR_REL:            
                         // valeurs 1-x
-
-                        cx=adsrNext(ce, adsrCoderRel[a]);
-                        ov0=rcCurve[cx];
-                        *ov  = lev - lev * ov0 / P15;
+                        ov0=rcCurve[*ce];
+                        ov  = lev - lev * ov0 / P15;                        
+                        cx=stepTableQ16[ce, adsrCoderRel[a]];
                         printf("%u ",cx);
-                        if (cx == SAMPLES_NB - 1) { *ce = 0; *as = ADSR_OFF;}
+                        if (cx == SAMPLES_NB - 1) { *ce = 0; as = ADSR_OFF;break;}
+                        if (*ce >= SAMPLES_NB) { *ce=SAMPLES_NB-1;} 
                         break;
                     default:break;
                 }
                 
-                printf("A:%u:%u cx:%u ov:%u pt:%u t:%u,%u,%u,%u\n",a,*as,cx,*ov,*ap,adsrCoderAtt[a],adsrCoderDec[a],adsrCoderSus[a],adsrCoderRel[a]);       
+                printf("A:%u:%u cx:%u ov:%u pt:%u t:%u,%u,%u,%u\n",a,as,cx,ov,*ap,adsrCoderAtt[a],adsrCoderDec[a],adsrCoderSus[a],adsrCoderRel[a]);       
                 out_id=ctl_output_id_chain[adsr_ctl_output_id[a]];
-                if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,*ov);}
+                if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,ov);}
 
-                adsrScopeBufReal[a*ADSR_SCOPE_BUFFER_LEN + *ap]=*ov;
+                adsrScopeBufReal[a*ADSR_SCOPE_BUFFER_LEN + *ap]=ov;
                 adsrScopeBufPtr[a]++;if(__builtin_expect(*ap>ADSR_SCOPE_BUFFER_LEN,0)){*ap=0;}
             }
             else if(__builtin_expect(*ap!=0 && *ap<ADSR_SCOPE_BUFFER_LEN,0)){
