@@ -152,17 +152,18 @@ void menus_init(){
     for(uint8_t c=0;c<CODER_NB;c++){
         lfosVar[c]=nullptr;
         vcesVar[c]=nullptr;
+        adsrVar[c]=nullptr;
     }
     // ***   lfos  ***
     lfosVar[OSCCODERFREQ-1]=lfosCodersFreq;     // lfosVar[0]
     lfosVar[OSCCODERCRA-1]=lfosCoderCycleR;     // lfosVar[1]
-    lfosVar[OSCCODERCRAATT-1]=lfosCoderCycleRAtt;     // lfosVar[2] 
-    lfosVar[OSCCODERFREQATT-1]=lfosCodersFreqAtt;     // lfosVar[3]   
+    lfosVar[OSCCODERCRAATT-1]=lfosCoderCycleRAtt;     // lfosVar[2] (atténuateur de la valeur de l'input)
+    lfosVar[OSCCODERFREQATT-1]=lfosCodersFreqAtt;     // lfosVar[3] (atténuateur de la valeur de l'input)  
     menuLfosCoders[OSCMENU]=0;                  // line 0 du menu
     menuLfosCoders[1]=lfosCodersFreq[0];
     menuLfosCoders[2]=lfosCoderCycleR[0];
-    menuLfosCoders[3]=lfosCodersFreqAtt[0];
-    menuLfosCoders[4]=lfosCoderCycleRAtt[0];
+    menuLfosCoders[3]=lfosCodersFreqAtt[0];     // (atténuateur de la valeur de l'input)
+    menuLfosCoders[4]=lfosCoderCycleRAtt[0];    // (atténuateur de la valeur de l'input)
     // ***  voices  ***
     vcesVar[OSCCODERFREQ-1]=tempVceCoderFreq;   // vcesVar[0]
     vcesVar[OSCCODERCRA-1]=tempVceCoderCycleR;  // vcesVar[1]
@@ -170,8 +171,8 @@ void menus_init(){
     menuVcesCoders[OSCMENU]=0;                  // line 0 du menu
     menuVcesCoders[OSCCODERFREQ]=voices[0].coderFreq;
     menuVcesCoders[OSCCODERCRA]=voices[0].coderCycleR;
-    menuVcesCoders[OSCCODERFREQATT]=voices[0].coderAttFreq;
-    menuVcesCoders[OSCCODERCRAATT]=voices[0].coderCycleRAtt;
+    menuVcesCoders[OSCCODERFREQATT]=voices[0].coderAttFreq;     // (atténuateur de la valeur de l'input)
+    menuVcesCoders[OSCCODERCRAATT]=voices[0].coderCycleRAtt;    // (atténuateur de la valeur de l'input)
     menuVcesCoders[OSCGENAMP]=voices[0].genAmpl;
     // ***  Adsr  ****
     adsrVar[ADSRATT-1]=adsrCoderAtt;            // adsrVar[0]
@@ -576,7 +577,7 @@ void fullMenuDsp(const char* title,const char* menu,uint8_t linesNb,uint8_t line
 // si les lignes ont un libellé, text pointe sur le tableau[lineNb,line_len] ; lineNb nombre de lignes du menu et line_len la longueur du libellé
 // si aucune saisie/variables c'est le type 0 (cTC[0] contient la valeur courante du 1er coder et maxi le nombre de lignes à afficher-1) - voir menu0
 // s'il y a des variables à afficher c'est un type!=0 : créer l'enum du type et une ligne d'affichage dans menuLineDsp
-// s'il y a des variables à saisir via coder, uint16_t* var[] contient les pointeurs sur les tableaux uint16_t[line] (valeur courante du coder correspondant)
+// s'il y a des variables à saisir via coder, uint16_t* var[] contient les pointeurs sur les tableaux uint16_t[line] (valeur courante du coder correspondant) voir comments dans boumboum.cpp
 // donc var[coder-1][line] permet d'accéder à ces valeurs de coder (traitement spécifique éventuel selon le type dans menuLineDsp (ou ailleurs)
 // varNb est le nombre de variables 
 // les traitements associés à lamodif de variables sont appelés depuis menuLineDsp() ou l'affichage de la ligne est décrit
@@ -616,7 +617,8 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
 
             int s=tst_switchs_(switchsNb);            
             if(s==0 || s==-99){return line;}
-            if(s>0){mode_scope=true;firstScope=true;
+            if(s>0){
+                mode_scope=true;firstScope=true;
                 if((s-1)!=wave){type_scope=1;}
                 else type_scope^=1;
                 wave=s-1;

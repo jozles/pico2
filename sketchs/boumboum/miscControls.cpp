@@ -38,10 +38,10 @@ extern int16_t  ctl_output_id_chain[];
 void adsrInit()
 {
     for(uint8_t a=0;a<MAX_ADSR;a++){
-        adsrCoderAtt[a]=0;setAdsrDur(a,ADSR_ATT,adsrCoderAtt[a]);
-        adsrCoderDec[a]=127;setAdsrDur(a,ADSR_DEC,adsrCoderDec[a]);
-        adsrCoderSus[a]=10;setAdsrDur(a,ADSR_SUS,adsrCoderSus[a]);
-        adsrCoderRel[a]=100;setAdsrDur(a,ADSR_REL,adsrCoderRel[a]);
+        adsrCoderAtt[a]=10;//setAdsrDur(a,ADSR_ATT,adsrCoderAtt[a]);
+        adsrCoderDec[a]=32;//setAdsrDur(a,ADSR_DEC,adsrCoderDec[a]);
+        adsrCoderSus[a]=32;//setAdsrDur(a,ADSR_SUS,adsrCoderSus[a]);
+        adsrCoderRel[a]=48;//setAdsrDur(a,ADSR_REL,adsrCoderRel[a]);
         adsrCoderLev[a]=ADSR_MAX_LEVEL_CODERS/2;setAdsrLev(a,adsrCoderLev[a]);
         adsrStatus[a]=ADSR_OFF;
         adsrScopeBufPtr[a]=0;
@@ -55,12 +55,9 @@ void adsrInit()
 }
 
 #define ONE_Q16     65532
-#define DUR_MAX     128
-#define SAMPLES_NB  2048
+#define RC_SAMPLES_NB  2048
 
-// DUR_ECH_NB doit etre = DUR_MAX 
-
-const uint32_t yTableQ16[DUR_MAX] = {
+const uint32_t yTableQ16[DUR_ECH_NB] = {
 //1,2,3,4,5,7,8,10,11,13,15,18,21,24,27,31,35,39,44,49,55,62,69,76,84,93,103,114,125,137,151,165,181,197,215,235,256,278,302,328,356,
 //386,418,452,488,527,569,614,661,712,766,824,886,952,1021,1096,1175,1259,1348,1443,1544,1651,1765,1886,2014,2149,2293,2445,2606,2777,
 //2957,3148,3350,3564,3790,4028,4281,4547,4828,5124,5438,5768,6116,6483,6871,7279,7709,8162,8639,9141,9669,10226,10811,11427,12074,
@@ -72,42 +69,42 @@ const uint32_t yTableQ16[DUR_MAX] = {
 2217,2313,2412,2515,2622,2734,2849,2969,3093,3222,3356,3495,3638,3788,3942,4103,4269,4441,4620,4804,4996,5195,5400,5613,5834,6062,6298,6543
 };
 
-uint32_t stepTableQ16[DUR_MAX];     // coefficient RC par durée (Q16)
-uint16_t rcCurve[SAMPLES_NB]; // courbe RC 0..65535
+uint32_t stepTableQ16[DUR_ECH_NB];     // coefficient RC par durée (Q16)
+uint16_t rcCurve[RC_SAMPLES_NB]; // courbe RC 0..65535
 
 // Paramètres modifiables
 uint32_t gammaQ16 = 32768;   // ≈0.6  courbure durée (0.3–2.0)
 uint32_t betaQ16  = 4096;   // ≈0.5  courbure RC (0.3–2.0)
 
 uint32_t stepMinQ16 = 32768;                 // 0.5 en Q16
-uint32_t stepMaxQ16 = (SAMPLES_NB << 16);    // SAMPLES_NB en Q16
+uint32_t stepMaxQ16 = (RC_SAMPLES_NB << 16);    // RC_SAMPLES_NB en Q16
 
 void fillDur(void)
 {
-    const uint32_t stepMaxQ16 = (SAMPLES_NB << 16); // 2048 << 16
+    const uint32_t stepMaxQ16 = (RC_SAMPLES_NB << 16); // 2048 << 16
     const uint32_t stepMinQ16 = 32768;             // 0.5 << 16
 
-    const uint32_t yMax = yTableQ16[DUR_MAX-1];    // 65532
+    const uint32_t yMax = yTableQ16[DUR_ECH_NB-1];    // 65532
 
-    for (uint32_t d = 0; d < DUR_MAX; d++) {
+    for (uint32_t d = 0; d < DUR_ECH_NB; d++) {
         uint32_t y = yTableQ16[d];
         if (y == 0) y = 1;
 
-        // step en Q16 = (SAMPLES_NB / y) en Q0
-        // donc stepQ16 = (SAMPLES_NB << 16) / y
-        stepTableQ16[d] = ((uint32_t)SAMPLES_NB << 16) / y;
+        // step en Q16 = (RC_SAMPLES_NB / y) en Q0
+        // donc stepQ16 = (RC_SAMPLES_NB << 16) / y
+        stepTableQ16[d] = ((uint32_t)RC_SAMPLES_NB << 16) / y;
         printf("%u %u\n",d,stepTableQ16[d]);
     }  
 
 
     // 2) rcCurve : approximation tension condensateur RC
     uint32_t yQ16 = 0;
-    //uint32_t kQ16 = (uint32_t)(229900u / SAMPLES_NB);       // 229900u equiv 97% du sommet de la courbe au dernier step
-    //uint32_t kQ16 = (uint32_t)(196608u / SAMPLES_NB);       // 229900u equiv 95% du sommet de la courbe au dernier step
-    //uint32_t kQ16 = (uint32_t)(174240u / SAMPLES_NB);       // 229900u equiv 93% du sommet de la courbe au dernier step    
-    uint32_t kQ16 = (uint32_t)(157696u / SAMPLES_NB);       // 229900u equiv 91% du sommet de la courbe au dernier step  
+    //uint32_t kQ16 = (uint32_t)(229900u / RC_SAMPLES_NB);       // 229900u equiv 97% du sommet de la courbe au dernier step
+    //uint32_t kQ16 = (uint32_t)(196608u / RC_SAMPLES_NB);       // 229900u equiv 95% du sommet de la courbe au dernier step
+    //uint32_t kQ16 = (uint32_t)(174240u / RC_SAMPLES_NB);       // 229900u equiv 93% du sommet de la courbe au dernier step    
+    uint32_t kQ16 = (uint32_t)(157696u / RC_SAMPLES_NB);       // 229900u equiv 91% du sommet de la courbe au dernier step  
 
-    for (int i = 0; i < SAMPLES_NB; i++)
+    for (int i = 0; i < RC_SAMPLES_NB; i++)
     {
         uint32_t diff = ONE_Q16 - yQ16;
         uint32_t dy   = (uint32_t)(((uint64_t)diff * kQ16) >> 16);
@@ -124,8 +121,8 @@ void fillDur(void)
 
 uint16_t adsrNext(uint32_t* currEchQ16,uint16_t dur)  
 {
-    if (dur >= DUR_MAX)
-        dur = DUR_MAX - 1;
+    if (dur >= DUR_ECH_NB)
+        dur = DUR_ECH_NB - 1;
 
     uint32_t stepQ16 = stepTableQ16[dur];
 
@@ -133,7 +130,7 @@ uint16_t adsrNext(uint32_t* currEchQ16,uint16_t dur)
     uint32_t next = *currEchQ16 + stepQ16;
 
     // clamp fin de courbe
-    uint32_t maxQ16 = ((SAMPLES_NB-1) << 16);
+    uint32_t maxQ16 = ((RC_SAMPLES_NB-1) << 16);
     if (next >= maxQ16)
         next = maxQ16;
 
@@ -161,8 +158,8 @@ void __not_in_flash_func(adsrHandler)()
 
         for(uint8_t a=0;a<MAX_ADSR;a++)
         {
-            uint16_t  ov=adsrOutputsValues[a];
-            uint16_t  ov0;
+            uint32_t  ov=adsrOutputsValues[a];
+            uint32_t  ov0;
             uint8_t*  as=&adsrStatus[a];
             uint16_t* ap=&adsrScopeBufPtr[a];
             if (__builtin_expect(*as != ADSR_OFF, 0)) {
@@ -180,7 +177,7 @@ void __not_in_flash_func(adsrHandler)()
                         cx=adsrNext(ce,adsrCoderAtt[a]);   // update adsrNext 
                         ov=rcCurve[cx];                                               
                         printf("x:%u ",cx);
-                        if (cx == SAMPLES_NB-1) { *ce = 0; *as = ADSR_DEC;}
+                        if (cx == RC_SAMPLES_NB-1) { *ce = 0; *as = ADSR_DEC;}
                         break;
                     case ADSR_DEC:
                         // valeurs 1-x
@@ -189,14 +186,14 @@ void __not_in_flash_func(adsrHandler)()
                         ov = P15 - (((uint32_t)(P15 - lev) * ov0) >> 15);   //ov  = P15 - (P15 - lev) * ov0 / P15;
                         printf("x:%u ",cx);
 
-                        if (cx == SAMPLES_NB-1) {*ce = 0; *as = ADSR_SUS;}                        
+                        if (cx == RC_SAMPLES_NB-1) {*ce = 0; *as = ADSR_SUS;}                        
                         break;
                     case ADSR_SUS:
                         cx=adsrNext(ce,adsrCoderSus[a]);  // timing management                    
                         ov=lev;
                         printf("x:%u ",cx);
 
-                        if (cx == SAMPLES_NB - 1) { *ce = 0; *as = ADSR_REL;}
+                        if (cx == RC_SAMPLES_NB-1) { *ce = 0; *as = ADSR_REL;}
                         break;
                     case ADSR_REL:            
                         // valeurs 1-x
@@ -205,19 +202,19 @@ void __not_in_flash_func(adsrHandler)()
                         ov = lev - (((uint32_t)lev * ov0) >> 15);   //ov  = lev - lev * ov0 / P15;                        
                         printf("x:%u ",cx);
 
-                        if (cx == SAMPLES_NB - 1) { *ce = 0; *as = ADSR_OFF;ov=0;} 
+                        if (cx == RC_SAMPLES_NB-1) { *ce = 0; *as = ADSR_OFF;ov=0;} 
                         break;
                     default:break;
                 }
                 
-                printf("A:%u:%u ",a,*as);
-                //printf("ov:%u pt:%u t:%u,%u,%u,%u",ov,*ap,adsrCoderAtt[a],adsrCoderDec[a],adsrCoderSus[a],adsrCoderRel[a]); 
+                printf("A:%u:%u o:%u/%u",a,*as,ov0,ov);
+                //printf("pt:%u t:%u,%u,%u,%u",*ap,adsrCoderAtt[a],adsrCoderDec[a],adsrCoderSus[a],adsrCoderRel[a]); 
                 printf("\n");      
                 out_id=ctl_output_id_chain[adsr_ctl_output_id[a]];
                 if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,ov);}
 
                 adsrScopeBufReal[a*ADSR_SCOPE_BUFFER_LEN + *ap]=ov;
-                adsrScopeBufPtr[a]++;if(__builtin_expect(*ap>ADSR_SCOPE_BUFFER_LEN,0)){*ap=0;}
+                *ap++;if(__builtin_expect(*ap>ADSR_SCOPE_BUFFER_LEN,0)){*ap=0;}
             }
             else if(__builtin_expect(*ap!=0 && *ap<ADSR_SCOPE_BUFFER_LEN,0)){
                 int32_t* ab=&adsrScopeBufReal[a*ADSR_SCOPE_BUFFER_LEN];

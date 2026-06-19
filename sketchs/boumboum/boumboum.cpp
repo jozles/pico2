@@ -25,6 +25,13 @@ uint16_t menu0MaxCoders[]={MENU0_NB-1};
 
 extern const char menu0_names[][MENU_NAME_LEN];
 
+// xxxx noms des objets (vces,lfos,adsr)
+// yyyy noms des fonctions attribuées aux coders pour un objet
+// xxxxVar[CODER_NB] sont les pointeurs sur le tableau des valeurs des coders de chaque type d'objet dans coders_for_menu
+// essentiellement utilisé pour permettre un peu de paramétrage dans coders_for_menu
+// les tableaux des valeurs de coders sont de la forme xxxxCodersyyyy[nbre maxi d'objets] 
+// voir les commentaires de coders_for_menu
+
 #define VCE_VAR_NB 6
 volatile int16_t menuVcesCoders[VCE_VAR_NB+1];      // [0] curr input nb ; [1] curr coder value for freq ; [2] curr coder value for rc ; [3] curr coder value for genAmpl
 uint16_t menuMaxVcesCoders[]={MAX_VOICES-1,VCES_MAX_FREQ_CODERS,MAXCODER_RC,MAX_CTL_ATT,MAX_CTL_ATT,MAX_16B_LINEAR_VALUE-1};
@@ -36,7 +43,7 @@ uint16_t menuMaxLfosCoders[]={MAX_LFO-1,LFOS_MAX_FREQ_CODERS,MAXCODER_RC,MAX_CTL
 uint16_t* lfosVar[CODER_NB];                        // inits dans menu.cpp ; les éléments inutilisés sont nullptr                
 
 #define ADSR_VAR_NB 6
-volatile int16_t menuAdsrCoders[ADSR_VAR_NB+1];      // [0] curr input nb ; [1] curr coder value for freq ; [2] curr coder value for rc
+volatile int16_t menuAdsrCoders[ADSR_VAR_NB+1];     // [0] curr input nb ; [1] curr coder value for Att ; [2] curr coder value for Dec ; [3] curr coder value for Sus ; [4] curr coder value for Rel ; [5] curr coder value for Lev
 uint16_t menuMaxAdsrCoders[]={MAX_ADSR-1,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_LEVEL_CODERS};
 uint16_t* adsrVar[CODER_NB];                        // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
 

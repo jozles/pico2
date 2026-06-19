@@ -779,65 +779,73 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
         const int16_t *rcTableCurr;
         const int16_t *rcTable32;
 
-        if(mode_calcul==1){
+        if(mode_calcul==1){                                     // one time init
             rc=buf[0]>>16;
             if(rc>32){rc=64-rc;}
             rcTableCurr = &rc_tables[rc][0][0];
             rcTable32 = &rc_tables[32][0][0]; 
         }
 
-        for(uint32_t i=0;i<TFT_W;i++){                      // read buf and generate waveform
+        for(uint32_t i=0;i<TFT_W;i++){                          // read buf and generate waveform (if comput mode = 0 : 1 column for 1 sample)
             
-            if(mode_calcul==1){                             // computed view with ce&cr
-                uint32_t ce=buf[i];                         // ce : 16 bits gauche = rc, 16 bits droite num ech
-                uint32_t rc=ce>>16;  
-        
-                ce &= (BASIC_WAVE_TABLE_LEN-1);             // local currEch (cyclic ratio managment)
+            switch(mode_calcul){                                // b value computation (y=(float) 0-1)
+                
+                case 0:{                                        // i2s true data
+                    int32_t t=buf[i*2];            
+                    b=(float)t/(float)0x7fffffff;
+                    }break;
 
-                bool vv=(ce<RC_TABLES_LEN);
-                sign=(vv*2-1);                              // invert 180-360°
-  
-                ce ^= (!vv) * (BASIC_WAVE_TABLE_LEN - 1);   // ce = vv*ce+!vv*((BASIC_WAVE_TABLE_LEN-1) - ce);  // invert 180-360°           
-                ce &= RC_TABLES_LEN-1;
+                case 1:{                                        // computed view with ce&cr
+                    uint32_t ce=buf[i];                         // ce : 16 bits gauche = rc, 16 bits droite num ech
+                    uint32_t rc=ce>>16;  
+            
+                    ce &= (BASIC_WAVE_TABLE_LEN-1);             // local currEch (cyclic ratio managment)
 
-                uint32_t ce_idx = ce;
-                if (rc > 32){ce_idx = (RC_TABLES_LEN - 1) - ce_idx;}
+                    bool vv=(ce<RC_TABLES_LEN);
+                    sign=(vv*2-1);                              // invert 180-360°
+    
+                    ce ^= (!vv) * (BASIC_WAVE_TABLE_LEN - 1);   // ce = vv*ce+!vv*((BASIC_WAVE_TABLE_LEN-1) - ce);  // invert 180-360°           
+                    ce &= RC_TABLES_LEN-1;
 
-                const int16_t* w=rcTableCurr+RC_N_WAVES*ce_idx; // rc_table values ptr
-        
-                if(wf==WSIN || wf==WTRI){b=(float)w[wf]/(float)0x7fff;}                       // sample full scale ratio
-                else if(wf==WSAW){
-                    int16_t tri=rcTable32[RC_N_WAVES*ce+WTRI];     // saw utilise la table 32 du triangle
-                    int32_t saw;
-                    if(ce<(RC_N_SAMPLES >> 1)){saw=(65536-tri)>>1;}
-                    else saw=tri>>1;
-                    if(rc>=32){saw=-saw;}
-                    b=(float)saw/(float)0x7fff;
-                }
-                else if(wf==WSQR){
-                    int16_t sqr=(ce & (BASIC_WAVE_TABLE_LEN>>1)) ? -0x7fff : 0x7fff;
-                    b=(float)sqr/(float)0x7fff;
-                }
+                    uint32_t ce_idx = ce;
+                    if (rc > 32){ce_idx = (RC_TABLES_LEN - 1) - ce_idx;}
+
+                    const int16_t* w=rcTableCurr+RC_N_WAVES*ce_idx; // rc_table values ptr
+            
+                    if(wf==WSIN || wf==WTRI){b=(float)w[wf]/(float)0x7fff;}       // sample full scale ratio
+                    else if(wf==WSAW){
+                        int16_t tri=rcTable32[RC_N_WAVES*ce+WTRI];      // saw utilise la table 32 du triangle
+                        int32_t saw;
+                        if(ce<(RC_N_SAMPLES >> 1)){saw=(65536-tri)>>1;}
+                        else saw=tri>>1;
+                        if(rc>=32){saw=-saw;}
+                        b=(float)saw/(float)0x7fff;
+                    }
+                    else if(wf==WSQR){
+                        int16_t sqr=(ce & (BASIC_WAVE_TABLE_LEN>>1)) ? -0x7fff : 0x7fff;
+                        b=(float)sqr/(float)0x7fff;
+                    }
+                    }break;
+
+                case 2:{                                                // lfo real wave view 
+                    int32_t t=buf[object*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB + i*BASIC_WAVES_NB+wf];     
+                    b=(float)t/(float)0x7fff;     
+                    }break;
+
+                case 3:{                                                // adsr real wave view (ampl 16bits)
+                    int32_t t=buf[object*ADSR_SCOPE_BUFFER_LEN+i];     
+                    b=(float)t/(float)0x7fff;     
+                    }break;
+
+                default: break;
             }
-            else if(mode_calcul==0){                                      // i2s true data
-                int32_t t=buf[i*2];            
-                b=(float)t/(float)0x7fffffff;
-            }
-            else if(mode_calcul==2){                                      // lfo real wave view 
-                int32_t t=buf[object*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB + i*BASIC_WAVES_NB+wf];     
-                b=(float)t/(float)0x7fff;     
-            } 
-            else if(mode_calcul==3){                                      // adsr real wave view (ampl 16bits)
-                int32_t t=buf[object*ADSR_SCOPE_BUFFER_LEN+i];     
-                b=(float)t/(float)0x7fff;     
-            }                       
 
-            yy=(int32_t)(sign*b*((TFT_H-begline)/2));                     // tft y value
+            yy=(int32_t)(sign*b*((TFT_H-begline)/2));                   // tft y value (tft x value = i)
 
 //printf("obj:%d i:%d wf:%d b:%f yy:%i\n",object,i,wf,b,yy);
 
             if(abs(yy)>(TFT_H-begline)/2){yy=sign*(TFT_H-begline)/2;}
-            v=2*(((TFT_H-begline)/2-yy)*TFT_W+i);                         // pixel location in tft_frame
+            v=2*(((TFT_H-begline)/2-yy)*TFT_W+i);                       // pixel location in tft_frame
             tft_frame[v]=fgcolor;
         }
 

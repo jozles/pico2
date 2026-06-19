@@ -140,33 +140,6 @@ void fillAmplIncr(){          // fonctionne avec stepAmpl mini 2 !!!
   //showAmplIncr();
 }
 
-// production des valeurs d'échantillon pour les différentes formes d'onde
-/*void fillBasicWaveForms(){
-    printf("  filling basic %d %d %d\n",(BASIC_WAVE_TABLE_LEN/4),(BASIC_WAVE_TABLE_LEN/2),BASIC_WAVE_TABLE_LEN-1);
-    for(uint16_t i=0;i<BASIC_WAVE_TABLE_LEN/4;i++){
-        sineWaveform[i]= (uint16_t)(sin(((float)i)/BASIC_WAVE_TABLE_LEN*2*PI)*MAX_AMP_VAL);
-        sineWaveform[((BASIC_WAVE_TABLE_LEN/2)-1)-i]=sineWaveform[i];
-        sineWaveform[i+(BASIC_WAVE_TABLE_LEN/2)]=-sineWaveform[i];
-        sineWaveform[BASIC_WAVE_TABLE_LEN-1-i]=-sineWaveform[i];
-        
-        squareWaveform[i]=MAX_AMP_VAL;
-        squareWaveform[i+(BASIC_WAVE_TABLE_LEN/4)]=MAX_AMP_VAL;
-        squareWaveform[i+(BASIC_WAVE_TABLE_LEN/2)]=-MAX_AMP_VAL;
-        squareWaveform[BASIC_WAVE_TABLE_LEN-1-i]=-MAX_AMP_VAL;
-
-        triangleWaveform[i]=i*(MAX_AMP_VAL/(BASIC_WAVE_TABLE_LEN/4));
-        triangleWaveform[((BASIC_WAVE_TABLE_LEN/2)-1)-i]=triangleWaveform[i];
-        triangleWaveform[i+(BASIC_WAVE_TABLE_LEN/2)]=-triangleWaveform[i];
-        triangleWaveform[BASIC_WAVE_TABLE_LEN-1-i]=-triangleWaveform[i];
-
-        sawtoothWaveform[i]=i*(MAX_AMP_VAL/(BASIC_WAVE_TABLE_LEN/2));
-        sawtoothWaveform[(BASIC_WAVE_TABLE_LEN/4)+i]=sawtoothWaveform[i]+MAX_AMP_VAL/2;
-        sawtoothWaveform[(BASIC_WAVE_TABLE_LEN/2)+i]=-(MAX_AMP_VAL-sawtoothWaveform[i]);
-        sawtoothWaveform[BASIC_WAVE_TABLE_LEN-1-i]=-sawtoothWaveform[i];        
-
-    }
-}*/
-
 // tableau des fréquences d'octaves
 void fillOctFreq() { 
   for (uint8_t i = 0; i <= octNb; i++) {
@@ -228,11 +201,11 @@ void sound_tables_init()
 
 // **********************  voices ************************
 
-void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)
+void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)    // cga = genAmpl level
 {
     for(uint8_t v=0;v<MAX_VOICES;v++){
         voices[v].maxCoderFreq=VCES_MAX_FREQ_CODERS;
-        voices[v].genAmpl=0x7fff;
+        voices[v].genAmpl=0x0001;                       // minimal non zero
         voices[v].coderCycleR=MAXCODER_RC/2;
         voices[v].cycleR=voices[v].coderCycleR;
         voices[v].coderCycleRAtt=FULL_ATTENUATION_VALUE;
@@ -480,6 +453,8 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
       int32_t  waveAmplSqr  = v->basicWaveAmpl[W_SQUARE]; 
       int32_t  waveAmplWhi  = v->basicWaveAmpl[W_WHITE_NOISE];
       int32_t  waveAmplPnk  = v->basicWaveAmpl[W_PINK_NOISE];
+
+      int32_t  waveAmplGen  = v->genAmpl;
       
       uint32_t s = SAMPLE_BUFFER_SIZE;
 
@@ -503,7 +478,7 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
       {
 
         // !!!!! pour le scope un buffer séparé est nécessaire : !!!!! 
-        //le scope affiche lentement et i2sbuf est modifié rapidement 
+        // le scope affiche lentement et i2sbuf est modifié rapidement 
 
         // waves
 
@@ -526,11 +501,11 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
         int32_t pre=w[WSIN]*waveAmplSin; 
         pre += w[WTRI]*waveAmplTri;
         
-        int16_t tri=rcTable32[RC_N_WAVES*ce+WTRI];     // saw utilise la table 32 du triangle
+        int16_t tri=rcTable32[RC_N_WAVES*ce+WTRI];  // saw utilise la table 32 du triangle
         int32_t saw;
         if(ce<(RC_N_SAMPLES >> 1)){saw=(65536-tri)>>1;}
         else saw=tri>>1;
-        if(rc>=32){saw=-saw;}
+        if(rc>=32){saw=-saw;}                       // saw n'a pas de réglace de rc, juste une inversion de phase (montée ou descente verticale)
         /*int16_t tri = rcTable32[RC_N_WAVES*ce + WTRI];
         int32_t half = tri >> 1;
         uint32_t mask1 = (ce - 512) >> 31;    // mask1 = 0xFFFFFFFF si ce < 512
@@ -555,6 +530,8 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
         // bruit rose 1-pôle branchless
         pink_state=(alpha * pink_state + (32768 - alpha) * (white)) >> 15;    
         pre += (int16_t)pink_state * waveAmplPnk;
+
+        pre *= waveAmplGen;
 
         *vBuffer+=pre;
         vBuffer++;
@@ -620,31 +597,4 @@ void dmaDiags(uint8_t dma){
        dma_hw->ch[i2s_dma_chan1].transfer_count,
        dma_hw->ch[i2s_dma_chan1].read_addr);
 
-}
-
-
-uint8_t fillVoicesCnt0=0;
-uint8_t fillVoicesCnt1=0;
-void fillVoices()
-{
-    if(i2s_buf_free[0]){
-gpio_put(TST_PIN,1); 
-        fillVoicesCnt0++;       
-        for (int i = 0; i < SAMPLE_BUFFER_SIZE*2; i++) {
-            i2s_buffer[0][i] = 0x00FF00FF;   // n’importe quel pattern non nul
-        }
-        i2s_buf_free[0] = false;
-        if(fillVoicesCnt0>20){dmaDiags(0);}
-gpio_put(TST_PIN,0);          
-    }
-    if(i2s_buf_free[1]){
-gpio_put(TST_PIN,1);
-        fillVoicesCnt1++;        
-        for (int i = 0; i < SAMPLE_BUFFER_SIZE*2; i++) {
-            i2s_buffer[1][i] = 0x00FF00FF;
-        }
-        i2s_buf_free[1] = false;
-        if(fillVoicesCnt1>20){dmaDiags(1);}
-gpio_put(TST_PIN,0);          
-    }
 }*/

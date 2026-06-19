@@ -275,7 +275,7 @@ void setup(){
     sound_tables_init();
 
     float fr0=440;
-    uint8_t cga=10;
+    uint8_t cga=1;      // gain initial pour genAmpl
     voicesInit(voices,fr0,cga);
 
     // ****** lfos ******
