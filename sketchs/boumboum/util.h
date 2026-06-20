@@ -32,6 +32,7 @@ float convStrToNum(char* str,int* sizeRead);
 int32_t convStrToInt(char* str,int* sizeRead);
 
 void global_dma_irq_handler();
+void pwm_timer_1khz_enable(bool start_stop);
 
 void adsr(int32_t* ccb,int32_t ccb0);
 void autoMixer(int32_t* ccb,int32_t ccb0);

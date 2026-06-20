@@ -597,12 +597,8 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
 
     fullMenuDsp(title,text,linesNb,line_len,line,type,0,0,false);
 
-    // init adsr 0
-    adsrCoderAtt[0]=94;setAdsrDur(0,ADSR_ATT,94);
-    adsrCoderDec[0]=110;setAdsrDur(0,ADSR_DEC,120);
-    adsrCoderSus[0]=110; //setAdsrDur(0,ADSR_SUS,110);
-    adsrCoderRel[0]=118; //setAdsrDur(0,ADSR_REL,118);
-    adsrCoderLev[0]=26;  //setAdsrLev(0,26);
+    //start adsr 0
+    //adsrStatus[0]=ADSR_ATT;
     bool adsrNew=false;
 
     while(1){

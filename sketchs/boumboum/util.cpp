@@ -134,14 +134,26 @@ void init_pwm_timer_1khz() {
     pwm_config_set_clkdiv(&cfg,150.0f);
     pwm_config_set_wrap(&cfg, 1000);
 
-    pwm_init(pwm_irq_slice, &cfg, true);
+    pwm_init(pwm_irq_slice, &cfg, false);
 
     pwm_clear_irq(pwm_irq_slice);
-    pwm_set_irq_enabled(pwm_irq_slice, true);
+    pwm_set_irq_enabled(pwm_irq_slice, false);
 
     irq_set_exclusive_handler(PWM_IRQ_WRAP, pwm_irq_handler);
 
-    irq_set_enabled(PWM_IRQ_WRAP, true);
+    irq_set_enabled(PWM_IRQ_WRAP, false);
+}
+
+void pwm_timer_1khz_enable(bool start_stop)
+{
+    if(start_stop){pwm_clear_irq(pwm_irq_slice);}    // vide le pending IRQ
+
+    pwm_set_enabled(pwm_irq_slice, start_stop);      // start_stop PWM
+    pwm_set_irq_enabled(pwm_irq_slice, start_stop);  // start_stop la source d’IRQ
+    irq_set_enabled(PWM_IRQ_WRAP, start_stop);       // start_stop l’IRQ dans le NVIC
+
+    if(!start_stop){pwm_clear_irq(pwm_irq_slice);}   // vide le pending IRQ
+
 }
 
 /*
@@ -286,7 +298,7 @@ void setup(){
     adsrInit();
 
     // ****** 1kHZ irq ******
-    init_pwm_timer_1khz();      // start engine for millitimers+coders+lfos+adsr
+    init_pwm_timer_1khz();      // init engine for millitimers+coders+lfos+adsr
 
     // ****** i2s ******
     i2s_dma_buffers[0]=i2s_buf0;
@@ -298,6 +310,8 @@ void setup(){
     printf("demo sinus f:%f rc:%i ampl:%d\n",fr0,cga,voices[0].basicWaveAmpl[W_SINUS]);delay_ms(100);      
     
     fillVoices();               // après i2sSetup
+
+    pwm_timer_1khz_enable(true);    // start millicounter, coders, buttons, lfos, adsr 
    
 //dumpVoices(voices);
 //dumpStr(voiceScopeBuffer,256);

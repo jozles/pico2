@@ -54,8 +54,10 @@ void adsrInit()
     }
 }
 
-#define ONE_Q16     65532
+#define ONE_Q16     65536
+#define ONE_Q16_11  72440 // 65536 * 1.1
 #define RC_SAMPLES_NB  2048
+#define P16 (1<<16) 
 
 const uint32_t yTableQ16[DUR_ECH_NB] = {
 //1,2,3,4,5,7,8,10,11,13,15,18,21,24,27,31,35,39,44,49,55,62,69,76,84,93,103,114,125,137,151,165,181,197,215,235,256,278,302,328,356,
@@ -102,14 +104,23 @@ void fillDur(void)
     //uint32_t kQ16 = (uint32_t)(229900u / RC_SAMPLES_NB);       // 229900u equiv 97% du sommet de la courbe au dernier step
     //uint32_t kQ16 = (uint32_t)(196608u / RC_SAMPLES_NB);       // 229900u equiv 95% du sommet de la courbe au dernier step
     //uint32_t kQ16 = (uint32_t)(174240u / RC_SAMPLES_NB);       // 229900u equiv 93% du sommet de la courbe au dernier step    
-    uint32_t kQ16 = (uint32_t)(157696u / RC_SAMPLES_NB);       // 229900u equiv 91% du sommet de la courbe au dernier step  
+    //uint32_t kQ16 = (uint32_t)(157696u / RC_SAMPLES_NB);       // 229900u equiv 91% du sommet de la courbe au dernier step  
+
+    
+/*
+// formule générale pour obtenir la table ; 
+double coeff = (double)(P16 - 1) / (double)P16;   // 65535/65536
+double k = 1.0 - pow(1.0 - coeff, 1.0 / RC_SAMPLES_NB);
+uint32_t kQ16 = (uint32_t)(k * 65536.0);*/
+
+    uint32_t kQ16 = 77;   // Pour coeff =0.91 et 2048 samples : 𝑘 = 1-0,091/2048≈0,0011756 𝑘𝑄16≈0,0011756*65536≈77
 
     for (int i = 0; i < RC_SAMPLES_NB; i++)
     {
-        uint32_t diff = ONE_Q16 - yQ16;
+        uint32_t diff = ONE_Q16_11 - yQ16;
         uint32_t dy   = (uint32_t)(((uint64_t)diff * kQ16) >> 16);
         yQ16 += dy;
-        if (yQ16 > ONE_Q16) yQ16 = ONE_Q16;
+        if (yQ16 > ONE_Q16_11) yQ16 = ONE_Q16_11;
 
         rcCurve[i] = (uint16_t)((yQ16 * 65535ULL) >> 16);
         printf("%i %u\n",i,rcCurve[i]);
@@ -158,8 +169,8 @@ void __not_in_flash_func(adsrHandler)()
 
         for(uint8_t a=0;a<MAX_ADSR;a++)
         {
-            uint32_t  ov=adsrOutputsValues[a];
-            uint32_t  ov0;
+            uint16_t* ov=&adsrOutputsValues[a];
+            uint16_t  ov0;
             uint8_t*  as=&adsrStatus[a];
             uint16_t* ap=&adsrScopeBufPtr[a];
             if (__builtin_expect(*as != ADSR_OFF, 0)) {
@@ -168,14 +179,13 @@ void __not_in_flash_func(adsrHandler)()
                 uint16_t  lev=amplLevel[adsrCoderLev[a]];
                 uint32_t* ce=&adsrCurrEch[a];            
                 uint32_t  cx=*ce>>16;   // prev currEch  
-                #define P15 (1<<15) 
                 
                 printf("|s:%u ",*as);
 
                 switch(*as){
                     case ADSR_ATT:
                         cx=adsrNext(ce,adsrCoderAtt[a]);   // update adsrNext 
-                        ov=rcCurve[cx];                                               
+                        *ov=rcCurve[cx];                                               
                         printf("x:%u ",cx);
                         if (cx == RC_SAMPLES_NB-1) { *ce = 0; *as = ADSR_DEC;}
                         break;
@@ -183,37 +193,40 @@ void __not_in_flash_func(adsrHandler)()
                         // valeurs 1-x
                         cx=adsrNext(ce,adsrCoderDec[a]);
                         ov0=rcCurve[cx];
-                        ov = P15 - (((uint32_t)(P15 - lev) * ov0) >> 15);   //ov  = P15 - (P15 - lev) * ov0 / P15;
+                        //*ov = P16 - (((uint32_t)(P16 - lev) * ov0) >> 16);   //
+                        *ov  = (uint16_t)((uint32_t)P16 - ((uint32_t)(P16 - lev) * (uint32_t)ov0)/ (uint32_t)P16);
                         printf("x:%u ",cx);
 
                         if (cx == RC_SAMPLES_NB-1) {*ce = 0; *as = ADSR_SUS;}                        
                         break;
                     case ADSR_SUS:
                         cx=adsrNext(ce,adsrCoderSus[a]);  // timing management                    
-                        ov=lev;
+                        *ov=lev;
                         printf("x:%u ",cx);
 
                         if (cx == RC_SAMPLES_NB-1) { *ce = 0; *as = ADSR_REL;}
                         break;
                     case ADSR_REL:            
                         // valeurs 1-x
-                        cx=adsrNext(ce,adsrCoderRel[a]);
+                        {cx=adsrNext(ce,adsrCoderRel[a]);
                         ov0=rcCurve[cx];
-                        ov = lev - (((uint32_t)lev * ov0) >> 15);   //ov  = lev - lev * ov0 / P15;                        
+                        //*ov = lev - (((uint64_t)lev * ov0) >> 15);   
+                       *ov = (uint16_t)((uint32_t)lev - (uint32_t)((uint32_t)lev * (uint32_t)ov0) / (uint32_t)P16);
+
                         printf("x:%u ",cx);
 
                         if (cx == RC_SAMPLES_NB-1) { *ce = 0; *as = ADSR_OFF;ov=0;} 
-                        break;
+                        }break;
                     default:break;
                 }
                 
-                printf("A:%u:%u o:%u/%u",a,*as,ov0,ov);
+                printf("A:%u:%u o:%u/%u",a,*as,ov0,*ov);
                 //printf("pt:%u t:%u,%u,%u,%u",*ap,adsrCoderAtt[a],adsrCoderDec[a],adsrCoderSus[a],adsrCoderRel[a]); 
                 printf("\n");      
                 out_id=ctl_output_id_chain[adsr_ctl_output_id[a]];
-                if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,ov);}
+                if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,*ov);}
 
-                adsrScopeBufReal[a*ADSR_SCOPE_BUFFER_LEN + *ap]=ov;
+                adsrScopeBufReal[a*ADSR_SCOPE_BUFFER_LEN + *ap]=*ov;
                 *ap++;if(__builtin_expect(*ap>ADSR_SCOPE_BUFFER_LEN,0)){*ap=0;}
             }
             else if(__builtin_expect(*ap!=0 && *ap<ADSR_SCOPE_BUFFER_LEN,0)){
