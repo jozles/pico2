@@ -48,7 +48,7 @@ extern uint16_t amplLevel[];
 
 extern int32_t voicesDataBuffer[];
 
-extern volatile uint32_t millisCounter;
+volatile uint32_t millisCounter;
 
 #define R1 6
 #define R2 8

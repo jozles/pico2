@@ -217,7 +217,7 @@ void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)    // cga = genAmpl l
         voices[v].coderFreq=coderF;
         float f=calcFreq(voices[v].coderFreq);          // 440Hz
         setVoiceFrequency(f,&voices[v],voices[v].coderCycleR);
-        voices[v].coderAttFreq=FULL_ATTENUATION_VALUE;    
+        voices[v].coderFreqAtt=FULL_ATTENUATION_VALUE;    
 
         voices[v].sampleNbToFill=SAMPLE_BUFFER_SIZE;    
         voices[v].currentSample=0;

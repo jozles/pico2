@@ -26,7 +26,9 @@ extern int16_t  ctl_input_tlev[MAX_INPUTS];                      // all inputs t
 extern char     ctl_output_name[MAX_OUTPUTS][IN_OUT_NAME_LEN];
 extern int16_t  ctl_output_id_chain[MAX_OUTPUTS];
 
-volatile uint32_t millisCounter=0;
+extern volatile uint32_t millisCounter;
+
+extern bool scopeDisp;
 
 // mapping
 
@@ -74,6 +76,7 @@ extern uint32_t adsrCurrEch[MAX_ADSR];
 extern volatile int16_t menuAdsrCoders[];
 extern uint16_t* adsrVar[];
 extern int32_t  adsrScopeBufReal[MAX_ADSR*ADSR_SCOPE_BUFFER_LEN];
+extern int16_t  adsr_ctl_input_id[MAX_ADSR];
 
 extern volatile bool voicesSw[];                    // coder it handler scans all physical coders
 
@@ -171,7 +174,7 @@ void menus_init(){
     menuVcesCoders[OSCMENU]=0;                  // line 0 du menu
     menuVcesCoders[OSCCODERFREQ]=voices[0].coderFreq;
     menuVcesCoders[OSCCODERCRA]=voices[0].coderCycleR;
-    menuVcesCoders[OSCCODERFREQATT]=voices[0].coderAttFreq;     // (atténuateur de la valeur de l'input)
+    menuVcesCoders[OSCCODERFREQATT]=voices[0].coderFreqAtt;     // (atténuateur de la valeur de l'input)
     menuVcesCoders[OSCCODERCRAATT]=voices[0].coderCycleRAtt;    // (atténuateur de la valeur de l'input)
     menuVcesCoders[OSCGENAMP]=voices[0].genAmpl;
     // ***  Adsr  ****
@@ -526,7 +529,7 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                         voices[line].coderGenAmpl=cc;voices[line].genAmpl=amplLevel[cc];}
                         break; 
                     case OSCCODERFREQATT:if(varChge){
-                        voices[line].coderAttFreq=cc;                                               // atténuateur pour ctl_input_freq 
+                        voices[line].coderFreqAtt=cc;                                               // atténuateur pour ctl_input_freq 
                         int16_t fi = ctl_input_val[voices[line].voice_ctl_input_id[VFRQ]]>>3;       // normalisation ctl_input_freq
                         uint32_t fc = voices[line].coderFreq+fi*cc/MAX_CTL_ATT;                     // fc=coderFreq+ctl_input_freq atténué 
                         signal_overflow("lfo_freq:",line,fc,VCES_MIN_FREQ_CODERS,VCES_MAX_FREQ_CODERS);
@@ -546,11 +549,11 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
             case ADSR:
                 switch (coder){
                     case ADSRMENU: break;
-                    case ADSRATT:adsrCoderAtt[line]=cc;setAdsrDur(line,ADSR_ATT,cc);break;
-                    case ADSRDEC:adsrCoderDec[line]=cc;setAdsrDur(line,ADSR_DEC,cc);break;
-                    case ADSRSUS:adsrCoderSus[line]=cc;setAdsrDur(line,ADSR_SUS,cc);break;
-                    case ADSRREL:adsrCoderRel[line]=cc;setAdsrDur(line,ADSR_REL,cc);break;
-                    case ADSRLEV:adsrCoderLev[line]=cc;setAdsrLev(line,cc);break;
+                    case ADSRATT:adsrCoderAtt[line]=cc;setAdsrDur(line,ADSR_ATT,ctl_input_val[adsr_ctl_input_id[line]]);break;
+                    case ADSRDEC:adsrCoderDec[line]=cc;setAdsrDur(line,ADSR_DEC,ctl_input_val[adsr_ctl_input_id[line]]);break;
+                    case ADSRSUS:adsrCoderSus[line]=cc;setAdsrDur(line,ADSR_SUS,ctl_input_val[adsr_ctl_input_id[line]]);break;
+                    case ADSRREL:adsrCoderRel[line]=cc;setAdsrDur(line,ADSR_REL,ctl_input_val[adsr_ctl_input_id[line]]);break;
+                    case ADSRLEV:adsrCoderLev[line]=cc;setAdsrLev(line,cc+ctl_input_val[adsr_ctl_input_id[line]]);break;
                     default: break;
                 }
                 sprintf(buf+2,"%3u %3u %3u %3u %2u",adsrCoderAtt[line],adsrCoderDec[line],adsrCoderSus[line],adsrCoderRel[line],adsrCoderLev[line]);
@@ -583,7 +586,7 @@ void fullMenuDsp(const char* title,const char* menu,uint8_t linesNb,uint8_t line
 // les traitements associés à lamodif de variables sont appelés depuis menuLineDsp() ou l'affichage de la ligne est décrit
 // switch : la sortie est déclenchée soit par le "return button" soit par l'appui du coder 0 ; la valeur retournée est le n° de ligne
 // les autres switchs passent en mode scope si le type de menu le gère ; coderNb indique le nombre de coders valides (coder 0 inclu)
-uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8_t line_len,uint8_t type,volatile int16_t *cTC, volatile bool *cTS, uint16_t *maxi,uint16_t** var,uint8_t varNb,uint8_t switchsNb,uint8_t line0)
+uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8_t line_len,uint8_t type_objet,volatile int16_t *cTC, volatile bool *cTS, uint16_t *maxi,uint16_t** var,uint8_t varNb,uint8_t switchsNb,uint8_t line0)
 {
 
     uint8_t line=line0;
@@ -595,11 +598,11 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
 
     coderSetup(cTC,cTS,maxi,linesNb);   // coderSetup ignore lineNb
 
-    fullMenuDsp(title,text,linesNb,line_len,line,type,0,0,false);
+    fullMenuDsp(title,text,linesNb,line_len,line,type_objet,0,0,false);
 
     //start adsr 0
     //adsrStatus[0]=ADSR_ATT;
-    bool adsrNew=false;
+    scopeDisp=false;
 
     while(1){
             
@@ -609,11 +612,11 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
             ledblinkn(2);
             if(!mode_scope){test_st7789_2();}    // animation balayage de lignes
             
-            if(debug_ticker()){if(adsrStatus[0]==ADSR_OFF){adsrStatus[0]=ADSR_ATT;adsrCurrEch[0]=0;adsrNew=true;}};          
+            if(debug_ticker()){if(adsrStatus[0]==ADSR_OFF){adsrStatus[0]=ADSR_ATT;adsrCurrEch[0]=0;scopeDisp=true;}};          
 
             int s=tst_switchs_(switchsNb);            
-            if(s==0 || s==-99){return line;}
-            if(s>0){
+            if(s==0 || s==-99){return line;}    // switch du coder 0 ou capaTouch
+            if(s>0){                            // switch coders 1 à n
                 mode_scope=true;firstScope=true;
                 if((s-1)!=wave){type_scope=1;}
                 else type_scope^=1;
@@ -628,51 +631,47 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
                 // coder 0 : depl vertical
                 if(coder==0 && cc!=line){
                                   
-                    menuLineDsp(text,line,line_len,false,type,coder,cc,mode_scope,NO_VAR_CHANGE);    // no reverse display
+                    menuLineDsp(text,line,line_len,false,type_objet,coder,cc,mode_scope,NO_VAR_CHANGE);    // no reverse display
                     line=cc;
                     for(uint8_t k=0;k<varNb;k++){
                         if(var[k]!=nullptr){
                             cTC[k+1]=var[k][line];   // rechargement de la valeur actuelle des coder(1 à n, le 0 est pour le depl vertical) pour la nouvelle ligne ()
                         }
                     }
-                    menuLineDsp(text,line,line_len,true,type,coder,cc,mode_scope,NO_VAR_CHANGE);     // reverse display
-                    title_dsp(title,line,type);          
+                    menuLineDsp(text,line,line_len,true,type_objet,coder,cc,mode_scope,NO_VAR_CHANGE);     // reverse display
+                    title_dsp(title,line,type_objet);          
                 }
 
                 // coders 1 à n update variables des enregistrements
                 if(varNb>0 && coder>0 && var[coder-1]!=nullptr){        // coder 0 pour depl vertical ; (ex lfos : coder 1 freq, coder 2 rc)
                         if(var[coder-1][line]!=cc){                     // update coder value & display changes 
                             var[coder-1][line]=cc;
-                            menuLineDsp(text,line,line_len,true,type,coder,cc,mode_scope,VAR_CHANGE);  // include values updates
-                            title_dsp(title,line,type);
+                            menuLineDsp(text,line,line_len,true,type_objet,coder,cc,mode_scope,VAR_CHANGE);  // include values updates
+                            title_dsp(title,line,type_objet);
                         }
                 }        
             }
             if(mode_scope){
-                if(type==LFOS){
-                    if(firstScope){title_dsp(title,line,LFOS);}    
-                    //if(type_scope){scope(&lfoScopeBuffer[line*OSC_SCOPE_BUFFER_LEN],lfosFrequency[line],begline,false,firstScope,0,wave,1);firstScope=false;}
-                    //else{
-                        //for(uint8_t i=0;i<TFT_W;i++){printf("ptr:%d c0:%i c1:%i c2:%i c3:%i\n",i,lfoScopeBufReal[0*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB + i*BASIC_WAVES_NB+LSIN]);}
+                switch(type_objet){
+                    case LFOS:if(firstScope){title_dsp(title,line,LFOS);}    
                         scope(lfoScopeBufReal,lfosFrequency[line],begline,false,firstScope,0,wave,2,line);
-                    //}
-                    firstScope=false;       
+                        firstScope=false;break;
+                    
+                    case VOICES:
+                        if(firstScope){title_dsp(title,line,VOICES,0,wave,type_scope);}
+                        if(type_scope==1){scope(voicesDataBuffer+line*OSC_SCOPE_BUFFER_LEN,voices[line].frequency,begline,false,firstScope,0,wave,1);}
+                        else{scope(i2s_buf_scope,voices[line].frequency,begline,false,firstScope,0,wave,0);}
+                        firstScope=false;         
+                        break;
+
+                    case ADSR: if(scopeDisp==true){
+                        scopeDisp=false;if(firstScope){title_dsp(title,line,ADSR,0,wave,type_scope);}
+                        scope(&adsrScopeBufReal[line],0,begline,false,firstScope,0,0,3,line);
+                        }
+                        else mode_scope=false;
+                        break;
+                    default:break;
                 }
-                else if(type==VOICES){ 
-                    if(firstScope){title_dsp(title,line,VOICES,0,wave,type_scope);}
-                    if(type_scope==1){scope(voicesDataBuffer+line*OSC_SCOPE_BUFFER_LEN,voices[line].frequency,begline,false,firstScope,0,wave,1);}
-                    else{scope(i2s_buf_scope,voices[line].frequency,begline,false,firstScope,0,wave,0);}
-                    firstScope=false;         
-                }
-                else if(type==ADSR && adsrNew==true){
-                    adsrNew=false;
-                    if(firstScope){title_dsp(title,line,ADSR,0,wave,type_scope);}
-                    scope(&adsrScopeBufReal[line],0,begline,false,firstScope,0,0,3,line);
-                }
-                else mode_scope=false;
             }          
     }
-                        //scope(i2s_buffer[0],voices[0].frequency,14,false,true,0,0,false);firstScope=false;     // scope mode_data
-                        //printf("i2s_buffer f:%f rc:%i ampl:%d\n",voices[0].frequency,voices[0].coderCycleR,voices[0].basicWaveAmpl[W_SINUS]);delay_ms(100);
-                        //dumpStr(i2s_buffer[0],256);    
 }

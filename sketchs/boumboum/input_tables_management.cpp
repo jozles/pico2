@@ -45,7 +45,7 @@ extern int16_t   lfosOutputsValues[MAX_LFO][MAX_OUTPUTS_PER_OBJ];
 // les objets de l'application sont des boites munies d'entrées et de sorties
 //
 // il y a 3 types d'entrées : 
-//      les coders incrémentaux pour modifier manuellement les paramètres
+//      les coders incrémentaux pour modifier manuellement les paramètres des objets
 //      les controles (à chacun est associé un coder d'atténuation) 
 //      les signaux audio 
 // chaque paramètre a un codeur + une entrée avec coder d'atténuation
@@ -53,11 +53,20 @@ extern int16_t   lfosOutputsValues[MAX_LFO][MAX_OUTPUTS_PER_OBJ];
 // la valeur des paramètres est la somme entre valeur du coder et valeur de l'entrée normalisée et atténuée
 // le nombre d'entrées est fixe pour tous les objets et en général excédentaire
 //
+// la mise à jour d'un paramètre d'entrée d'un objet se fait avec la fonction set/objet/paramètre (ex setAdsrDur ou setLFoFreq)
+// avec des arguments selon le type d'objet (ex le n° d'objet, l'entrée concernéé et la valeur de l'entrée - setAdsrDur(adsr,ADSR_ATT,dur) )
+// en principe le coder et l'entrée sont linéaires et la "mise en courbe" de la somme est à la fin de la fonction setxxxxyyyy
+// cette somme est en principe un step dans une table, la valeur du step étant la vitesse de lecture de la table
+// la tables est lue dans le handler de l'objet (lfosHandler,AdsrHandler,FillVoices etc) à une fréquence d'échantillonage propre.
+// la fonction set est en principe utilisée 3 fois : dans les inits, dans le menu de saisie des coders et dans la mise à jour des entrées (update_inputs)
+//
 // il y a 2 types de sorties :
 //      les signaux audio
 //      les contrôles
-// les contrôles sont des valeurs 16 bits signés
-// le nombre de sorties est fixe pour tous les objets et le plus souvent excédentaire
+// les contrôles sont des valeurs 16 bits signés (coders, sorties des lfos, adsr, switchs etc)
+// ils sont recadrés selon le type de l'entrée à laquelle ils sont appliqués (par ex, une fréquence est sur 13 bits, un rc sur 5 bits, une durée sur 7 bits)
+// comme déjà dit, coders et sorties atténuées sont "ajoutés" selon le type d'entrée
+// le nombre de sorties possibles est fixe pour tous les objets et le plus souvent excédentaire
 // 
 // les variables décrivant les objets sont réparties entre
 //      les objets (jeu de tables indicées sur le numéro d'objet)
@@ -85,6 +94,7 @@ extern int16_t   lfosOutputsValues[MAX_LFO][MAX_OUTPUTS_PER_OBJ];
 //          (ajouter un paragraphe dans le chapitre nom des e/s des objets et dans inputs et outputs de const.h)
 //      ajouter pour chaque entrée un nom de type dans norm_types.def
 //      ajouter un paragraphe d'init dans init_objects_inputs et init_objects_outputs 
+//      ajouter la fonction setxxxxyyyy vue plus haut
 //      ajouter le traitement d'update dans update_inputs
 //      ajouter un menu (ligne d'appel dans boumboum, inits dans boumboum et menu, traitement de ligne dans menu)
 //      ajouter un handler à l'endroit approprié
@@ -103,7 +113,7 @@ int16_t ctl_input_val[MAX_INPUTS];                       // all inputs values
 int16_t ctl_input_prev_val[MAX_INPUTS];                  // all inputs prev values for trig level identification
 int16_t ctl_input_srce[MAX_INPUTS];                      // all inputs sources# 
 //uint8_t ctl_input_norm[MAX_INPUTS];                      // all inputs norm type (0 nothing ; 1 lfo_freq ; 2 vce freq ; 3 rc ; 4 ampl 0-31 etc)
-int16_t ctl_input_shft[MAX_INPUTS];                      // all inputs values shift type (0 no shift ; in)
+int16_t ctl_input_shft[MAX_INPUTS];                      // all inputs values shift type (0 no shift ; in)  ??????? input shifting no yet implemented
 uint8_t ctl_input_trig[MAX_INPUTS];                      // all inputs trig type ; reset when read
 int16_t ctl_input_tlev[MAX_INPUTS];                      // all inputs trig level
 char    ctl_input_name[MAX_INPUTS][IN_OUT_NAME_LEN];     // all inputs names
@@ -399,7 +409,11 @@ void __not_in_flash_func(disconnect_input)(uint16_t input_id, uint16_t output)
     spin_unlock(inputs_id__lock, f);
 }
 
-void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)
+void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // valeur est la valeur linéaire à atténuer sur 16 bits recadrée selon le type d'entrée
+                                                                    // id indique l'indice de l'objet via ctl_input_object 
+                                                                    // donc la valeur du coder associé
+                                                                    // et le type d'entrée via ctl_input_update_type
+                                                                    // et la valeur précédente de l'entrée via ctl_input_val
 {
     //int16_t id = ctl_output_id_chain[output];
     int16_t prev = ctl_input_val[id];
@@ -415,7 +429,7 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)
         do {
             int16_t next_id = ctl_input_id_chain[id];
             switch(ctl_input_update_type[id]){
-                case VCE_FREQ:  val=(valeur>>3)*voices[object].coderAttFreq/MAX_CTL_ATT;                // 8k max VCES_MAX_FREQ_CODERS ; att 0-255
+                case VCE_FREQ:  val=(valeur>>3)*voices[object].coderFreqAtt/MAX_CTL_ATT;                // 8k max VCES_MAX_FREQ_CODERS ; att 0-255
                                 fr=calcFreq(val+voices[object].coderFreq);
                                 setVoiceFrequency(fr,&voices[object],voices[object].coderCycleR);       // ajouter un ctl d'overflow
                                 break;
@@ -431,39 +445,45 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)
                 case LFO_CRA :  val=lfosCoderCycleR[object]+(valeur>>10)*lfosCoderCycleRAtt[object]/MAX_CTL_ATT; // 0-62 ; att 0-255
                                 setLfosFrequency(lfosFrequency[object],object,val);                     // ajouter un ctl d'overflow
                                 break;
-                case A_ATTACK:  val=(valeur>>3)*adsrCoderAttAtt[object]/MAX_CTL_ATT;
+                case A_ATTACK:  val=(valeur>>9)*adsrCoderAttAtt[object]/MAX_CTL_ATT;                    // durée 0-127
                                 setAdsrDur(object,adsrStatus[object],val);
                                 break;
-                case A_DECAY :  val=(valeur>>3)*adsrCoderDecAtt[object]/MAX_CTL_ATT;
+                case A_DECAY :  val=(valeur>>9)*adsrCoderDecAtt[object]/MAX_CTL_ATT;                    // durée 0-127
                                 setAdsrDur(object,adsrStatus[object],val);
                                 break;
-                case A_SUST  :  val=(valeur>>3)*adsrCoderSusAtt[object]/MAX_CTL_ATT;
+                case A_SUST  :  val=(valeur>>3)*adsrCoderSusAtt[object]/MAX_CTL_ATT;                    // durée 0-127
                                 setAdsrDur(object,adsrStatus[object],val);
                                 break;
-                case A_RELEAS:  val=(valeur>>3)*adsrCoderRelAtt[object]/MAX_CTL_ATT;
+                case A_RELEAS:  val=(valeur>>3)*adsrCoderRelAtt[object]/MAX_CTL_ATT;                    // durée 0-127
                                 setAdsrDur(object,adsrStatus[object],val);
                                 break;
-                case A_LEVEL :  val=(valeur>>3)*adsrCoderLevAtt[object]/MAX_CTL_ATT;
+                case A_LEVEL :  val=(valeur>>3)*adsrCoderLevAtt[object]/MAX_CTL_ATT;                    
                                 setAdsrLev(object,val);
                                 break;                        
                 case A_START :  ctl_input_prev_val[id]=prev;                                            // start adsr
                                 tlev=ctl_input_tlev[id];
                                 switch(ctl_input_trig[id]){
                                     case INP_NO_TRIG:break;
-                                    case INP_UP_TRIG:if(valeur>=tlev && prev<tlev){
-                                        adsrStatus[object]=ADSR_ATT;
-                                        adsrCurrEch[object]=0;
-                                        adsrCurrEchFra[object]=0;}
+                                    case INP_UP_TRIG:
+                                        if(valeur>=tlev && prev<tlev){
+                                            adsrStatus[object]=ADSR_ATT;
+                                            adsrCurrEch[object]=0;
+                                            //adsrCurrEchFra[object]=0;
+                                        }
                                         break;
-                                    case INP_DOWN_TRIG:if(valeur<=tlev && prev>tlev){
-                                        adsrStatus[object]=ADSR_ATT;
-                                        adsrCurrEch[object]=0;
-                                        adsrCurrEchFra[object]=0;}
+                                    case INP_DOWN_TRIG:
+                                        if(valeur<=tlev && prev>tlev){
+                                            adsrStatus[object]=ADSR_ATT;
+                                            adsrCurrEch[object]=0;
+                                            //adsrCurrEchFra[object]=0;
+                                        }
                                         break;
-                                    case INP_U_D_TRIG:if((valeur>tlev && prev<tlev) || (valeur<=tlev && prev>tlev)){
-                                        adsrStatus[object]=ADSR_ATT;
-                                        adsrCurrEch[object]=0;
-                                        adsrCurrEchFra[object]=0;}
+                                    case INP_U_D_TRIG:
+                                        if((valeur>tlev && prev<tlev) || (valeur<=tlev && prev>tlev)){
+                                            adsrStatus[object]=ADSR_ATT;
+                                            adsrCurrEch[object]=0;
+                                            //adsrCurrEchFra[object]=0;
+                                        }
                                         break;
                                     default:break;
                                 }
