@@ -102,7 +102,7 @@ char buf[LINE_LEN];
 char buf2[LINE_LEN];
 char buf11x12[TFT_W/11+2];
 
-uint16_t begline=34;
+uint16_t begline=34;    // first line after title
 
 const char menu0_names[][MENU_NAME_LEN]={
     #define Z(name,text) text,
@@ -204,7 +204,8 @@ void title_dsp(const char* title,uint8_t item,uint8_t type,float v0, int32_t v1,
                     sprintf(buf2,"crAt:%i frAt:%i",lfosCoderCycleRAtt[item],lfosCodersFreqAtt[item]);
                     break;
         case VOICES:sprintf(buf,"%s:%u %1.3f%+i %i%i",title,item,voices[item].frequency,voices[item].coderCycleR-MAXCODER_RC/2,v1,v2);break;
-        case ADSR:sprintf(buf,"%s:%u %u %u%+u %u %u ",title,item,adsrCoderAtt[item],adsrCoderDec[item],adsrCoderSus[item],adsrCoderRel[item],adsrCoderLev[item]);break;
+        case ADSR:  sprintf(buf,"%s%u     ",title,item);
+                    sprintf(buf2,"%u %u %u %+u %u",adsrCoderAtt[item],adsrCoderDec[item],adsrCoderSus[item],adsrCoderRel[item],adsrCoderLev[item]);break;
         case MENU0:sprintf(buf,"%s  ",title);break;
 
         default:sprintf(buf,"%s           ",title);break;
@@ -583,7 +584,7 @@ void fullMenuDsp(const char* title,const char* menu,uint8_t linesNb,uint8_t line
 // s'il y a des variables à saisir via coder, uint16_t* var[] contient les pointeurs sur les tableaux uint16_t[line] (valeur courante du coder correspondant) voir comments dans boumboum.cpp
 // donc var[coder-1][line] permet d'accéder à ces valeurs de coder (traitement spécifique éventuel selon le type dans menuLineDsp (ou ailleurs)
 // varNb est le nombre de variables 
-// les traitements associés à lamodif de variables sont appelés depuis menuLineDsp() ou l'affichage de la ligne est décrit
+// les traitements associés à la modif de variables sont appelés depuis menuLineDsp() ou l'affichage de la ligne est décrit
 // switch : la sortie est déclenchée soit par le "return button" soit par l'appui du coder 0 ; la valeur retournée est le n° de ligne
 // les autres switchs passent en mode scope si le type de menu le gère ; coderNb indique le nombre de coders valides (coder 0 inclu)
 uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8_t line_len,uint8_t type_objet,volatile int16_t *cTC, volatile bool *cTS, uint16_t *maxi,uint16_t** var,uint8_t varNb,uint8_t switchsNb,uint8_t line0)
@@ -663,12 +664,13 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
                         firstScope=false;         
                         break;
 
-                    case ADSR: if(adsrScopeDisp[line]==true){
+                    case ADSR: 
+                        if(adsrScopeDisp[line]==true){
                         //for(uint8_t w=0;w<TFT_W;w++){printf("%i\n",adsrScopeBufReal[w]);}
-                        adsrScopeDisp[line]=false;if(firstScope){title_dsp(title,line,ADSR,0,wave,type_scope);}
-                        scope(&adsrScopeBufReal[line],0,begline,false,firstScope,0,0,3,line);
+                            adsrScopeDisp[line]=false;
+                            if(firstScope){title_dsp(title,line,ADSR,0,wave,type_scope);}
+                            scope(&adsrScopeBufReal[line],0,begline,false,firstScope,0,0,3,line,1);
                         }
-                        else mode_scope=false;
                         break;
                     default:break;
                 }

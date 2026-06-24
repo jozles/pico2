@@ -750,7 +750,8 @@ uint16_t tft_draw_float_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_
 }
 // display scope lookout of buf values ; len =buf size ; f freq ; begline first available line ; 
 // fd freq display ; wf required waveform ; mode calcul (0=i2s true data ; 1=computed with ce & cr ; 2 =lfo_mode one waveform output)
-void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bool blk,uint8_t refr,uint8_t wf,uint8_t mode_calcul,uint8_t object){
+// begine first line after title ; zline 0 line position =0 middle, =1 bottom
+void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bool blk,uint8_t refr,uint8_t wf,uint8_t mode_calcul,uint8_t object,int16_t zline){
         
     if(refrCnt>=refr){
         
@@ -759,6 +760,7 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
         uint16_t bgcolor=0x0000;
         uint16_t fgcolor=0x07ef;
         int32_t yy;
+        uint8_t zz=2;if(zline!=0){zz=zline;}                        
         uint32_t v;
 
         st_dma_wait();
@@ -833,23 +835,24 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
                     }break;
 
                 case 3:{                                                // adsr real wave view (ampl 16bits)
-                    int32_t t=buf[object*ADSR_SCOPE_BUFFER_LEN+i];     
-                    b=(float)t/(float)0x7fff;     
+                    uint32_t t=buf[object*ADSR_SCOPE_BUFFER_LEN+i];     
+                    b=(float)t/(float)0x0000ffff;     
                     }break;
 
                 default: break;
             }
 
-            yy=(int32_t)(sign*b*((TFT_H-begline)/2));                   // tft y value (tft x value = i)
+            yy=(int32_t)(sign*b*((TFT_H-begline)/zz));                  // tft y value (tft x value = i)
 
 //printf("obj:%d i:%d wf:%d b:%f yy:%i\n",object,i,wf,b,yy);
 
-            if(abs(yy)>(TFT_H-begline)/2){yy=sign*(TFT_H-begline)/2;}
-            v=2*(((TFT_H-begline)/2-yy)*TFT_W+i);                       // pixel location in tft_frame
+            if(abs(yy)>(TFT_H-begline)/zz){yy=sign*(TFT_H-begline)/zz;}
+            v=2*(((TFT_H-begline-1)/zz-yy)*TFT_W+i);                      // pixel location in tft_frame
             tft_frame[v]=fgcolor;
+            //printf("%u %u %i %f\n",object,i,yy,v);
         }
 
-        for(uint8_t i=0;i<TFT_W;i+=3){tft_frame[2*(((TFT_H-begline)/2)*TFT_W+i)]=fgcolor;}        // 0 line
+        for(uint8_t i=0;i<TFT_W;i+=3){tft_frame[2*(((TFT_H-begline-1)/zz)*TFT_W+i)]=fgcolor;}        // 0 line
 
         st_dma_launch(tft_frame,0,begline,TFT_W,TFT_H-begline);
 
@@ -858,9 +861,13 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
     else refrCnt++;
 }
 
+void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bool blk,uint8_t refr,uint8_t wf,uint8_t mode_calcul,uint8_t object){
+    scope(buf,f,begline,fd,blk,refr,wf,mode_calcul,0,0);
+}
+
 void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bool blk,uint8_t refr,uint8_t wf,uint8_t mode_calcul){
     scope(buf,f,begline,fd,blk,refr,wf,mode_calcul,0);
-}        
+}    
 
 bool debug_ticker(){
     if(__builtin_expect((millisCounter-ticker10)>10000,0)){
