@@ -28,7 +28,7 @@ extern int16_t  ctl_output_id_chain[MAX_OUTPUTS];
 
 extern volatile uint32_t millisCounter;
 
-extern bool scopeDisp;
+extern bool adsrScopeDisp[];
 
 // mapping
 
@@ -601,8 +601,7 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
     fullMenuDsp(title,text,linesNb,line_len,line,type_objet,0,0,false);
 
     //start adsr 0
-    //adsrStatus[0]=ADSR_ATT;
-    scopeDisp=false;
+    //adsrStatus[0]=ADSR_ATT
 
     while(1){
             
@@ -612,7 +611,7 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
             ledblinkn(2);
             if(!mode_scope){test_st7789_2();}    // animation balayage de lignes
             
-            if(debug_ticker()){if(adsrStatus[0]==ADSR_OFF){adsrStatus[0]=ADSR_ATT;adsrCurrEch[0]=0;scopeDisp=true;}};          
+            if(debug_ticker()){if(adsrStatus[0]==ADSR_OFF){adsrStatus[0]=ADSR_ATT;adsrCurrEch[0]=0;}};          
 
             int s=tst_switchs_(switchsNb);            
             if(s==0 || s==-99){return line;}    // switch du coder 0 ou capaTouch
@@ -664,8 +663,9 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
                         firstScope=false;         
                         break;
 
-                    case ADSR: if(scopeDisp==true){
-                        scopeDisp=false;if(firstScope){title_dsp(title,line,ADSR,0,wave,type_scope);}
+                    case ADSR: if(adsrScopeDisp[line]==true){
+                        //for(uint8_t w=0;w<TFT_W;w++){printf("%i\n",adsrScopeBufReal[w]);}
+                        adsrScopeDisp[line]=false;if(firstScope){title_dsp(title,line,ADSR,0,wave,type_scope);}
                         scope(&adsrScopeBufReal[line],0,begline,false,firstScope,0,0,3,line);
                         }
                         else mode_scope=false;

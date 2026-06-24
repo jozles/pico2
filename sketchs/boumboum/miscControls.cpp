@@ -38,7 +38,7 @@ extern uint32_t millisCounter;
 extern uint16_t amplLevel[];
 extern int16_t  ctl_output_id_chain[];
 
-bool scopeDisp;
+bool adsrScopeDisp[MAX_ADSR];
 
 void adsrInit()
 {
@@ -243,20 +243,16 @@ void __not_in_flash_func(adsrHandler)()
 
                 adsrScopeBufReal[a*ADSR_SCOPE_BUFFER_LEN + *ap]=*ov;
 
-                printf("cx:%u o:%u %i\n",cx,*ov,adsrScopeBufReal[a*ADSR_SCOPE_BUFFER_LEN + *ap]);
+                printf("cx:%u o:%u %i ap:%u\n",cx,*ov,adsrScopeBufReal[a*ADSR_SCOPE_BUFFER_LEN + *ap],*ap);
 
-                *ap++;
-                if(__builtin_expect(*ap>ADSR_SCOPE_BUFFER_LEN,0)){
-                    *ap=0;
-                    for(uint16_t w=0;w<TFT_W;w++){printf("sc:%i\n",adsrScopeBufReal[a*ADSR_SCOPE_BUFFER_LEN+w]);}
-                    scopeDisp=true;
-                }
+                (*ap)++;  // until ADSR_OFF
             }
-            else if(__builtin_expect(*ap!=0 && *ap<ADSR_SCOPE_BUFFER_LEN,0)){       // effacement fin de courbe
+            /*else if(__builtin_expect(*ap!=0 && *ap<ADSR_SCOPE_BUFFER_LEN,0)){       // effacement fin de courbe
                 int32_t* ab=&adsrScopeBufReal[a*ADSR_SCOPE_BUFFER_LEN];
                 for(uint16_t x=*ap;x<ADSR_SCOPE_BUFFER_LEN;x++){*(ab+x)=0;}
                 *ap=0;   
-            }
+            }*/
+        if(__builtin_expect(*ap>ADSR_SCOPE_BUFFER_LEN,0)){*ap=0;adsrScopeDisp[a]=true;}
         }
     }
 }
