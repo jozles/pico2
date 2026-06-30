@@ -199,16 +199,16 @@ void title_dsp(const char* title,uint8_t item,uint8_t type,float v0, int32_t v1,
     memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
     memset(buf2,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
     switch(type){
-        case AMPS:sprintf(buf,"v:%d %4.3f amp",item,voices[item].frequency);break;
-        case LFOS:  sprintf(buf,"%s:%u %1.3f %i",title,item,lfosFrequency[item],lfosCoderCycleR[item]-MAXCODER_RC/2);
+        case WAVES_AMP:sprintf(buf,"v:%d %4.3f amp",item,voices[item].frequency);break;
+        case LFOS_____:  sprintf(buf,"%s:%u %1.3f %i",title,item,lfosFrequency[item],lfosCoderCycleR[item]-MAXCODER_RC/2);
                     sprintf(buf2,"crAt:%i frAt:%i",lfosCoderCycleRAtt[item],lfosCodersFreqAtt[item]);
                     break;
-        case VOICES:sprintf(buf,"%s:%u %1.3f%+i %i%i",title,item,voices[item].frequency,voices[item].coderCycleR-MAXCODER_RC/2,v1,v2);break;
-        case ADSR:  sprintf(buf,"%s%u     ",title,item);
+        case VOICES_FR:sprintf(buf,"%s:%u %1.3f%+i %i%i",title,item,voices[item].frequency,voices[item].coderCycleR-MAXCODER_RC/2,v1,v2);break;
+        case ADSRL____:  sprintf(buf,"%s%u     ",title,item);
                     sprintf(buf2,"%u %u %u %+u %u",adsrCoderAtt[item],adsrCoderDec[item],adsrCoderSus[item],adsrCoderRel[item],adsrCoderLev[item]);break;
-        case MENU0:sprintf(buf,"%s  ",title);break;
+        //case MENU0:sprintf(buf,"%s  ",title);break;
 
-        default:sprintf(buf,"%s           ",title);break;
+        default:sprintf(buf,"%s :%u       ",title,type);break;
     }        
     tft_draw_text_12x12_dma_mult(0,0,buf,0x001f,0x0000,1);
     tft_draw_text_12x12_dma_mult(0,14,buf2,0x001f,0x0000,1);
@@ -269,7 +269,7 @@ uint8_t coders_for_wavesAmpl(uint8_t currVoice)
     volatile bool firstDisplay=true;
 
     tft_fill_rect_blank(begline,0,TFT_H-begline,TFT_W);
-    title_dsp("",currVoice,AMPS);
+    title_dsp("",currVoice,WAVES_AMP);
 
     for(uint8_t a=0;a<W_NB;a++){voicesWaveAmplCoders[a]=voices[currVoice].coderAmpl[a];}
     coderSetup(voicesWaveAmplCoders,voicesSw,voicesMaxWaveAmplCoders,W_NB);    
@@ -355,12 +355,18 @@ void fullMappingDsp(uint8_t firstInput,uint8_t currDspInput){
 
 uint8_t coders_for_mapping(){
 
+    uint8_t cnt=0;
+    
     bool mode_scope=false;
     
     uint8_t currInput=1;    // input for current cursor 
     uint8_t currDsp=0;      // line for current cursor
 
+    mappingCoders[3]=ctl_input_shft[currInput];mappingCoders[4]=ctl_input_trig[currInput];mappingCoders[5]=ctl_input_tlev[currInput];
+
     coderSetup(mappingCoders,voicesSw,maxMappingCoders,3);
+    
+    //uint16_t ci=46;printf("menu_mapping id:%u %s %u \n",ci,ctl_input_name[ci],ctl_input_trig[ci]);
 
     fullMappingDsp(currInput,currDsp);
 
@@ -370,6 +376,9 @@ uint8_t coders_for_mapping(){
             ledblinkn(2);
             if(!mode_scope){test_st7789_2();}       // animation balayage de lignes
             debug_ticker();
+
+            //if(currInput==45 && cnt<3){cnt++;ci=46;printf("menu_mapping id:%u %s %u m:%u \n",ci,ctl_input_name[ci],ctl_input_trig[ci],mappingCoders[4]);}
+            //if(currInput!=45){cnt=0;}
 
             for(uint8_t coder=0;coder<MAPPING_CODER_NB;coder++){        // coder 0 line ; coder 1 output ; coder 2 Shifted or not
 
@@ -381,7 +390,8 @@ uint8_t coders_for_mapping(){
                     tft_fill_rect_blank(FIRSTLINEH,0,11+3,TFT_W);
                     return s;}
 
-                uint32_t cc=mappingCoders[coder];
+                uint8_t cod=coder;if(coder>1){cod++;}
+                uint32_t cc=mappingCoders[cod];
                 if(coder==0){                                           // coder 0 vertical movements
 
                         if(currInput<MAX_INPUTS-1 && cc>currInput){             // cursor moves down
@@ -403,7 +413,7 @@ uint8_t coders_for_mapping(){
                                 }                                         
                                 fullMappingDsp(schdInput,currDsp);
                             }
-                            mappingCoders[1]=ctl_input_srce[currInput];
+                            mappingCoders[1]=ctl_input_srce[currInput];mappingCoders[3]=ctl_input_shft[currInput];mappingCoders[4]=ctl_input_trig[currInput];mappingCoders[5]=ctl_input_tlev[currInput];
                         }
                         else if(currInput>1 && cc<currInput){                   // cursor moves up
                                                
@@ -418,7 +428,7 @@ uint8_t coders_for_mapping(){
                                 while(ctl_input_name[currInput][0]==0 && currInput>1){currInput--;}
                                 fullMappingDsp(currInput,currDsp);                                
                             }
-                            mappingCoders[1]=ctl_input_srce[currInput];
+                            mappingCoders[1]=ctl_input_srce[currInput];mappingCoders[3]=ctl_input_shft[currInput];mappingCoders[4]=ctl_input_trig[currInput];mappingCoders[5]=ctl_input_tlev[currInput];
                         }
                         mappingCoders[0]=currInput;
                 }
@@ -453,7 +463,7 @@ uint8_t coders_for_mapping(){
                     ctl_input_trig[currInput]=cc;
                     mappingLineDsp(currInput,currDsp,true);
                 }                    
-                if(coder==4 && cc!=ctl_input_tlev[currInput]){                   // coder 5 output trig level
+                if(coder==4 && cc!=ctl_input_tlev[currInput]){                   // coder 4 output trig level
                     ctl_input_tlev[currInput]=cc;
                     mappingLineDsp(currInput,currDsp,true);
                 }                    
@@ -476,8 +486,8 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
         buf[1]=' ';
 
         switch(type){
-            case MENU0:sprintf(buf+2,"%s  ",menu+line*len);break; // général
-            case LFOS:
+            case MENU0____:sprintf(buf+2,"%s  ",menu+line*len);break; // général
+            case LFOS_____:
                 switch(coder){
                     case OSCMENU:
                         setLfosFrequency(calcFreq(lfosCodersFreq[line])/VOICE_FREQ_DIVIDER,line,lfosCoderCycleR[line]);
@@ -512,7 +522,7 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                 }
                 sprintf(buf+2,"%1.3f %1.3f %d   ",lfosFrequency[line],1/lfosFrequency[line],lfosCoderCycleR[line]-MAXCODER_RC/2);
                 break;  
-            case VOICES:
+            case VOICES_FR:
                 switch (coder){
                     case OSCMENU:                
                         setVoiceFrequency(calcFreq(voices[line].coderFreq),&voices[line],voices[line].coderCycleR);
@@ -547,7 +557,7 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                 }
                 sprintf(buf+2,"%4.3f %i %u",voices[line].frequency,voices[line].coderCycleR-MAXCODER_RC/2,voices[line].coderGenAmpl);               
                 break;
-            case ADSR:
+            case ADSRL____:
                 switch (coder){
                     case ADSRMENU: break;
                     case ADSRATT:adsrCoderAtt[line]=cc;setAdsrDur(line,ADSR_ATT,ctl_input_val[adsr_ctl_input_id[line]]);break;
@@ -612,7 +622,9 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
             ledblinkn(2);
             if(!mode_scope){test_st7789_2();}    // animation balayage de lignes
             
-            if(debug_ticker()){if(adsrStatus[0]==ADSR_OFF){adsrStatus[0]=ADSR_ATT;adsrCurrEch[0]=0;}};          
+            if(debug_ticker()){
+                //if(adsrStatus[0]==ADSR_OFF){adsrStatus[0]=ADSR_ATT;adsrCurrEch[0]=0;}
+                }          
 
             int s=tst_switchs_(switchsNb);            
             if(s==0 || s==-99){return line;}    // switch du coder 0 ou capaTouch
@@ -653,22 +665,22 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
             }
             if(mode_scope){
                 switch(type_objet){
-                    case LFOS:if(firstScope){title_dsp(title,line,LFOS);}    
+                    case LFOS_____:if(firstScope){title_dsp(title,line,LFOS_____);}    
                         scope(lfoScopeBufReal,lfosFrequency[line],begline,false,firstScope,0,wave,2,line);
                         firstScope=false;break;
                     
-                    case VOICES:
-                        if(firstScope){title_dsp(title,line,VOICES,0,wave,type_scope);}
+                    case VOICES_FR:
+                        if(firstScope){title_dsp(title,line,VOICES_FR,0,wave,type_scope);}
                         if(type_scope==1){scope(voicesDataBuffer+line*OSC_SCOPE_BUFFER_LEN,voices[line].frequency,begline,false,firstScope,0,wave,1);}
                         else{scope(i2s_buf_scope,voices[line].frequency,begline,false,firstScope,0,wave,0);}
                         firstScope=false;         
                         break;
 
-                    case ADSR: 
+                    case ADSRL____: 
                         if(adsrScopeDisp[line]==true){
                         //for(uint8_t w=0;w<TFT_W;w++){printf("%i\n",adsrScopeBufReal[w]);}
                             adsrScopeDisp[line]=false;
-                            if(firstScope){title_dsp(title,line,ADSR,0,wave,type_scope);}
+                            if(firstScope){title_dsp(title,line,ADSRL____,0,wave,type_scope);}
                             scope(&adsrScopeBufReal[line],0,begline,false,firstScope,0,0,3,line,1);
                         }
                         break;

@@ -6,11 +6,11 @@ bool init_objects_outputs(void);
 bool init_objects_inputs(void);
 void connect_input(uint16_t input_id, uint16_t output);
 void disconnect_input(uint16_t input_id, uint16_t output);
-void update_inputs(int16_t input_id,int16_t valeur);
+void update_inputs(uint8_t src,int16_t input_id,int16_t valeur);
 void objects_table_init();
 
 // (0 no trig ; 1 up ; 2 down ; 3 both)
-enum Inputs_trig_states {
+enum Inputs_trig_modes {
     INP_NO_TRIG,
     INP_UP_TRIG,
     INP_DOWN_TRIG,

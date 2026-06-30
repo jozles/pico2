@@ -282,7 +282,11 @@ bool init_objects_inputs(void)
                 case SUST:ctl_input_update_type[curr_input]=A_SUST  ;break;
                 case RELE:ctl_input_update_type[curr_input]=A_RELEAS;break;
                 case LEVE:ctl_input_update_type[curr_input]=A_LEVEL ;break;
-                case STAR:ctl_input_trig[curr_input]=1;ctl_input_tlev[curr_input]=0;break;
+                case STAR:ctl_input_update_type[curr_input]=A_START ;
+                          ctl_input_trig[curr_input]=INP_UP_TRIG;
+                          ctl_input_tlev[curr_input]=0;
+                          printf("id:%u adsr_input_trig:%u:%u t:%u l:%u \n",curr_input,adsr,ins,ctl_input_trig[curr_input],ctl_input_tlev[curr_input]);
+                          break;
             }           
             if(ins<ADSR_INPUTS_NB){
                 char buf[IN_OUT_NAME_LEN]={'A','D','S','R'};
@@ -409,7 +413,7 @@ void __not_in_flash_func(disconnect_input)(uint16_t input_id, uint16_t output)
     spin_unlock(inputs_id__lock, f);
 }
 
-void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // valeur est la valeur linéaire à atténuer sur 16 bits recadrée selon le type d'entrée
+void __not_in_flash_func(update_inputs)(uint8_t src,int16_t id,int16_t valeur)  // valeur est la valeur linéaire à atténuer sur 16 bits recadrée selon le type d'entrée
                                                                     // id indique l'indice de l'objet via ctl_input_object 
                                                                     // donc la valeur du coder associé
                                                                     // et le type d'entrée via ctl_input_update_type
@@ -422,12 +426,15 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // valeur es
     uint8_t object=ctl_input_object[id];
     int32_t val;
     float fr;
-
+    uint8_t src0=src/MAX_OBJECTS;
+    uint8_t src_id=src-src0*MAX_OBJECTS;
 
     //if(output==10){printf("out#:%d input_id:%i inp_type:%d val:%i \n",output,id,ctl_input_update_type[id],valeur);}
 
-        do {
-            int16_t next_id = ctl_input_id_chain[id];
+        while(id!=NO_LINK){
+
+            //printf("s:%u/%u u_i:%i=%s:%u v:%i ",src0,src_id,id,ctl_input_name+id*IN_OUT_NAME_LEN,ctl_input_update_type[id],valeur);
+
             switch(ctl_input_update_type[id]){
                 case VCE_FREQ:  val=(valeur>>3)*voices[object].coderFreqAtt/MAX_CTL_ATT;                // 8k max VCES_MAX_FREQ_CODERS ; att 0-255
                                 fr=calcFreq(val+voices[object].coderFreq);
@@ -462,6 +469,7 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // valeur es
                                 break;                        
                 case A_START :  ctl_input_prev_val[id]=prev;                                            // start adsr
                                 tlev=ctl_input_tlev[id];
+                                //printf("t:%u l:%i p:%i",ctl_input_trig[id],tlev,prev);
                                 switch(ctl_input_trig[id]){
                                     case INP_NO_TRIG:break;
                                     case INP_UP_TRIG:
@@ -487,9 +495,11 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // valeur es
                                         break;
                                     default:break;
                                 }
+                                //printf("s:%u ",adsrStatus[object]);
                                 break;
                 default: break;
             }
-            id = next_id;
-        } while (id != NO_LINK);
+            //printf("\n");
+            id = ctl_input_id_chain[id];
+        }
 }

@@ -103,7 +103,7 @@ void fillDur(void)
         // step en Q16 = (RC_SAMPLES_NB / y) en Q0
         // donc stepQ16 = (RC_SAMPLES_NB << 16) / y
         stepTableQ16[d] = ((uint32_t)RC_SAMPLES_NB << 16) / y;
-        printf("%u %u\n",d,stepTableQ16[d]);
+        //printf("%u %u\n",d,stepTableQ16[d]);
     }  
 
 
@@ -146,7 +146,7 @@ void fillDur(void)
         if (yQ16 > ONE_Q16_RC) yQ16 = ONE_Q16_RC;
 
         rcCurve[i] = (uint16_t)((yQ16 * 65535ULL) >> 16);
-        printf("%i %u\n",i,rcCurve[i]);
+        //printf("%i %u\n",i,rcCurve[i]);
     }
 }
 
@@ -199,15 +199,18 @@ void __not_in_flash_func(adsrHandler)()
     if((millisCounter-adsrTime)>adsrTimingInterval){
         adsrTime=millisCounter;
 
+        uint8_t src=ADSRL____*MAX_OBJECTS;
+
         for(uint8_t a=0;a<MAX_ADSR;a++)
         {
+            src+=a;
             uint16_t* ov=&adsrOutputsValues[a];
             uint16_t  ov0;
             uint8_t*  as=&adsrStatus[a];
             uint16_t* ap=&adsrScopeBufPtr[a];
             if (__builtin_expect(*as != ADSR_OFF, 0)) {
 
-                uint8_t   out_id;
+                uint16_t  out_id;
                 uint16_t  lev=amplLevel[adsrCoderLev[a]];
                 uint32_t* ce=&adsrCurrEch[a];            
                 uint32_t  cx=*ce>>16;   // prev currEch  
@@ -253,7 +256,7 @@ void __not_in_flash_func(adsrHandler)()
                 }
     
                 out_id=ctl_output_id_chain[adsr_ctl_output_id[a]];
-                if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,*ov);}
+                if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(src,out_id,*ov);}
 
                 adsrScopeBufReal[a*ADSR_SCOPE_BUFFER_LEN + *ap]=*ov;
 

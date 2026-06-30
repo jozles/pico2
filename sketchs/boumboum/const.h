@@ -64,7 +64,7 @@
 
 #define CODER_SW_STROBE_MS 50              // minimal delay for switch valid change (debouncer);
 
-/* Menu */
+/* Menus */
 
 #define MENU_NAME_LEN 12
 typedef enum {
@@ -75,6 +75,10 @@ typedef enum {
 }  Menu;
 
 #define MAX_STEP_FRA 65536  // décimales ratio sampleFreq/currFreq/adsr
+
+/* Objects */
+
+#define MAX_OBJECTS MENU0_NB
 
 /* Voices */
 
@@ -225,7 +229,7 @@ typedef enum {
 #undef X
 }  Vces_outputs_names;
 
-// ****** menus codes ******
+/*// ****** menus codes ******
 
 enum Menus {
     MENU0,
@@ -234,7 +238,7 @@ enum Menus {
     ADSR,
     AMPS,
     MENUS_NB
-};
+};*/
 
 // ****** basics waves codes ******
 
