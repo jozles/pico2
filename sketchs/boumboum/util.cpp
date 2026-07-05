@@ -120,9 +120,9 @@ void __not_in_flash_func(pwm_irq_handler)() {
 
     coderTimerHandler();
 
-    lfosHandler();
+    //lfosHandler();
 
-    adsrHandler();
+    //adsrHandler();
     //gpio_put(TST_PIN,LOW);
 }
 
@@ -286,9 +286,9 @@ void setup(){
     // ****** sound ******
     sound_tables_init();
 
-    float fr0=440;
-    uint8_t cga=1;      // gain initial pour genAmpl
-    voicesInit(voices,fr0,cga);
+    float fr0=440;                  // initial frequency every voices
+    uint8_t cga=1;                  // initial gain for genAmpl
+    voicesInit(voices,fr0,cga);     // every waveAmpl = 0 ; every voices genAmpl = cga
 
     // ****** lfos ******
     lfosInit();
@@ -309,7 +309,10 @@ void setup(){
     voices[0].basicWaveAmpl[W_SINUS]=getAmpl(&voices[0],W_SINUS);
     printf("demo sinus f:%f rc:%i ampl:%d\n",fr0,cga,voices[0].basicWaveAmpl[W_SINUS]);delay_ms(100);      
     
-    fillVoices();               // après i2sSetup
+    // tous les genAmpl sont à cga ; toutes les wavesAmpl à 0 sauf voices[0] sinus
+    fillVoices();               // après i2sSetup avant scope de démo ; i2S non démarré 
+
+    for(uint16_t b=0;b<1024;b++){printf("%u %i %X\n",b,i2s_buf0[b],(uint32_t)i2s_buf0[b]);}
 
     pwm_timer_1khz_enable(true);    // start millicounter, coders, buttons, lfos, adsr 
    
@@ -319,6 +322,10 @@ void setup(){
     // ****** scope check ******
     //scope(voicesDataBuffer,voices[0].frequency,14,true,true,0,0,true);    // scope mode_calcul
     scope(i2s_buf0,voices[0].frequency,14,true,true,0,0,0);     // scope mode_data
+
+    // après démo mute voices[0] sinus
+    voices[0].coderAmpl[W_SINUS]=cga;
+    voices[0].basicWaveAmpl[W_SINUS]=getAmpl(&voices[0],W_SINUS);
 
     gpio_irq_set = false;
     while(!gpio_irq_set){

@@ -261,7 +261,7 @@ int8_t tst_switchs_(uint8_t max_sw){      // return -1 if nothing, 0-n coder num
 
 // ****** coders for waves ampl ******
 
-uint8_t coders_for_wavesAmpl(uint8_t currVoice)
+uint8_t coders_for_wavesAmpl(uint8_t currVoice)     // coder 0 : wave 0 ; coder 1 : wave 1 ...  (genAmpl not here)
 { 
     bool mode_scope=false;
     bool firstScope=false;            
@@ -271,7 +271,7 @@ uint8_t coders_for_wavesAmpl(uint8_t currVoice)
     tft_fill_rect_blank(begline,0,TFT_H-begline,TFT_W);
     title_dsp("",currVoice,WAVES_AMP);
 
-    for(uint8_t a=0;a<W_NB;a++){voicesWaveAmplCoders[a]=voices[currVoice].coderAmpl[a];}
+    for(uint8_t a=0;a<W_NB;a++){voicesWaveAmplCoders[a]=voices[currVoice].coderAmpl[a];}    // local data [wave] = voice.coderAmpl[wave] coder value for wave ampl
     coderSetup(voicesWaveAmplCoders,voicesSw,voicesMaxWaveAmplCoders,W_NB);    
     
     while (1) {
@@ -374,8 +374,8 @@ uint8_t coders_for_mapping(){
 
             ws_show_3(30);
             ledblinkn(2);
-            if(!mode_scope){test_st7789_2();}       // animation balayage de lignes
-            debug_ticker();
+            //if(!mode_scope){test_st7789_2();}       // animation balayage de lignes
+            //debug_ticker();
 
             //if(currInput==45 && cnt<3){cnt++;ci=46;printf("menu_mapping id:%u %s %u m:%u \n",ci,ctl_input_name[ci],ctl_input_trig[ci],mappingCoders[4]);}
             //if(currInput!=45){cnt=0;}

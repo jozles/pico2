@@ -205,7 +205,7 @@ void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)    // cga = genAmpl l
 {
     for(uint8_t v=0;v<MAX_VOICES;v++){
         voices[v].maxCoderFreq=VCES_MAX_FREQ_CODERS;
-        voices[v].genAmpl=0x0001;                       // minimal non zero
+        //voices[v].genAmpl=0x0001;                       // minimal non zero
         voices[v].coderCycleR=MAXCODER_RC/2;
         voices[v].cycleR=voices[v].coderCycleR;
         voices[v].coderCycleRAtt=FULL_ATTENUATION_VALUE;
@@ -424,7 +424,7 @@ uint16_t getAmpl(Voice* v,uint8_t wav){
 
 // 
 void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* v,uint8_t voiceNum){   // 360uS ; >900uS avec rc_tables en flash pour les 6 sources @512 samples (23mS@44100Hz)
-
+  
       i2s_buf_scope=vBuffer;
 
 // init noise
@@ -461,6 +461,8 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
       int32_t  waveAmplGen  = v->genAmpl;
       
       uint32_t s = SAMPLE_BUFFER_SIZE;
+
+      //if(voiceNum==0){printf("v:%u f:%f %i %i %i %i\n",voiceNum,v->frequency,waveAmplSin,waveAmplTri,waveAmplSaw,waveAmplSqr);}
 
 // fast loop computing samples index
       int32_t* vsBuffer=voicesDataBuffer+voiceNum*SAMPLE_BUFFER_SIZE; // temporary buffer for fast currech computing       
@@ -502,27 +504,24 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
 
         const int16_t* w=rcTableCurr+RC_N_WAVES*ce_idx;   // rc_table values ptr
 
-        int32_t pre=w[WSIN]*waveAmplSin; 
+        int32_t pre=w[WSIN]*waveAmplSin;
+/*         
         pre += w[WTRI]*waveAmplTri;
-        
+       
         int16_t tri=rcTable32[RC_N_WAVES*ce+WTRI];  // saw utilise la table 32 du triangle
         int32_t saw;
         if(ce<(RC_N_SAMPLES >> 1)){saw=(65536-tri)>>1;}
         else saw=tri>>1;
         if(rc>=32){saw=-saw;}                       // saw n'a pas de réglace de rc, juste une inversion de phase (montée ou descente verticale)
-        /*int16_t tri = rcTable32[RC_N_WAVES*ce + WTRI];
-        int32_t half = tri >> 1;
-        uint32_t mask1 = (ce - 512) >> 31;    // mask1 = 0xFFFFFFFF si ce < 512
-        int32_t saw = half + (mask1 & (32768 - (half << 1)));   // saw = half ou (32768 - half)
-        uint32_t mask2 = ~((rc - 32) >> 31);  // mask2 = 0xFFFFFFFF si rc >= 32
-        saw = (saw ^ mask2) - mask2;          // inversion branchless*/
+
         pre += saw*waveAmplSaw;
 
         int16_t sqr=(ce & (BASIC_WAVE_TABLE_LEN>>1)) ? -0x7fff : 0x7fff;    // sqr cr not implemented
         pre += sqr*waveAmplSqr;
-
+*/
+        pre = pre>>8;
         pre *= sign;
-
+/*
         // noises
 
         nPhase += nStep;
@@ -536,10 +535,14 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
         pre += (int16_t)pink_state * waveAmplPnk;
 
         pre *= waveAmplGen;
+*/
+        pre=0x7FFFFFFF;
+        if ((s&0x00000001) == 0) {pre=-pre;}    // +FS 24 bits aligné dans 32 bits
 
-        *vBuffer+=pre;
+
+        *vBuffer=+pre;
         vBuffer++;
-        *vBuffer+=pre;
+        *vBuffer=+pre;
         vBuffer++;
       }
 
@@ -557,7 +560,7 @@ void __not_in_flash_func(fillVoiceBuffer)(int32_t* vBuffer, Voice* voices, uint8
     blank(vBuffer,SAMPLE_BUFFER_SIZE*8);   // env 12uS
     //memset((char*)vBuffer,0x00,SAMPLE_BUFFER_SIZE*8);
 //gpio_put(TST_PIN,1);
-    for(uint8_t v=0;v<MAX_VOICES;v++){
+    for(uint8_t v=0;v<1;v++){   //MAX_VOICES;v++){
 gpio_put(TST_PIN,1);      
       fillVoiceBuffer_mono(vBuffer, &voices[v],v);
 gpio_put(TST_PIN,0);      

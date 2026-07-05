@@ -792,9 +792,10 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
             
             switch(mode_calcul){                                // b value computation (y=(float) 0-1)
                 
-                case 0:{                                        // i2s true data
+                case 0:{                                        // i2s true data range (+/-)0-7fffffff
                     int32_t t=buf[i*2];            
                     b=(float)t/(float)0x7fffffff;
+                    b*=256;                                     // i2s sur 24 bits
                     }break;
 
                 case 1:{                                        // computed view with ce&cr
