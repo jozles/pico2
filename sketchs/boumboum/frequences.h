@@ -31,8 +31,8 @@ struct Voice {
     uint32_t    currentSample;                  // last value pushed in i2s buffer                  
     uint16_t    stepInt;                        // partie entière du step montant
     uint32_t    stepFra;                        // partie fractionnaire du step montant
-    uint16_t    stepIntD;                       // partie entière du step descendant
-    uint32_t    stepFraD;                       // partie fractionnaire du step descendant    
+    //uint16_t    stepIntD;                       // partie entière du step descendant
+    //uint32_t    stepFraD;                       // partie fractionnaire du step descendant    
     uint16_t    currEch;                        // dernier N° d'ech utilisé
     uint32_t    currEchFra;                     // dernière valeur fractionnaire de n° d'ech calculée  
     uint32_t    noisePhase;                     // Q16.16

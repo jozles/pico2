@@ -79,8 +79,8 @@ int init_dma_i2s() {
 
 void i2s_start(){
 
-    dma_channel_configure(i2s_dma_chan0, &dma_cfg0,&i2s_pio->txf[i2s_sm], i2s_buffer[0], SAMPLE_BUFFER_SIZE*2,false);
-    dma_channel_configure(i2s_dma_chan1, &dma_cfg1,&i2s_pio->txf[i2s_sm], i2s_buffer[1], SAMPLE_BUFFER_SIZE*2,false);
+    dma_channel_configure(i2s_dma_chan0, &dma_cfg0,&i2s_pio->txf[i2s_sm], i2s_buffer[0], SAMPLES_PER_BUFFER*2,false);
+    dma_channel_configure(i2s_dma_chan1, &dma_cfg1,&i2s_pio->txf[i2s_sm], i2s_buffer[1], SAMPLES_PER_BUFFER*2,false);
     dma_start_channel_mask(1u << i2s_dma_chan0); // seulement chan0
 }
 

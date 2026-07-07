@@ -795,7 +795,7 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
                 case 0:{                                        // i2s true data range (+/-)0-7fffffff
                     int32_t t=buf[i*2];            
                     b=(float)t/(float)0x7fffffff;
-                    b*=256;                                     // i2s sur 24 bits
+                    //b*=256;                                     // i2s sur 24 bits
                     }break;
 
                 case 1:{                                        // computed view with ce&cr
@@ -848,16 +848,16 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
 //printf("obj:%d i:%d wf:%d b:%f yy:%i\n",object,i,wf,b,yy);
 
             if(abs(yy)>(TFT_H-begline)/zz){yy=sign*(TFT_H-begline)/zz;}
-            v=2*(((TFT_H-begline-1)/zz-yy)*TFT_W+i);                      // pixel location in tft_frame
+            v=2*(((TFT_H-begline-1)/zz-yy)*TFT_W+i);                    // pixel location in tft_frame
             tft_frame[v]=fgcolor;
             //printf("%u %u %i %f\n",object,i,yy,v);
         }
 
         for(uint8_t i=0;i<TFT_W;i+=3){tft_frame[2*(((TFT_H-begline-1)/zz)*TFT_W+i)]=fgcolor;}        // 0 line
 
-        st_dma_launch(tft_frame,0,begline,TFT_W,TFT_H-begline);
+        st_dma_launch(tft_frame,0,begline,TFT_W,TFT_H-begline);         // display
 
-        if(fd){tft_draw_float_12x12_dma_mult(TFT_W*1/3,0,0xf81f,0,1,f,6);}          // title line
+        if(fd){tft_draw_float_12x12_dma_mult(TFT_W*1/3,0,0xf81f,0,1,f,6);}          // add title line
     }
     else refrCnt++;
 }

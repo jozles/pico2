@@ -633,7 +633,11 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
                 if((s-1)!=wave){type_scope=1;}
                 else type_scope^=1;
                 wave=s-1;
-            }    
+            } 
+            
+            //if((millisCounter&0x00000fff)==0){
+                printf("f:%f ce:%u ef:%u\n",voices[0].frequency,voices[0].stepInt,voices[0].stepFra);
+            //}
 
             for(uint8_t coder=0;coder<varNb+1;coder++){       
 

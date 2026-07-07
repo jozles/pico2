@@ -82,7 +82,7 @@ typedef enum {
 
 /* Voices */
 
-#define MAX_VOICES 4 
+#define MAX_VOICES 1 //4 
 #define VCES_MAX_FREQ_CODERS 10000
 #define VCES_MIN_FREQ_CODERS 25
 
@@ -146,7 +146,7 @@ typedef enum {
 #define NUMBER_OF_OCTAVES 10
 #define OCTAVE0_FREQ SAMPLE_F/SAMPLE_BUFFER_SIZE
 #define SAMPLES_PER_BUFFER 512                          // nombre d'échantillons (L+R) par buffer (1024 trop lent)  
-#define SAMPLE_BUFFER_SIZE SAMPLES_PER_BUFFER           // taille du buffer (doit être multiple de 4 pour le dma i2s)
+//#define SAMPLE_BUFFER_SIZE SAMPLES_PER_BUFFER           // taille du buffer (doit être multiple de 4 pour le dma i2s)
 
 #define RC_TABLES_LEN RC_N_SAMPLES                      // ***** POWER OF 2 *****  nombre d'échantillons dans les 1/2 tables d'ondes
 #define RC_TABLES_NB RC_N_TABLES                        // nombre de tables RC (MAXCODER_RC possible values)

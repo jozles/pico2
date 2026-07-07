@@ -39,9 +39,9 @@ static int ws_dma_channel;
 
 int32_t* i2s_dma_buffers[2];                // les 2 pointeurs sur les 2 buffers dma
 __attribute__((aligned(32)))
-int32_t i2s_buf0[SAMPLE_BUFFER_SIZE*2];     // le buffer 0 (512*2*4 bytes = 4k)
+int32_t i2s_buf0[SAMPLES_PER_BUFFER*2];     // le buffer 0 (512*2*4 bytes = 4k)
 __attribute__((aligned(32)))
-int32_t i2s_buf1[SAMPLE_BUFFER_SIZE*2];     // le buffer 1
+int32_t i2s_buf1[SAMPLES_PER_BUFFER*2];     // le buffer 1
 
 extern struct Voice voices[];
 extern uint16_t amplLevel[];
@@ -315,7 +315,7 @@ void setup(){
     for(uint16_t b=0;b<1024;b++){printf("%u %i %X\n",b,i2s_buf0[b],(uint32_t)i2s_buf0[b]);}
 
     pwm_timer_1khz_enable(true);    // start millicounter, coders, buttons, lfos, adsr 
-   
+
 //dumpVoices(voices);
 //dumpStr(voiceScopeBuffer,256);
 //dumpStr(i2s_buf0,256);
