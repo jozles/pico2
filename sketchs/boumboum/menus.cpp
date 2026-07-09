@@ -61,7 +61,9 @@ extern int16_t lfo_ctl_input_id[][MAX_OUTPUTS_PER_OBJ];
 
 extern uint16_t* vcesVar[];
 uint16_t tempVceCoderFreq[MAX_VOICES];
+uint16_t tempVceCoderFreqAtt[MAX_VOICES];
 uint16_t tempVceCoderCycleR[MAX_VOICES];
+uint16_t tempVceCoderCycleRAtt[MAX_VOICES];
 uint16_t tempVceCoderGenAmp[MAX_VOICES];
 extern volatile int16_t menuVcesCoders[];
 extern int32_t voicesDataBuffer[];
@@ -145,6 +147,8 @@ void menus_init(){
         }
         tempVceCoderFreq[v]=voices[v].coderFreq;
         tempVceCoderCycleR[v]=voices[v].coderCycleR;
+        tempVceCoderCycleRAtt[v]=voices[v].coderCycleRAtt;
+        tempVceCoderFreqAtt[v]=voices[v].coderFreqAtt;
         tempVceCoderGenAmp[v]=voices[v].genAmpl;    
     }
     // *** switchs ***
@@ -160,8 +164,8 @@ void menus_init(){
     // ***   lfos  ***
     lfosVar[OSCCODERFREQ-1]=lfosCodersFreq;     // lfosVar[0]
     lfosVar[OSCCODERCRA-1]=lfosCoderCycleR;     // lfosVar[1]
-    lfosVar[OSCCODERCRAATT-1]=lfosCoderCycleRAtt;     // lfosVar[2] (atténuateur de la valeur de l'input)
-    lfosVar[OSCCODERFREQATT-1]=lfosCodersFreqAtt;     // lfosVar[3] (atténuateur de la valeur de l'input)  
+    lfosVar[OSCCODERFREQATT-1]=lfosCodersFreqAtt;     // lfosVar[2] (atténuateur de la valeur de l'input)  
+    lfosVar[OSCCODERCRAATT-1]=lfosCoderCycleRAtt;     // lfosVar[3] (atténuateur de la valeur de l'input)    
     menuLfosCoders[OSCMENU]=0;                  // line 0 du menu
     menuLfosCoders[1]=lfosCodersFreq[0];
     menuLfosCoders[2]=lfosCoderCycleR[0];
@@ -170,7 +174,9 @@ void menus_init(){
     // ***  voices  ***
     vcesVar[OSCCODERFREQ-1]=tempVceCoderFreq;   // vcesVar[0]
     vcesVar[OSCCODERCRA-1]=tempVceCoderCycleR;  // vcesVar[1]
-    vcesVar[OSCGENAMP-1]=tempVceCoderGenAmp;    // vcesVar[1]
+    vcesVar[OSCCODERCRAATT-1]=tempVceCoderCycleRAtt;
+    vcesVar[OSCCODERFREQATT-1]=tempVceCoderFreqAtt;
+    vcesVar[OSCGENAMP-1]=tempVceCoderGenAmp;    // vcesVar[4]
     menuVcesCoders[OSCMENU]=0;                  // line 0 du menu
     menuVcesCoders[OSCCODERFREQ]=voices[0].coderFreq;
     menuVcesCoders[OSCCODERCRA]=voices[0].coderCycleR;
@@ -535,10 +541,6 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                         setVoiceFrequency(voices[line].frequency,&voices[line],cc);
                         voices[line].coderCycleR=cc;}
                         break;
-                    case OSCGENAMP:if(varChge){
-                        setVoiceFrequency(voices[line].frequency,&voices[line],voices[line].coderCycleR);
-                        voices[line].coderGenAmpl=cc;voices[line].genAmpl=amplLevel[cc];}
-                        break; 
                     case OSCCODERFREQATT:if(varChge){
                         voices[line].coderFreqAtt=cc;                                               // atténuateur pour ctl_input_freq 
                         int16_t fi = ctl_input_val[voices[line].voice_ctl_input_id[VFRQ]]>>3;       // normalisation ctl_input_freq
@@ -553,9 +555,13 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                         signal_overflow("lfo_cra:",line,cr,MINCODER_RC,MAXCODER_RC);
                         setVoiceFrequency(voices[line].frequency,&voices[line],cr);}
                         break;
+                    case OSCGENAMP:if(varChge){
+                        setVoiceFrequency(voices[line].frequency,&voices[line],voices[line].coderCycleR);
+                        voices[line].coderGenAmpl=cc;voices[line].genAmpl=amplLevel[cc];}
+                        break;                         
                     default:break;
                 }
-                sprintf(buf+2,"%4.3f %i %u",voices[line].frequency,voices[line].coderCycleR-MAXCODER_RC/2,voices[line].coderGenAmpl);               
+                sprintf(buf+2,"%4.3f %i %u %i %i ",voices[line].frequency,voices[line].coderCycleR-MAXCODER_RC/2,voices[line].coderGenAmpl,voices[line].coderFreqAtt,voices[line].coderCycleRAtt);               
                 break;
             case ADSRL____:
                 switch (coder){
@@ -634,10 +640,6 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
                 else type_scope^=1;
                 wave=s-1;
             } 
-            
-            //if((millisCounter&0x00000fff)==0){
-                printf("f:%f ce:%u ef:%u\n",voices[0].frequency,voices[0].stepInt,voices[0].stepFra);
-            //}
 
             for(uint8_t coder=0;coder<varNb+1;coder++){       
 

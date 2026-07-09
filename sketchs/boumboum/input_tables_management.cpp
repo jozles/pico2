@@ -184,6 +184,8 @@ const char vces_outputs_names[][OBJ_IO_NAME_LEN]={
 
 bool init_objects_outputs(void)
 {
+    printf("init_obects_outputs\n");
+
     //memset(ctl_output_val,0x00,MAX_OUTPUTS*sizeof(int16_t*));
     memset(ctl_output_name,'-',MAX_OUTPUTS*IN_OUT_NAME_LEN);
     int16_t curr_output=1;            // output 0 is null
@@ -233,6 +235,8 @@ bool init_objects_outputs(void)
 
 bool init_objects_inputs(void)
 {
+    printf("init_obects_inputs\n");
+
     memset(ctl_input_name,0x00,MAX_INPUTS*IN_OUT_NAME_LEN);
     memset(ctl_input_srce,0x00,MAX_INPUTS);
     memset(ctl_input_shft,0x00,MAX_INPUTS);
@@ -285,7 +289,7 @@ bool init_objects_inputs(void)
                 case STAR:ctl_input_update_type[curr_input]=A_START ;
                           ctl_input_trig[curr_input]=INP_UP_TRIG;
                           ctl_input_tlev[curr_input]=0;
-                          printf("id:%u adsr_input_trig:%u:%u t:%u l:%u \n",curr_input,adsr,ins,ctl_input_trig[curr_input],ctl_input_tlev[curr_input]);
+                          //printf("id:%u adsr_input_trig:%u:%u t:%u l:%u \n",curr_input,adsr,ins,ctl_input_trig[curr_input],ctl_input_tlev[curr_input]);
                           break;
             }           
             if(ins<ADSR_INPUTS_NB){
@@ -307,8 +311,8 @@ bool init_objects_inputs(void)
             ctl_input_id_chain[curr_input]=NO_LINK;
             ctl_input_object[curr_input]=vce;
             switch(ins){
-                case LFRQ:ctl_input_update_type[curr_input]=VCE_FREQ;break;
-                case LCRA:ctl_input_update_type[curr_input]=VCE_CRA;break;
+                case VFRQ:ctl_input_update_type[curr_input]=VCE_FREQ;break;
+                case VCRA:ctl_input_update_type[curr_input]=VCE_CRA;break;
             }
             if(ins<VOICES_INPUTS_NB){
                 char buf[IN_OUT_NAME_LEN]={'V','C','E','S'};
@@ -323,6 +327,13 @@ bool init_objects_inputs(void)
 
     // ajouter ici d'autres entrées  (sequencers etc)
 
+    for(uint16_t k=0;k<MAX_INPUTS;k++)
+        {
+            if(ctl_input_name[k][0]!=0){
+                printf("#%u %s\n",k,&ctl_input_name[k][0]);
+            }
+        }
+
     return true;
 }  
 
@@ -332,8 +343,8 @@ void objects_table_init()
 {
     inputs_id__lock = spin_lock_init(CTL_INPUTS_LOCK);
 
-    init_objects_inputs();
-    init_objects_outputs();
+    if(!init_objects_inputs()){system_error("init_objects_inputs");}
+    if(!init_objects_outputs()){system_error("init_objects_outputs");}
 }
 
 void __not_in_flash_func(connect_input)(uint16_t input_id, uint16_t output)

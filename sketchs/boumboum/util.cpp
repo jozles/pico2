@@ -120,9 +120,9 @@ void __not_in_flash_func(pwm_irq_handler)() {
 
     coderTimerHandler();
 
-    //lfosHandler();
+    lfosHandler();
 
-    //adsrHandler();
+    adsrHandler();
     //gpio_put(TST_PIN,LOW);
 }
 
@@ -312,7 +312,7 @@ void setup(){
     // tous les genAmpl sont à cga ; toutes les wavesAmpl à 0 sauf voices[0] sinus
     fillVoices();               // après i2sSetup avant scope de démo ; i2S non démarré 
 
-    for(uint16_t b=0;b<1024;b++){printf("%u %i %X\n",b,i2s_buf0[b],(uint32_t)i2s_buf0[b]);}
+    //for(uint16_t b=0;b<1024;b++){printf("%u %i %X\n",b,i2s_buf0[b],(uint32_t)i2s_buf0[b]);}
 
     pwm_timer_1khz_enable(true);    // start millicounter, coders, buttons, lfos, adsr 
 
