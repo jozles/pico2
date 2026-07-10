@@ -66,7 +66,7 @@ if (watchdog_caused_reboot()) {
     i2s_start();                                        // launch sound output
 
     menus_init();
-    uint8_t menu=0;
+    uint8_t menu=1;
 
     while(1){
 //printf("menu:%d \n");

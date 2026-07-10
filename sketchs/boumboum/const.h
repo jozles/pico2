@@ -165,7 +165,7 @@ typedef enum {
 #define MAX_OUTPUTS_PER_OBJ     8
 #define MAX_OUTPUTS             MAX_OUTPUT_OBJ*MAX_OUTPUTS_PER_OBJ
 #define MAX_INPUT_OBJ           100
-#define MAX_INPUTS_PER_OBJ      8
+#define MAX_INPUTS_PER_OBJ      10
 #define MAX_INPUTS              MAX_INPUT_OBJ*MAX_INPUTS_PER_OBJ
 #define NO_LINK                 (-1)
 #define OBJ_IO_NAME_LEN         5

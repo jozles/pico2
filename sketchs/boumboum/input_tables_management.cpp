@@ -259,7 +259,7 @@ bool init_objects_inputs(void)
             ctl_input_object[curr_input]=lfo;
             switch(ins){
                 case LFRQ:ctl_input_update_type[curr_input]=LFO_FREQ;break;
-                case LCRA:ctl_input_update_type[curr_input]=LFO_CRA;break;
+                case LCR_:ctl_input_update_type[curr_input]=LFO_CRA;break;
             }
             
             if(ins<LFO_INPUTS_NB){
@@ -312,7 +312,7 @@ bool init_objects_inputs(void)
             ctl_input_object[curr_input]=vce;
             switch(ins){
                 case VFRQ:ctl_input_update_type[curr_input]=VCE_FREQ;break;
-                case VCRA:ctl_input_update_type[curr_input]=VCE_CRA;break;
+                case VCR_:ctl_input_update_type[curr_input]=VCE_CRA;break;
             }
             if(ins<VOICES_INPUTS_NB){
                 char buf[IN_OUT_NAME_LEN]={'V','C','E','S'};

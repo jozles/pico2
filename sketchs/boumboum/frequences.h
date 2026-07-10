@@ -38,6 +38,8 @@ struct Voice {
     uint32_t    noisePhase;                     // Q16.16
     uint32_t    noiseStep;                      // Q16.16                 
     volatile uint16_t    basicWaveAmpl[BASIC_WAVES_NB];  // ampl value for coderAmpl value
+    volatile int16_t     coderWaveAmpl[BASIC_WAVES_NB];
+    uint16_t    maxCoderWaveAmpl[BASIC_WAVES_NB];
     volatile int16_t     coderAmpl[BASIC_WAVES_NB];      // last coder value for ampl
     uint16_t    maxCoderAmpl[BASIC_WAVES_NB];   // max value for coderAmpl
     volatile uint16_t    genAmpl;               // ampl value for global voice
