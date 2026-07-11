@@ -123,7 +123,12 @@ enum OscCoders {        // coders pour menu voices et lfos
      OSCSINAMP,
      OSCTRIAMP,
      OSCSAWAMP,
-     OSCSQRAMP
+     OSCSQRAMP,
+     OSCGENAMPATT,
+     OSCSINAMPATT,
+     OSCTRIAMPATT,
+     OSCSAWAMPATT,
+     OSCSQRAMPATT     
 };
 
 enum AdsrCoders {        // coders pour menu adsr
@@ -139,15 +144,15 @@ enum AdsrCoders {        // coders pour menu adsr
 void menus_init(){    
     for(uint8_t v=0;v<MAX_VOICES;v++){
         voicesFreqCoders[v]=voices[v].coderFreq; // 440Hz @1943 _ 1944 force first display
-        voicesMaxFreqCoders[v]=voices[v].maxCoderFreq;
+        voicesMaxFreqCoders[v]=VCES_MAX_FREQ_CODERS;    //voices[v].maxCoderFreq;
         voicesAmplCoders[v]=voices[v].coderGenAmpl;
-        voicesMaxAmplCoders[v]=voices[v].maxCoderGenAmpl;
+        voicesMaxAmplCoders[v]=VCES_MAX_AMPL_CODERS;    //voices[v].maxCoderGenAmpl;
         //voices[v].coderAmpl[W_SINUS]=31;    // 5793
         //voices[v].basicWaveAmpl[W_SINUS]=amplLevel[voices[v].coderAmpl[W_SINUS]];
         
         for(uint8_t a=0;a<W_NB;a++){
             voices[v].coderSw[a]=true;
-            voicesMaxWaveAmplCoders[v][a]=voices[v].maxCoderAmpl[a];   // voicesMaxWaveAmplCoders[W_NB] est un tableu pour le coderHandler
+            voicesMaxWaveAmplCoders[v][a]=VCES_MAX_AMPL_CODERS; //voices[v].maxCoderWaveAmpl[a];   // voicesMaxWaveAmplCoders[W_NB] est un tableu pour le coderHandler
         }
         tempVceCoderFreq[v]=voices[v].coderFreq;
         tempVceCoderCycleR[v]=voices[v].coderCycleR;
@@ -282,7 +287,7 @@ uint8_t coders_for_wavesAmpl(uint8_t currVoice)     // coder 0 : wave 0 ; coder 
     title_dsp("",currVoice,WAVES_AMP);
 
     for(uint8_t a=0;a<W_NB;a++){                                                            // local data [wave] = voice.coderAmpl[wave] coder value for wave ampl
-        voicesWaveAmplCoders[currVoice][a]=voices[currVoice].coderAmpl[a];
+        voicesWaveAmplCoders[currVoice][a]=voices[currVoice].coderWaveAmpl[a];
     }    
     coderSetup(voicesWaveAmplCoders[currVoice],voicesSw,voicesMaxWaveAmplCoders[currVoice],W_NB);    
     
@@ -304,7 +309,7 @@ uint8_t coders_for_wavesAmpl(uint8_t currVoice)     // coder 0 : wave 0 ; coder 
 
             // gestions coders
             volatile int32_t cc=voicesWaveAmplCoders[currVoice][coder];     // cc actual coder value
-            volatile int16_t* cp=&voices[currVoice].coderAmpl[coder];            
+            volatile int16_t* cp=&voices[currVoice].coderWaveAmpl[coder];            
             
             if(cc!=*cp || firstDisplay){     // coder change or first display
 
@@ -322,7 +327,7 @@ uint8_t coders_for_wavesAmpl(uint8_t currVoice)     // coder 0 : wave 0 ; coder 
                     tft_draw_text_12x12_dma_mult(0,coder*(12*2+1)+begline,buf,GREEN,0x0000,1);
                 }
                 printf("coder:%d cc:%d sw:%d ampl:%d waveAmpl:%d b:%s\n",
-                    coder,cc,voices[currVoice].coderSw[coder],voices[currVoice].coderAmpl[coder],voices[currVoice].basicWaveAmpl[coder],buf);       
+                    coder,cc,voices[currVoice].coderSw[coder],voices[currVoice].coderWaveAmpl[coder],voices[currVoice].basicWaveAmpl[coder],buf);       
             }
         }
         //printf("%d %d\n",mode_scope,firstScope);
@@ -510,7 +515,7 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                         setLfosFrequency(calcFreq(fc)/VOICE_FREQ_DIVIDER,line,lfosCoderCycleR[line]);}
                         break;
                     case OSCCODERCRA:if(varChge){                                           // cc=coder cra
-                        int16_t cra = ctl_input_val[lfo_ctl_input_id[line][VCRA]]>>10;      // normalisation ctl_input_cra 
+                        int16_t cra = ctl_input_val[lfo_ctl_input_id[line][LCR_]]>>10;      // normalisation ctl_input_cra 
                         int16_t cr = lfosCoderCycleR[line]+cra*cc/MAX_CTL_ATT;              // cr=coderCra+ctl_input_cra atténué 
                         setLfosFrequency(lfosFrequency[line],line,cr);}
                         break;
@@ -524,9 +529,9 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                         break;
                     case OSCCODERCRAATT:if(varChge){                                        // cc=coder attenuator input cra
                         lfosCoderCycleRAtt[line]=cc;                                      
-                        int16_t cra = ctl_input_val[lfo_ctl_input_id[line][VCRA]]>>10;      // normalisation ctl_input_cra
+                        int16_t cra = ctl_input_val[lfo_ctl_input_id[line][LCR_]]>>10;      // normalisation ctl_input_cra
                         int16_t cr = lfosCoderCycleR[line]+cra*cc/MAX_CTL_ATT;              // cr=coderCra+ctl_input_cra atténué
-                        printf("lfo#:%d cc(att):%d crinp:%i codCr:%i f_id:%d \n",line,cc,cra,cr,lfo_ctl_input_id[line][VCRA]);
+                        printf("lfo#:%d cc(att):%d crinp:%i codCr:%i f_id:%d \n",line,cc,cra,cr,lfo_ctl_input_id[line][LCR_]);
                         signal_overflow("vce_cra:",line,cr,MINCODER_RC,MAXCODER_RC);
                         setLfosFrequency(lfosFrequency[line],line,cr);}
                         break;
@@ -556,31 +561,51 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                         break;                                    
                     case OSCCODERCRAATT:if(varChge){
                         voices[line].coderCycleRAtt=cc;                                             // atténuateur pour ctl_input_cra
-                        int16_t cra = ctl_input_val[voices[line].voice_ctl_input_id[VCRA]]>>10;     // normalisation ctl_input_cra
+                        int16_t cra = ctl_input_val[voices[line].voice_ctl_input_id[LCR_]]>>10;     // normalisation ctl_input_cra
                         int16_t cr = voices[line].coderCycleR+cra*cc/MAX_CTL_ATT;                   // cr=coderCra+ctl_input_cra atténué 
                         signal_overflow("lfo_cra:",line,cr,MINCODER_RC,MAXCODER_RC);
                         setVoiceFrequency(voices[line].frequency,&voices[line],cr);}
                         break;
                     case OSCGENAMP:if(varChge){
-                        setVoiceFrequency(voices[line].frequency,&voices[line],voices[line].coderCycleR);
+                        //setVoiceFrequency(voices[line].frequency,&voices[line],voices[line].coderCycleR);
                         voices[line].coderGenAmpl=cc;voices[line].genAmpl=amplLevel[cc];}
                         break;
                     case OSCSINAMP:if(varChge){
-                        setVoiceFrequency(voices[line].frequency,&voices[line],voices[line].coderCycleR);
+                        //setVoiceFrequency(voices[line].frequency,&voices[line],voices[line].coderCycleR);
                         voices[line].coderWaveAmpl[WSIN]=cc;voices[line].basicWaveAmpl[WSIN]=amplLevel[cc];}
                         break; 
                     case OSCTRIAMP:if(varChge){
-                        setVoiceFrequency(voices[line].frequency,&voices[line],voices[line].coderCycleR);
+                        //setVoiceFrequency(voices[line].frequency,&voices[line],voices[line].coderCycleR);
                         voices[line].coderWaveAmpl[WTRI]=cc;voices[line].basicWaveAmpl[WTRI]=amplLevel[cc];}
                         break;
                     case OSCSAWAMP:if(varChge){
-                        setVoiceFrequency(voices[line].frequency,&voices[line],voices[line].coderCycleR);
+                        //setVoiceFrequency(voices[line].frequency,&voices[line],voices[line].coderCycleR);
                         voices[line].coderWaveAmpl[WSAW]=cc;voices[line].basicWaveAmpl[WSAW]=amplLevel[cc];}
                         break;
                     case OSCSQRAMP:if(varChge){
-                        setVoiceFrequency(voices[line].frequency,&voices[line],voices[line].coderCycleR);
+                        //setVoiceFrequency(voices[line].frequency,&voices[line],voices[line].coderCycleR);
                         voices[line].coderWaveAmpl[WSQR]=cc;voices[line].basicWaveAmpl[WSQR]=amplLevel[cc];}
-                        break;                                                                                                                  
+                        break;  
+                    case OSCGENAMPATT:if(varChge){
+                        //setVoiceFrequency(voices[line].frequency,&voices[line],voices[line].coderCycleR);
+                        voices[line].coderGenAmplAtt=cc;voices[line].genAmpl=amplLevel[cc];}
+                        break;
+                    case OSCSINAMPATT:if(varChge){
+                        //setVoiceFrequency(voices[line].frequency,&voices[line],voices[line].coderCycleR);
+                        voices[line].coderWaveAmplAtt[WSIN]=cc;voices[line].basicWaveAmpl[WSIN]=amplLevel[cc];}
+                        break; 
+                    case OSCTRIAMPATT:if(varChge){
+                        //setVoiceFrequency(voices[line].frequency,&voices[line],voices[line].coderCycleR);
+                        voices[line].coderWaveAmplAtt[WTRI]=cc;voices[line].basicWaveAmpl[WTRI]=amplLevel[cc];}
+                        break;
+                    case OSCSAWAMPATT:if(varChge){
+                        //setVoiceFrequency(voices[line].frequency,&voices[line],voices[line].coderCycleR);
+                        voices[line].coderWaveAmplAtt[WSAW]=cc;voices[line].basicWaveAmpl[WSAW]=amplLevel[cc];}
+                        break;
+                    case OSCSQRAMPATT:if(varChge){
+                        //setVoiceFrequency(voices[line].frequency,&voices[line],voices[line].coderCycleR);
+                        voices[line].coderWaveAmplAtt[WSQR]=cc;voices[line].basicWaveAmpl[WSQR]=amplLevel[cc];}
+                        break;                                                                                                                                        
                     default:break;
                 }
                 sprintf(buf+2,"%4.3f %i %u %i %i ",voices[line].frequency,voices[line].coderCycleR-MAXCODER_RC/2,voices[line].coderGenAmpl,voices[line].coderFreqAtt,voices[line].coderCycleRAtt);               

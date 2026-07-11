@@ -305,7 +305,7 @@ void setup(){
     i2s_dma_buffers[1]=i2s_buf1;
     i2sSetup(_i2s_pio,PICO_AUDIO_I2S_DATA_PIN,i2s_dma_buffers);     // start i2s engine
 
-    voices[0].coderAmpl[W_SINUS]=31;
+    voices[0].coderWaveAmpl[W_SINUS]=31;
     voices[0].basicWaveAmpl[W_SINUS]=getAmpl(&voices[0],W_SINUS);
     printf("demo sinus f:%f rc:%i ampl:%d\n",fr0,cga,voices[0].basicWaveAmpl[W_SINUS]);delay_ms(100);      
     
@@ -324,7 +324,7 @@ void setup(){
     scope(i2s_buf0,voices[0].frequency,14,true,true,0,0,0);     // scope mode_data
 
     // après démo mute voices[0] sinus
-    voices[0].coderAmpl[W_SINUS]=cga;
+    voices[0].coderWaveAmpl[W_SINUS]=cga;
     voices[0].basicWaveAmpl[W_SINUS]=getAmpl(&voices[0],W_SINUS);
 
     gpio_irq_set = false;

@@ -26,10 +26,11 @@ uint16_t amplLevel[MAX_16B_LINEAR_VALUE];
 extern uint32_t millisCounter;
 
 // current lfo values (lfoHandler triger'd by pwmIrqHandler)
-float       lfosFrequency[MAX_LFO];                   // current lfo freq
-uint16_t    lfosCodersFreq[MAX_LFO];                  // last coder value for freq
-uint16_t    lfosCodersFreqAtt[MAX_LFO];               // coder pour atténuateur ctl_input_val (freq)
-uint16_t    lfosMaxCoderFreq[MAX_LFO];                // pmax value for lfo coderFreq
+float       lfosFrequency[MAX_LFO];                   // frequency
+uint16_t    lfosCodersFreq[MAX_LFO];                  // frequency coder value
+uint16_t    lfosMaxCoderFreq[MAX_LFO];                // frequency coder max value
+uint16_t    lfosCodersFreqAtt[MAX_LFO];               // frequency input attenuator value
+
 uint16_t    lfosStepInt[MAX_LFO];                     // partie entière du step lfo
 uint32_t    lfosStepFra[MAX_LFO];                     // partie fractionnaire du step lfo
 uint16_t    lfosStepIntD[MAX_LFO];                    // partie entière du step descendant
@@ -42,9 +43,12 @@ uint32_t    lfoTimingInterval=1000/LFOS_SAMPLE_RATE;
 int32_t     lfoScopeBuffer[MAX_LFO*OSC_SCOPE_BUFFER_LEN];   // n° echantillons+rc_table 
 int32_t     lfoScopeBufReal[MAX_LFO*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB];  // real values
 uint16_t    lfoScopeBufPtr=0;
-uint16_t    lfosCoderCycleR[MAX_LFO];                 // rapport cyclique -64/+64 pour coder
-uint16_t    lfosCycleR[MAX_LFO];                      // somme lfosCoderCycleR et ctl_input_val
-uint16_t    lfosCoderCycleRAtt[MAX_LFO];              // coder pour atténuateur ctl_input_val  (cra)
+
+uint16_t    lfosCycleR[MAX_LFO];                      // cycle ratio 
+uint16_t    lfosCoderCycleR[MAX_LFO];                 // cycle ratio coder value -64/+64
+
+uint16_t    lfosCoderCycleRAtt[MAX_LFO];              // cycle ratio input attenuator value
+
 int16_t     lfo_ctl_input_id[MAX_LFO][MAX_INPUTS_PER_OBJ];    // id des inputs du lfo dans ctl_input_xxx[]
 int16_t     lfo_ctl_output_id[MAX_LFO][MAX_OUTPUTS_PER_OBJ];  // id des outputs du lfo dans ctl_output_xxx[]
 
@@ -215,15 +219,15 @@ init_basic_sine_table();
 void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)    // cga = genAmpl level
 {
     for(uint8_t v=0;v<MAX_VOICES;v++){
-        voices[v].maxCoderFreq=VCES_MAX_FREQ_CODERS;
+        //voices[v].maxCoderFreq=VCES_MAX_FREQ_CODERS;
         //voices[v].genAmpl=0x0001;                       // minimal non zero
-        voices[v].coderCycleR=MAXCODER_RC/2;
+        //voices[v].coderCycleR=MAXCODER_RC/2;
         voices[v].cycleR=voices[v].coderCycleR;
         voices[v].coderCycleRAtt=FULL_ATTENUATION_VALUE;
 
         voices[v].genAmpl=amplLevel[cga];
         voices[v].coderGenAmpl=cga;
-        voices[v].maxCoderGenAmpl=MAX_16B_LINEAR_VALUE;
+        //voices[v].maxCoderGenAmpl=MAX_16B_LINEAR_VALUE;
 
         voices[v].coderFreq=coderF;
         float f=calcFreq(voices[v].coderFreq);          // 440Hz
@@ -239,8 +243,8 @@ void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)    // cga = genAmpl l
         voices[v].noiseStep  = 60817408;    // Q16.16
 
         for(uint8_t i=0;i<W_NB;i++){
-            voices[v].coderAmpl[i]=0;
-            voices[v].maxCoderAmpl[i]=MAX_16B_LINEAR_VALUE-1;
+            voices[v].coderWaveAmpl[i]=0;
+            //voices[v].maxCoderWaveAmpl[i]=MAX_16B_LINEAR_VALUE-1;
             voices[v].basicWaveAmpl[i]=0;
             voices[v].coderSw[i]=0;
         }
@@ -255,9 +259,9 @@ void dumpVoices(Voice* v)
 {
   printf("   frequency(c/M/f)   sampleNb currSample stepInt stepFra currEch currEchFra noisePhase noiseStep                                    WaveAmpl(c-M-b)                                             genAmpl(c=M=g)     switchs     \n");
   for(uint8_t n=0;n<MAX_VOICES;n++){  
-    printf("%d %d-%d-%4.3f    %d       %d        %d      %d      %d       %d           %d        %d  ",n,v[n].coderFreq,v[n].maxCoderFreq,v[n].frequency,v[n].sampleNbToFill,v[n].currentSample,v[n].stepInt,v[n].stepFra,v[n].currEch,v[n].currEchFra,v[n].noisePhase,v[n].noiseStep);
-    for(uint8_t wa=0;wa<BASIC_WAVES_NB;wa++){printf("%d-%d-%d ",v[n].coderAmpl[wa],v[n].maxCoderAmpl[wa],v[n].basicWaveAmpl[wa]);}
-    printf("%d=%d=%d ",v[n].coderGenAmpl,v[n].maxCoderGenAmpl,v[n].genAmpl);
+    printf("%d %d-%d-%4.3f    %d       %d        %d      %d      %d       %d           %d        %d  ",n,v[n].coderFreq,MAXCODER_RC,v[n].frequency,v[n].sampleNbToFill,v[n].currentSample,v[n].stepInt,v[n].stepFra,v[n].currEch,v[n].currEchFra,v[n].noisePhase,v[n].noiseStep);
+    for(uint8_t wa=0;wa<BASIC_WAVES_NB;wa++){printf("%d-%d-%d ",v[n].coderWaveAmpl[wa],VCES_MAX_FREQ_CODERS,v[n].basicWaveAmpl[wa]);}
+    printf("%d=%d=%d ",v[n].coderGenAmpl,VCES_MAX_AMPL_CODERS,v[n].genAmpl);
     for(uint8_t sw=0;sw<CODER_NB;sw++){printf("%d ",v[n].coderSw[sw]);}
     printf("\n");
   }
@@ -428,7 +432,7 @@ void __not_in_flash_func(lfosHandler)()
 }
 
 uint16_t getAmpl(Voice* v,uint8_t wav){
-  return amplLevel[v->coderAmpl[wav]];
+  return amplLevel[v->coderWaveAmpl[wav]];
 }
 
 // ***************************  voices producer  ******************************

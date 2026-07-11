@@ -30,32 +30,36 @@ struct Voice {
     uint16_t    sampleNbToFill;                 // sample Nb for 1 period    
     uint32_t    currentSample;                  // last value pushed in i2s buffer                  
     uint16_t    stepInt;                        // partie entière du step montant
-    uint32_t    stepFra;                        // partie fractionnaire du step montant
-    //uint16_t    stepIntD;                       // partie entière du step descendant
-    //uint32_t    stepFraD;                       // partie fractionnaire du step descendant    
+    uint32_t    stepFra;                        // partie fractionnaire du step montant  
     uint16_t    currEch;                        // dernier N° d'ech utilisé
     uint32_t    currEchFra;                     // dernière valeur fractionnaire de n° d'ech calculée  
     uint32_t    noisePhase;                     // Q16.16
-    uint32_t    noiseStep;                      // Q16.16                 
-    volatile uint16_t    basicWaveAmpl[BASIC_WAVES_NB];  // ampl value for coderAmpl value
-    volatile int16_t     coderWaveAmpl[BASIC_WAVES_NB];
-    uint16_t    maxCoderWaveAmpl[BASIC_WAVES_NB];
-    volatile int16_t     coderAmpl[BASIC_WAVES_NB];      // last coder value for ampl
-    uint16_t    maxCoderAmpl[BASIC_WAVES_NB];   // max value for coderAmpl
-    volatile uint16_t    genAmpl;               // ampl value for global voice
-    volatile int16_t     coderGenAmpl;
-    uint16_t    maxCoderGenAmpl;                // max value for coderGenAmpl
+    uint32_t    noiseStep;                      // Q16.16
+
+    volatile uint16_t    genAmpl;               // genAmpl value
+    volatile int16_t     coderGenAmpl;          // genAmpl coder value
+    //uint16_t    maxCoderGenAmpl;                // genAmpl max coder value
+    uint16_t    coderGenAmplAtt;                // genAmpl input attenuator value    
+    
+    volatile uint16_t    basicWaveAmpl[BASIC_WAVES_NB];     // wave ampl value
+    volatile int16_t     coderWaveAmpl[BASIC_WAVES_NB];     // wave ampl coder value
+    //uint16_t    maxCoderWaveAmpl[BASIC_WAVES_NB];           // wave ampl max coder value    
+    int16_t     coderWaveAmplAtt[BASIC_WAVES_NB];           // wave ampl input attenuator value
+    
     bool        coderSw[CODER_NB];              // last Switch
     uint16_t    soundsCc[CODER_BANK_NB];
     uint16_t    adsrlCc[CODER_BANK_NB];
-    float       frequency;                      // current freq
-    int16_t     coderFreq;                      // last coder value for freq
-    int16_t     coderFreqAtt;                   // attenuateur 0-7fff pour ctl_input freq
-    uint16_t    maxCoderFreq;                   // pmax value for coderFreq
-    uint8_t     coderCycleR;                    // rapport cyclique -64/+64 pour coder ; one value for all waveforms
-    uint8_t     cycleR;                         // somme coderCycleR et ctl_input_val
-    int16_t     coderCycleRAtt;                 // attenuateur 0-7fff pour ctl_input cra
-    uint8_t     maxCoderCycleR;
+    
+    volatile float       frequency;             // current frequency
+    volatile int16_t     coderFreq;             // frequency coder value
+    //uint16_t    maxCoderFreq;                   // frequency max coder value    
+    int16_t     coderFreqAtt;                   // frequency input attenuator value (0-7fff)
+
+    volatile uint8_t     cycleR;                // cyclic ratio value (somme coderCycleR et ctl_input_val)
+    volatile uint8_t     coderCycleR;           // cyclic ratio -64/+64 coder value
+    //uint8_t     maxCoderCycleR;                 // cyclic ratio max coder value
+    int16_t     coderCycleRAtt;                 // cyclic ratio input attenuator value (0-7fff)
+
     int16_t     voice_ctl_input_id[MAX_INPUTS_PER_OBJ];
 
 };

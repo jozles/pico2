@@ -76,6 +76,9 @@ typedef enum {
 
 #define MAX_STEP_FRA 65536  // décimales ratio sampleFreq/currFreq/adsr
 
+#define MAX_16B_LINEAR_VALUE 32     // 0 to 31 => 0,1,1.414,2,2.828,4,5.656,8,11.312,16,22.624 ... 8192,11583,16384,23167,32768,46334
+#define MIN_16B_LINEAR_VALUE 0
+
 /* Objects */
 
 #define MAX_OBJECTS MENU0_NB
@@ -85,6 +88,7 @@ typedef enum {
 #define MAX_VOICES 4 
 #define VCES_MAX_FREQ_CODERS 10000
 #define VCES_MIN_FREQ_CODERS 25
+#define VCES_MAX_AMPL_CODERS MAX_16B_LINEAR_VALUE
 
 /* lfos */
 
@@ -135,8 +139,6 @@ typedef enum {
 #define _i2s_pio __CONCAT(pio, PICO_I2S_PIO)   
 #define PICO_AUDIO_I2S_DATA_PIN 13                      // 2 consecutive gpios
 #define SAMPLE_RATE 44100
-#define MAX_16B_LINEAR_VALUE 32                         // 0 to 31 => 0,1,1.414,2,2.828,4,5.656,8,11.312,16,22.624 ... 8192,11583,16384,23167,32768,46334
-#define MIN_16B_LINEAR_VALUE 0
 
 /* frequencies/voices */
 

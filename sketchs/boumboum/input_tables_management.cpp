@@ -44,16 +44,17 @@ extern int16_t   lfosOutputsValues[MAX_LFO][MAX_OUTPUTS_PER_OBJ];
 
 // les objets de l'application sont des boites munies d'entrées et de sorties
 //
-// il y a 3 types d'entrées : 
-//      les coders incrémentaux pour modifier manuellement les paramètres des objets
+// il y a 2 types d'entrées : 
 //      les controles (à chacun est associé un coder d'atténuation) 
 //      les signaux audio 
-// chaque paramètre a un codeur + une entrée avec coder d'atténuation
+// chaque entrée a un codeur de valeur manuelle + coder d'atténuation pour une valeur "externe"
 // un paramètre interne de "normalisation" associé à chaque entrée sert à leur mise à l'échelle
-// la valeur des paramètres est la somme entre valeur du coder et valeur de l'entrée normalisée et atténuée
-// le nombre d'entrées est fixe pour tous les objets et en général excédentaire
+// la valeur finale de l'entrée est la somme entre valeur du coder et valeur "externe" normalisée et atténuée
+// le nombre maxi d'entrées est fixe pour tous les objets et en général excédentaire
+// Donc, pour chaque entrée d'objet, il y a 4 variables stockées : valeur du coder de niveau manuel, niveau manuel normalisé, valeur de normalisation et valeur de coder d'atténuation
+// En cours de développement, les entrées "externes" ne sont pas toujours implémentées
 //
-// la mise à jour d'un paramètre d'entrée d'un objet se fait avec la fonction set/objet/paramètre (ex setAdsrDur ou setLFoFreq)
+// la mise à jour d'une entrée d'un objet se fait avec la fonction set/objet/paramètre (ex setAdsrDur ou setLFoFreq)
 // avec des arguments selon le type d'objet (ex le n° d'objet, l'entrée concernéé et la valeur de l'entrée - setAdsrDur(adsr,ADSR_ATT,dur) )
 // en principe le coder et l'entrée sont linéaires et la "mise en courbe" de la somme est à la fin de la fonction setxxxxyyyy
 // cette somme est en principe un step dans une table, la valeur du step étant la vitesse de lecture de la table
@@ -90,7 +91,7 @@ extern int16_t   lfosOutputsValues[MAX_LFO][MAX_OUTPUTS_PER_OBJ];
 //
 // Ajouter un objet nécessite plusieurs interventions :
 //      créer sa description (structure comme voice ou tables comme lfo)
-//      créer les 2 fichiers *.def pour décrire ses entrées et sorties ;
+//      créer les 2 fichiers *.def pour décrire ses entrées et sorties
 //          (ajouter un paragraphe dans le chapitre nom des e/s des objets et dans inputs et outputs de const.h)
 //      ajouter pour chaque entrée un nom de type dans norm_types.def
 //      ajouter un paragraphe d'init dans init_objects_inputs et init_objects_outputs 
