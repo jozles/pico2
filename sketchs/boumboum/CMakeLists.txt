@@ -67,6 +67,7 @@ add_executable(boumboum
 	vces_outputs_names.def
 	norm_types.def
 	blank.S
+	blank_.S
 	miscControls.cpp
 	input_tables_management.cpp
 	rc_33tables.cpp

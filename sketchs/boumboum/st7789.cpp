@@ -19,6 +19,7 @@
 #include "const.h"
 #include "util.h"
 
+
 uint32_t ticker10=0;
 
 extern uint32_t millisCounter;
@@ -985,17 +986,22 @@ void __not_in_flash_func(test_st7789_2)(void)
     if((millis+ms0)<millisCounter){     
         millis=millisCounter;
 
+      fillVoices();
+      
       if(l>lbeg && ms0>2){                          // effacement ligne précédente 
         ms0=2;
         tft_fill_rect_blank(l-1,0,1,TFT_W);
         return;  
       }
+
+      fillVoices();
       
       if(l>=TFT_H){l=lbeg;}
 
       ms0=ms;
       uint32_t bgad=l*TFT_W*2;                      // trace ligne courante
       memset(&tft_frame[bgad],0xff,TFT_W*2);
+      //blank_(&tft_frame[bgad],TFT_W*2,0xff);
       tft_draw_rect(l,0,1,TFT_W,&tft_frame[bgad]);          
       l++;     
     }

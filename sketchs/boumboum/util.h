@@ -58,7 +58,8 @@ extern "C" {
 // assembleur 290uS pour 240*240*2 bytes ; la zone effacée doit etre alignée 32 bytes!!!
 // alignement 16 bytes : 336uS
 // memset 1.28mS ;
-void __not_in_flash_func(blank)(void *var, uint32_t len);    
+void __not_in_flash_func(blank)(void *var, uint32_t len);
+void __not_in_flash_func(blank_)(void *var, uint32_t len,uint8_t c);   
 #ifdef __cplusplus
 }
 #endif

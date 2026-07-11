@@ -221,7 +221,7 @@ void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)    // cga = genAmpl l
     for(uint8_t v=0;v<MAX_VOICES;v++){
         //voices[v].maxCoderFreq=VCES_MAX_FREQ_CODERS;
         //voices[v].genAmpl=0x0001;                       // minimal non zero
-        //voices[v].coderCycleR=MAXCODER_RC/2;
+        voices[v].coderCycleR=MAXCODER_RC/2;
         voices[v].cycleR=voices[v].coderCycleR;
         voices[v].coderCycleRAtt=FULL_ATTENUATION_VALUE;
 
@@ -471,7 +471,7 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
 
       int32_t  waveAmplGen  = v->genAmpl;
 
-      //if(voiceNum==0){printf("v:%u f:%f %i %i %i %i\n",voiceNum,v->frequency,waveAmplSin,waveAmplTri,waveAmplSaw,waveAmplSqr);}
+      if(voiceNum==0){printf("v:%u f:%f %i %i %i %i %i\n",voiceNum,v->frequency,waveAmplSin,waveAmplTri,waveAmplSaw,waveAmplSqr,waveAmplGen);}
 
 // fast loop computing samples index
       uint32_t s = SAMPLES_PER_BUFFER;
