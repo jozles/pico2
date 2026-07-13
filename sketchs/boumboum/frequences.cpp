@@ -55,7 +55,7 @@ int16_t     lfo_ctl_output_id[MAX_LFO][MAX_OUTPUTS_PER_OBJ];  // id des outputs 
 extern int16_t ctl_input_val[MAX_INPUTS];
 extern int16_t ctl_output_id_chain[MAX_OUTPUTS];
 
-int32_t     voicesDataBuffer[MAX_VOICES*SAMPLES_PER_BUFFER];  // all voices data buffer : 16bits low currech nb, 16 bits high rc table nb 
+int32_t     voicesScopeDataBuffer[MAX_VOICES*SAMPLES_PER_BUFFER];  // all voices data buffer : 16bits low currech nb, 16 bits high rc table nb 
 
 // i2s
 
@@ -242,9 +242,8 @@ void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)    // cga = genAmpl l
         voices[v].noisePhase = 0;           // Q16.16
         voices[v].noiseStep  = 60817408;    // Q16.16
 
-        for(uint8_t i=0;i<W_NB;i++){
+        for(uint8_t i=0;i<VCES_OUTPUTS_NB;i++){
             voices[v].coderWaveAmpl[i]=0;
-            //voices[v].maxCoderWaveAmpl[i]=MAX_16B_LINEAR_VALUE-1;
             voices[v].basicWaveAmpl[i]=0;
             voices[v].coderSw[i]=0;
         }
@@ -462,20 +461,20 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
       const int16_t* rcTable32 = &rc_tables[32][0][0];                           // base table 32 pour saw      
 
 // init waves ampl      
-      int32_t  waveAmplSin  = v->basicWaveAmpl[W_SINUS];
-      int32_t  waveAmplTri  = v->basicWaveAmpl[W_TRIANGLE];
-      int32_t  waveAmplSaw  = v->basicWaveAmpl[W_SAWTOOTH];        
-      int32_t  waveAmplSqr  = v->basicWaveAmpl[W_SQUARE]; 
-      int32_t  waveAmplWhi  = v->basicWaveAmpl[W_WHITE_NOISE];
-      int32_t  waveAmplPnk  = v->basicWaveAmpl[W_PINK_NOISE];
+      int32_t  waveAmplSin  = v->basicWaveAmpl[WSIN];
+      int32_t  waveAmplTri  = v->basicWaveAmpl[WTRI];
+      int32_t  waveAmplSaw  = v->basicWaveAmpl[WSAW];        
+      int32_t  waveAmplSqr  = v->basicWaveAmpl[WSQR]; 
+      int32_t  waveAmplWhi  = v->basicWaveAmpl[WHIT];
+      int32_t  waveAmplPnk  = v->basicWaveAmpl[PONK];
 
       int32_t  waveAmplGen  = v->genAmpl;
 
-      if(voiceNum==0){printf("v:%u f:%f %i %i %i %i %i\n",voiceNum,v->frequency,waveAmplSin,waveAmplTri,waveAmplSaw,waveAmplSqr,waveAmplGen);}
+      //if(voiceNum==0){printf("v:%u f:%f %i %i %i %i %i\n",voiceNum,v->frequency,waveAmplSin,waveAmplTri,waveAmplSaw,waveAmplSqr,waveAmplGen);}
 
 // fast loop computing samples index
       uint32_t s = SAMPLES_PER_BUFFER;
-      int32_t* vsBuffer=voicesDataBuffer+voiceNum*SAMPLES_PER_BUFFER; // temporary buffer for fast currech computing       
+      int32_t* vsBuffer=voicesScopeDataBuffer+voiceNum*SAMPLES_PER_BUFFER; // temporary buffer for fast currech computing       
       do {
         
 
@@ -516,19 +515,19 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
         const int16_t* w=rcTableCurr+RC_N_WAVES*ce_idx;   // rc_table values ptr
 
         int32_t pre=0,pre0=0; 
-        pre=w[WSIN]*waveAmplSin;
+        pre=(w[WSIN]*waveAmplSin);    //>>GAIN_REDUC;
 
-        pre += w[WTRI]*waveAmplTri;
+        pre += (w[WTRI]*waveAmplTri); //>>GAIN_REDUC;
        
         int16_t tri=rcTable32[RC_N_WAVES*ce+WTRI];  // saw utilise la table 32 du triangle
         int32_t saw;
         if(ce<(RC_N_SAMPLES >> 1)){saw=(65536-tri)>>1;}
         else saw=tri>>1;
         if(rc>=32){saw=-saw;}                       // saw n'a pas de réglace de rc, juste une inversion de phase (montée ou descente verticale)
-        pre += saw*waveAmplSaw;
+        pre += (saw*waveAmplSaw);     //>>GAIN_REDUC;
 
         int16_t sqr=(ce & (BASIC_WAVE_TABLE_LEN>>1)) ? -0x7fff : 0x7fff;    // sqr cr not implemented
-        pre += sqr*waveAmplSqr;
+        pre += (sqr*waveAmplSqr);     //>>GAIN_REDUC;
 
         //pre = pre>>8;
         pre *= sign;
@@ -539,11 +538,11 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
         uint32_t tmp = nPhase - limit;
         nPhase = tmp + ((tmp >> 31) & limit);
         int32_t white = noise_table[nPhase>>16];
-        pre += white * waveAmplWhi;
+        pre += (white * waveAmplWhi);     //>>GAIN_REDUC;
 
         // bruit rose 1-pôle branchless
         pink_state=(alpha * pink_state + (32768 - alpha) * (white)) >> 15;    
-        pre += (int16_t)pink_state * waveAmplPnk;
+        pre += (pink_state * waveAmplPnk);  //>>GAIN_REDUC;
 
         pre *= waveAmplGen;
 

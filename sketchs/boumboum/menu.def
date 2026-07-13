@@ -2,7 +2,9 @@
 
     Z(MENU0____,"basic_menu ")
     Z(VOICES_FR,"voices freq")
-    Z(WAVES_AMP,"waves ampl ")
+    Z(VOICES_AM,"voices ampl")
+    Z(VOICES_AT,"voices att ")
+    //Z(WAVES_AMP,"waves ampl ")
     Z(LFOS_____,"lfos       ")
     Z(ADSRL____,"adsrl      ")
     Z(MAPPING__,"I/O mapping")

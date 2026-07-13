@@ -89,6 +89,7 @@ typedef enum {
 #define VCES_MAX_FREQ_CODERS 10000
 #define VCES_MIN_FREQ_CODERS 25
 #define VCES_MAX_AMPL_CODERS MAX_16B_LINEAR_VALUE
+#define GAIN_REDUC 8                    // gain reduction shift in fillVoices
 
 /* lfos */
 
@@ -246,7 +247,7 @@ enum Menus {
 
 #define FIRST_WAVE W_SINUS
 #define LAST_WAVE W_SQUARE
-enum Waves {
+/*enum Waves {
     W_SINUS,
     W_TRIANGLE,
     W_SAWTOOTH,
@@ -255,7 +256,7 @@ enum Waves {
     W_PINK_NOISE,
     W_NB,
     W_TEST
-};    
+};*/    
 
 #define PIN_DCDC_PSM_CTRL 23        // to set the DCDC in PSM mode for less audio noise
 

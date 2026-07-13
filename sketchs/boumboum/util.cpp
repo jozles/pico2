@@ -45,7 +45,7 @@ int32_t i2s_buf1[SAMPLES_PER_BUFFER*2] __attribute__((aligned(32)));     // le b
 extern struct Voice voices[];
 extern uint16_t amplLevel[];
 
-extern int32_t voicesDataBuffer[];
+extern int32_t voicesScopeDataBuffer[];
 
 volatile uint32_t millisCounter;
 
@@ -307,9 +307,9 @@ void setup(){
     i2s_dma_buffers[1]=i2s_buf1;
     i2sSetup(_i2s_pio,PICO_AUDIO_I2S_DATA_PIN,i2s_dma_buffers);     // start i2s engine
 
-    voices[0].coderWaveAmpl[W_SINUS]=31;
-    voices[0].basicWaveAmpl[W_SINUS]=getAmpl(&voices[0],W_SINUS);
-    printf("demo sinus f:%f rc:%i ampl:%d\n",fr0,cga,voices[0].basicWaveAmpl[W_SINUS]);delay_ms(100);      
+    voices[0].coderWaveAmpl[WSIN]=31;
+    voices[0].basicWaveAmpl[WSIN]=getAmpl(&voices[0],WSIN); //<<GAIN_REDUC;
+    printf("demo sinus f:%f rc:%i ampl:%d\n",fr0,cga,voices[0].basicWaveAmpl[WSIN]);delay_ms(100);      
     
     // tous les genAmpl sont à cga ; toutes les wavesAmpl à 0 sauf voices[0] sinus
     fillVoices();               // après i2sSetup avant scope de démo ; i2S non démarré 
@@ -322,12 +322,12 @@ void setup(){
 //dumpStr(voiceScopeBuffer,256);
 //dumpStr(i2s_buf0,256);
     // ****** scope check ******
-    //scope(voicesDataBuffer,voices[0].frequency,14,true,true,0,0,true);    // scope mode_calcul
+    //scope(voicesScopeDataBuffer,voices[0].frequency,14,true,true,0,0,true);    // scope mode_calcul
     scope(i2s_buf0,voices[0].frequency,14,true,true,0,0,0);     // scope mode_data
 
     // après démo mute voices[0] sinus
-    voices[0].coderWaveAmpl[W_SINUS]=cga;
-    voices[0].basicWaveAmpl[W_SINUS]=getAmpl(&voices[0],W_SINUS);
+    voices[0].coderWaveAmpl[WSIN]=cga;
+    voices[0].basicWaveAmpl[WSIN]=getAmpl(&voices[0],WSIN);
 
     gpio_irq_set = false;
     while(!gpio_irq_set){
