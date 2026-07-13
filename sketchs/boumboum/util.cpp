@@ -38,10 +38,9 @@ static int st_dma_channel;
 static int ws_dma_channel;
 
 int32_t* i2s_dma_buffers[2];                // les 2 pointeurs sur les 2 buffers dma
-__attribute__((aligned(32)))
-int32_t i2s_buf0[SAMPLES_PER_BUFFER*2];     // le buffer 0 (512*2*4 bytes = 4k)
-__attribute__((aligned(32)))
-int32_t i2s_buf1[SAMPLES_PER_BUFFER*2];     // le buffer 1
+
+int32_t i2s_buf0[SAMPLES_PER_BUFFER*2] __attribute__((aligned(32)));     // le buffer 0 (512*2*4 bytes = 4k)
+int32_t i2s_buf1[SAMPLES_PER_BUFFER*2] __attribute__((aligned(32)));     // le buffer 1
 
 extern struct Voice voices[];
 extern uint16_t amplLevel[];
@@ -59,7 +58,10 @@ volatile uint32_t ledBlinker=0;
 
 static repeating_timer millisTimer;
 
-
+void blank(void* s,uint32_t len)
+{
+    blank_(s,len,0x00);
+}
 
 void system_error(const char* s,int32_t v)
 {

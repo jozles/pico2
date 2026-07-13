@@ -56,11 +56,8 @@ static volatile uint16_t sched_h;
 // --------------------------------------------------------
 
 #define FRAME_SIZE TFT_W * TFT_H * 2
-__attribute__((aligned(32)))
-static uint8_t tft_frame[FRAME_SIZE];    // 2bytes/pixel
-//static 
-//__attribute__((aligned(4)))
-//uint8_t tft_frame_blk[FRAME_SIZE];    // 2bytes/pixel 
+static uint8_t tft_frame[FRAME_SIZE] __attribute__((aligned(4)));    // 2bytes/pixel
+
 static uint32_t points[TFT_W];
 static uint8_t refrCnt=0;
 
@@ -1000,8 +997,8 @@ void __not_in_flash_func(test_st7789_2)(void)
 
       ms0=ms;
       uint32_t bgad=l*TFT_W*2;                      // trace ligne courante
-      memset(&tft_frame[bgad],0xff,TFT_W*2);
-      //blank_(&tft_frame[bgad],TFT_W*2,0xff);
+      //memset(&tft_frame[bgad],0xff,TFT_W*2);
+      blank_(&tft_frame[bgad],TFT_W*2,0xff);
       tft_draw_rect(l,0,1,TFT_W,&tft_frame[bgad]);          
       l++;     
     }

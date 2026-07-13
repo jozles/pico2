@@ -560,7 +560,7 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
 
 void __not_in_flash_func(fillVoiceBuffer)(int32_t* vBuffer, Voice* voices, uint8_t bufNum)
 {   
-    blank(vBuffer,SAMPLES_PER_BUFFER*2*4);   // env 12uS
+    blank_(vBuffer,SAMPLES_PER_BUFFER*2*4,0x00);   // env 12uS
 
     for(uint8_t v=0;v<MAX_VOICES;v++){   //MAX_VOICES;v++){
 //gpio_put(TST_PIN,1);      

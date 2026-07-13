@@ -1,22 +1,22 @@
-    .syntax unified
-    .thumb
-    .thumb_func
-    .cpu cortex-m33
+.syntax unified
+.thumb
+.thumb_func
+.cpu cortex-m33
 
 .global blank
-blank:
+blank_:
     push    {r4-r9, lr}
 
     @ r0 = ptr
     @ r1 = len24
+    @ r2 = fill value (byte or word)
 
     lsls    r1, r1, #8     @ décaler à gauche
     lsrs    r1, r1, #8     @ redécaler à droite → top 8 bits = 0
 
     cbz     r1, end
 
-    @ r2..r9 = 0
-    movs    r2, #0
+    @ --- préparer les registres r2..r9 avec la valeur de remplissage ---
     mov     r3, r2
     mov     r4, r2
     mov     r5, r2

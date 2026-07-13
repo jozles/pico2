@@ -21,7 +21,6 @@ int i2s_dma_chan1;
 static dma_channel_config dma_cfg0;
 static dma_channel_config dma_cfg1;
 
-__attribute__((aligned(32)))
 int32_t* i2s_buffer[2];
 
 static PIO i2s_pio;
