@@ -51,7 +51,8 @@ add_executable(boumboum
 	boumboum.cpp 
 	coder.cpp 
 	util.cpp 
-	frequences.cpp 
+	frequences.cpp
+	sound_level_management.cpp 
 	bb_i2s.cpp
 	leds.cpp
 	st7789.cpp

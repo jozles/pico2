@@ -10,6 +10,7 @@
 #include "const.h"
 #include "rc_33tables.h"
 #include "input_tables_management.h"
+#include "sound_level_management.h"
 
 
 
@@ -20,10 +21,9 @@ float octFreq[octNb+1];
 const uint16_t octIncrNb = 409;
 float octIncr[octIncrNb];
 
-uint8_t stepAmpl=MAX_16B_LINEAR_VALUE/16;     // nbre d'intervalles / 3db
-uint16_t amplLevel[MAX_16B_LINEAR_VALUE];
-
 extern uint32_t millisCounter;
+
+extern uint16_t amplLevel[];
 
 // current lfo values (lfoHandler triger'd by pwmIrqHandler)
 float       lfosFrequency[MAX_LFO];                   // frequency
@@ -130,28 +130,6 @@ static inline void get_noise(int16_t *white, int16_t *pink)
 }
 
 // *************************** tables *******************************
-
-void showAmplIncr(){
-  printf("  intervalles d'amplitude\n");
-  for(uint8_t i=0;i<MAX_16B_LINEAR_VALUE;i++){
-      printf("%d %d\n",i,amplLevel[i]);
-  }
-  printf("\n");
-}
-
-void fillAmplIncr(){          // fonctionne avec stepAmpl mini 2 !!!
-
-  amplLevel[0]=0;
-
-  uint8_t j=1;
-  uint8_t i=1;
-  while(i<MAX_16B_LINEAR_VALUE){
-    amplLevel[i]=(uint16_t)roundf(pow(2,((float)((int)(i/stepAmpl))+((float)j/stepAmpl))));
-    j++;if(j>=stepAmpl){j=0;}
-    i++;     
-  }
-  //showAmplIncr();
-}
 
 // tableau des fréquences d'octaves
 void fillOctFreq() { 
@@ -428,10 +406,6 @@ void __not_in_flash_func(lfosHandler)()
     lfoScopeBufPtr&=OSC_SCOPE_BUFFER_LEN-1;
     //printf("ptr:%d c0:%i c1:%i c2:%i c3:%i\n",lfoScopeBufPtr,lfoScopeBufReal[0*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB + lfoScopeBufPtr*BASIC_WAVES_NB+LSIN]);
   }
-}
-
-uint16_t getAmpl(Voice* v,uint8_t wav){
-  return amplLevel[v->coderWaveAmpl[wav]];
 }
 
 // ***************************  voices producer  ******************************

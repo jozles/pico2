@@ -2,8 +2,10 @@
 
     X(VFRQ,"FREQ")
     X(VCR_,"CYCR")
-    X(VGPW,"GPOW")
     X(VSPW,"SIPW")
     X(VTPW,"TRPW")
     X(VAPW,"SAPW")
     X(VQPW,"SQPW")
+    X(VWPW,"SWPW")
+    X(VKPW,"SKPW")
+    X(VGPW,"GPOW")

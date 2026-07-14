@@ -74,7 +74,7 @@ void fillVoices();
 void setVoiceFrequency(float freq,Voice* v,int8_t rc);
 float calcFreq(uint16_t val);
 uint16_t calcCoderFreq(float freq);
-uint16_t getAmpl(Voice* v,uint8_t wav);
+;
 void setLfosFrequency(float freq,uint8_t l,int8_t rc);
 void lfosHandler();
 void lfosInit();

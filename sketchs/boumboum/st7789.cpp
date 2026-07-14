@@ -636,6 +636,8 @@ void tft_draw_text_11x12_dma_mult(uint16_t x,uint16_t y,const char *s,uint16_t f
 
     for (int ligne = 0; ligne < (12-st); ligne++) {
 
+        fillVoices();
+
         for (int car =0; car < len; car++) {
 
             const uint16_t *glyph = font11x12[(uint8_t)s[car]];

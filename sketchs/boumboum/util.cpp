@@ -21,6 +21,7 @@
 #include "st7789.h"
 #include "menus.h"
 #include "input_tables_management.h"
+#include "sound_level_management.h"
 #include "miscControls.h"
 
 #define SYSTICK_BASE 0xE000E010UL
@@ -43,7 +44,7 @@ int32_t i2s_buf0[SAMPLES_PER_BUFFER*2] __attribute__((aligned(32)));     // le b
 int32_t i2s_buf1[SAMPLES_PER_BUFFER*2] __attribute__((aligned(32)));     // le buffer 1
 
 extern struct Voice voices[];
-extern uint16_t amplLevel[];
+//extern uint16_t amplLevel[];
 
 extern int32_t voicesScopeDataBuffer[];
 
@@ -308,7 +309,7 @@ void setup(){
     i2sSetup(_i2s_pio,PICO_AUDIO_I2S_DATA_PIN,i2s_dma_buffers);     // start i2s engine
 
     voices[0].coderWaveAmpl[WSIN]=31;
-    voices[0].basicWaveAmpl[WSIN]=getAmpl(&voices[0],WSIN); //<<GAIN_REDUC;
+    setVoicesAmpl(0,WSIN);
     printf("demo sinus f:%f rc:%i ampl:%d\n",fr0,cga,voices[0].basicWaveAmpl[WSIN]);delay_ms(100);      
     
     // tous les genAmpl sont à cga ; toutes les wavesAmpl à 0 sauf voices[0] sinus
@@ -327,7 +328,7 @@ void setup(){
 
     // après démo mute voices[0] sinus
     voices[0].coderWaveAmpl[WSIN]=cga;
-    voices[0].basicWaveAmpl[WSIN]=getAmpl(&voices[0],WSIN);
+    setVoicesAmpl(0,WSIN);
 
     gpio_irq_set = false;
     while(!gpio_irq_set){

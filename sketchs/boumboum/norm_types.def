@@ -1,8 +1,14 @@
 /* types names for normalization scheme of control inputs values */
 
     X(VCE_FREQ,"OFRQ")
-    X(VCE_CRA ,"OCRA")   
-    X(SND_AMPL,"SAMP")
+    X(VCE_CRA ,"OCRA")
+    X(VCE_WSIN,"VSIN")   
+    X(VCE_WTRI,"VTRI")
+    X(VCE_WSAW,"VSAW")
+    X(VCE_WSQR,"VSQR")
+    X(VCE_WHIT,"VWHI")
+    X(VCE_WPNK,"VPNK")
+    X(VCE_GENA,"VGEN")
     X(LFO_FREQ,"LFRQ")
     X(LFO_CRA ,"LCRA")
     X(A_ATTACK,"AATA")

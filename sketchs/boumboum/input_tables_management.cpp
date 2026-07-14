@@ -5,6 +5,7 @@
 #include "frequences.h"
 #include "miscControls.h"
 #include "input_tables_management.h"
+#include "sound_level_management.h"
 #include "util.h"
 
 #include "hardware/sync.h"
@@ -49,17 +50,22 @@ extern int16_t   lfosOutputsValues[MAX_LFO][MAX_OUTPUTS_PER_OBJ];
 //      les signaux audio 
 // chaque entrée a un codeur de valeur manuelle + coder d'atténuation pour une valeur "externe"
 // un paramètre interne de "normalisation" associé à chaque entrée sert à leur mise à l'échelle
-// la valeur finale de l'entrée est la somme entre valeur du coder et valeur "externe" normalisée et atténuée
+// la valeur finale de l'entrée est le résultat de la fonction setxxxxyyyy (ci-aprés) 
 // le nombre maxi d'entrées est fixe pour tous les objets et en général excédentaire
 // Donc, pour chaque entrée d'objet, il y a 4 variables stockées : valeur du coder de niveau manuel, niveau manuel normalisé, valeur de normalisation et valeur de coder d'atténuation
-// En cours de développement, les entrées "externes" ne sont pas toujours implémentées
+// En cours de développement, les valeurs de normalisation ne sont pas toujours implémentées
 //
 // la mise à jour d'une entrée d'un objet se fait avec la fonction set/objet/paramètre (ex setAdsrDur ou setLFoFreq)
-// avec des arguments selon le type d'objet (ex le n° d'objet, l'entrée concernéé et la valeur de l'entrée - setAdsrDur(adsr,ADSR_ATT,dur) )
-// en principe le coder et l'entrée sont linéaires et la "mise en courbe" de la somme est à la fin de la fonction setxxxxyyyy
-// cette somme est en principe un step dans une table, la valeur du step étant la vitesse de lecture de la table
-// la tables est lue dans le handler de l'objet (lfosHandler,AdsrHandler,FillVoices etc) à une fréquence d'échantillonage propre.
-// la fonction set est en principe utilisée 3 fois : dans les inits, dans le menu de saisie des coders et dans la mise à jour des entrées (update_inputs)
+// avec des arguments selon le type d'objet (ex le n° d'objet, l'entrée concernée et la valeur de l'entrée - setAdsrDur(adsr,ADSR_ATT,dur) )
+// Cas des fréquences et durées
+//      En principe le coder et l'entrée sont linéaires et la conversion de la somme est à la fin de la fonction setxxxxyyyy 
+//      cette somme est en principe un step dans une table, la valeur du step étant la vitesse de lecture de la table
+//      la table est lue dans le handler de l'objet (lfosHandler,AdsrHandler,FillVoices etc) à une fréquence d'échantillonage propre.
+// Cas des amplitudes
+//      Il s'agit de sons qui sont à ajouter : les 2 niveaux (coder et entrée atténuée/normalisée) sont convertis puis la somme est effecuée
+//      cette somme est l'indice d'une table de dé-linéarisation (amplLevel[])
+// la fonction set est utilisée 3 fois : dans les inits, dans le menu de saisie des coders et dans la mise à jour des entrées (update_inputs)
+// ainsi les paramètres utilisés dans la production des voices sont tenus à jour en temps réel (ils sont échantillonnés à chaque début de remplissage de buffer de son)
 //
 // il y a 2 types de sorties :
 //      les signaux audio
@@ -314,6 +320,14 @@ bool init_objects_inputs(void)
             switch(ins){
                 case VFRQ:ctl_input_update_type[curr_input]=VCE_FREQ;break;
                 case VCR_:ctl_input_update_type[curr_input]=VCE_CRA;break;
+                case VSPW:ctl_input_update_type[curr_input]=VCE_WSIN;break;
+                case VTPW:ctl_input_update_type[curr_input]=VCE_WTRI;break;
+                case VAPW:ctl_input_update_type[curr_input]=VCE_WSAW;break;
+                case VQPW:ctl_input_update_type[curr_input]=VCE_WSQR;break;
+                case VWPW:ctl_input_update_type[curr_input]=VCE_WHIT;break;
+                case VKPW:ctl_input_update_type[curr_input]=VCE_WPNK;break;
+                case VGPW:ctl_input_update_type[curr_input]=VCE_GENA;break;
+                default:break;
             }
             if(ins<VOICES_INPUTS_NB){
                 char buf[IN_OUT_NAME_LEN]={'V','C','E','S'};
@@ -455,7 +469,13 @@ void __not_in_flash_func(update_inputs)(uint8_t src,int16_t id,int16_t valeur)  
                 case VCE_CRA :  val=voices[object].coderCycleR+(valeur>>10)*voices[object].coderCycleRAtt/MAX_CTL_ATT; // 0-62 ; att 0-255                
                                 setVoiceFrequency(voices[object].frequency,&voices[object],val);        // ajouter un ctl d'overflow
                                 break;
-                case SND_AMPL:  break;
+                case VCE_WSIN:  setVoicesAmpl(object,WSIN);break;
+                case VCE_WTRI:  setVoicesAmpl(object,WTRI);break;
+                case VCE_WSAW:  setVoicesAmpl(object,WSAW);break;
+                case VCE_WSQR:  setVoicesAmpl(object,WSQR);break;
+                case VCE_WHIT:  setVoicesAmpl(object,WHIT);break;
+                case VCE_WPNK:  setVoicesAmpl(object,PONK);break;                                                                                                                
+                case VCE_GENA:  setVoicesAmpl(object,BASIC_WAVES_NB);break;
                 case LFO_FREQ:  val=(valeur>>3)*lfosCodersFreqAtt[object]/MAX_CTL_ATT;                  // 8k max VCES_MAX_FREQ_CODERS ; att 0-255 
                                 fr=calcFreq(val+lfosCodersFreq[object])/VOICE_FREQ_DIVIDER;
                                 //if(lfo==0){printf("l%d id:%d v:%i val:%i out#:%d fc:%i f:%f\n",lfo,id,valeur,val,output,lfosCodersFreq[lfo],fr);}
