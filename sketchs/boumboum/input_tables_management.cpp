@@ -462,20 +462,20 @@ void __not_in_flash_func(update_inputs)(uint8_t src,int16_t id,int16_t valeur)  
             //printf("s:%u/%u u_i:%i=%s:%u v:%i ",src0,src_id,id,ctl_input_name+id*IN_OUT_NAME_LEN,ctl_input_update_type[id],valeur);
 
             switch(ctl_input_update_type[id]){
-                case VCE_FREQ:  val=(valeur>>3)*voices[object].coderFreqAtt/MAX_CTL_ATT;                // 8k max VCES_MAX_FREQ_CODERS ; att 0-255
+                case VCE_FREQ:  val=(valeur>>6)*voices[object].coderFreqAtt/MAX_CTL_ATT;                // 8k max VCES_MAX_FREQ_CODERS ; att 0-255
                                 fr=calcFreq(val+voices[object].coderFreq);
                                 setVoiceFrequency(fr,&voices[object],voices[object].coderCycleR);       // ajouter un ctl d'overflow
                                 break;
                 case VCE_CRA :  val=voices[object].coderCycleR+(valeur>>10)*voices[object].coderCycleRAtt/MAX_CTL_ATT; // 0-62 ; att 0-255                
                                 setVoiceFrequency(voices[object].frequency,&voices[object],val);        // ajouter un ctl d'overflow
                                 break;
-                case VCE_WSIN:  setVoicesAmpl(object,WSIN);break;
-                case VCE_WTRI:  setVoicesAmpl(object,WTRI);break;
-                case VCE_WSAW:  setVoicesAmpl(object,WSAW);break;
-                case VCE_WSQR:  setVoicesAmpl(object,WSQR);break;
-                case VCE_WHIT:  setVoicesAmpl(object,WHIT);break;
-                case VCE_WPNK:  setVoicesAmpl(object,PONK);break;                                                                                                                
-                case VCE_GENA:  setVoicesAmpl(object,BASIC_WAVES_NB);break;
+                case VCE_WSIN:  setVoicesAmpl(object,WSIN,valeur);break;
+                case VCE_WTRI:  setVoicesAmpl(object,WTRI,valeur);break;
+                case VCE_WSAW:  setVoicesAmpl(object,WSAW,valeur);break;
+                case VCE_WSQR:  setVoicesAmpl(object,WSQR,valeur);break;
+                case VCE_WHIT:  setVoicesAmpl(object,WHIT,valeur);break;
+                case VCE_WPNK:  setVoicesAmpl(object,PONK,valeur);break;                                                                                                                
+                case VCE_GENA:  setVoicesAmpl(object,BASIC_WAVES_NB,valeur);break;
                 case LFO_FREQ:  val=(valeur>>3)*lfosCodersFreqAtt[object]/MAX_CTL_ATT;                  // 8k max VCES_MAX_FREQ_CODERS ; att 0-255 
                                 fr=calcFreq(val+lfosCodersFreq[object])/VOICE_FREQ_DIVIDER;
                                 //if(lfo==0){printf("l%d id:%d v:%i val:%i out#:%d fc:%i f:%f\n",lfo,id,valeur,val,output,lfosCodersFreq[lfo],fr);}

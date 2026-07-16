@@ -42,21 +42,35 @@ void fillAmplIncr(){          // fonctionne avec stepAmpl mini 2 !!!
 }
 
 int32_t v0=0;
-void setVoicesAmpl(uint8_t v,uint8_t item){         // basicWaveAmpl est calculé avec {coderWaveAmpl , coderWaveAmplAtt , ctl_input_val et amplLevel}
-    uint8_t shift= (sizeof(ctl_input_val[0])*8) - (32 - __builtin_clz(MAX_16B_LINEAR_VALUE-1));         // pour recadrage de val sur la taille de amplLevel
+void __not_in_flash_func(setVoicesAmpl)(uint8_t v,uint8_t item,int32_t valeur){         // basicWaveAmpl est calculé avec {coderWaveAmpl , coderWaveAmplAtt , ctl_input_val et amplLevel}
+
+    uint32_t s16=(1<<16)-1;
+    uint8_t shift=8;
     
-    if(item==BASIC_WAVES_NB){
-        voices[v].genAmpl=
-        amplLevel[voices[v].coderGenAmpl/MAX_16B_LINEAR_VALUE]+amplLevel[((ctl_input_val[voices[v].voice_ctl_input_id[item]])>>shift)*voices[v].coderGenAmplAtt];
+    ctl_input_val[voices[v].voice_ctl_input_id[item]]=valeur;
+
+    if(item==BASIC_WAVES_NB){                                                           // gestion de genAmpl
+        int32_t v0=(int16_t)(valeur*voices[v].coderGenAmplAtt)>>shift;
+        int32_t v1=amplLevel[voices[v].coderGenAmpl]+v0;
+        if(v1<0){v1=0;}
+        if(v1>s16){v1=s16;}
+        voices[v].genAmpl=v1;        
     }
-    else {
-        voices[v].basicWaveAmpl[item]=
-        amplLevel[voices[v].coderWaveAmpl[item]]+amplLevel[((ctl_input_val[voices[v].voice_ctl_input_id[item]])>>shift)]*voices[v].coderWaveAmplAtt[item]; 
+    else                                                                                // les waves
+    {
+        int32_t v0=(int16_t)(valeur*voices[v].coderWaveAmplAtt[item])>>shift;           // (lfo/adsr valeur int16_t) (coderAtt 0-256) résultat int16_t 
+        int32_t v1=(int32_t)amplLevel[voices[v].coderWaveAmpl[item]]+v0;                // amplLevel uint16_t ; v1 = 2*int16_t -> int32_t 
+        if(v1<0){v1=0;}
+        if(v1>s16){v1=s16;}
+        voices[v].basicWaveAmpl[item]=v1;                                               // 0 -> (0x7fff)
+
 if(voices[v].basicWaveAmpl[item]!=v0){
-    printf("%u %u %i x:%u v:%i\n",v,item,voices[v].basicWaveAmpl[item],voices[v].voice_ctl_input_id[item],ctl_input_val[voices[v].voice_ctl_input_id[item]]);
+    printf("%u %u %i x:%u v:%i v0:%i val:%i\n",v,item,voices[v].basicWaveAmpl[item],voices[v].voice_ctl_input_id[item],ctl_input_val[voices[v].voice_ctl_input_id[item]],v0,valeur);
     v0=voices[v].basicWaveAmpl[item];
 }
     }
 }
 
-
+void __not_in_flash_func(setVoicesAmpl)(uint8_t v,uint8_t item){
+    setVoicesAmpl(v,item,ctl_input_val[voices[v].voice_ctl_input_id[item]]);
+}

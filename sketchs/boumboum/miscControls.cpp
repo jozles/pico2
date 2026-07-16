@@ -86,7 +86,7 @@ const uint32_t yTableQ16[DUR_ECH_NB] = {
 };
 
 uint32_t stepTableQ16[DUR_ECH_NB];              // coefficient RC par durée (Q16)
-uint16_t rcCurve[RC_SAMPLES_NB];                // courbe RC 0..65535 
+uint16_t rcCurve[RC_SAMPLES_NB];                // courbe RC 0..32763 pour compatibilié avec autres sorties en int16_t  
 
 const uint32_t stepMinQ16 = 32768;                    // 0.5 en Q16
 const uint32_t stepMaxQ16 = (RC_SAMPLES_NB << 16);    // RC_SAMPLES_NB en Q16
@@ -204,8 +204,9 @@ void __not_in_flash_func(adsrHandler)()
         for(uint8_t a=0;a<MAX_ADSR;a++)
         {
             src+=a;
-            uint16_t* ov=&adsrOutputsValues[a];
-            uint16_t  ov0;
+            //uint16_t* ov=&adsrOutputsValues[a];
+            uint16_t  ov_=0;
+            uint32_t  ov0;
             uint8_t*  as=&adsrStatus[a];
             uint16_t* ap=&adsrScopeBufPtr[a];
             if (__builtin_expect(*as != ADSR_OFF, 0)) {
@@ -220,7 +221,8 @@ void __not_in_flash_func(adsrHandler)()
                 switch(*as){
                     case ADSR_ATT:
                         cx=adsrNext(ce,adsrDurAtt[a]);
-                        *ov=rcCurve[cx];
+                        //*ov=rcCurve[cx]/2;    // produit des valeurs 0 -> 0xffff (uint) ; limiter à 0x7fff pour compatibilité update_inputs)
+                        ov_=rcCurve[cx]/2;    // produit des valeurs 0 -> 0xffff (uint) ; limiter à 0x7fff pour compatibilité update_inputs)
 
                         if (cx == RC_SAMPLES_NB-1) { *ce = 0; *as = ADSR_DEC;}
                         break;
@@ -230,14 +232,17 @@ void __not_in_flash_func(adsrHandler)()
                         cx=adsrNext(ce,adsrDurDec[a]);
                         ov0=rcCurve[cx];
                         //*ov = P16 - (((uint32_t)(P16 - lev) * ov0) >> 16);   //
-                        *ov  = (uint16_t)((uint32_t)P16 - ((uint32_t)(P16 - lev) * (uint32_t)ov0)/ (uint32_t)P16);
+                        //*ov  = (uint16_t)((uint32_t)P16 - ((uint32_t)(P16 - lev) * (uint32_t)ov0)/ (uint32_t)P16);
+                        ov_  = (uint16_t)(((uint32_t)P16 - ((uint32_t)(P16 - lev) * (uint32_t)ov0)/ (uint32_t)P16)/2);
+
 
                         if (cx == RC_SAMPLES_NB-1) {*ce = 0; *as = ADSR_SUS;}                        
                         break;
 
                     case ADSR_SUS:
                         cx=adsrNext(ce,adsrDurSus[a]);  // timing management                    
-                        *ov=lev;
+                        //*ov=lev;
+                        ov_=lev/2;
 
                         if (cx == RC_SAMPLES_NB-1) { *ce = 0; *as = ADSR_REL;}
                         break;
@@ -247,20 +252,22 @@ void __not_in_flash_func(adsrHandler)()
                         cx=adsrNext(ce,adsrDurRel[a]);
                         ov0=rcCurve[cx];
                         //*ov = lev - (((uint64_t)lev * ov0) >> 15);   
-                        *ov = (uint16_t)((uint32_t)lev - (uint32_t)((uint32_t)lev * (uint32_t)ov0) / (uint32_t)P16);
+                        //*ov = (uint16_t)((uint32_t)lev - (uint32_t)((uint32_t)lev * (uint32_t)ov0) / (uint32_t)P16);
+                        ov_ = (uint16_t)(((uint32_t)lev - (uint32_t)((uint32_t)lev * (uint32_t)ov0) / (uint32_t)P16)/2);
 
-                        if (cx == RC_SAMPLES_NB-1) { *ce = 0; *as = ADSR_OFF;*ov=0;} 
+                        //if (cx == RC_SAMPLES_NB-1) { *ce = 0; *as = ADSR_OFF;*ov=0;} 
+                        if (cx == RC_SAMPLES_NB-1) { *ce = 0; *as = ADSR_OFF;ov_=0;} 
                         break;
 
                     default:break;
                 }
     
                 out_id=ctl_output_id_chain[adsr_ctl_output_id[a]];
-                if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(src,out_id,*ov);}
+                //if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(src,out_id,*ov);}
+                if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(src,out_id,ov_);}
 
-                adsrScopeBufReal[a*ADSR_SCOPE_BUFFER_LEN + *ap]=*ov;
-
-                //printf("cx:%u o:%u ap:%u\n",cx,*ov,*ap);
+                //adsrScopeBufReal[a*ADSR_SCOPE_BUFFER_LEN + *ap]=*ov;
+                adsrScopeBufReal[a*ADSR_SCOPE_BUFFER_LEN + *ap]=ov_;
 
                 (*ap)++;  // until ADSR_OFF
             }
