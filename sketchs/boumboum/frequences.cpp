@@ -132,13 +132,6 @@ static inline void get_noise(int16_t *white, int16_t *pink)
 // *************************** tables *******************************
 
 // tableau des fréquences d'octaves
-void fillOctFreq() { 
-  for (uint8_t i = 0; i <= octNb; i++) {
-    octFreq[i] = baseFreq * (1<<i); 
-  }
-  //showOctFreq();  
-}
-
 void showOctFreq() 
 { 
   printf("  fréquences des octaves\n");
@@ -146,6 +139,13 @@ void showOctFreq()
     printf("%d: %5.3f - ",i,octFreq[i]);
   }
   printf("\n");
+}
+
+void fillOctFreq() { 
+  for (uint8_t i = 0; i <= octNb; i++) {
+    octFreq[i] = baseFreq * (1<<i); 
+  }
+  //showOctFreq();  
 }
 
 // tableau des ratios d'incréments sur 1 octave
@@ -182,7 +182,7 @@ void showOctIncr(float oct0,float octn)
 // initialisation des tableaux pour permettre calcFreq()
 void sound_tables_init()        
 {  
-  printf(" sound_tables_init\n");
+  printf("sound_tables_init\n");
   
 init_basic_sine_table();
 
@@ -196,6 +196,7 @@ init_basic_sine_table();
 
 void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)    // cga = genAmpl level
 {
+    printf("%u voices init\n",MAX_VOICES);
     for(uint8_t v=0;v<MAX_VOICES;v++){
         //voices[v].maxCoderFreq=VCES_MAX_FREQ_CODERS;
         //voices[v].genAmpl=0x0001;                       // minimal non zero
@@ -298,6 +299,7 @@ void __not_in_flash_func(setLfosFrequency)(float freq,uint8_t lfo,int8_t rc){
 }
 
 void lfosInit(){
+    printf("%u lfos init\n",MAX_LFO);
     for(uint8_t l=0;l<MAX_LFO;l++){
 
         lfosCodersFreq[l]=1768;    // 1.5s

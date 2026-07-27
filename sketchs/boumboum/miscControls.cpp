@@ -42,6 +42,7 @@ bool adsrScopeDisp[MAX_ADSR];
 
 void adsrInit()
 {
+    printf("%u adsr init\n",MAX_ADSR);
     for(uint8_t a=0;a<MAX_ADSR;a++){
 
         adsrDurAtt[a]=0;

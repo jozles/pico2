@@ -86,7 +86,7 @@ typedef enum {
 /* Voices */
 
 #define MAX_VOICES 4 
-#define VCES_MAX_FREQ_CODERS 10000
+#define VCES_MAX_FREQ_CODERS 4399
 #define VCES_MIN_FREQ_CODERS 25
 #define VCES_MAX_AMPL_CODERS MAX_16B_LINEAR_VALUE
 #define GAIN_REDUC 8                    // gain reduction shift in fillVoices
@@ -95,7 +95,7 @@ typedef enum {
 
 #define MAX_LFO 4
 #define LFOS_SAMPLE_RATE 40
-#define LFOS_MAX_FREQ_CODERS 3000
+#define LFOS_MAX_FREQ_CODERS VCES_MAX_FREQ_CODERS //3000
 #define LFOS_MIN_FREQ_CODERS 420        // 30sec
 #define OSC_SCOPE_BUFFER_LEN 256        // SAMPLE_BUFFER_SIZE         // OSC_SCOPE
 #define VOICE_FREQ_DIVIDER  1024        // pour usage conjoint de calcFreq()

@@ -566,12 +566,12 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                         /*int16_t fi = ctl_input_val[lfo_ctl_input_id[line][VFRQ]]>>3;        // normalisation ctl_input_freq 
                         uint16_t fc = cc+fi*lfosCodersFreqAtt[line]/MAX_CTL_ATT;            // fc=coderFreq+ctl_input_freq atténué                
                         setLfosFrequency(calcFreq(fc)/VOICE_FREQ_DIVIDER,line,lfosCoderCycleR[line]);*/
-                    }break;
+                        }break;
                     case OSCCODERCRA:if(varChge){                                           // cc=coder cra
                         int16_t cra = ctl_input_val[lfo_ctl_input_id[line][LCR_]]>>10;      // normalisation ctl_input_cra 
                         int16_t cr = lfosCoderCycleR[line]+cra*cc/MAX_CTL_ATT;              // cr=coderCra+ctl_input_cra atténué 
-                        setLfosFrequency(lfosFrequency[line],line,cr);}
-                        break;
+                        setLfosFrequency(lfosFrequency[line],line,cr);
+                        }break;
                     case OSCCODERFREQATT:if(varChge){                                       // cc=coder attenuator input freq 
                         setLfosFreqAtt(line,cc);
                         /*lfosCodersFreqAtt[line]=cc;                                        
@@ -587,8 +587,8 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                         int16_t cr = lfosCoderCycleR[line]+cra*cc/MAX_CTL_ATT;              // cr=coderCra+ctl_input_cra atténué
                         printf("lfo#:%d cc(att):%d crinp:%i codCr:%i f_id:%d \n",line,cc,cra,cr,lfo_ctl_input_id[line][LCR_]);
                         signal_overflow("vce_cra:",line,cr,MINCODER_RC,MAXCODER_RC);
-                        setLfosFrequency(lfosFrequency[line],line,cr);}
-                        break;
+                        setLfosFrequency(lfosFrequency[line],line,cr);
+                        }break;
                     default:break;
                 }
                 sprintf(buf+2,"%1.3f %1.3f %d   ",lfosFrequency[line],1/lfosFrequency[line],lfosCoderCycleR[line]-MAXCODER_RC/2);
@@ -665,7 +665,7 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
 
 void fullMenuDsp(const char* title,const char* menu,uint8_t linesNb,uint8_t line_len,uint8_t currline,uint8_t type,uint8_t coder,uint32_t cc,bool mode_scope){
 
-    tft_fill_rect_blank(begline,0,TFT_H-begline,TFT_W);
+    tft_fill_rect_blank(0,0,TFT_H-begline,TFT_W);
     title_dsp(title,0,type);
     uint8_t bgl=0;          // first line to display
     if(type==0){bgl=1;}     // skip unused MENU0___ entry
@@ -706,15 +706,13 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
 
     while(1){
             
-            fillVoices();
-        
+            fillVoices();        
             ws_show_3(30);
             ledblinkn(2);
-            if(!mode_scope){test_st7789_2();}    // animation balayage de lignes
-            
+            if(!mode_scope){test_st7789_2();}    // animation balayage de lignes            
             if(debug_ticker()){
                 //if(adsrStatus[0]==ADSR_OFF){adsrStatus[0]=ADSR_ATT;adsrCurrEch[0]=0;}
-                }          
+            }          
 
             int s=tst_switchs_(switchsNb);            
             if(s==0 || s==-99){return line;}    // switch du coder 0 ou capaTouch
@@ -725,11 +723,13 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
                 wave=s-1;
             } 
 
+//if(type_objet==VOICES_AM){printf("VOICES_AM\n");while(1){fillVoices();}}
+
             for(uint8_t coder=0;coder<varNb+1;coder++){       
 
                 // sleep_ms(1); // needeed for coder stabilizes
                 uint32_t cc=cTC[coder];
-                if(type_objet==0 && cc==0){cc=1;}   // skip unused MENU0____ entry
+                if(type_objet==MENU0____ && cc==0){cc=1;}   // skip unused MENU0____ entry
 
                 // coder 0 : depl vertical
                 if(coder==0 && cc!=line){
@@ -754,6 +754,7 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
                         }
                 }        
             }
+
             if(mode_scope){
                 switch(type_objet){
                     case LFOS_____:if(firstScope){title_dsp(title,line,LFOS_____);}    

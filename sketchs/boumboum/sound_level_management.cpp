@@ -71,7 +71,8 @@ void __not_in_flash_func(setVoicesAmpl)(uint8_t v,uint8_t item,int32_t valeur){ 
         voices[v].basicWaveAmpl[item]=v1;                                               // 0 -> (0x7fff)
 
 //if(voices[v].basicWaveAmpl[item]!=vx){
-    printf("%u %u %i x:%u vat:%u v:%i v0:%i val:%i\n",v,item,voices[v].basicWaveAmpl[item],voices[v].voice_ctl_input_id[item],voices[v].coderWaveAmplAtt,ctl_input_val[voices[v].voice_ctl_input_id[item]],v0,vat);
+    //printf("%u %u %i x:%u vat:%u v:%i v0:%i val:%i\n",v,item,voices[v].basicWaveAmpl[item],voices[v].voice_ctl_input_id[item],voices[v].coderWaveAmplAtt,ctl_input_val[voices[v].voice_ctl_input_id[item]],v0,vat);
+    //printf("%u %u %i %u %i\n",v,item,valeur,voices[v].coderWaveAmplAtt[item],v1);
     vx=voices[v].basicWaveAmpl[item];
 //}
     }
@@ -86,23 +87,39 @@ void __not_in_flash_func(setVoicesFreqAtt)(uint8_t v,uint32_t coderF)
                         voices[v].coderFreqAtt=coderF;                                           // atténuateur pour ctl_input_freq 
                         int16_t fi = ctl_input_val[voices[0].voice_ctl_input_id[VFRQ]]>>3;       // normalisation ctl_input_freq
                         uint32_t fc = voices[v].coderFreq+fi*coderF/MAX_CTL_ATT;                 // fc=coderFreq+ctl_input_freq atténué 
-                        signal_overflow("lfo_freq:",v,fc,VCES_MIN_FREQ_CODERS,VCES_MAX_FREQ_CODERS);
+                        signal_overflow("vce_freq:",v,fc,VCES_MIN_FREQ_CODERS,VCES_MAX_FREQ_CODERS);
                         setVoiceFrequency(calcFreq(fc),&voices[v],voices[v].coderCycleR);   
 }
 
+void __not_in_flash_func(setLfosFrParams)(uint8_t l)
+{
+                        int16_t fi = ctl_input_val[lfo_ctl_input_id[l][VFRQ]]>>3;                 // normalisation ctl_input_freq
+                        int16_t fc = lfosCodersFreq[l]+fi*lfosCodersFreqAtt[l]/MAX_CTL_ATT;                     // fc=coderFreq+ctl_input_freq atténué
+
+                        signal_overflow("lfo_freq:",l,fc,LFOS_MIN_FREQ_CODERS,LFOS_MAX_FREQ_CODERS);
+                        float fr=calcFreq(fc)/VOICE_FREQ_DIVIDER;
+                        setLfosFrequency(fr,l,lfosCoderCycleR[l]);
+                        printf("lfo#:%d cfr:%u cFrAtt:%u fi:%i fc:%i fr:%f f_id:%d \n",l,lfosCodersFreq[l],lfosCodersFreqAtt[l],fi,fc,fr,lfo_ctl_input_id[l][VFRQ]);                        
+}
+
+
 void __not_in_flash_func(setLfosFreqAtt)(uint8_t l,uint32_t coderF)
 {
-                        lfosCodersFreqAtt[l]=coderF;                                        
-                        int16_t fi = ctl_input_val[lfo_ctl_input_id[l][VFRQ]]>>3;        // normalisation ctl_input_freq
-                        int16_t fc = lfosCodersFreq[l]+fi*coderF/MAX_CTL_ATT;                // fc=coderFreq+ctl_input_freq atténué
-                        printf("lfo#:%d cc(att):%d finp:%i fc:%i f_id:%d \n",l,coderF,fi,fc,lfo_ctl_input_id[l][VFRQ]);
-                        signal_overflow("vce_freq:",l,fc,LFOS_MIN_FREQ_CODERS,LFOS_MAX_FREQ_CODERS);
-                        setLfosFrequency(calcFreq(fc)/VOICE_FREQ_DIVIDER,l,lfosCoderCycleR[l]);
+                        lfosCodersFreqAtt[l]=coderF;
+                        setLfosFrParams(l);
+
+                        /*int16_t fi = ctl_input_val[lfo_ctl_input_id[l][VFRQ]]>>3;                 // normalisation ctl_input_freq
+                        int16_t fc = lfosCodersFreq[l]+fi*coderF/MAX_CTL_ATT;                     // fc=coderFreq+ctl_input_freq atténué
+                        //printf("lfo#:%d cc(att):%d finp:%i fc:%i f_id:%d \n",l,coderF,fi,fc,lfo_ctl_input_id[l][VFRQ]);
+                        signal_overflow("lfo_freq:",l,fc,LFOS_MIN_FREQ_CODERS,LFOS_MAX_FREQ_CODERS);
+                        setLfosFrequency(calcFreq(fc)/VOICE_FREQ_DIVIDER,l,lfosCoderCycleR[l]);*/
 }
 
 void __not_in_flash_func(setLfosFreq)(uint8_t l,uint32_t coderF)
 {
-                        int16_t fi = ctl_input_val[lfo_ctl_input_id[l][VFRQ]]>>3;        // normalisation ctl_input_freq 
-                        uint16_t fc = coderF+fi*lfosCodersFreqAtt[l]/MAX_CTL_ATT;            // fc=coderFreq+ctl_input_freq atténué                
-                        setLfosFrequency(calcFreq(fc)/VOICE_FREQ_DIVIDER,l,lfosCoderCycleR[l]);    
+                        lfosCodersFreq[l]=coderF;
+                        setLfosFrParams(l);
+                        /*int16_t fi = ctl_input_val[lfo_ctl_input_id[l][VFRQ]]>>3;                 // normalisation ctl_input_freq 
+                        uint16_t fc = coderF+fi*lfosCodersFreqAtt[l]/MAX_CTL_ATT;                 // fc=coderFreq+ctl_input_freq atténué                
+                        setLfosFrequency(calcFreq(fc)/VOICE_FREQ_DIVIDER,l,lfosCoderCycleR[l]);*/    
 }

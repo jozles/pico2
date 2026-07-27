@@ -86,7 +86,7 @@ void system_error(const char* s)
 uint32_t signal_overflow(const char* s,uint16_t id,int32_t val,int32_t min,int32_t max)
 {
     if(val>max || val<min){
-        printf("signal ovf:%s id:%d\n",s,id);
+        printf("signal ovf:%s (min:%u max:%u v:%u) id:%d\n",s,min,max,val,id);
         tft_draw_text_12x12_dma_mult(0,0,s,0x001f,0,2);
         char buf[TFT_W/12+1];
         int8_t l=convIntToString(buf,val);buf[l]=';';
@@ -162,7 +162,11 @@ void pwm_timer_1khz_enable(bool start_stop)
     pwm_set_irq_enabled(pwm_irq_slice, start_stop);  // start_stop la source d’IRQ
     irq_set_enabled(PWM_IRQ_WRAP, start_stop);       // start_stop l’IRQ dans le NVIC
 
-    if(!start_stop){pwm_clear_irq(pwm_irq_slice);}   // vide le pending IRQ
+    if(!start_stop){
+        pwm_clear_irq(pwm_irq_slice);    // vide le pending IRQ
+        printf("1KHz PWM timer stopped\n");
+    }
+    else printf("1KHz PWM timer started\n");        
 
 }
 
@@ -364,7 +368,7 @@ void setup(){
 
     tft_fill_rect_blank(0,0,TFT_H,TFT_W);
 
-    printf("end setup \n");
+    printf("end setup \n\n");
 //print_diag();
 }
 
@@ -381,24 +385,39 @@ void sub_test(uint16_t inp,uint16_t out)
 
 void testSetup()
 {
+    printf("\ntest-setup\n");
     uint16_t inp=0;
     uint8_t ln=IN_OUT_NAME_LEN-1;
+    uint8_t lfoAdsr=2;
     // in46 out19 ADSR00STA LFO02SAW
     sub_test(46,19);
     // in77 out02 VCES00FRE LFO00TRI
-    sub_test(81,2);
+    sub_test(81,lfoAdsr);
     // in81 out33 VCES00SIP ADSR00
-    sub_test(83,33);   
-    // Vce0SinAmpl 20
-    voices[0].coderWaveAmpl[WSIN]=20;
-    setVoicesAmpl(0,WSIN);
-    // Vce0SinAmpAtt 255
-    voices[0].coderWaveAmplAtt[WSIN]=255;
-    setVoicesAmpl(0,WSIN);
+    sub_test(83,33);
+
+    printf("lfo:%u f:%f\n",lfoAdsr,lfosFrequency[lfoAdsr]);
+
+    uint32_t lf=3500;   //VCES_MAX_FREQ_CODERS;
+    uint8_t  lfo=0;   
     // LFO0Fre VCES_MAX_FREQ_CODERS
-    setLfosFreq(0,VCES_MAX_FREQ_CODERS);         
+    setLfosFreq(lfo,lf);
+    printf("lfo:%u coderf:%u f:%f\n",lfo,lf,lfosFrequency[lfo]);
+    
+    uint8_t voice=0;
+    uint8_t wave=WSIN;
+    uint16_t coderAmpl=20;
+    // Vce0SinAmpl 20
+    voices[voice].coderWaveAmpl[wave]=coderAmpl;
+    //setVoicesAmpl(0,WSIN);
+    // Vce0SinAmpAtt 255
+    voices[voice].coderWaveAmplAtt[wave]=255;
+    setVoicesAmpl(voice,wave);
+         
     // Vce0FreAtt 7
-    setVoicesFreqAtt(0,7);  
+    setVoicesFreqAtt(0,10);
+    
+    printf("voice:%u freq:%f frAtt:%i wave:%u Ampl:%u amplAtt:%i\n\n",voice,voices[voice].coderFreq,voices[voice].coderFreqAtt,wave,coderAmpl,voices[voice].coderWaveAmplAtt[wave]);
 }
 
 // ******** diags/debug ********
