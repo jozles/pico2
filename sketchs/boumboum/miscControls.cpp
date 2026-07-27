@@ -267,7 +267,11 @@ void __not_in_flash_func(adsrHandler)()
     
                 out_id=ctl_output_id_chain[adsr_ctl_output_id[a]];
                 //if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(src,out_id,*ov);}
-                if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(src,out_id,ov_);}
+                if (__builtin_expect(out_id != NO_LINK, 0)){
+                    update_inputs(src,out_id,ov_);
+                }
+
+                //if(a==0){printf("%u\n",ov_);}
 
                 //adsrScopeBufReal[a*ADSR_SCOPE_BUFFER_LEN + *ap]=*ov;
                 adsrScopeBufReal[a*ADSR_SCOPE_BUFFER_LEN + *ap]=ov_;

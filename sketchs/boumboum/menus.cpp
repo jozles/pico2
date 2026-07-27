@@ -222,12 +222,12 @@ void menus_init(){
     vcesVarM[WHIT]=tempVcesCoderAmp[WHIT];
     vcesVarM[PONK]=tempVcesCoderAmp[PONK];
     menuVcesCodersM[OSCMENU]=0;                  // line 0 du menu
-    menuVcesCodersM[WSIN]=voices[0].basicWaveAmpl[WSIN];
-    menuVcesCodersM[WTRI]=voices[0].basicWaveAmpl[WTRI];
-    menuVcesCodersM[WSAW]=voices[0].basicWaveAmpl[WSAW];     
-    menuVcesCodersM[WSQR]=voices[0].basicWaveAmpl[WSQR];
-    menuVcesCodersM[WHIT]=voices[0].basicWaveAmpl[WHIT];
-    menuVcesCodersM[PONK]=voices[0].basicWaveAmpl[PONK];
+    menuVcesCodersM[WSIN+1]=voices[0].basicWaveAmpl[WSIN];
+    menuVcesCodersM[WTRI+1]=voices[0].basicWaveAmpl[WTRI];
+    menuVcesCodersM[WSAW+1]=voices[0].basicWaveAmpl[WSAW];     
+    menuVcesCodersM[WSQR+1]=voices[0].basicWaveAmpl[WSQR];
+    menuVcesCodersM[WHIT+1]=voices[0].basicWaveAmpl[WHIT];
+    menuVcesCodersM[PONK+1]=voices[0].basicWaveAmpl[PONK];
             // ***  voices Att ***
     vcesVarT[WSIN]=tempVcesCoderAtt[WSIN];   
     vcesVarT[WTRI]=tempVcesCoderAtt[WTRI];
@@ -236,12 +236,12 @@ void menus_init(){
     vcesVarT[WHIT]=tempVcesCoderAtt[WHIT];
     vcesVarT[PONK]=tempVcesCoderAtt[PONK];
     menuVcesCodersT[OSCMENU]=0;                  // line 0 du menu
-    menuVcesCodersT[WSIN]=voices[0].coderWaveAmplAtt[WSIN];
-    menuVcesCodersT[WTRI]=voices[0].coderWaveAmplAtt[WTRI];
-    menuVcesCodersT[WSAW]=voices[0].coderWaveAmplAtt[WSAW];     
-    menuVcesCodersT[WSQR]=voices[0].coderWaveAmplAtt[WSQR];
-    menuVcesCodersT[WHIT]=voices[0].coderWaveAmplAtt[WHIT];
-    menuVcesCodersT[PONK]=voices[0].coderWaveAmplAtt[PONK];
+    menuVcesCodersT[WSIN+1]=voices[0].coderWaveAmplAtt[WSIN];
+    menuVcesCodersT[WTRI+1]=voices[0].coderWaveAmplAtt[WTRI];
+    menuVcesCodersT[WSAW+1]=voices[0].coderWaveAmplAtt[WSAW];     
+    menuVcesCodersT[WSQR+1]=voices[0].coderWaveAmplAtt[WSQR];
+    menuVcesCodersT[WHIT+1]=voices[0].coderWaveAmplAtt[WHIT];
+    menuVcesCodersT[PONK+1]=voices[0].coderWaveAmplAtt[PONK];
     // ***  Adsr  ****
     adsrVar[ADSRATT-1]=adsrCoderAtt;            // adsrVar[0]
     adsrVar[ADSRDEC-1]=adsrCoderDec;            // adsrVar[1]
@@ -723,6 +723,7 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
                 wave=s-1;
             } 
 
+//printf("0\n");            
 //if(type_objet==VOICES_AM){printf("VOICES_AM\n");while(1){fillVoices();}}
 
             for(uint8_t coder=0;coder<varNb+1;coder++){       
@@ -734,6 +735,8 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
                 // coder 0 : depl vertical
                 if(coder==0 && cc!=line){
                                   
+//printf("1_%u\n",cc);
+
                     menuLineDsp(text,line,line_len,false,type_objet,coder,cc,mode_scope,NO_VAR_CHANGE);    // no reverse display
                     line=cc;
                     for(uint8_t k=0;k<varNb;k++){
@@ -747,6 +750,8 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
 
                 // coders 1 à n update variables des enregistrements
                 if(varNb>0 && coder>0 && var[coder-1]!=nullptr){        // coder 0 pour depl vertical ; (ex lfos : coder 1 freq, coder 2 rc)
+
+//printf("2_%u\n",cc);                    
                         if(var[coder-1][line]!=cc){                     // update coder value & display changes 
                             var[coder-1][line]=cc;
                             menuLineDsp(text,line,line_len,true,type_objet,coder,cc,mode_scope,VAR_CHANGE);  // include values updates

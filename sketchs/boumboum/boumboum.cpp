@@ -66,9 +66,9 @@ int main() {
     print_memory_report();
 
 if (watchdog_caused_reboot()) {
-    printf("RESET = WATCHDOG\n");
+    printf("RESET = WATCHDOG\n\n");
 } else {
-    printf("RESET = NORMAL\n");
+    printf("RESET = NORMAL\n\n");
 }
     setup();
     init_test_7789(20,25*8,0,TFT_H-12*8,TFT_H,1);       // init screen animation

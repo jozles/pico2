@@ -44,7 +44,7 @@ struct Voice {
     volatile uint32_t    basicWaveAmpl[BASIC_WAVES_NB];     // wave ampl value
     volatile uint16_t    coderWaveAmpl[BASIC_WAVES_NB];     // wave ampl coder value
     //uint16_t    maxCoderWaveAmpl[BASIC_WAVES_NB];           // wave ampl max coder value    
-    int16_t     coderWaveAmplAtt[BASIC_WAVES_NB];           // wave ampl input attenuator value
+    uint16_t    coderWaveAmplAtt[BASIC_WAVES_NB];           // wave ampl input attenuator value
     
     bool        coderSw[CODER_NB];              // last Switch
     uint16_t    soundsCc[CODER_BANK_NB];

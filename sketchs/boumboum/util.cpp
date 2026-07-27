@@ -406,12 +406,12 @@ void testSetup()
     
     uint8_t voice=0;
     uint8_t wave=WSIN;
-    uint16_t coderAmpl=20;
+    uint16_t coderAmpl=10;
     // Vce0SinAmpl 20
-    voices[voice].coderWaveAmpl[wave]=coderAmpl;
+    voices[voice].coderWaveAmpl[wave]=coderAmpl;    // manual level
     //setVoicesAmpl(0,WSIN);
     // Vce0SinAmpAtt 255
-    voices[voice].coderWaveAmplAtt[wave]=255;
+    voices[voice].coderWaveAmplAtt[wave]=15;        // input level
     setVoicesAmpl(voice,wave);
          
     // Vce0FreAtt 7
@@ -970,5 +970,5 @@ void print_memory_report(void) {
     printf("\n--- RAM libre ---\n");
     printf("RAM libre (heap→stack): %u bytes\n", ram_free);
 
-    printf("\n=====================================\n\n");
+    printf("=====================================\n\n");
 }

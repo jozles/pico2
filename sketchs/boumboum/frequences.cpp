@@ -398,10 +398,11 @@ void __not_in_flash_func(lfosHandler)()
         lfosOutputsValues[l][LSQR]=c3;
         if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(src,out_id,c3);}
         
-        lfoScopeBufReal[l*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB + lfoScopeBufPtr*BASIC_WAVES_NB+LSIN]=c0;
-        lfoScopeBufReal[l*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB + lfoScopeBufPtr*BASIC_WAVES_NB+LTRI]=c1;
-        lfoScopeBufReal[l*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB + lfoScopeBufPtr*BASIC_WAVES_NB+LSAW]=c2;
-        lfoScopeBufReal[l*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB + lfoScopeBufPtr*BASIC_WAVES_NB+LSQR]=c3;
+        uint32_t bufScopeOffset=l*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB + lfoScopeBufPtr*BASIC_WAVES_NB;
+        lfoScopeBufReal[bufScopeOffset+LSIN]=c0;
+        lfoScopeBufReal[bufScopeOffset+LTRI]=c1;
+        lfoScopeBufReal[bufScopeOffset+LSAW]=c2;
+        lfoScopeBufReal[bufScopeOffset+LSQR]=c3;
         //if(l==0){printf("ptr:%d obj:%d c0:%i c1:%i c2:%i c3:%i\n",lfoScopeBufPtr,l,c0,c1,c2,c3);}
       }
     lfoScopeBufPtr++;
@@ -436,15 +437,15 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
       const int16_t* rcTableCurr = &rc_tables[rcTableNb][0][0];
       const int16_t* rcTable32 = &rc_tables[32][0][0];                           // base table 32 pour saw      
 
-// init waves ampl      
-      int32_t  waveAmplSin  = v->basicWaveAmpl[WSIN];
-      int32_t  waveAmplTri  = v->basicWaveAmpl[WTRI];
-      int32_t  waveAmplSaw  = v->basicWaveAmpl[WSAW];        
-      int32_t  waveAmplSqr  = v->basicWaveAmpl[WSQR]; 
-      int32_t  waveAmplWhi  = v->basicWaveAmpl[WHIT];
-      int32_t  waveAmplPnk  = v->basicWaveAmpl[PONK];
+// init waves ampl (pointers necessary for real time change)     
+      volatile uint32_t* waveAmplSin = &v->basicWaveAmpl[WSIN];
+      volatile uint32_t* waveAmplTri = &v->basicWaveAmpl[WTRI];
+      volatile uint32_t* waveAmplSaw = &v->basicWaveAmpl[WSAW];        
+      volatile uint32_t* waveAmplSqr = &v->basicWaveAmpl[WSQR]; 
+      volatile uint32_t* waveAmplWhi = &v->basicWaveAmpl[WHIT];
+      volatile uint32_t* waveAmplPnk = &v->basicWaveAmpl[PONK];
 
-      int32_t  waveAmplGen  = v->genAmpl;
+      volatile uint16_t* waveAmplGen = &v->genAmpl;
 
       //if(voiceNum==0){printf("v:%u f:%f %i %i %i %i %i\n",voiceNum,v->frequency,waveAmplSin,waveAmplTri,waveAmplSaw,waveAmplSqr,waveAmplGen);}
 
@@ -491,19 +492,19 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
         const int16_t* w=rcTableCurr+RC_N_WAVES*ce_idx;   // rc_table values ptr
 
         int32_t pre=0,pre0=0; 
-        pre=(w[WSIN]*waveAmplSin);    //>>GAIN_REDUC;
+        pre=(w[WSIN] * *waveAmplSin);   //>>GAIN_REDUC;
 
-        pre += (w[WTRI]*waveAmplTri); //>>GAIN_REDUC;
+        pre += (w[WTRI] * *waveAmplTri); //>>GAIN_REDUC;
        
         int16_t tri=rcTable32[RC_N_WAVES*ce+WTRI];  // saw utilise la table 32 du triangle
         int32_t saw;
         if(ce<(RC_N_SAMPLES >> 1)){saw=(65536-tri)>>1;}
         else saw=tri>>1;
         if(rc>=32){saw=-saw;}                       // saw n'a pas de réglace de rc, juste une inversion de phase (montée ou descente verticale)
-        pre += (saw*waveAmplSaw);     //>>GAIN_REDUC;
+        pre += (saw * *waveAmplSaw);     //>>GAIN_REDUC;
 
         int16_t sqr=(ce & (BASIC_WAVE_TABLE_LEN>>1)) ? -0x7fff : 0x7fff;    // sqr cr not implemented
-        pre += (sqr*waveAmplSqr);     //>>GAIN_REDUC;
+        pre += (sqr * *waveAmplSqr);     //>>GAIN_REDUC;
 
         //pre = pre>>8;
         pre *= sign;
@@ -514,13 +515,13 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
         uint32_t tmp = nPhase - limit;
         nPhase = tmp + ((tmp >> 31) & limit);
         int32_t white = noise_table[nPhase>>16];
-        pre += (white * waveAmplWhi);     //>>GAIN_REDUC;
+        pre += (white * *waveAmplWhi);     //>>GAIN_REDUC;
 
         // bruit rose 1-pôle branchless
         pink_state=(alpha * pink_state + (32768 - alpha) * (white)) >> 15;    
-        pre += (pink_state * waveAmplPnk);  //>>GAIN_REDUC;
+        pre += (pink_state * *waveAmplPnk);  //>>GAIN_REDUC;
 
-        pre *= waveAmplGen;
+        pre *= *waveAmplGen;
 
         *vBuffer+=pre;
         vBuffer++;

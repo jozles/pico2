@@ -50,7 +50,7 @@ int32_t vx=0;
 void __not_in_flash_func(setVoicesAmpl)(uint8_t v,uint8_t item,int32_t valeur){         // basicWaveAmpl est calculé avec {coderWaveAmpl , coderWaveAmplAtt , ctl_input_val et amplLevel}
 
     uint32_t s16=(1<<16)-1;
-    uint8_t shift=16;
+    uint8_t shift=MAX_CTL_ATT_SHIFT;
     
     ctl_input_val[voices[v].voice_ctl_input_id[item]]=valeur;
 
@@ -63,18 +63,18 @@ void __not_in_flash_func(setVoicesAmpl)(uint8_t v,uint8_t item,int32_t valeur){ 
     }
     else                                                                                // gestion des waves
     {
-        int32_t vat=voices[v].coderWaveAmplAtt[item];
-        int32_t v0=(int16_t)(valeur*vat)>>shift;           // (lfo/adsr valeur int16_t) (coderAtt 0-256) résultat int16_t 
+        uint32_t vat=voices[v].coderWaveAmplAtt[item];
+        int32_t v0=(int16_t)((valeur*vat)>>shift);           
         int32_t v1=(int32_t)amplLevel[voices[v].coderWaveAmpl[item]]+v0;                // amplLevel uint16_t ; v1 = 2*int16_t 
         if(v1<0){v1=0;}                                                                 // écrêtage
         if(v1>s16){v1=s16;}                                                             // écrêtage
         voices[v].basicWaveAmpl[item]=v1;                                               // 0 -> (0x7fff)
 
-//if(voices[v].basicWaveAmpl[item]!=vx){
+if(voices[v].basicWaveAmpl[item]!=vx){
     //printf("%u %u %i x:%u vat:%u v:%i v0:%i val:%i\n",v,item,voices[v].basicWaveAmpl[item],voices[v].voice_ctl_input_id[item],voices[v].coderWaveAmplAtt,ctl_input_val[voices[v].voice_ctl_input_id[item]],v0,vat);
-    //printf("%u %u %i %u %i\n",v,item,valeur,voices[v].coderWaveAmplAtt[item],v1);
+    printf("%u %u %i %u %i %i\n",v,item,valeur,vat,v0,v1);
     vx=voices[v].basicWaveAmpl[item];
-//}
+}
     }
 }
 

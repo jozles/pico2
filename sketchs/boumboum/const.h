@@ -103,7 +103,7 @@ typedef enum {
 /* Adsrl */
 
 #define MAX_ADSR 4
-#define ADSR_SAMPLE_RATE 100
+#define ADSR_SAMPLE_RATE 500
 #define DUR_ECH_NB 128                  // puissance de 2 !!! définit le pas dans les tables d'échantillons 
 #define ADSR_MAX_TIME_CODERS DUR_ECH_NB-1       // valeur maxi saisie par les coders      
 // multiplié par BASIC_WAVES_TABLE_LEN/ADSR_MAX_TIME_CODERS/2 : on utilise la table de cra 32 0-90° pour former les valeurs 
@@ -174,7 +174,8 @@ typedef enum {
 #define OBJ_IO_NAME_LEN         5
 #define IN_OUT_NAME_LEN         10
 
-#define MAX_CTL_ATT             256
+#define MAX_CTL_ATT             256     // in case of change, change MAX_CTL_ATT_SHIFT 
+#define MAX_CTL_ATT_SHIFT       8       // in case of change, change MAX_CTL_ATT 
 
 #define NO_ATTENUATION_VALUE    0x7fff
 #define FULL_ATTENUATION_VALUE  0x0000
