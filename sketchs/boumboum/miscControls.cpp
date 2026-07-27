@@ -50,12 +50,12 @@ void adsrInit()
         adsrDurSus[a]=0;
         adsrDurRel[a]=0;
 
-        adsrCoderAtt[a]=12;setAdsrDur(a,ADSR_ATT,adsrDurAtt[a]);
+        adsrCoderAtt[a]=1;setAdsrDur(a,ADSR_ATT,adsrDurAtt[a]);
         adsrCoderDec[a]=28;setAdsrDur(a,ADSR_DEC,adsrDurDec[a]);
         adsrCoderSus[a]=24;setAdsrDur(a,ADSR_SUS,adsrDurSus[a]);
-        adsrCoderRel[a]=38;setAdsrDur(a,ADSR_REL,adsrDurRel[a]);
+        adsrCoderRel[a]=60;setAdsrDur(a,ADSR_REL,adsrDurRel[a]);
 
-        adsrCoderLev[a]=27;setAdsrLev(a,adsrCoderLev[a]);
+        adsrCoderLev[a]=31;setAdsrLev(a,adsrCoderLev[a]);
         adsrStatus[a]=ADSR_OFF;
 
         adsrCurrEch[a]=0;
