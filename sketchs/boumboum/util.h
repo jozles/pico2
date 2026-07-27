@@ -4,6 +4,7 @@
 #include "hardware/pio.h"
 
 void setup();
+void testSetup();
 void print_diag();
 void print_diag(char c);
 void print_diag(char c,uint32_t gdis);

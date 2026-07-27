@@ -6,4 +6,8 @@ void fillAmplIncr();
 void setVoicesAmpl(uint8_t v,uint8_t item,int32_t valeur);
 void setVoicesAmpl(uint8_t v,uint8_t item);
 
+void setVoicesFreqAtt(uint8_t v,uint32_t coderF);
+void setLfosFreqAtt(uint8_t l,uint32_t coderF);
+void setLfosFreq(uint8_t l,uint32_t coderF);
+
 #endif  // _SND_LEV_H_

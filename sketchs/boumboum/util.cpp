@@ -48,6 +48,13 @@ extern struct Voice voices[];
 
 extern int32_t voicesScopeDataBuffer[];
 
+extern float      lfosFrequency[MAX_LFO];                   
+extern uint16_t   lfosCodersFreq[MAX_LFO];
+
+extern int16_t    ctl_input_srce[MAX_INPUTS];
+extern char       ctl_input_name[MAX_INPUTS][IN_OUT_NAME_LEN]; 
+extern char       ctl_output_name[MAX_OUTPUTS][IN_OUT_NAME_LEN];
+
 volatile uint32_t millisCounter;
 
 #define R1 6
@@ -309,6 +316,7 @@ void setup(){
     i2sSetup(_i2s_pio,PICO_AUDIO_I2S_DATA_PIN,i2s_dma_buffers);     // start i2s engine
 
     voices[0].coderWaveAmpl[WSIN]=31;
+    voices[0].coderWaveAmplAtt[WSIN]=0;
     setVoicesAmpl(0,WSIN);
     printf("demo sinus f:%f rc:%i ampl:%d\n",fr0,cga,voices[0].basicWaveAmpl[WSIN]);delay_ms(100);      
     
@@ -358,6 +366,39 @@ void setup(){
 
     printf("end setup \n");
 //print_diag();
+}
+
+void sub_test(uint16_t inp,uint16_t out)
+{
+    ctl_input_srce[inp]=out;
+    connect_input(inp,ctl_input_srce[inp]);
+    char libi[IN_OUT_NAME_LEN+1];memset(libi,0x00,IN_OUT_NAME_LEN+1);
+    memcpy(libi,&ctl_input_name[inp][0],IN_OUT_NAME_LEN);
+    char libo[IN_OUT_NAME_LEN+1];memset(libo,0x00,IN_OUT_NAME_LEN+1);
+    memcpy(libo,&ctl_output_name[ctl_input_srce[inp]],IN_OUT_NAME_LEN);    
+    printf("%s - %s\n",libi,libo); 
+}
+
+void testSetup()
+{
+    uint16_t inp=0;
+    uint8_t ln=IN_OUT_NAME_LEN-1;
+    // in46 out19 ADSR00STA LFO02SAW
+    sub_test(46,19);
+    // in77 out02 VCES00FRE LFO00TRI
+    sub_test(81,2);
+    // in81 out33 VCES00SIP ADSR00
+    sub_test(83,33);   
+    // Vce0SinAmpl 20
+    voices[0].coderWaveAmpl[WSIN]=20;
+    setVoicesAmpl(0,WSIN);
+    // Vce0SinAmpAtt 255
+    voices[0].coderWaveAmplAtt[WSIN]=255;
+    setVoicesAmpl(0,WSIN);
+    // LFO0Fre VCES_MAX_FREQ_CODERS
+    setLfosFreq(0,VCES_MAX_FREQ_CODERS);         
+    // Vce0FreAtt 7
+    setVoicesFreqAtt(0,7);  
 }
 
 // ******** diags/debug ********

@@ -218,6 +218,8 @@ void __not_in_flash_func(adsrHandler)()
                 
                 //printf("%u:%u ",a,*as);
 
+                // !!!!!!!!!!!! rcCurve fournit des valeurs 0-0xffff et update_inputs prend des valeurs 0x7fff !!!!!!!!!!!!!
+                
                 switch(*as){
                     case ADSR_ATT:
                         cx=adsrNext(ce,adsrDurAtt[a]);

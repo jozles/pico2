@@ -562,23 +562,25 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                         setLfosFrequency(calcFreq(lfosCodersFreq[line])/VOICE_FREQ_DIVIDER,line,lfosCoderCycleR[line]);
                         break;
                     case OSCCODERFREQ:if(varChge){                                          // cc=coder freq
-                        int16_t fi = ctl_input_val[lfo_ctl_input_id[line][VFRQ]]>>3;        // normalisation ctl_input_freq 
+                        setLfosFreq(line,cc);
+                        /*int16_t fi = ctl_input_val[lfo_ctl_input_id[line][VFRQ]]>>3;        // normalisation ctl_input_freq 
                         uint16_t fc = cc+fi*lfosCodersFreqAtt[line]/MAX_CTL_ATT;            // fc=coderFreq+ctl_input_freq atténué                
-                        setLfosFrequency(calcFreq(fc)/VOICE_FREQ_DIVIDER,line,lfosCoderCycleR[line]);}
-                        break;
+                        setLfosFrequency(calcFreq(fc)/VOICE_FREQ_DIVIDER,line,lfosCoderCycleR[line]);*/
+                    }break;
                     case OSCCODERCRA:if(varChge){                                           // cc=coder cra
                         int16_t cra = ctl_input_val[lfo_ctl_input_id[line][LCR_]]>>10;      // normalisation ctl_input_cra 
                         int16_t cr = lfosCoderCycleR[line]+cra*cc/MAX_CTL_ATT;              // cr=coderCra+ctl_input_cra atténué 
                         setLfosFrequency(lfosFrequency[line],line,cr);}
                         break;
-                    case OSCCODERFREQATT:if(varChge){                                       // cc=coder attenuator input freq          
-                        lfosCodersFreqAtt[line]=cc;                                        
+                    case OSCCODERFREQATT:if(varChge){                                       // cc=coder attenuator input freq 
+                        setLfosFreqAtt(line,cc);
+                        /*lfosCodersFreqAtt[line]=cc;                                        
                         int16_t fi = ctl_input_val[lfo_ctl_input_id[line][VFRQ]]>>3;        // normalisation ctl_input_freq
                         int16_t fc = lfosCodersFreq[line]+fi*cc/MAX_CTL_ATT;                // fc=coderFreq+ctl_input_freq atténué
                         printf("lfo#:%d cc(att):%d finp:%i fc:%i f_id:%d \n",line,cc,fi,fc,lfo_ctl_input_id[line][VFRQ]);
                         signal_overflow("vce_freq:",line,fc,LFOS_MIN_FREQ_CODERS,LFOS_MAX_FREQ_CODERS);
-                        setLfosFrequency(calcFreq(fc)/VOICE_FREQ_DIVIDER,line,lfosCoderCycleR[line]);}
-                        break;
+                        setLfosFrequency(calcFreq(fc)/VOICE_FREQ_DIVIDER,line,lfosCoderCycleR[line]);*/
+                        }break;
                     case OSCCODERCRAATT:if(varChge){                                        // cc=coder attenuator input cra
                         lfosCoderCycleRAtt[line]=cc;                                      
                         int16_t cra = ctl_input_val[lfo_ctl_input_id[line][LCR_]]>>10;      // normalisation ctl_input_cra
@@ -605,12 +607,13 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                         voices[line].coderCycleR=cc;}
                         break;
                     case OSCCODERFREQATT:if(varChge){
-                        voices[line].coderFreqAtt=cc;                                               // atténuateur pour ctl_input_freq 
+                        setVoicesFreqAtt(line,cc);
+                        /*voices[line].coderFreqAtt=cc;                                               // atténuateur pour ctl_input_freq 
                         int16_t fi = ctl_input_val[voices[line].voice_ctl_input_id[VFRQ]]>>3;       // normalisation ctl_input_freq
                         uint32_t fc = voices[line].coderFreq+fi*cc/MAX_CTL_ATT;                     // fc=coderFreq+ctl_input_freq atténué 
                         signal_overflow("lfo_freq:",line,fc,VCES_MIN_FREQ_CODERS,VCES_MAX_FREQ_CODERS);
-                        setVoiceFrequency(calcFreq(fc),&voices[line],voices[line].coderCycleR);}
-                        break;                                    
+                        setVoiceFrequency(calcFreq(fc),&voices[line],voices[line].coderCycleR);*/
+                        }break;                                    
                     case OSCCODERCRAATT:if(varChge){
                         voices[line].coderCycleRAtt=cc;                                             // atténuateur pour ctl_input_cra
                         int16_t cra = ctl_input_val[voices[line].voice_ctl_input_id[LCR_]]>>10;     // normalisation ctl_input_cra

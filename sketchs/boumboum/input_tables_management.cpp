@@ -252,6 +252,7 @@ bool init_objects_inputs(void)
     
     for (uint16_t i=0;i<MAX_INPUTS;i++){
         ctl_input_id_chain[i]=NO_LINK;
+        ctl_input_val[i]=0;
     }
 
     memcpy(ctl_input_name[0],"---",3);
@@ -342,12 +343,12 @@ bool init_objects_inputs(void)
 
     // ajouter ici d'autres entrées  (sequencers etc)
 
-    for(uint16_t k=0;k<MAX_INPUTS;k++)
+    /*for(uint16_t k=0;k<MAX_INPUTS;k++)
         {
             if(ctl_input_name[k][0]!=0){
                 printf("#%u %s\n",k,&ctl_input_name[k][0]);
             }
-        }
+        }*/
 
     return true;
 }  

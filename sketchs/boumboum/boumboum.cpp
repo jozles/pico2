@@ -75,6 +75,8 @@ if (watchdog_caused_reboot()) {
 
     i2s_start();                                        // launch sound output
 
+    testSetup();
+
     menus_init();
     uint8_t menu=1;
 
