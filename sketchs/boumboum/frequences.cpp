@@ -60,6 +60,7 @@ int32_t     voicesScopeDataBuffer[MAX_VOICES*SAMPLES_PER_BUFFER];  // all voices
 // i2s
 
 Voice voices[MAX_VOICES];
+int32_t w0[MAX_VOICES][BASIC_WAVES_NB];
 
 extern int i2s_dma_chan0;
 extern int i2s_dma_chan1;
@@ -224,7 +225,12 @@ void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)    // cga = genAmpl l
         for(uint8_t i=0;i<VCES_OUTPUTS_NB;i++){
             voices[v].coderWaveAmpl[i]=0;
             voices[v].basicWaveAmpl[i]=0;
+            voices[v].waveAmplChge[i]=false;
             voices[v].coderSw[i]=0;
+        }
+
+        for(uint8_t w=0;w<BASIC_WAVES_NB;w++){  // init previous values for every waves
+          w0[v][w]=-1;
         }
     }
 }
@@ -429,6 +435,8 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
       uint32_t stepInt      = v->stepInt;
       uint32_t stepFra      = v->stepFra;
 
+      int32_t* w0Sin = &w0[voiceNum][WSIN];
+
 // init rc
       uint32_t rc = v->cycleR&63;                   // rc=0-63
       uint32_t rcTableNb = (rc <= 32) ? rc : (64 - rc);
@@ -438,12 +446,15 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
       const int16_t* rcTable32 = &rc_tables[32][0][0];                           // base table 32 pour saw      
 
 // init waves ampl (pointers necessary for real time change)     
-      volatile uint32_t* waveAmplSin = &v->basicWaveAmpl[WSIN];
-      volatile uint32_t* waveAmplTri = &v->basicWaveAmpl[WTRI];
-      volatile uint32_t* waveAmplSaw = &v->basicWaveAmpl[WSAW];        
-      volatile uint32_t* waveAmplSqr = &v->basicWaveAmpl[WSQR]; 
-      volatile uint32_t* waveAmplWhi = &v->basicWaveAmpl[WHIT];
-      volatile uint32_t* waveAmplPnk = &v->basicWaveAmpl[PONK];
+      volatile uint32_t* waveAmplSin    = &v->basicWaveAmpl[WSIN];
+      volatile uint32_t* newWaveAmplSin = &v->newBasicWaveAmpl[WSIN];
+      volatile bool* sinWaveAmplChge    = &v->waveAmplChge[WSIN];
+      volatile int32_t*  diffSin        = &v->diffWaveAmpl[WSIN];
+      volatile uint32_t* waveAmplTri    = &v->basicWaveAmpl[WTRI];
+      volatile uint32_t* waveAmplSaw    = &v->basicWaveAmpl[WSAW];        
+      volatile uint32_t* waveAmplSqr    = &v->basicWaveAmpl[WSQR]; 
+      volatile uint32_t* waveAmplWhi    = &v->basicWaveAmpl[WHIT];
+      volatile uint32_t* waveAmplPnk    = &v->basicWaveAmpl[PONK];
 
       volatile uint16_t* waveAmplGen = &v->genAmpl;
 
@@ -491,10 +502,24 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
         if (rc > 32) ce_idx = (RC_TABLES_LEN - 1) - ce_idx;
         const int16_t* w=rcTableCurr+RC_N_WAVES*ce_idx;   // rc_table values ptr
 
-        int32_t pre=0,pre0=0; 
-        pre=(w[WSIN] * *waveAmplSin);   //>>GAIN_REDUC;
+        int32_t pre=0;
 
-        pre += (w[WTRI] * *waveAmplTri); //>>GAIN_REDUC;
+        int16_t wsin=w[WSIN];
+        /*
+        if (__builtin_expect(*sinWaveAmplChge ,false)){
+            *sinWaveAmplChge=false;
+            *w0Sin=1;
+            *diffSin=(*newWaveAmplSin-*waveAmplSin)/ *w0Sin;
+        }
+
+        if(__builtin_expect(*w0Sin>0,false)) {
+            *waveAmplSin += *diffSin;
+            *w0Sin--;
+        } */           
+        
+        pre=(wsin * *newWaveAmplSin);     //>>GAIN_REDUC;
+
+        pre += (w[WTRI] * *waveAmplTri);  //>>GAIN_REDUC;
        
         int16_t tri=rcTable32[RC_N_WAVES*ce+WTRI];  // saw utilise la table 32 du triangle
         int32_t saw;

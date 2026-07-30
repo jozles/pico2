@@ -160,8 +160,6 @@ typedef enum {
 #define BASIC_WAVE_TABLE_POW 11                         // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
 #define BASIC_WAVE_TABLE_LEN RC_TABLES_LEN*2            // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
 
-#define BASIC_WAVES_NB 6 // sinus, carré, triangle, dent de scie, bruit blanc,bruit rose 
-
 /* inputs/outputs */
 
 #define MAX_OUTPUT_OBJ          48
@@ -179,6 +177,8 @@ typedef enum {
 
 #define NO_ATTENUATION_VALUE    0x7fff
 #define FULL_ATTENUATION_VALUE  0x0000
+
+#define BASIC_WAVES_NB 6
 
 // ****** inputs ******
 

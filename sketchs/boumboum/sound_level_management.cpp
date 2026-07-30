@@ -67,8 +67,11 @@ void __not_in_flash_func(setVoicesAmpl)(uint8_t v,uint8_t item,int32_t valeur){ 
         int32_t v0=(int16_t)((valeur*vat)>>shift);           
         int32_t v1=(int32_t)amplLevel[voices[v].coderWaveAmpl[item]]+v0;                // amplLevel uint16_t ; v1 = 2*int16_t 
         if(v1<0){v1=0;}                                                                 // écrêtage
-        if(v1>s16){v1=s16;}                                                             // écrêtage
-        voices[v].basicWaveAmpl[item]=v1;                                               // 0 -> (0x7fff)
+        if(v1>s16){v1=s16;} 
+    //#define TRESH 256 
+        //int32_t delta=v1-voices[v].basicWaveAmpl[item];                                                             // écrêtage
+        voices[v].waveAmplChge[item]=true;  //(delta>TRESH) || (delta<-TRESH) ;
+        voices[v].newBasicWaveAmpl[item]=v1;                                            // 0 -> (0x7fff)
 
 if(voices[v].basicWaveAmpl[item]!=vx){
     //printf("%u %u %i x:%u vat:%u v:%i v0:%i val:%i\n",v,item,voices[v].basicWaveAmpl[item],voices[v].voice_ctl_input_id[item],voices[v].coderWaveAmplAtt,ctl_input_val[voices[v].voice_ctl_input_id[item]],v0,vat);
