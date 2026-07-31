@@ -396,26 +396,57 @@ void testSetup()
     // in81 out33 VCES00SIP ADSR00
     sub_test(83,33);
 
+    // in47 out27 ADSR01STA LFO03SAW
+    sub_test(56,27);
+    // in85 out02 VCES01FRE LFO00TRI
+    sub_test(91,3);
+    // in81 out33 VCES00SIP ADSR01
+    sub_test(93,34);       
+
     printf("lfo:%u f:%f\n",lfoAdsr,lfosFrequency[lfoAdsr]);
 
+// config lfo0
     uint32_t lf=3500;   //VCES_MAX_FREQ_CODERS;
     uint8_t  lfo=0;   
     // LFO0Fre VCES_MAX_FREQ_CODERS
     setLfosFreq(lfo,lf);
     printf("lfo:%u coderf:%u f:%f\n",lfo,lf,lfosFrequency[lfo]);
+
+// config lfo3
+    lf=7000;   //VCES_MAX_FREQ_CODERS;
+    lfo=3;   
+    // LFO0Fre VCES_MAX_FREQ_CODERS
+    setLfosFreq(lfo,lf);
+    printf("lfo:%u coderf:%u f:%f\n",lfo,lf,lfosFrequency[lfo]);
     
+// config voice 0    
     uint8_t voice=0;
     uint8_t wave=WSIN;
-    uint16_t coderAmpl=10;
+    uint16_t coderAmpl=9;
+    setVoiceFrequency(440,&voices[voice],0);   
     // Vce0SinAmpl 20
     voices[voice].coderWaveAmpl[wave]=coderAmpl;    // manual level
     //setVoicesAmpl(0,WSIN);
     // Vce0SinAmpAtt 255
-    voices[voice].coderWaveAmplAtt[wave]=15;        // input level
+    voices[voice].coderWaveAmplAtt[wave]=14;        // input level
     setVoicesAmpl(voice,wave);
-         
     // Vce0FreAtt 7
-    setVoicesFreqAtt(0,10);
+    setVoicesFreqAtt(voice,10);
+
+// config voice 1
+    voice=1;
+    wave=WSIN;
+    coderAmpl=9;
+    setVoiceFrequency(880,&voices[voice],0);
+    // Vce0SinAmpl 20
+    voices[voice].coderWaveAmpl[wave]=coderAmpl;    // manual level
+    //setVoicesAmpl(0,WSIN);
+    // Vce0SinAmpAtt 255
+    voices[voice].coderWaveAmplAtt[wave]=14;        // input level
+    setVoicesAmpl(voice,wave);
+    // Vce0FreAtt 7
+    setVoicesFreqAtt(voice,10);
+
     
     printf("voice:%u freq:%f frAtt:%i wave:%u Ampl:%u amplAtt:%i\n\n",voice,voices[voice].coderFreq,voices[voice].coderFreqAtt,wave,coderAmpl,voices[voice].coderWaveAmplAtt[wave]);
 }
