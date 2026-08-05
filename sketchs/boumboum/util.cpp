@@ -435,20 +435,20 @@ void testSetup()
     uint8_t voice=0;
     uint8_t wave=WSIN;
 
-        voices[voice].coderFreq=1936;
+        voices[voice].coderFreq=1936;               // 440Hz
         float f=calcFreq(voices[voice].coderFreq);  
         setVoiceFrequency(f,&voices[voice],1);
 
-//    setVoiceFrequency(calcFreq(1759),&voices[voice],0);   
+    //setVoiceFrequency(calcFreq(1759),&voices[voice],0);   
     voices[voice].coderWaveAmpl[wave]=8;            // manual level
     voices[voice].coderWaveAmplAtt[wave]=18;        // input level
     setVoicesAmpl(voice,wave);
     setVoicesFreqAtt(voice,6);
 
-    // VCES00FRE LFO00TRI
+    // CX VCES00FRE LFO00TRI
     printf("(%i-%i) ",voice_first_input_id,lfo_first_output_id);
-    sub_test(voice_first_input_id+voice*MAX_INPUTS_PER_OBJ +VFRQ,lfo_first_output_id+lfoVce0Freq*MAX_OUTPUTS_PER_OBJ+WTRI); 
-    // VCES00SIP ADSR00
+    sub_test(voice_first_input_id+voice*MAX_INPUTS_PER_OBJ+VFRQ,lfo_first_output_id+lfoVce0Freq*MAX_OUTPUTS_PER_OBJ+WTRI); 
+    // CX VCES00SIP ADSR00
     printf("(%i-%i) ",voice_first_input_id,adsr_first_output_id);
     sub_test(voice_first_input_id+voice*MAX_INPUTS_PER_OBJ+VSPW,adsr_first_output_id+MAX_OUTPUTS_PER_OBJ*adsrVoice0);       
 
@@ -458,21 +458,20 @@ void testSetup()
     voice=1;
     wave=WSIN;
 
-        voices[voice].coderFreq=2355;
+        voices[voice].coderFreq=2355;               // 880Hz
         f=calcFreq(voices[voice].coderFreq);  
         setVoiceFrequency(f,&voices[voice],1);
 
     //setVoiceFrequency(880,&voices[voice],0);
-    //printf("%f ",voices[voice].frequency);
-    voices[voice].coderWaveAmpl[wave]=8;             // manual level
-    voices[voice].coderWaveAmplAtt[wave]=18;         // input level
+    voices[voice].coderWaveAmpl[wave]=8;            // manual level
+    voices[voice].coderWaveAmplAtt[wave]=18;        // input level
     setVoicesAmpl(voice,wave);
     setVoicesFreqAtt(voice,6);
 
-    // VCES01FRE LFO00TRI
+    // CX VCES01FRE LFO00TRI
     printf("(%i-%i) ",voice_first_input_id,lfo_first_output_id);
     sub_test(voice_first_input_id+voice*MAX_INPUTS_PER_OBJ+VFRQ,lfo_first_output_id+lfoVce1Freq*MAX_OUTPUTS_PER_OBJ+WTRI);
-    // out43 VCES01SIP ADSR01
+    // CX VCES01SIP ADSR01
     printf("(%i-%i) ",voice_first_input_id,adsr_first_output_id);    
     sub_test(voice_first_input_id+voice*MAX_INPUTS_PER_OBJ+VSPW,adsr_first_output_id+MAX_OUTPUTS_PER_OBJ*adsrVoice1);    
     

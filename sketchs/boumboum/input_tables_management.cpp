@@ -381,21 +381,26 @@ void __not_in_flash_func(connect_input)(uint16_t input_id, uint16_t output)
     ctl_input_id_chain[input_id] = NO_LINK;
 
     int16_t next_id = ctl_output_id_chain[output];
+    printf("\nctl_output_id_chain[%u]=%i ",output,ctl_output_id_chain[output]);
 
     if(next_id==NO_LINK)
-        {ctl_output_id_chain[output]=input_id;}
+        {ctl_output_id_chain[output]=input_id;
+        printf("->%u\n",input_id);
+        } // end of update
 
     else {
-        int16_t prev=next_id;
+        int16_t prev=next_id;                   // first id of the chain from ctl_output_id_chain
 
         while (next_id != NO_LINK) {            // end of chain ? 
             prev=next_id;
             next_id=ctl_input_id_chain[prev];
+            printf(" [%i]=%i ",prev,next_id);
             if(next_id>MAX_INPUTS || next_id<NO_LINK){
                 spin_unlock(inputs_id__lock, f);
                 system_error("input_id overflow c",next_id);}
         }        
         ctl_input_id_chain[prev]=input_id;
+        printf(" ctl_input_id_chain[%i]=%i \n",prev,ctl_input_id_chain[prev]);
     }        
 
     spin_unlock(inputs_id__lock, f);
