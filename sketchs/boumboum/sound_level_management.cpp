@@ -97,7 +97,7 @@ void __not_in_flash_func(setVoicesFreqAtt)(uint8_t v,uint32_t coderF)
 void __not_in_flash_func(setLfosFrParams)(uint8_t l)
 {
                         int16_t fi = ctl_input_val[lfo_ctl_input_id[l][VFRQ]]>>3;                 // normalisation ctl_input_freq
-                        int16_t fc = lfosCodersFreq[l]+fi*lfosCodersFreqAtt[l]/MAX_CTL_ATT;                     // fc=coderFreq+ctl_input_freq atténué
+                        int16_t fc = lfosCodersFreq[l]+fi*lfosCodersFreqAtt[l]/MAX_CTL_ATT;       // fc=coderFreq+ctl_input_freq atténué
 
                         signal_overflow("lfo_freq:",l,fc,LFOS_MIN_FREQ_CODERS,LFOS_MAX_FREQ_CODERS);
                         float fr=calcFreq(fc)/VOICE_FREQ_DIVIDER;

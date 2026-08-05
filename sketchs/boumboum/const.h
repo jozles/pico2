@@ -86,7 +86,7 @@ typedef enum {
 /* Voices */
 
 #define MAX_VOICES 4 
-#define VCES_MAX_FREQ_CODERS 4399
+#define VCES_MAX_FREQ_CODERS 7000 //4399
 #define VCES_MIN_FREQ_CODERS 25
 #define VCES_MAX_AMPL_CODERS MAX_16B_LINEAR_VALUE
 #define GAIN_REDUC 8                    // gain reduction shift in fillVoices

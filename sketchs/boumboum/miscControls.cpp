@@ -31,6 +31,8 @@ int16_t  adsr_ctl_output_id[MAX_ADSR];
 int32_t  adsrScopeBufReal[MAX_ADSR*ADSR_SCOPE_BUFFER_LEN];  // real values
 uint16_t adsrScopeBufPtr[MAX_ADSR];
 
+int16_t     adsr_first_output_id;
+int16_t     adsr_first_input_id;
 uint32_t    adsrTime=0;
 uint32_t    adsrTimingInterval=1000/ADSR_SAMPLE_RATE;
 
@@ -52,8 +54,8 @@ void adsrInit()
 
         adsrCoderAtt[a]=1;setAdsrDur(a,ADSR_ATT,adsrDurAtt[a]);
         adsrCoderDec[a]=28;setAdsrDur(a,ADSR_DEC,adsrDurDec[a]);
-        adsrCoderSus[a]=24;setAdsrDur(a,ADSR_SUS,adsrDurSus[a]);
-        adsrCoderRel[a]=60;setAdsrDur(a,ADSR_REL,adsrDurRel[a]);
+        adsrCoderSus[a]=12;setAdsrDur(a,ADSR_SUS,adsrDurSus[a]);
+        adsrCoderRel[a]=48;setAdsrDur(a,ADSR_REL,adsrDurRel[a]);
 
         adsrCoderLev[a]=31;setAdsrLev(a,adsrCoderLev[a]);
         adsrStatus[a]=ADSR_OFF;
@@ -212,7 +214,7 @@ void __not_in_flash_func(adsrHandler)()
             uint16_t* ap=&adsrScopeBufPtr[a];
             if (__builtin_expect(*as != ADSR_OFF, 0)) {
 
-                uint16_t  out_id;
+                int16_t  out_id;
                 uint16_t  lev=amplLevel[adsrCoderLev[a]];
                 uint32_t* ce=&adsrCurrEch[a];            
                 uint32_t  cx=*ce>>16;   // prev currEch  
@@ -268,6 +270,7 @@ void __not_in_flash_func(adsrHandler)()
                 out_id=ctl_output_id_chain[adsr_ctl_output_id[a]];
                 //if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(src,out_id,*ov);}
                 if (__builtin_expect(out_id != NO_LINK, 0)){
+                    if(a==1){printf("%u %u %u\n",src,out_id,ov_);}
                     update_inputs(src,out_id,ov_);
                 }
 

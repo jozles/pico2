@@ -11,6 +11,7 @@
 #include "rc_33tables.h"
 #include "input_tables_management.h"
 #include "sound_level_management.h"
+#include "hardware/sync.h"
 
 
 
@@ -51,11 +52,14 @@ uint16_t    lfosCoderCycleRAtt[MAX_LFO];              // cycle ratio input atten
 
 int16_t     lfo_ctl_input_id[MAX_LFO][MAX_INPUTS_PER_OBJ];    // id des inputs du lfo dans ctl_input_xxx[]
 int16_t     lfo_ctl_output_id[MAX_LFO][MAX_OUTPUTS_PER_OBJ];  // id des outputs du lfo dans ctl_output_xxx[]
+int16_t     lfo_first_output_id;
+int16_t     lfo_first_input_id;
 
 extern int16_t ctl_input_val[MAX_INPUTS];
 extern int16_t ctl_output_id_chain[MAX_OUTPUTS];
 
 int32_t     voicesScopeDataBuffer[MAX_VOICES*SAMPLES_PER_BUFFER];  // all voices data buffer : 16bits low currech nb, 16 bits high rc table nb 
+int16_t     voice_first_input_id;
 
 // i2s
 
@@ -281,7 +285,10 @@ float __not_in_flash_func(calcFreq)(uint16_t val) // from lin value (0-octIncrNb
 // update voice[].frequency - compute steps
 void __not_in_flash_func(setVoiceFrequency)(float freq,Voice* v,int8_t rc){
     
+    //uint32_t flags=save_and_disable_interrupts();
     v->frequency=freq;
+    //v->coderFreq=calcCoderFreq(freq);
+    //restore_interrupts(flags);
     v->cycleR=rc;
 
     float k=(float)BASIC_WAVE_TABLE_LEN*v->frequency/SAMPLE_RATE;

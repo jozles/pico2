@@ -47,9 +47,14 @@ extern struct Voice voices[];
 //extern uint16_t amplLevel[];
 
 extern int32_t voicesScopeDataBuffer[];
+extern int16_t voice_first_input_id;
 
 extern float      lfosFrequency[MAX_LFO];                   
 extern uint16_t   lfosCodersFreq[MAX_LFO];
+extern int16_t    lfo_first_output_id;
+extern int16_t    adsr_first_output_id;
+extern int16_t    lfo_first_input_id;
+extern int16_t    adsr_first_input_id;;
 
 extern int16_t    ctl_input_srce[MAX_INPUTS];
 extern char       ctl_input_name[MAX_INPUTS][IN_OUT_NAME_LEN]; 
@@ -338,6 +343,8 @@ void setup(){
     //scope(voicesScopeDataBuffer,voices[0].frequency,14,true,true,0,0,true);    // scope mode_calcul
     scope(i2s_buf0,voices[0].frequency,14,true,true,0,0,0);     // scope mode_data
 
+//pwm_timer_1khz_enable(false);testSetup();
+
     // après démo mute voices[0] sinus
     voices[0].coderWaveAmpl[WSIN]=cga;
     setVoicesAmpl(0,WSIN);
@@ -369,6 +376,7 @@ void setup(){
     tft_fill_rect_blank(0,0,TFT_H,TFT_W);
 
     printf("end setup \n\n");
+
 //print_diag();
 }
 
@@ -380,32 +388,36 @@ void sub_test(uint16_t inp,uint16_t out)
     memcpy(libi,&ctl_input_name[inp][0],IN_OUT_NAME_LEN);
     char libo[IN_OUT_NAME_LEN+1];memset(libo,0x00,IN_OUT_NAME_LEN+1);
     memcpy(libo,&ctl_output_name[ctl_input_srce[inp]],IN_OUT_NAME_LEN);    
-    printf("%s - %s\n",libi,libo); 
+    printf("%u:%s - %u:%s\n",inp,libi,out,libo); 
 }
 
 void testSetup()
 {
-    printf("\ntest-setup\n");
-    uint16_t inp=0;
+    printf("\n>>test-setup\n");
+
+    uint8_t lfoVce0Freq=0;setLfosFreq(lfoVce0Freq,3500);
+    uint8_t lfoVce1Freq=0;
+    uint8_t lfoAdsr0=2;
+    uint32_t lfoAdsr0FreqCoder=1384; // 6sec       
+    uint8_t lfoAdsr1=3;
+    uint32_t lfoAdsr1FreqCoder=1793; // 3sec
+    uint8_t adsrVoice0=0;
+    uint8_t adsrVoice1=1;    
+
     uint8_t ln=IN_OUT_NAME_LEN-1;
-    uint8_t lfoAdsr=2;
-    // in46 out19 ADSR00STA LFO02SAW
-    sub_test(46,19);
-    // in77 out02 VCES00FRE LFO00TRI
-    sub_test(81,lfoAdsr);
-    // in81 out33 VCES00SIP ADSR00
-    sub_test(83,33);
-
+    
+    printf("lfoAdsr0 (%i-%i) ",adsr_first_input_id,lfo_first_output_id);     
+    setLfosFreq(lfoAdsr0,lfoAdsr0FreqCoder);
+    // ADSR00STA LFO02SAW
+    sub_test(adsr_first_input_id+adsrVoice0*MAX_INPUTS_PER_OBJ+STAR,lfo_first_output_id+lfoAdsr0*MAX_OUTPUTS_PER_OBJ+WSAW);
+ 
+    printf("lfoAdsr1 (%i-%i) ",adsr_first_input_id,lfo_first_output_id);
+    setLfosFreq(lfoAdsr1,lfoAdsr1FreqCoder);    
     // in47 out27 ADSR01STA LFO03SAW
-    sub_test(56,27);
-    // in85 out02 VCES01FRE LFO00TRI
-    sub_test(91,3);
-    // in81 out33 VCES00SIP ADSR01
-    sub_test(93,34);       
+    sub_test(adsr_first_input_id+adsrVoice1*MAX_INPUTS_PER_OBJ+STAR,lfo_first_output_id+lfoAdsr1*MAX_OUTPUTS_PER_OBJ+WSAW);
 
-    printf("lfo:%u f:%f\n",lfoAdsr,lfosFrequency[lfoAdsr]);
 
-// config lfo0
+/*// config lfo0
     uint32_t lf=3500;   //VCES_MAX_FREQ_CODERS;
     uint8_t  lfo=0;   
     // LFO0Fre VCES_MAX_FREQ_CODERS
@@ -417,38 +429,56 @@ void testSetup()
     lfo=3;   
     // LFO0Fre VCES_MAX_FREQ_CODERS
     setLfosFreq(lfo,lf);
-    printf("lfo:%u coderf:%u f:%f\n",lfo,lf,lfosFrequency[lfo]);
+    printf("lfo:%u coderf:%u f:%f\n",lfo,lf,lfosFrequency[lfo]);*/
     
 // config voice 0    
     uint8_t voice=0;
     uint8_t wave=WSIN;
-    uint16_t coderAmpl=9;
-    setVoiceFrequency(440,&voices[voice],0);   
-    // Vce0SinAmpl 20
-    voices[voice].coderWaveAmpl[wave]=coderAmpl;    // manual level
-    //setVoicesAmpl(0,WSIN);
-    // Vce0SinAmpAtt 255
-    voices[voice].coderWaveAmplAtt[wave]=14;        // input level
+
+        voices[voice].coderFreq=1936;
+        float f=calcFreq(voices[voice].coderFreq);  
+        setVoiceFrequency(f,&voices[voice],1);
+
+//    setVoiceFrequency(calcFreq(1759),&voices[voice],0);   
+    voices[voice].coderWaveAmpl[wave]=8;            // manual level
+    voices[voice].coderWaveAmplAtt[wave]=18;        // input level
     setVoicesAmpl(voice,wave);
-    // Vce0FreAtt 7
-    setVoicesFreqAtt(voice,10);
+    setVoicesFreqAtt(voice,6);
+
+    // VCES00FRE LFO00TRI
+    printf("(%i-%i) ",voice_first_input_id,lfo_first_output_id);
+    sub_test(voice_first_input_id+voice*MAX_INPUTS_PER_OBJ +VFRQ,lfo_first_output_id+lfoVce0Freq*MAX_OUTPUTS_PER_OBJ+WTRI); 
+    // VCES00SIP ADSR00
+    printf("(%i-%i) ",voice_first_input_id,adsr_first_output_id);
+    sub_test(voice_first_input_id+voice*MAX_INPUTS_PER_OBJ+VSPW,adsr_first_output_id+MAX_OUTPUTS_PER_OBJ*adsrVoice0);       
+
+    printf("voice:%u freq:%f coderFreq:%i frAtt:%i wave:%u Ampl:%u amplAtt:%i\n\n",voice,voices[voice].frequency,voices[voice].coderFreq,voices[voice].coderFreqAtt,wave,voices[voice].coderWaveAmpl[wave],voices[voice].coderWaveAmplAtt[wave]);    
 
 // config voice 1
     voice=1;
     wave=WSIN;
-    coderAmpl=9;
-    setVoiceFrequency(880,&voices[voice],0);
-    // Vce0SinAmpl 20
-    voices[voice].coderWaveAmpl[wave]=coderAmpl;    // manual level
-    //setVoicesAmpl(0,WSIN);
-    // Vce0SinAmpAtt 255
-    voices[voice].coderWaveAmplAtt[wave]=14;        // input level
-    setVoicesAmpl(voice,wave);
-    // Vce0FreAtt 7
-    setVoicesFreqAtt(voice,10);
 
+        voices[voice].coderFreq=2355;
+        f=calcFreq(voices[voice].coderFreq);  
+        setVoiceFrequency(f,&voices[voice],1);
+
+    //setVoiceFrequency(880,&voices[voice],0);
+    //printf("%f ",voices[voice].frequency);
+    voices[voice].coderWaveAmpl[wave]=8;             // manual level
+    voices[voice].coderWaveAmplAtt[wave]=18;         // input level
+    setVoicesAmpl(voice,wave);
+    setVoicesFreqAtt(voice,6);
+
+    // VCES01FRE LFO00TRI
+    printf("(%i-%i) ",voice_first_input_id,lfo_first_output_id);
+    sub_test(voice_first_input_id+voice*MAX_INPUTS_PER_OBJ+VFRQ,lfo_first_output_id+lfoVce1Freq*MAX_OUTPUTS_PER_OBJ+WTRI);
+    // out43 VCES01SIP ADSR01
+    printf("(%i-%i) ",voice_first_input_id,adsr_first_output_id);    
+    sub_test(voice_first_input_id+voice*MAX_INPUTS_PER_OBJ+VSPW,adsr_first_output_id+MAX_OUTPUTS_PER_OBJ*adsrVoice1);    
     
-    printf("voice:%u freq:%f frAtt:%i wave:%u Ampl:%u amplAtt:%i\n\n",voice,voices[voice].coderFreq,voices[voice].coderFreqAtt,wave,coderAmpl,voices[voice].coderWaveAmplAtt[wave]);
+    printf("voice:%u freq:%f coderFreq:%i frAtt:%i wave:%u Ampl:%u amplAtt:%i\n\n",voice,voices[voice].frequency,voices[voice].coderFreq,voices[voice].coderFreqAtt,wave,voices[voice].coderWaveAmpl[wave],voices[voice].coderWaveAmplAtt[wave]);
+
+//pwm_timer_1khz_enable(false);while(1){}
 }
 
 // ******** diags/debug ********

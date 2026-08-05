@@ -26,8 +26,11 @@ extern uint32_t  adsrCurrEchFra[MAX_ADSR];
 extern int16_t   adsr_ctl_input_id[][MAX_INPUTS_PER_OBJ];
 extern int16_t   adsr_ctl_output_id[][MAX_OUTPUTS_PER_OBJ];
 extern uint16_t  adsrOutputsValues[MAX_ADSR][MAX_OUTPUTS_PER_OBJ];
+extern int16_t   adsr_first_output_id;
+extern int16_t   adsr_first_input_id;
 
 extern Voice voices[MAX_VOICES];
+extern int16_t voice_first_input_id;
 
 extern float     lfosFrequency[MAX_LFO]; 
 extern uint16_t  lfosCoderCycleR[MAX_LFO];
@@ -38,7 +41,8 @@ extern uint16_t  lfosCodersFreqAtt[MAX_LFO];
 extern int16_t   lfo_ctl_input_id[][MAX_INPUTS_PER_OBJ];
 extern int16_t   lfo_ctl_output_id[][MAX_OUTPUTS_PER_OBJ];
 extern int16_t   lfosOutputsValues[MAX_LFO][MAX_OUTPUTS_PER_OBJ]; 
-
+extern int16_t   lfo_first_output_id;
+extern int16_t   lfo_first_input_id;
  
 
 /* ************            objets           ************ */
@@ -197,6 +201,7 @@ bool init_objects_outputs(void)
     memset(ctl_output_name,'-',MAX_OUTPUTS*IN_OUT_NAME_LEN);
     int16_t curr_output=1;            // output 0 is null
 
+    lfo_first_output_id=curr_output;
     for (uint8_t lfo=0;lfo<MAX_LFO;lfo++)
     {
         for(uint8_t outs=0;outs<MAX_OUTPUTS_PER_OBJ;outs++)
@@ -215,6 +220,7 @@ bool init_objects_outputs(void)
         }
     }
 
+    adsr_first_output_id=curr_output;
     for (uint8_t adsr=0;adsr<MAX_ADSR;adsr++)
     {
         for(uint8_t outs=0;outs<MAX_OUTPUTS_PER_OBJ;outs++)
@@ -258,6 +264,7 @@ bool init_objects_inputs(void)
     memcpy(ctl_input_name[0],"---",3);
     int16_t curr_input=1;
 
+    lfo_first_input_id=curr_input;
     for (uint8_t lfo=0;lfo<MAX_LFO;lfo++)
     {
         for(uint8_t ins=0;ins<MAX_INPUTS_PER_OBJ;ins++)
@@ -281,6 +288,7 @@ bool init_objects_inputs(void)
         }
     }
 
+    adsr_first_input_id=curr_input;
     for (uint8_t adsr=0;adsr<MAX_ADSR;adsr++)
     {
         for(uint8_t ins=0;ins<MAX_INPUTS_PER_OBJ;ins++)
@@ -299,6 +307,7 @@ bool init_objects_inputs(void)
                           ctl_input_tlev[curr_input]=0;
                           //printf("id:%u adsr_input_trig:%u:%u t:%u l:%u \n",curr_input,adsr,ins,ctl_input_trig[curr_input],ctl_input_tlev[curr_input]);
                           break;
+                default: break;
             }           
             if(ins<ADSR_INPUTS_NB){
                 char buf[IN_OUT_NAME_LEN]={'A','D','S','R'};
@@ -311,6 +320,7 @@ bool init_objects_inputs(void)
         }
     }
 
+    voice_first_input_id=curr_input;
     for (uint8_t vce=0;vce<MAX_VOICES;vce++)
     {
         for(uint8_t ins=0;ins<MAX_INPUTS_PER_OBJ;ins++)
@@ -390,7 +400,7 @@ void __not_in_flash_func(connect_input)(uint16_t input_id, uint16_t output)
 
     spin_unlock(inputs_id__lock, f);
 
-    //printf("out#:%d in_id:%d out_id_chain:%i inp_id_chain:%i\n",output,input_id,ctl_output_id_chain[output],ctl_input_id_chain[input_id]);
+    printf("out#:%d in_id:%d out_id_chain:%i inp_id_chain:%i\n",output,input_id,ctl_output_id_chain[output],ctl_input_id_chain[input_id]);
 }
 
 void __not_in_flash_func(disconnect_input)(uint16_t input_id, uint16_t output)
