@@ -73,11 +73,11 @@ void __not_in_flash_func(setVoicesAmpl)(uint8_t v,uint8_t item,int32_t valeur){ 
         voices[v].waveAmplChge[item]=true;  //(delta>TRESH) || (delta<-TRESH) ;
         voices[v].newBasicWaveAmpl[item]=v1;                                            // 0 -> (0x7fff)
 
-if(voices[v].newBasicWaveAmpl[item]!=vx){
+/*if(voices[v].newBasicWaveAmpl[item]!=vx){
     //printf("%u %u %i x:%u vat:%u v:%i v0:%i val:%i\n",v,item,voices[v].basicWaveAmpl[item],voices[v].voice_ctl_input_id[item],voices[v].coderWaveAmplAtt,ctl_input_val[voices[v].voice_ctl_input_id[item]],v0,vat);
     printf("%u %u %i %u %i %i\n",v,item,valeur,vat,v0,v1);
     vx=voices[v].newBasicWaveAmpl[item];
-}
+}*/
     }
 }
 

@@ -394,13 +394,13 @@ void __not_in_flash_func(connect_input)(uint16_t input_id, uint16_t output)
         while (next_id != NO_LINK) {            // end of chain ? 
             prev=next_id;
             next_id=ctl_input_id_chain[prev];
-            printf(" [%i]=%i ",prev,next_id);
+            printf(" ciic[%i]=%i ",prev,next_id);
             if(next_id>MAX_INPUTS || next_id<NO_LINK){
                 spin_unlock(inputs_id__lock, f);
                 system_error("input_id overflow c",next_id);}
         }        
         ctl_input_id_chain[prev]=input_id;
-        printf(" ctl_input_id_chain[%i]=%i \n",prev,ctl_input_id_chain[prev]);
+        printf(" ciic[%i]->%i \n",prev,ctl_input_id_chain[prev]);
     }        
 
     spin_unlock(inputs_id__lock, f);

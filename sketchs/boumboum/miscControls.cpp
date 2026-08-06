@@ -213,8 +213,7 @@ void __not_in_flash_func(adsrHandler)()
             uint8_t*  as=&adsrStatus[a];
             uint16_t* ap=&adsrScopeBufPtr[a];
             if (__builtin_expect(*as != ADSR_OFF, 0)) {
-               
-                int16_t  out_id;
+
                 uint16_t  lev=amplLevel[adsrCoderLev[a]];
                 uint32_t* ce=&adsrCurrEch[a];            
                 uint32_t  cx=*ce>>16;   // prev currEch  
@@ -267,11 +266,11 @@ void __not_in_flash_func(adsrHandler)()
                     default:break;
                 }                
     
-                out_id=ctl_output_id_chain[adsr_ctl_output_id[a]];
+                int16_t in_id=ctl_output_id_chain[adsr_ctl_output_id[a]];
                 //if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(src,out_id,*ov);}
-                if (__builtin_expect(out_id != NO_LINK, 0)){
-                    if(a==1){printf("%u %u %u\n",src,out_id,ov_);}
-                    update_inputs(src,out_id,ov_);
+                if (__builtin_expect(in_id != NO_LINK, 0)){
+                    if(a==1){printf("%u %u %u\n",src,in_id,ov_);}
+                    update_inputs(src,in_id,ov_);
                 }
 
                 //if(a==0){printf("%u\n",ov_);}

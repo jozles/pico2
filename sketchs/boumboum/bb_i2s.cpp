@@ -21,6 +21,8 @@ int i2s_dma_chan1;
 static dma_channel_config dma_cfg0;
 static dma_channel_config dma_cfg1;
 
+bool i2s_running = false;
+
 int32_t* i2s_buffer[2];
 
 static PIO i2s_pio;
@@ -85,12 +87,57 @@ int init_dma_i2s() {
     return 1;
 }
 
-void i2s_start(){
+/*void i2s_start(){
 
     dma_channel_configure(i2s_dma_chan0, &dma_cfg0,&i2s_pio->txf[i2s_sm], i2s_buffer[0], SAMPLES_PER_BUFFER*2,false);
     dma_channel_configure(i2s_dma_chan1, &dma_cfg1,&i2s_pio->txf[i2s_sm], i2s_buffer[1], SAMPLES_PER_BUFFER*2,false);
     dma_start_channel_mask(1u << i2s_dma_chan0); // seulement chan0
     printf("i2s_start\n");
+}*/
+
+void i2s_start(bool on_off)
+{
+    if (on_off) {
+        if (i2s_running) return;   // déjà ON
+
+        memset(i2s_buffer[0],0,SAMPLES_PER_BUFFER*2*4);
+        memset(i2s_buffer[1],0,SAMPLES_PER_BUFFER*2*4);
+
+        // Réinitialise les FIFO du PIO
+        pio_sm_clear_fifos(i2s_pio, i2s_sm);
+
+        // Reconfigure les DMA (obligatoire si elles ont été stoppées)
+        dma_channel_configure(i2s_dma_chan0, &dma_cfg0,
+                              &i2s_pio->txf[i2s_sm],
+                              i2s_buffer[0],
+                              SAMPLES_PER_BUFFER * 2,
+                              false);
+
+        dma_channel_configure(i2s_dma_chan1, &dma_cfg1,
+                              &i2s_pio->txf[i2s_sm],
+                              i2s_buffer[1],
+                              SAMPLES_PER_BUFFER * 2,
+                              false);
+
+        // Démarre seulement chan0, chan1 démarrera via chain-to
+        dma_start_channel_mask(1u << i2s_dma_chan0);
+
+        i2s_running = true;
+        printf("I2S ON\n");
+    }
+    else {
+        if (!i2s_running) return;  // déjà OFF
+
+        // Stop DMA immédiatement
+        dma_channel_abort(i2s_dma_chan0);
+        dma_channel_abort(i2s_dma_chan1);
+
+        // Vide les FIFO du PIO pour éviter un dernier sample résiduel
+        pio_sm_clear_fifos(i2s_pio, i2s_sm);
+
+        i2s_running = false;
+        printf("I2S OFF\n");
+    }
 }
 
 int i2sSetup(PIO pio,uint8_t i2sDataPin,int32_t* buf[2]) {

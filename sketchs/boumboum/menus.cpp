@@ -14,6 +14,7 @@
 #include "sound_level_management.h"
 
 extern int32_t* i2s_buffer[];
+extern bool i2s_running;
 
 extern int16_t  ctl_input_id[MAX_INPUTS];
 extern int16_t  ctl_input_val[MAX_INPUTS];
@@ -714,8 +715,9 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
                 //if(adsrStatus[0]==ADSR_OFF){adsrStatus[0]=ADSR_ATT;adsrCurrEch[0]=0;}
             }          
 
-            int s=tst_switchs_(switchsNb);            
-            if(s==0 || s==-99){return line;}    // switch du coder 0 ou capaTouch
+            int s=tst_switchs_(switchsNb);
+            if(s==-99){i2s_start(!i2s_running);}           
+            if(s==0){return line;}    // switch du coder 0 ou capaTouch
             if(s>0){                            // switch coders 1 à n
                 mode_scope=true;firstScope=true;
                 if((s-1)!=wave){type_scope=1;}
