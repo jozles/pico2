@@ -22,9 +22,6 @@ uint32_t adsrDurDec[MAX_ADSR];
 uint32_t adsrDurSus[MAX_ADSR];
 uint32_t adsrDurRel[MAX_ADSR];
 uint32_t adsrCurrEch[MAX_ADSR];
-//uint32_t adsrCurrEchFra[MAX_ADSR];
-//uint16_t adsrStepInt[MAX_ADSR][ADSR_MAX_STATES];
-//uint16_t adsrStepFra[MAX_ADSR][ADSR_MAX_STATES];
 uint16_t adsrOutputsValues[MAX_ADSR];
 int16_t  adsr_ctl_input_id[MAX_ADSR];
 int16_t  adsr_ctl_output_id[MAX_ADSR];
@@ -52,10 +49,10 @@ void adsrInit()
         adsrDurSus[a]=0;
         adsrDurRel[a]=0;
 
-        adsrCoderAtt[a]=1;setAdsrDur(a,ADSR_ATT,adsrDurAtt[a]);
+        adsrCoderAtt[a]=6;setAdsrDur(a,ADSR_ATT,adsrDurAtt[a]);
         adsrCoderDec[a]=28;setAdsrDur(a,ADSR_DEC,adsrDurDec[a]);
         adsrCoderSus[a]=12;setAdsrDur(a,ADSR_SUS,adsrDurSus[a]);
-        adsrCoderRel[a]=48;setAdsrDur(a,ADSR_REL,adsrDurRel[a]);
+        adsrCoderRel[a]=96;setAdsrDur(a,ADSR_REL,adsrDurRel[a]);
 
         adsrCoderLev[a]=31;setAdsrLev(a,adsrCoderLev[a]);
         adsrStatus[a]=ADSR_OFF;
@@ -218,14 +215,13 @@ void __not_in_flash_func(adsrHandler)()
                 uint32_t* ce=&adsrCurrEch[a];            
                 uint32_t  cx=*ce>>16;   // prev currEch  
                 
-                //printf("%u:%u ",a,*as);
+                //if(a==1){printf("%u:%u \n",a,*as);}
 
                 // !!!!!!!!!!!! rcCurve fournit des valeurs 0-0xffff et update_inputs prend des valeurs 0x7fff !!!!!!!!!!!!!
                 
                 switch(*as){
                     case ADSR_ATT:
                         cx=adsrNext(ce,adsrDurAtt[a]);
-                        //*ov=rcCurve[cx]/2;    // produit des valeurs 0 -> 0xffff (uint) ; limiter à 0x7fff pour compatibilité update_inputs)
                         ov_=rcCurve[cx]/2;    // produit des valeurs 0 -> 0xffff (uint) ; limiter à 0x7fff pour compatibilité update_inputs)
 
                         if (cx == RC_SAMPLES_NB-1) { *ce = 0; *as = ADSR_DEC;}
@@ -265,11 +261,11 @@ void __not_in_flash_func(adsrHandler)()
 
                     default:break;
                 }                
-    
+//if(a==1){printf("%i\n",adsr_ctl_output_id[a]);}    
                 int16_t in_id=ctl_output_id_chain[adsr_ctl_output_id[a]];
                 //if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(src,out_id,*ov);}
                 if (__builtin_expect(in_id != NO_LINK, 0)){
-                    if(a==1){printf("%u %u %u\n",src,in_id,ov_);}
+//if(a==1){printf("%u %u %u\n",src,in_id,ov_);}
                     update_inputs(src,in_id,ov_);
                 }
 

@@ -54,7 +54,13 @@ extern uint16_t   lfosCodersFreq[MAX_LFO];
 extern int16_t    lfo_first_output_id;
 extern int16_t    adsr_first_output_id;
 extern int16_t    lfo_first_input_id;
-extern int16_t    adsr_first_input_id;;
+extern int16_t    adsr_first_input_id;
+
+extern uint16_t adsrCoderAtt[MAX_ADSR];
+extern uint16_t adsrCoderDec[MAX_ADSR];
+extern uint16_t adsrCoderSus[MAX_ADSR];
+extern uint16_t adsrCoderRel[MAX_ADSR];
+extern uint16_t adsrCoderLev[MAX_ADSR];
 
 extern int16_t    ctl_input_srce[MAX_INPUTS];
 extern char       ctl_input_name[MAX_INPUTS][IN_OUT_NAME_LEN]; 
@@ -392,13 +398,13 @@ void sub_test(int16_t inp,int16_t out)
     printf("%u:%s - %u:%s\n",inp,libi,out,libo); 
 }
 
-void voiceConfig(uint8_t voice,uint8_t wave,uint16_t coderFreq,uint8_t attenFreqLevel,uint8_t freqLfo,uint16_t freqLfoCoder,uint8_t manualAmpLevel,uint8_t attenAmpLevel,uint8_t adsr,uint8_t lfoAdsr,uint16_t lfoAdsrFreqCoder)
+void voiceConfig(uint8_t voice,uint8_t wave,uint16_t coderFreq,uint8_t attenFreqLevel,uint8_t freqLfo,uint16_t freqLfoCoder,uint8_t manualAmpLevel,uint8_t attenAmpLevel,uint8_t adsr,uint8_t lfoAdsr,uint16_t lfoAdsrFreqCoder,int8_t rc)
 {
 
     voices[voice].coderFreq=coderFreq;              
     float f=calcFreq(voices[voice].coderFreq);
     voices[voice].basicFrequency=f;  
-    setVoiceFrequency(f,&voices[voice],1);
+    setVoiceFrequency(f,&voices[voice],rc);
   
     voices[voice].coderWaveAmpl[wave]=manualAmpLevel;          // manual level
     voices[voice].coderWaveAmplAtt[wave]=attenAmpLevel;        // input level
@@ -408,12 +414,12 @@ void voiceConfig(uint8_t voice,uint8_t wave,uint16_t coderFreq,uint8_t attenFreq
     // set freqLfo freq
     setLfosFreq(freqLfo,freqLfoCoder);    
     // CX (voice)FRE (freqLfo)TRI
-    printf("(%i-%i-%i) F ctl voice:%u lfo:%u f:%f",voice_first_input_id,lfo_first_output_id,adsr_first_output_id,voice,freqLfo);
+    printf("(%i-%i-%i) Fr ctl voice:%u lfo:%u f:%f",voice_first_input_id,lfo_first_output_id,adsr_first_output_id,voice,freqLfo,lfosFrequency[freqLfo]);
     sub_test(voice_first_input_id+voice*MAX_INPUTS_PER_OBJ+VFRQ,lfo_first_output_id+freqLfo*MAX_OUTPUTS_PER_OBJ+WTRI);
 
     // CX (voice)SIP (adsr)
-    printf("A ctl adsr:%u ",adsr);
-    sub_test(voice_first_input_id+voice*MAX_INPUTS_PER_OBJ+VSPW,adsr_first_output_id+MAX_OUTPUTS_PER_OBJ*adsr);
+    printf("Amp ctl adsr:%u ",adsr);
+    sub_test(voice_first_input_id+voice*MAX_INPUTS_PER_OBJ+VSPW,adsr_first_output_id+adsr);
     
     // set adsrLfo freq
     printf("(%i-%i) adsr:%u ",adsr_first_input_id,lfo_first_output_id,adsr);    
@@ -421,7 +427,7 @@ void voiceConfig(uint8_t voice,uint8_t wave,uint16_t coderFreq,uint8_t attenFreq
     // CX (adsr)STA (adsrLfo)SAW                        start adsr last
     sub_test(adsr_first_input_id+adsr*MAX_INPUTS_PER_OBJ+STAR,lfo_first_output_id+lfoAdsr*MAX_OUTPUTS_PER_OBJ+WSAW);       
 
-    printf("voice:%u freq:%f coderFreq:%i frAtt:%i wave:%u Ampl:%u amplAtt:%i\n\n",voice,voices[voice].frequency,voices[voice].coderFreq,voices[voice].coderFreqAtt,wave,voices[voice].coderWaveAmpl[wave],voices[voice].coderWaveAmplAtt[wave]);    
+    printf("voice:%u freq:%f coderFreq:%i frAtt:%i wave:%u Ampl:%u amplAtt:%i\n\n",voice,voices[voice].basicFrequency,voices[voice].coderFreq,voices[voice].coderFreqAtt,wave,voices[voice].coderWaveAmpl[wave],voices[voice].coderWaveAmplAtt[wave]);    
 }
 
 void testSetup()
@@ -431,33 +437,50 @@ void testSetup()
     // config voice 0    
     uint8_t  voice=0;
     uint8_t  wave=WSIN;
-    uint16_t coderFreq=1936;            // 1936 440Hz // 2355 880Hz    
+    uint16_t coderFreq=800;            // 1096 110Hz // 1936 440Hz // 2355 880Hz    @420/octave demi_ton 35
+    int8_t   rc=23;
     uint8_t  freqLfo=0;
     uint16_t freqLfoCoder=3392;         // 5Hz
     uint8_t  attenFreqLevel=12;
     uint8_t  manualAmpLevel=8;    
     uint8_t  adsr=0;
     uint8_t  adsrLfo=2;    
-    uint8_t  attenAmpLevel=18;
-    uint32_t adsrLfoCoder=1384;         // 6sec // 1793 3sec 
+    uint8_t  attenAmpLevel=130;
+    uint32_t adsrLfoCoder=1384;         // 6sec // 1790 3sec 
 
-    voiceConfig(voice,wave,coderFreq,attenFreqLevel,freqLfo,freqLfoCoder,manualAmpLevel,attenAmpLevel,adsr,adsrLfo,adsrLfoCoder);    
+    voiceConfig(voice,wave,coderFreq,attenFreqLevel,freqLfo,freqLfoCoder,manualAmpLevel,attenAmpLevel,adsr,adsrLfo,adsrLfoCoder,rc);
+    // CX (voice)SQP (adsr) 
+    adsrCoderAtt[adsr]=6;setAdsrDur(adsr,ADSR_ATT,0);
+    adsrCoderDec[adsr]=28;setAdsrDur(adsr,ADSR_DEC,0);
+    adsrCoderSus[adsr]=12;setAdsrDur(adsr,ADSR_SUS,0);
+    adsrCoderRel[adsr]=96;setAdsrDur(adsr,ADSR_REL,0); 
+    printf("Amp ctl adsr:%u ",adsr);
+    sub_test(voice_first_input_id+voice*MAX_INPUTS_PER_OBJ+VQPW,adsr_first_output_id+adsr);
+    wave=WSQR;
+    voices[voice].coderWaveAmpl[wave]=manualAmpLevel;          // manual level
+    voices[voice].coderWaveAmplAtt[wave]=attenAmpLevel;        // input level 
+    printf("\n");         
 
     // config voice 1    
     voice=1;
     wave=WSIN;
-    coderFreq=2355;            // 1936 440Hz // 2355 880Hz    
+    coderFreq=1740;            // 1936 440Hz // 2355 880Hz 
+    rc=1;   
     freqLfo=1;
-    freqLfoCoder=3392;         // 5Hz
+    freqLfoCoder=3499;         // 6Hz
     attenFreqLevel=12;
     manualAmpLevel=8;    
     adsr=1;
     adsrLfo=3;    
-    attenAmpLevel=18;
-    adsrLfoCoder=1793;         // 6sec // 1793 3sec 
+    attenAmpLevel=70;
+    adsrLfoCoder=1790;         // 6sec // 1790 3sec 
 
-    voiceConfig(voice,wave,coderFreq,attenFreqLevel,freqLfo,freqLfoCoder,manualAmpLevel,attenAmpLevel,adsr,adsrLfo,adsrLfoCoder);     
-
+    voiceConfig(voice,wave,coderFreq,attenFreqLevel,freqLfo,freqLfoCoder,manualAmpLevel,attenAmpLevel,adsr,adsrLfo,adsrLfoCoder,rc); 
+    adsrCoderAtt[adsr]=40;setAdsrDur(adsr,ADSR_ATT,0);
+    adsrCoderDec[adsr]=28;setAdsrDur(adsr,ADSR_DEC,0);
+    adsrCoderSus[adsr]=12;setAdsrDur(adsr,ADSR_SUS,0);
+    adsrCoderRel[adsr]=96;setAdsrDur(adsr,ADSR_REL,0);    
+//*/
 //pwm_timer_1khz_enable(false);while(1){}
 }
 

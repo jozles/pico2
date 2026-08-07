@@ -520,7 +520,11 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
             *w0Sin--;
         } */           
         
-        pre=(wsin * *newWaveAmplSin);     //>>GAIN_REDUC;
+        if (__builtin_expect(*sinWaveAmplChge && wsin<255,false)){      // 
+            *waveAmplSin = *newWaveAmplSin;
+        }          
+
+        pre=(wsin * *waveAmplSin);     //>>GAIN_REDUC;
 
         pre += (w[WTRI] * *waveAmplTri);  //>>GAIN_REDUC;
        

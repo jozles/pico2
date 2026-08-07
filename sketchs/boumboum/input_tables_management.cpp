@@ -24,8 +24,8 @@ extern uint8_t   adsrStatus[MAX_ADSR];
 extern uint32_t  adsrCurrEch[MAX_ADSR];
 extern uint32_t  adsrCurrEchFra[MAX_ADSR];
 extern int16_t   adsr_ctl_input_id[][MAX_INPUTS_PER_OBJ];
-extern int16_t   adsr_ctl_output_id[][MAX_OUTPUTS_PER_OBJ];
-extern uint16_t  adsrOutputsValues[MAX_ADSR][MAX_OUTPUTS_PER_OBJ];
+extern int16_t   adsr_ctl_output_id[]; //[MAX_OUTPUTS_PER_OBJ];
+extern uint16_t  adsrOutputsValues[MAX_ADSR]; //[MAX_OUTPUTS_PER_OBJ];
 extern int16_t   adsr_first_output_id;
 extern int16_t   adsr_first_input_id;
 
@@ -93,7 +93,7 @@ extern int16_t   lfo_first_input_id;
 //                  l'ensemble à rapport cyclique réglable, bruit blanc et rose. Les 6 signaux mixés
 //      lfos    =   oscillateurs à fréquences audio fournissant sinus, triangle, dent de scie, carré
 //                  l'ensemble à rapport cyclique réglable
-//      shapers =   séquences à 4 étapes (adsr) + niveau de sustain ; déclenchement selon trig et tlev
+//      shapers =   séquences à 4 étapes (adsr) + niveau de sustain ; déclenchement selon trig et tlev 
 //      mixers  =   mélangeurs audio ou de controles (atténuateurs pour chaque entrée ; ampli de sortie pour les audio)
 //      séquenceurs = générateur d'impulsions programmables
 //      générateurs d'écho = délai, niveau
@@ -221,22 +221,18 @@ bool init_objects_outputs(void)
     }
 
     adsr_first_output_id=curr_output;
+//printf("adsr_first_output_id:%u\n",adsr_first_output_id);    
     for (uint8_t adsr=0;adsr<MAX_ADSR;adsr++)
     {
-        for(uint8_t outs=0;outs<MAX_OUTPUTS_PER_OBJ;outs++)
-        {
-            //ctl_output_val[curr_output]=&adsrOutputsValues[adsr][outs];
-            ctl_output_id_chain[curr_output]=NO_LINK;
-            adsr_ctl_output_id[adsr][outs]=curr_output;
-            if(outs<ADSR_OUTPUTS_NB){
-                char buf[IN_OUT_NAME_LEN]={'A','D','S','R'};
-                convIntToString(buf+4,adsr,2);
-                memcpy(buf+6,&adsr_outputs_names[outs],OBJ_IO_NAME_LEN-1);
-                memcpy(ctl_output_name[curr_output],buf,IN_OUT_NAME_LEN);
-            }            
-            curr_output++;
-            if(curr_output>=MAX_OUTPUTS){return false;}
-        }
+        ctl_output_id_chain[curr_output]=NO_LINK;
+        adsr_ctl_output_id[adsr]=curr_output;
+        char buf[IN_OUT_NAME_LEN]={'A','D','S','R'};
+        convIntToString(buf+4,adsr,2);
+        memcpy(buf+6,adsr_outputs_names,OBJ_IO_NAME_LEN-1);
+        memcpy(ctl_output_name[curr_output],buf,IN_OUT_NAME_LEN);
+//printf("adsr%u ctl_output_id:%u \n",adsr,curr_output);        
+        curr_output++;
+        if(curr_output>=MAX_OUTPUTS){return false;}        
     }
 
 // ajouter ici d'autres générateurs lents  (sequencers, kbd etc) ps: les voices n'ont pas de sorties lentes
