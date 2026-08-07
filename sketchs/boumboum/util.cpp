@@ -380,8 +380,9 @@ void setup(){
 //print_diag();
 }
 
-void sub_test(uint16_t inp,uint16_t out)
+void sub_test(int16_t inp,int16_t out)
 {
+    disconnect_input(inp,ctl_input_srce[inp]);
     ctl_input_srce[inp]=out;
     connect_input(inp,ctl_input_srce[inp]);
     char libi[IN_OUT_NAME_LEN+1];memset(libi,0x00,IN_OUT_NAME_LEN+1);
@@ -395,7 +396,8 @@ void voiceConfig(uint8_t voice,uint8_t wave,uint16_t coderFreq,uint8_t attenFreq
 {
 
     voices[voice].coderFreq=coderFreq;              
-    float f=calcFreq(voices[voice].coderFreq);  
+    float f=calcFreq(voices[voice].coderFreq);
+    voices[voice].basicFrequency=f;  
     setVoiceFrequency(f,&voices[voice],1);
   
     voices[voice].coderWaveAmpl[wave]=manualAmpLevel;          // manual level
@@ -441,20 +443,20 @@ void testSetup()
 
     voiceConfig(voice,wave,coderFreq,attenFreqLevel,freqLfo,freqLfoCoder,manualAmpLevel,attenAmpLevel,adsr,adsrLfo,adsrLfoCoder);    
 
-    // config voice 0    
+    // config voice 1    
     voice=1;
     wave=WSIN;
     coderFreq=2355;            // 1936 440Hz // 2355 880Hz    
-    freqLfo=0;
+    freqLfo=1;
     freqLfoCoder=3392;         // 5Hz
     attenFreqLevel=12;
     manualAmpLevel=8;    
-    adsr=0;
-    adsrLfo=2;    
+    adsr=1;
+    adsrLfo=3;    
     attenAmpLevel=18;
     adsrLfoCoder=1793;         // 6sec // 1793 3sec 
 
-    //voiceConfig(voice,wave,coderFreq,attenFreqLevel,freqLfo,freqLfoCoder,manualAmpLevel,attenAmpLevel,adsr,adsrLfo,adsrLfoCoder);     
+    voiceConfig(voice,wave,coderFreq,attenFreqLevel,freqLfo,freqLfoCoder,manualAmpLevel,attenAmpLevel,adsr,adsrLfo,adsrLfoCoder);     
 
 //pwm_timer_1khz_enable(false);while(1){}
 }

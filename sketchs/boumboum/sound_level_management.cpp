@@ -110,19 +110,10 @@ void __not_in_flash_func(setLfosFreqAtt)(uint8_t l,uint32_t coderF)
 {
                         lfosCodersFreqAtt[l]=coderF;
                         setLfosFrParams(l);
-
-                        /*int16_t fi = ctl_input_val[lfo_ctl_input_id[l][VFRQ]]>>3;                 // normalisation ctl_input_freq
-                        int16_t fc = lfosCodersFreq[l]+fi*coderF/MAX_CTL_ATT;                     // fc=coderFreq+ctl_input_freq atténué
-                        //printf("lfo#:%d cc(att):%d finp:%i fc:%i f_id:%d \n",l,coderF,fi,fc,lfo_ctl_input_id[l][VFRQ]);
-                        signal_overflow("lfo_freq:",l,fc,LFOS_MIN_FREQ_CODERS,LFOS_MAX_FREQ_CODERS);
-                        setLfosFrequency(calcFreq(fc)/VOICE_FREQ_DIVIDER,l,lfosCoderCycleR[l]);*/
 }
 
 void __not_in_flash_func(setLfosFreq)(uint8_t l,uint32_t coderF)
 {
                         lfosCodersFreq[l]=coderF;
                         setLfosFrParams(l);
-                        /*int16_t fi = ctl_input_val[lfo_ctl_input_id[l][VFRQ]]>>3;                 // normalisation ctl_input_freq 
-                        uint16_t fc = coderF+fi*lfosCodersFreqAtt[l]/MAX_CTL_ATT;                 // fc=coderFreq+ctl_input_freq atténué                
-                        setLfosFrequency(calcFreq(fc)/VOICE_FREQ_DIVIDER,l,lfosCoderCycleR[l]);*/    
 }

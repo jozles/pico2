@@ -122,7 +122,7 @@ extern int16_t   lfo_first_input_id;
 
 int16_t ctl_input_val[MAX_INPUTS];                       // all inputs values
 int16_t ctl_input_prev_val[MAX_INPUTS];                  // all inputs prev values for trig level identification
-int16_t ctl_input_srce[MAX_INPUTS];                      // all inputs sources# 
+int16_t ctl_input_srce[MAX_INPUTS];                      // all inputs sources ie outputs used for inputs (usefull for disconnection) 
 //uint8_t ctl_input_norm[MAX_INPUTS];                      // all inputs norm type (0 nothing ; 1 lfo_freq ; 2 vce freq ; 3 rc ; 4 ampl 0-31 etc)
 int16_t ctl_input_shft[MAX_INPUTS];                      // all inputs values shift type (0 no shift ; in)  ??????? input shifting no yet implemented
 uint8_t ctl_input_trig[MAX_INPUTS];                      // all inputs trig type ; reset when read
@@ -373,7 +373,7 @@ void objects_table_init()
     if(!init_objects_outputs()){system_error("init_objects_outputs");}
 }
 
-void __not_in_flash_func(connect_input)(uint16_t input_id, uint16_t output)
+void __not_in_flash_func(connect_input)(uint16_t input_id, uint16_t output)     // add input_id at end of output_id_chain * setup ctl_input_srce[input_id] to output_id
 {
     uint32_t f = spin_lock_blocking(inputs_id__lock);
 
@@ -385,6 +385,7 @@ void __not_in_flash_func(connect_input)(uint16_t input_id, uint16_t output)
 
     if(next_id==NO_LINK)
         {ctl_output_id_chain[output]=input_id;
+        ctl_input_srce[input_id]=output;
         printf("->%u\n",input_id);
         } // end of update
 
@@ -400,6 +401,7 @@ void __not_in_flash_func(connect_input)(uint16_t input_id, uint16_t output)
                 system_error("input_id overflow c",next_id);}
         }        
         ctl_input_id_chain[prev]=input_id;
+        ctl_input_srce[input_id]=output;
         printf(" ciic[%i]->%i \n",prev,ctl_input_id_chain[prev]);
     }        
 
@@ -418,13 +420,15 @@ void __not_in_flash_func(disconnect_input)(uint16_t input_id, uint16_t output)
     // chaîne vide → rien à faire
     if (first == NO_LINK) {
         ctl_input_id_chain[input_id] = NO_LINK;
+        ctl_input_srce[input_id] = NO_LINK;
         spin_unlock(inputs_id__lock, f);
         return;
     }
     // cas 1 : le maillon à retirer est en tête
     if (first == input_id) {
         ctl_output_id_chain[output] = ctl_input_id_chain[input_id];   // nouveau head = suivant
-        ctl_input_id_chain[input_id] = NO_LINK;                  
+        ctl_input_id_chain[input_id] = NO_LINK;
+        ctl_input_srce[input_id] = NO_LINK;                  
         spin_unlock(inputs_id__lock, f);
         return;
     }
@@ -449,7 +453,8 @@ void __not_in_flash_func(disconnect_input)(uint16_t input_id, uint16_t output)
     if (curr == input_id) {
         // on saute le maillon courant
         ctl_input_id_chain[prev] = ctl_input_id_chain[curr];
-        ctl_input_id_chain[curr] = NO_LINK;  
+        ctl_input_id_chain[curr] = NO_LINK;
+        ctl_input_srce[curr] = NO_LINK;  
     }
 
     spin_unlock(inputs_id__lock, f);

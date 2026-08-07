@@ -203,8 +203,6 @@ void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)    // cga = genAmpl l
 {
     printf("%u voices init\n",MAX_VOICES);
     for(uint8_t v=0;v<MAX_VOICES;v++){
-        //voices[v].maxCoderFreq=VCES_MAX_FREQ_CODERS;
-        //voices[v].genAmpl=0x0001;                       // minimal non zero
         voices[v].coderCycleR=MAXCODER_RC/2;
         voices[v].cycleR=voices[v].coderCycleR;
         voices[v].coderCycleRAtt=FULL_ATTENUATION_VALUE;
@@ -215,6 +213,7 @@ void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)    // cga = genAmpl l
 
         voices[v].coderFreq=coderF;
         float f=calcFreq(voices[v].coderFreq);          // 440Hz
+        voices[v].basicFrequency=f;
         setVoiceFrequency(f,&voices[v],voices[v].coderCycleR);
         voices[v].coderFreqAtt=FULL_ATTENUATION_VALUE;    
 
@@ -285,10 +284,7 @@ float __not_in_flash_func(calcFreq)(uint16_t val) // from lin value (0-octIncrNb
 // update voice[].frequency - compute steps
 void __not_in_flash_func(setVoiceFrequency)(float freq,Voice* v,int8_t rc){
     
-    //uint32_t flags=save_and_disable_interrupts();
     v->frequency=freq;
-    //v->coderFreq=calcCoderFreq(freq);
-    //restore_interrupts(flags);
     v->cycleR=rc;
 
     float k=(float)BASIC_WAVE_TABLE_LEN*v->frequency/SAMPLE_RATE;

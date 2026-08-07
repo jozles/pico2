@@ -55,7 +55,7 @@ struct Voice {
     
     volatile float       frequency;             // current frequency
     volatile int16_t     coderFreq;             // frequency coder value
-    //uint16_t    maxCoderFreq;                   // frequency max coder value    
+    volatile float       basicFrequency;    
     int16_t     coderFreqAtt;                   // frequency input attenuator value (0-7fff)
 
     volatile uint8_t     cycleR;                // cyclic ratio value (somme coderCycleR et ctl_input_val)
