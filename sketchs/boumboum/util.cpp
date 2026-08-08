@@ -35,6 +35,15 @@ extern bool st_buffer_free,st_dma_free,st_dma_done_blank,st_sched_free;
 
 // boumboum
 
+const char objects_names[][OBJECTS_NAME_LEN]={         
+    #define Z(name,text) text,
+    #include "objects.def"   
+    #undef Z   
+};
+
+int16_t objects_first_input_id[OBJECTS_NB];
+int16_t objects_first_output_id[OBJECTS_NB];
+
 static int st_dma_channel;
 static int ws_dma_channel;
 
@@ -72,7 +81,7 @@ volatile uint32_t millisCounter;
 #define R2 8
 #define MAXBLK 5
 volatile uint32_t durOffOn[]={LEDOFFDUR,LEDONDUR/R1,LEDOFFDUR/R2,LEDONDUR/R1,LEDOFFDUR/R2,LEDONDUR/R1,LEDOFFDUR/R2,LEDONDUR/R1,LEDOFFDUR/R2,LEDONDUR/R1,LEDOFFDUR/R2,LEDONDUR/R1};
-volatile uint8_t led=0;
+volatile uint8_t  led=0;
 volatile uint32_t ledBlinker=0;
 
 static repeating_timer millisTimer;
@@ -398,17 +407,16 @@ void sub_test(int16_t inp,int16_t out)
     printf("%u:%s - %u:%s\n",inp,libi,out,libo); 
 }
 
-void sub_lfo(uint8_t voice,uint8_t vInpNb,uint8_t lfo,uint16_t coder,uint8_t lOutNb)
+void sub_lfo(uint8_t object_type,uint8_t object_nb,uint8_t vInpNb,uint8_t lfo,uint16_t coder,uint8_t lOutNb)
 {
     setLfosFreq(lfo,coder);    
     // CX (voice)vInpNb (lfo)lOutNb
-    printf("(%i-%i-%i) voice:%u inpNb:%u lfo:%u outNb:%u f:%f",voice_first_input_id,lfo_first_output_id,adsr_first_output_id,voice,vInpNb,lfo,lOutNb,lfosFrequency[lfo]);
-    sub_test(voice_first_input_id+voice*MAX_INPUTS_PER_OBJ+vInpNb,lfo_first_output_id+lfo*MAX_OUTPUTS_PER_OBJ+lOutNb);
+    printf("(%i-%i-%i) %s:%u inp:%u lfo:%u outNb:%u f:%f",objects_first_input_id[VOICE____],objects_first_output_id[LFO______],objects_first_output_id[ADSR_____],objects_names[object_type],object_nb,vInpNb,lfo,lOutNb,lfosFrequency[lfo]);
+    sub_test(objects_first_input_id[object_type]+object_nb*MAX_INPUTS_PER_OBJ+vInpNb,objects_first_output_id[LFO______]+lfo*MAX_OUTPUTS_PER_OBJ+lOutNb);
 }
 
-void voiceConfig(uint8_t voice,uint8_t wave,uint16_t coderFreq,uint8_t attenFreqLevel,uint8_t freqLfo,uint16_t freqLfoCoder,uint8_t manualAmpLevel,uint8_t attenAmpLevel,uint8_t adsr,uint8_t lfoAdsr,uint16_t lfoAdsrFreqCoder,int8_t rc)
+void voiceConfig(uint8_t voice,uint8_t wave,uint16_t coderFreq,uint8_t attenFreqLevel,uint8_t freqLfo,uint16_t freqLfoCoder,uint8_t manualAmpLevel,uint8_t attenAmpLevel,uint8_t adsr,uint8_t adsrLfo,uint16_t adsrLfoFreqCoder,int8_t rc)
 {
-
     voices[voice].coderFreq=coderFreq;              
     float f=calcFreq(voices[voice].coderFreq);
     voices[voice].basicFrequency=f;  
@@ -419,22 +427,13 @@ void voiceConfig(uint8_t voice,uint8_t wave,uint16_t coderFreq,uint8_t attenFreq
     setVoicesAmpl(voice,wave);
     setVoicesFreqAtt(voice,attenFreqLevel);
 
-    sub_lfo(voice,VFRQ,freqLfo,freqLfoCoder,WTRI);
-/*    // set freqLfo freq
-    setLfosFreq(freqLfo,freqLfoCoder);    
-    // CX (voice)FRE (freqLfo)TRI
-    printf("(%i-%i-%i) Fr ctl voice:%u lfo:%u f:%f",voice_first_input_id,lfo_first_output_id,adsr_first_output_id,voice,freqLfo,lfosFrequency[freqLfo]);
-    sub_test(voice_first_input_id+voice*MAX_INPUTS_PER_OBJ+VFRQ,lfo_first_output_id+freqLfo*MAX_OUTPUTS_PER_OBJ+WTRI);*/
+    sub_lfo(VOICE____,voice,VFRQ,freqLfo,freqLfoCoder,WTRI);
 
     // CX (voice)SIP (adsr)
     printf("Amp ctl adsr:%u ",adsr);
-    sub_test(voice_first_input_id+voice*MAX_INPUTS_PER_OBJ+VSPW,adsr_first_output_id+adsr);
-   
-    // set adsrLfo freq
-    printf("(%i-%i) adsr:%u ",adsr_first_input_id,lfo_first_output_id,adsr);    
-    setLfosFreq(lfoAdsr,lfoAdsrFreqCoder);
-    // CX (adsr)STA (adsrLfo)SAW                        start adsr last
-    sub_test(adsr_first_input_id+adsr*MAX_INPUTS_PER_OBJ+STAR,lfo_first_output_id+lfoAdsr*MAX_OUTPUTS_PER_OBJ+WSAW);       
+    sub_test(objects_first_input_id[VOICE____]+voice*MAX_INPUTS_PER_OBJ+VSPW,objects_first_output_id[ADSR_____]+adsr);
+
+    sub_lfo(ADSR_____,adsr,STAR,adsrLfo,adsrLfoFreqCoder,WTRI);       
 
     printf("voice:%u freq:%f coderFreq:%i frAtt:%i wave:%u Ampl:%u amplAtt:%i\n\n",voice,voices[voice].basicFrequency,voices[voice].coderFreq,voices[voice].coderFreqAtt,wave,voices[voice].coderWaveAmpl[wave],voices[voice].coderWaveAmplAtt[wave]);    
 }
@@ -455,7 +454,7 @@ void testSetup()
     uint8_t  adsr=0;
     uint8_t  adsrLfo=2;    
     uint8_t  attenAmpLevel=100;
-    uint32_t adsrLfoCoder=1384;         // 6sec // 1790 3sec
+    uint32_t adsrLfoCoder=1384;         // 1384 6sec // 1790 3sec
     uint8_t  crLfo=4;
     uint16_t crLfoCoder=1820;
 
@@ -467,10 +466,12 @@ void testSetup()
     adsrCoderSus[adsr]=12;setAdsrDur(adsr,ADSR_SUS,0);
     adsrCoderRel[adsr]=96;setAdsrDur(adsr,ADSR_REL,0); 
     printf("Amp ctl adsr:%u ",adsr);
-    sub_test(voice_first_input_id+voice*MAX_INPUTS_PER_OBJ+VQPW,adsr_first_output_id+adsr);
+    sub_test(objects_first_input_id[VOICE____]+voice*MAX_INPUTS_PER_OBJ+VQPW,objects_first_output_id[ADSR_____]+adsr);
     wave=WSQR;
     voices[voice].coderWaveAmpl[wave]=manualAmpLevel;          // manual level
     voices[voice].coderWaveAmplAtt[wave]=attenAmpLevel;        // input level 
+    voices[voice].coderCycleRAtt=100;                             // input level
+    sub_lfo(VOICE____,0,VCR_,4,2210,WTRI);
     printf("\n");
 
 
@@ -486,14 +487,14 @@ void testSetup()
     adsr=1;
     adsrLfo=3;    
     attenAmpLevel=70;
-    adsrLfoCoder=1790;         // 6sec // 1790 3sec 
+    adsrLfoCoder=1790;         // 1384 6sec // 1790 3sec 
 
     voiceConfig(voice,wave,coderFreq,attenFreqLevel,freqLfo,freqLfoCoder,manualAmpLevel,attenAmpLevel,adsr,adsrLfo,adsrLfoCoder,cr); 
     adsrCoderAtt[adsr]=40;setAdsrDur(adsr,ADSR_ATT,0);
     adsrCoderDec[adsr]=28;setAdsrDur(adsr,ADSR_DEC,0);
     adsrCoderSus[adsr]=12;setAdsrDur(adsr,ADSR_SUS,0);
     adsrCoderRel[adsr]=96;setAdsrDur(adsr,ADSR_REL,0);    
-//*/
+
 //pwm_timer_1khz_enable(false);while(1){}
 }
 

@@ -85,9 +85,10 @@ typedef enum {
 #define Z(name,text) name,    
 #include "objects.def"
         OBJECTS_NB
-#undef X
+#undef Z
 }  objects;
-//#define MAX_OBJECTS MENU0_NB
+
+#define OBJECTS_NAME_LEN 8
 
 /* Voices */
 

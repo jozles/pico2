@@ -10,6 +10,9 @@
 
 #include "hardware/sync.h"
 
+extern int16_t   objects_first_output_id[];
+extern int16_t   objects_first_input_id[];
+
 extern uint16_t  adsrCoderAtt[MAX_ADSR];
 extern uint16_t  adsrCoderDec[MAX_ADSR];
 extern uint16_t  adsrCoderSus[MAX_ADSR];
@@ -26,11 +29,8 @@ extern uint32_t  adsrCurrEchFra[MAX_ADSR];
 extern int16_t   adsr_ctl_input_id[][MAX_INPUTS_PER_OBJ];
 extern int16_t   adsr_ctl_output_id[]; //[MAX_OUTPUTS_PER_OBJ];
 extern uint16_t  adsrOutputsValues[MAX_ADSR]; //[MAX_OUTPUTS_PER_OBJ];
-extern int16_t   adsr_first_output_id;
-extern int16_t   adsr_first_input_id;
 
 extern Voice voices[MAX_VOICES];
-extern int16_t voice_first_input_id;
 
 extern float     lfosFrequency[MAX_LFO]; 
 extern uint16_t  lfosCoderCycleR[MAX_LFO];
@@ -41,8 +41,7 @@ extern uint16_t  lfosCodersFreqAtt[MAX_LFO];
 extern int16_t   lfo_ctl_input_id[][MAX_INPUTS_PER_OBJ];
 extern int16_t   lfo_ctl_output_id[][MAX_OUTPUTS_PER_OBJ];
 extern int16_t   lfosOutputsValues[MAX_LFO][MAX_OUTPUTS_PER_OBJ]; 
-extern int16_t   lfo_first_output_id;
-extern int16_t   lfo_first_input_id;
+
  
 
 /* ************            objets           ************ */
@@ -203,7 +202,7 @@ bool init_objects_outputs(void)
     memset(ctl_output_name,'-',MAX_OUTPUTS*IN_OUT_NAME_LEN);
     int16_t curr_output=1;            // output 0 is null
 
-    lfo_first_output_id=curr_output;
+    objects_first_output_id[LFO______]=curr_output;
     for (uint8_t lfo=0;lfo<MAX_LFO;lfo++)
     {
         for(uint8_t outs=0;outs<MAX_OUTPUTS_PER_OBJ;outs++)
@@ -222,7 +221,7 @@ bool init_objects_outputs(void)
         }
     }
 
-    adsr_first_output_id=curr_output;
+    objects_first_output_id[ADSR_____]=curr_output;
 //printf("adsr_first_output_id:%u\n",adsr_first_output_id);    
     for (uint8_t adsr=0;adsr<MAX_ADSR;adsr++)
     {
@@ -262,7 +261,7 @@ bool init_objects_inputs(void)
     memcpy(ctl_input_name[0],"---",3);
     int16_t curr_input=1;
 
-    lfo_first_input_id=curr_input;
+    objects_first_input_id[LFO______]=curr_input;
     for (uint8_t lfo=0;lfo<MAX_LFO;lfo++)
     {
         for(uint8_t ins=0;ins<MAX_INPUTS_PER_OBJ;ins++)
@@ -286,7 +285,7 @@ bool init_objects_inputs(void)
         }
     }
 
-    adsr_first_input_id=curr_input;
+    objects_first_input_id[ADSR_____]=curr_input;
     for (uint8_t adsr=0;adsr<MAX_ADSR;adsr++)
     {
         for(uint8_t ins=0;ins<MAX_INPUTS_PER_OBJ;ins++)
@@ -318,7 +317,7 @@ bool init_objects_inputs(void)
         }
     }
 
-    voice_first_input_id=curr_input;
+    objects_first_input_id[VOICE____]=curr_input;
     for (uint8_t vce=0;vce<MAX_VOICES;vce++)
     {
         for(uint8_t ins=0;ins<MAX_INPUTS_PER_OBJ;ins++)
@@ -458,9 +457,7 @@ void __not_in_flash_func(disconnect_input)(uint16_t input_id, uint16_t output)
     spin_unlock(inputs_id__lock, f);
 }
 
-//void __not_in_flash_func(update_inputs)(uint8_t src,int16_t id,int16_t valeur)  // inputs update with valeur
 void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs update with valeur
-                                                                    // src unused ... to be removed
                                                                     // valeur est la valeur linéaire à atténuer sur 16 bits recadrée selon le type d'entrée
                                                                     // id numéro unique de l'input donne accès à toutes ses caractéristiques
                                                                     //  le ptr dans ctl_input_id_chain de l'id suivant recevant la meme output/valeur

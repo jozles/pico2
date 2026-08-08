@@ -59,7 +59,6 @@ extern int16_t ctl_input_val[MAX_INPUTS];
 extern int16_t ctl_output_id_chain[MAX_OUTPUTS];
 
 int32_t     voicesScopeDataBuffer[MAX_VOICES*SAMPLES_PER_BUFFER];  // all voices data buffer : 16bits low currech nb, 16 bits high rc table nb 
-int16_t     voice_first_input_id;
 
 // i2s
 

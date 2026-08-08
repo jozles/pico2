@@ -28,8 +28,6 @@ int16_t  adsr_ctl_output_id[MAX_ADSR];
 int32_t  adsrScopeBufReal[MAX_ADSR*ADSR_SCOPE_BUFFER_LEN];  // real values
 uint16_t adsrScopeBufPtr[MAX_ADSR];
 
-int16_t     adsr_first_output_id;
-int16_t     adsr_first_input_id;
 uint32_t    adsrTime=0;
 uint32_t    adsrTimingInterval=1000/ADSR_SAMPLE_RATE;
 

@@ -1,5 +1,5 @@
 /* objects */
 
-    Z(VOICE____,"voices     ")
-    Z(LFO______,"lfos       ")
-    Z(ADSR_____,"adsrl      ")
+    Z(VOICE____,"voices")
+    Z(LFO______,"lfos")
+    Z(ADSR_____,"adsr")
