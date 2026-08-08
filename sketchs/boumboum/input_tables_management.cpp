@@ -101,6 +101,7 @@ extern int16_t   lfo_first_input_id;
 //
 // Ajouter un objet nécessite plusieurs interventions :
 //      créer sa description (structure comme voice ou tables comme lfo)
+//      l'ajouter à la liste dans objects.def
 //      créer les 2 fichiers *.def pour décrire ses entrées et sorties
 //          (ajouter un paragraphe dans le chapitre nom des e/s des objets et dans inputs et outputs de const.h)
 //      ajouter pour chaque entrée un nom de type dans norm_types.def
@@ -146,6 +147,7 @@ uint8_t norm_dividers[]={0,16-5,16-6,16-3};              // to add ; not used fo
 
 /* ************** fichiers *.def des enum *************** */
 
+// les objects sont listés dans le fichier objects.def
 // chaque objet a une liste de ses entrées (0-n) avec un mnémo associé pour l'utilitaire de cablage [objet]_inputs_names.def
 // pareil pour ses sorties [objet]_outputs_names.def
 // une autre liste concerne les procédures de mise à jour des valeurs des entrées
@@ -456,11 +458,15 @@ void __not_in_flash_func(disconnect_input)(uint16_t input_id, uint16_t output)
     spin_unlock(inputs_id__lock, f);
 }
 
-void __not_in_flash_func(update_inputs)(uint8_t src,int16_t id,int16_t valeur)  // valeur est la valeur linéaire à atténuer sur 16 bits recadrée selon le type d'entrée
-                                                                    // id indique l'indice de l'objet via ctl_input_object 
-                                                                    // donc la valeur du coder associé
-                                                                    // et le type d'entrée via ctl_input_update_type
-                                                                    // et la valeur précédente de l'entrée via ctl_input_val
+//void __not_in_flash_func(update_inputs)(uint8_t src,int16_t id,int16_t valeur)  // inputs update with valeur
+void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs update with valeur
+                                                                    // src unused ... to be removed
+                                                                    // valeur est la valeur linéaire à atténuer sur 16 bits recadrée selon le type d'entrée
+                                                                    // id numéro unique de l'input donne accès à toutes ses caractéristiques
+                                                                    //  le ptr dans ctl_input_id_chain de l'id suivant recevant la meme output/valeur
+                                                                    //  la valeur du coder associé
+                                                                    //  le type d'entrée via ctl_input_update_type
+                                                                    //  la valeur précédente de l'entrée via ctl_input_val
 {
     //int16_t id = ctl_output_id_chain[output];
     int16_t prev = ctl_input_val[id];
@@ -469,8 +475,8 @@ void __not_in_flash_func(update_inputs)(uint8_t src,int16_t id,int16_t valeur)  
     uint8_t object=ctl_input_object[id];
     int32_t val;
     float fr;
-    uint8_t src0=src/MAX_OBJECTS;
-    uint8_t src_id=src-src0*MAX_OBJECTS;
+    //uint8_t src0=src/MAX_OBJECTS;
+    //uint8_t src_id=src-src0*MAX_OBJECTS;
 
     //if(output==10){printf("out#:%d input_id:%i inp_type:%d val:%i \n",output,id,ctl_input_update_type[id],valeur);}
 

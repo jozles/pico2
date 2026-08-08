@@ -199,11 +199,11 @@ void __not_in_flash_func(adsrHandler)()
     if((millisCounter-adsrTime)>adsrTimingInterval){
         adsrTime=millisCounter;
 
-        uint8_t src=ADSRL____*MAX_OBJECTS;
+        //uint8_t src=ADSRL____*MAX_OBJECTS;
 
         for(uint8_t a=0;a<MAX_ADSR;a++)
         {
-            src+=a;
+            //src+=a;
             //uint16_t* ov=&adsrOutputsValues[a];
             uint16_t  ov_=0;
             uint32_t  ov0;
@@ -266,7 +266,7 @@ void __not_in_flash_func(adsrHandler)()
                 //if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(src,out_id,*ov);}
                 if (__builtin_expect(in_id != NO_LINK, 0)){
 //if(a==1){printf("%u %u %u\n",src,in_id,ov_);}
-                    update_inputs(src,in_id,ov_);
+                    update_inputs(in_id,ov_);   //update_inputs(src,in_id,ov_);
                 }
 
                 //if(a==0){printf("%u\n",ov_);}

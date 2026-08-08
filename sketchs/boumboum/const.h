@@ -81,7 +81,13 @@ typedef enum {
 
 /* Objects */
 
-#define MAX_OBJECTS MENU0_NB
+typedef enum {
+#define Z(name,text) name,    
+#include "objects.def"
+        OBJECTS_NB
+#undef X
+}  objects;
+//#define MAX_OBJECTS MENU0_NB
 
 /* Voices */
 
@@ -93,7 +99,7 @@ typedef enum {
 
 /* lfos */
 
-#define MAX_LFO 4
+#define MAX_LFO 8
 #define LFOS_SAMPLE_RATE 40
 #define LFOS_MAX_FREQ_CODERS VCES_MAX_FREQ_CODERS //3000
 #define LFOS_MIN_FREQ_CODERS 420        // 30sec
@@ -232,17 +238,6 @@ typedef enum {
         VCES_OUTPUTS_NB  
 #undef X
 }  Vces_outputs_names;
-
-/*// ****** menus codes ******
-
-enum Menus {
-    MENU0,
-    VOICES,
-    LFOS,
-    ADSR,
-    AMPS,
-    MENUS_NB
-};*/
 
 // ****** basics waves codes ******
 
