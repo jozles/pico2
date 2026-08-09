@@ -458,7 +458,6 @@ void testSetup()
     uint8_t  crLfo=4;
     uint16_t crLfoCoder=1820;
 
-
     voiceConfig(voice,wave,coderFreq,attenFreqLevel,freqLfo,freqLfoCoder,manualAmpLevel,attenAmpLevel,adsr,adsrLfo,adsrLfoCoder,cr);
     // CX (voice)SQP (adsr) 
     adsrCoderAtt[adsr]=6;setAdsrDur(adsr,ADSR_ATT,0);
@@ -466,14 +465,14 @@ void testSetup()
     adsrCoderSus[adsr]=12;setAdsrDur(adsr,ADSR_SUS,0);
     adsrCoderRel[adsr]=96;setAdsrDur(adsr,ADSR_REL,0); 
     printf("Amp ctl adsr:%u ",adsr);
-    sub_test(objects_first_input_id[VOICE____]+voice*MAX_INPUTS_PER_OBJ+VQPW,objects_first_output_id[ADSR_____]+adsr);
+    /*sub_test(objects_first_input_id[VOICE____]+voice*MAX_INPUTS_PER_OBJ+VQPW,objects_first_output_id[ADSR_____]+adsr);
     wave=WSQR;
     voices[voice].coderWaveAmpl[wave]=manualAmpLevel;          // manual level
-    voices[voice].coderWaveAmplAtt[wave]=attenAmpLevel;        // input level 
-    voices[voice].coderCycleRAtt=100;                             // input level
-    sub_lfo(VOICE____,0,VCR_,4,2210,WTRI);
-    printf("\n");
+    voices[voice].coderWaveAmplAtt[wave]=attenAmpLevel;        // input level*/
 
+    voices[voice].coderCycleRAtt=60;                          // input level
+    sub_lfo(VOICE____,0,VCR_,4,1700,WTRI);                     // 1700=3.5s 
+    printf("\n");
 
     // config voice 1    
     voice=1;

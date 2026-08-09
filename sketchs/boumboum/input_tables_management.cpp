@@ -27,8 +27,8 @@ extern uint8_t   adsrStatus[MAX_ADSR];
 extern uint32_t  adsrCurrEch[MAX_ADSR];
 extern uint32_t  adsrCurrEchFra[MAX_ADSR];
 extern int16_t   adsr_ctl_input_id[][MAX_INPUTS_PER_OBJ];
-extern int16_t   adsr_ctl_output_id[]; //[MAX_OUTPUTS_PER_OBJ];
-extern uint16_t  adsrOutputsValues[MAX_ADSR]; //[MAX_OUTPUTS_PER_OBJ];
+extern int16_t   adsr_ctl_output_id[][MAX_OUTPUTS_PER_OBJ];
+//extern uint16_t  adsrOutputsValues[MAX_ADSR][MAX_OUTPUTS_PER_OBJ];
 
 extern Voice voices[MAX_VOICES];
 
@@ -153,8 +153,8 @@ uint8_t norm_dividers[]={0,16-5,16-6,16-3};              // to add ; not used fo
 //
 
 //int16_t*  ctl_output_val[MAX_OUTPUTS];                    // all objects ptrs to outputs values
-char      ctl_output_name[MAX_OUTPUTS][IN_OUT_NAME_LEN];  // all objects outputs names
-int16_t   ctl_output_id_chain[MAX_OUTPUTS];               // all objects outputs chain to input (first link)
+char      ctl_output_name[MAX_OUTPUTS][IN_OUT_NAME_LEN];    // all objects outputs names
+int16_t   ctl_output_id_chain[MAX_OUTPUTS];    // all objects outputs chain to input (first link)
 
 // ***** noms des entrées/sorties des objets *****
 
@@ -198,7 +198,6 @@ bool init_objects_outputs(void)
 {
     printf("init_obects_outputs\n");
 
-    //memset(ctl_output_val,0x00,MAX_OUTPUTS*sizeof(int16_t*));
     memset(ctl_output_name,'-',MAX_OUTPUTS*IN_OUT_NAME_LEN);
     int16_t curr_output=1;            // output 0 is null
 
@@ -207,7 +206,6 @@ bool init_objects_outputs(void)
     {
         for(uint8_t outs=0;outs<MAX_OUTPUTS_PER_OBJ;outs++)
         {
-            //ctl_output_val[curr_output]=&lfosOutputsValues[lfo][outs];   //lfo_ctl_input_id[lfo][outs];
             ctl_output_id_chain[curr_output]=NO_LINK;
             lfo_ctl_output_id[lfo][outs]=curr_output;
             if(outs<LFO_OUTPUTS_NB){
@@ -221,24 +219,25 @@ bool init_objects_outputs(void)
         }
     }
 
-    objects_first_output_id[ADSR_____]=curr_output;
-//printf("adsr_first_output_id:%u\n",adsr_first_output_id);    
+    objects_first_output_id[ADSR_____]=curr_output;    
     for (uint8_t adsr=0;adsr<MAX_ADSR;adsr++)
     {
-        ctl_output_id_chain[curr_output]=NO_LINK;
-        adsr_ctl_output_id[adsr]=curr_output;
-        char buf[IN_OUT_NAME_LEN]={'A','D','S','R'};
-        convIntToString(buf+4,adsr,2);
-        memcpy(buf+6,adsr_outputs_names,OBJ_IO_NAME_LEN-1);
-        memcpy(ctl_output_name[curr_output],buf,IN_OUT_NAME_LEN);
-//printf("adsr%u ctl_output_id:%u \n",adsr,curr_output);        
-        curr_output++;
-        if(curr_output>=MAX_OUTPUTS){return false;}        
+        for(uint8_t outs=0;outs<MAX_OUTPUTS_PER_OBJ;outs++)
+        {        
+            ctl_output_id_chain[curr_output]=NO_LINK;
+            adsr_ctl_output_id[adsr][outs]=curr_output;
+            if(outs<ADSR_OUTPUTS_NB){
+                char buf[IN_OUT_NAME_LEN]={'A','D','S','R'};
+                convIntToString(buf+4,adsr,2);
+                memcpy(buf+6,&adsr_outputs_names[outs],OBJ_IO_NAME_LEN-1);
+                memcpy(ctl_output_name[curr_output],buf,IN_OUT_NAME_LEN);
+            }       
+            curr_output++;
+            if(curr_output>=MAX_OUTPUTS){return false;}
+        }        
     }
 
 // ajouter ici d'autres générateurs lents  (sequencers, kbd etc) ps: les voices n'ont pas de sorties lentes
-
-    //for (uint16_t i=0;i<MAX_OUTPUTS;i++){if(ctl_output_val[i]!=nullptr){*ctl_output_val[i]=NO_LINK;}}
 
     return true;
 }

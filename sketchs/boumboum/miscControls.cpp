@@ -22,9 +22,9 @@ uint32_t adsrDurDec[MAX_ADSR];
 uint32_t adsrDurSus[MAX_ADSR];
 uint32_t adsrDurRel[MAX_ADSR];
 uint32_t adsrCurrEch[MAX_ADSR];
-uint16_t adsrOutputsValues[MAX_ADSR];
+uint16_t adsrOutputsValues[MAX_ADSR][MAX_OUTPUTS_PER_OBJ];  // inutilisé ??
 int16_t  adsr_ctl_input_id[MAX_ADSR];
-int16_t  adsr_ctl_output_id[MAX_ADSR];
+int16_t  adsr_ctl_output_id[MAX_ADSR][MAX_OUTPUTS_PER_OBJ];
 int32_t  adsrScopeBufReal[MAX_ADSR*ADSR_SCOPE_BUFFER_LEN];  // real values
 uint16_t adsrScopeBufPtr[MAX_ADSR];
 
@@ -64,6 +64,8 @@ void adsrInit()
         adsrCoderSusAtt[a]=FULL_ATTENUATION_VALUE;
         adsrCoderRelAtt[a]=FULL_ATTENUATION_VALUE;
         adsrCoderLevAtt[a]=FULL_ATTENUATION_VALUE;
+
+        for(uint8_t v=0;v<MAX_OUTPUTS_PER_OBJ;v++){adsrOutputsValues[a][v]=0;}
     }
 }
 
@@ -197,18 +199,16 @@ void __not_in_flash_func(adsrHandler)()
     if((millisCounter-adsrTime)>adsrTimingInterval){
         adsrTime=millisCounter;
 
-        //uint8_t src=ADSRL____*MAX_OBJECTS;
-
         for(uint8_t a=0;a<MAX_ADSR;a++)
         {
-            //src+=a;
-            //uint16_t* ov=&adsrOutputsValues[a];
-            uint16_t  ov_=0;
+            bool      bol=false;
+            uint16_t  ov_=0;            // analog level output value
             uint32_t  ov0;
             uint8_t*  as=&adsrStatus[a];
             uint16_t* ap=&adsrScopeBufPtr[a];
             if (__builtin_expect(*as != ADSR_OFF, 0)) {
 
+                bol=true;
                 uint16_t  lev=amplLevel[adsrCoderLev[a]];
                 uint32_t* ce=&adsrCurrEch[a];            
                 uint32_t  cx=*ce>>16;   // prev currEch  
@@ -229,10 +229,7 @@ void __not_in_flash_func(adsrHandler)()
                         // valeurs 1-x
                         cx=adsrNext(ce,adsrDurDec[a]);
                         ov0=rcCurve[cx];
-                        //*ov = P16 - (((uint32_t)(P16 - lev) * ov0) >> 16);   //
-                        //*ov  = (uint16_t)((uint32_t)P16 - ((uint32_t)(P16 - lev) * (uint32_t)ov0)/ (uint32_t)P16);
                         ov_  = (uint16_t)(((uint32_t)P16 - ((uint32_t)(P16 - lev) * (uint32_t)ov0)/ (uint32_t)P16)/2);
-
 
                         if (cx == RC_SAMPLES_NB-1) {*ce = 0; *as = ADSR_SUS;}                        
                         break;
@@ -249,27 +246,22 @@ void __not_in_flash_func(adsrHandler)()
                         // valeurs 1-x
                         cx=adsrNext(ce,adsrDurRel[a]);
                         ov0=rcCurve[cx];
-                        //*ov = lev - (((uint64_t)lev * ov0) >> 15);   
-                        //*ov = (uint16_t)((uint32_t)lev - (uint32_t)((uint32_t)lev * (uint32_t)ov0) / (uint32_t)P16);
                         ov_ = (uint16_t)(((uint32_t)lev - (uint32_t)((uint32_t)lev * (uint32_t)ov0) / (uint32_t)P16)/2);
 
-                        //if (cx == RC_SAMPLES_NB-1) { *ce = 0; *as = ADSR_OFF;*ov=0;} 
                         if (cx == RC_SAMPLES_NB-1) { *ce = 0; *as = ADSR_OFF;ov_=0;} 
                         break;
 
                     default:break;
                 }                
-//if(a==1){printf("%i\n",adsr_ctl_output_id[a]);}    
-                int16_t in_id=ctl_output_id_chain[adsr_ctl_output_id[a]];
-                //if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(src,out_id,*ov);}
-                if (__builtin_expect(in_id != NO_LINK, 0)){
-//if(a==1){printf("%u %u %u\n",src,in_id,ov_);}
-                    update_inputs(in_id,ov_);   //update_inputs(src,in_id,ov_);
+//if(a==1){printf("%i\n",adsr_ctl_output_id[a]);}
+                // update connected level inputs
+                int16_t in_lev_id=ctl_output_id_chain[adsr_ctl_output_id[a][ADSR]];
+                if (__builtin_expect(in_lev_id != NO_LINK, 0)){
+                    adsrOutputsValues[a][ADSR]=ov_;
+                    update_inputs(in_lev_id,ov_);
                 }
 
                 //if(a==0){printf("%u\n",ov_);}
-
-                //adsrScopeBufReal[a*ADSR_SCOPE_BUFFER_LEN + *ap]=*ov;
                 adsrScopeBufReal[a*ADSR_SCOPE_BUFFER_LEN + *ap]=ov_;
 
                 (*ap)++;  // until ADSR_OFF
@@ -279,7 +271,15 @@ void __not_in_flash_func(adsrHandler)()
                 for(uint16_t x=*ap;x<ADSR_SCOPE_BUFFER_LEN;x++){*(ab+x)=0;}
                 *ap=0;adsrScopeDisp[a]=true;   
             }
-        if(__builtin_expect(*ap>=ADSR_SCOPE_BUFFER_LEN,0)){*ap=0;adsrScopeDisp[a]=true;}
+        
+            if(__builtin_expect(*ap>=ADSR_SCOPE_BUFFER_LEN,0)){*ap=0;adsrScopeDisp[a]=true;}
+        
+            // update connected bool inputs
+            int16_t in_bool_id=ctl_output_id_chain[adsr_ctl_output_id[a][ADSR]];
+            if (__builtin_expect(in_bool_id != NO_LINK, 0)){
+                adsrOutputsValues[a][ADSR_GATE]=bol;                
+                update_inputs(in_bool_id,bol);
+            }
         }
     }
 }

@@ -1,3 +1,4 @@
 /* outputs names for adsr */
 
     X(ADSR,"ADSR")
+    X(ADSR_GATE,"AD_G")

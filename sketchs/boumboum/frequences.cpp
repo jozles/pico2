@@ -38,7 +38,7 @@ uint16_t    lfosStepIntD[MAX_LFO];                    // partie entière du step
 uint32_t    lfosStepFraD[MAX_LFO];                    // partie fractionnaire du step descendant  
 uint16_t    currLfoEch[MAX_LFO];
 uint32_t    currLfoEchFra[MAX_LFO];
-int16_t     lfosOutputsValues[MAX_LFO][MAX_OUTPUTS_PER_OBJ];
+int16_t     lfosOutputsValues[MAX_LFO][MAX_OUTPUTS_PER_OBJ];  // inutilisé ??
 uint32_t    lfoTime=0;
 uint32_t    lfoTimingInterval=1000/LFOS_SAMPLE_RATE;
 int32_t     lfoScopeBuffer[MAX_LFO*OSC_SCOPE_BUFFER_LEN];   // n° echantillons+rc_table 
