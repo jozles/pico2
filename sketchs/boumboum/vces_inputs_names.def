@@ -2,7 +2,7 @@
 
     X(VFRQ,"FREQ")
     X(VCR_,"CYCR")
-    X(VSPW,"SIPW")
+    X(VSPW,"SIPW")  // VSPW oit être en tête des 'PW' (utilisé comme base)
     X(VTPW,"TRPW")
     X(VAPW,"SAPW")
     X(VQPW,"SQPW")

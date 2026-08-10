@@ -6,7 +6,7 @@
 
 #include "rc_33tables.h"
 
-#define VERSION "v1.4"
+#define VERSION "v1.41"
 
 #define PI 3.141592636
 
@@ -243,17 +243,7 @@ typedef enum {
 // ****** basics waves codes ******
 
 #define FIRST_WAVE W_SINUS
-#define LAST_WAVE W_SQUARE
-/*enum Waves {
-    W_SINUS,
-    W_TRIANGLE,
-    W_SAWTOOTH,
-    W_SQUARE,
-    W_WHITE_NOISE,
-    W_PINK_NOISE,
-    W_NB,
-    W_TEST
-};*/    
+#define LAST_WAVE W_SQUARE 
 
 #define PIN_DCDC_PSM_CTRL 23        // to set the DCDC in PSM mode for less audio noise
 

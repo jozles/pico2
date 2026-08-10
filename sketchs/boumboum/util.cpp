@@ -395,7 +395,7 @@ void setup(){
 //print_diag();
 }
 
-void sub_test(int16_t inp,int16_t out)
+void test_connect(int16_t inp,int16_t out)
 {
     disconnect_input(inp,ctl_input_srce[inp]);
     ctl_input_srce[inp]=out;
@@ -412,14 +412,15 @@ void sub_lfo(uint8_t object_type,uint8_t object_nb,uint8_t vInpNb,uint8_t lfo,ui
     setLfosFreq(lfo,coder);    
     // CX (voice)vInpNb (lfo)lOutNb
     printf("(%i-%i-%i) %s:%u inp:%u lfo:%u outNb:%u f:%f",objects_first_input_id[VOICE____],objects_first_output_id[LFO______],objects_first_output_id[ADSR_____],objects_names[object_type],object_nb,vInpNb,lfo,lOutNb,lfosFrequency[lfo]);
-    sub_test(objects_first_input_id[object_type]+object_nb*MAX_INPUTS_PER_OBJ+vInpNb,objects_first_output_id[LFO______]+lfo*MAX_OUTPUTS_PER_OBJ+lOutNb);
+    test_connect(objects_first_input_id[object_type]+object_nb*MAX_INPUTS_PER_OBJ+vInpNb,objects_first_output_id[LFO______]+lfo*MAX_OUTPUTS_PER_OBJ+lOutNb);
 }
 
 void voiceConfig(uint8_t voice,uint8_t wave,uint16_t coderFreq,uint8_t attenFreqLevel,uint8_t freqLfo,uint16_t freqLfoCoder,uint8_t manualAmpLevel,uint8_t attenAmpLevel,uint8_t adsr,uint8_t adsrLfo,uint16_t adsrLfoFreqCoder,int8_t rc)
 {
     voices[voice].coderFreq=coderFreq;              
     float f=calcFreq(voices[voice].coderFreq);
-    voices[voice].basicFrequency=f;  
+    voices[voice].basicFrequency=f;
+    voices[voice].coderCycleR=rc+RC_TABLES_NB-1; 
     setVoiceFrequency(f,&voices[voice],rc);
   
     voices[voice].coderWaveAmpl[wave]=manualAmpLevel;          // manual level
@@ -431,7 +432,7 @@ void voiceConfig(uint8_t voice,uint8_t wave,uint16_t coderFreq,uint8_t attenFreq
 
     // CX (voice)SIP (adsr)
     printf("Amp ctl adsr:%u ",adsr);
-    sub_test(objects_first_input_id[VOICE____]+voice*MAX_INPUTS_PER_OBJ+VSPW,objects_first_output_id[ADSR_____]+adsr);
+    test_connect(objects_first_input_id[VOICE____]+voice*MAX_INPUTS_PER_OBJ+VSPW+wave,objects_first_output_id[ADSR_____]+adsr*MAX_OUTPUTS_PER_OBJ+ADSR_SHAPE);
 
     sub_lfo(ADSR_____,adsr,STAR,adsrLfo,adsrLfoFreqCoder,WTRI);       
 

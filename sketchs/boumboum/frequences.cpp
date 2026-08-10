@@ -453,8 +453,14 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
       volatile bool* sinWaveAmplChge    = &v->waveAmplChge[WSIN];
       volatile int32_t*  diffSin        = &v->diffWaveAmpl[WSIN];
       volatile uint32_t* waveAmplTri    = &v->basicWaveAmpl[WTRI];
-      volatile uint32_t* waveAmplSaw    = &v->basicWaveAmpl[WSAW];        
+      volatile uint32_t* newWaveAmplTri = &v->newBasicWaveAmpl[WTRI];
+      volatile bool* triWaveAmplChge    = &v->waveAmplChge[WTRI];      
+      volatile uint32_t* waveAmplSaw    = &v->basicWaveAmpl[WSAW];
+      volatile uint32_t* newWaveAmplSaw = &v->newBasicWaveAmpl[WSAW];
+      volatile bool* sawWaveAmplChge    = &v->waveAmplChge[WSAW];              
       volatile uint32_t* waveAmplSqr    = &v->basicWaveAmpl[WSQR]; 
+      volatile uint32_t* newWaveAmplSqr = &v->newBasicWaveAmpl[WSQR];
+      volatile bool* sqrWaveAmplChge    = &v->waveAmplChge[WSQR];      
       volatile uint32_t* waveAmplWhi    = &v->basicWaveAmpl[WHIT];
       volatile uint32_t* waveAmplPnk    = &v->basicWaveAmpl[PONK];
 
@@ -491,13 +497,13 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
         uint32_t ce=vsBuffer[s];          // ce : 16 bits gauche = rc, 16 bits droite num ech
         uint32_t rc=ce>>16; 
         
-        ce &= (BASIC_WAVE_TABLE_LEN-1);             // local currEch (cyclic ratio managment)
+        ce &= (BASIC_WAVE_TABLE_LEN-1);                   // local currEch (cyclic ratio managment)
 
         bool vv=(ce<RC_TABLES_LEN);
-        int sign=(vv*2-1);                          // invert 180-360°
+        int sign=(vv*2-1);                                // invert 180-360°
 
         // if ce<RC_TABLES_LEN ce=ce else ce=(RC_TABLES_LEN - 1) - (ce - RC_TABLE_LEN) ... 2*RC_TABLE_LEN - ce - 1
-        ce ^= (!vv) * (BASIC_WAVE_TABLE_LEN - 1);   // ce = vv*ce+!vv*((BASIC_WAVE_TABLE_LEN-1) - ce);  // invert 180-360°           
+        ce ^= (!vv) * (BASIC_WAVE_TABLE_LEN - 1);         // ce = vv*ce+!vv*((BASIC_WAVE_TABLE_LEN-1) - ce);  // invert 180-360°           
         ce &= RC_TABLES_LEN-1;
 
         uint32_t ce_idx = ce;
@@ -506,7 +512,7 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
 
         int32_t pre=0;
 
-        int16_t wsin=w[WSIN];
+        int16_t wwave=w[WSIN];
         /*
         if (__builtin_expect(*sinWaveAmplChge ,false)){
             *sinWaveAmplChge=false;
@@ -519,23 +525,37 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
             *w0Sin--;
         } */           
         
-        if (__builtin_expect(*sinWaveAmplChge && wsin<255,false)){      // 
+        if (__builtin_expect(*sinWaveAmplChge && wwave<255,false)){  
             *waveAmplSin = *newWaveAmplSin;
         }          
+        pre=(wwave * *waveAmplSin);     //>>GAIN_REDUC;
 
-        pre=(wsin * *waveAmplSin);     //>>GAIN_REDUC;
+        if (__builtin_expect((*waveAmplTri + *newWaveAmplTri),false)!=0){
+          wwave=w[WTRI];
+          if (__builtin_expect(*triWaveAmplChge && wwave<255,false)){ 
+              *waveAmplTri = *newWaveAmplTri;
+          }
+          pre += (wwave * *waveAmplTri);  //>>GAIN_REDUC;
+        }
 
-        pre += (w[WTRI] * *waveAmplTri);  //>>GAIN_REDUC;
-       
-        int16_t tri=rcTable32[RC_N_WAVES*ce+WTRI];  // saw utilise la table 32 du triangle
-        int32_t saw;
-        if(ce<(RC_N_SAMPLES >> 1)){saw=(65536-tri)>>1;}
-        else saw=tri>>1;
-        if(rc>=32){saw=-saw;}                       // saw n'a pas de réglace de rc, juste une inversion de phase (montée ou descente verticale)
-        pre += (saw * *waveAmplSaw);     //>>GAIN_REDUC;
+// saw et sqr semblent faire une fréquence double        
 
-        int16_t sqr=(ce & (BASIC_WAVE_TABLE_LEN>>1)) ? -0x7fff : 0x7fff;    // sqr cr not implemented
-        pre += (sqr * *waveAmplSqr);     //>>GAIN_REDUC;
+        if (__builtin_expect((*waveAmplSaw + *newWaveAmplSaw),false)!=0){
+          int16_t tri=rcTable32[RC_N_WAVES*ce+WTRI];  // saw utilise la table 32 du triangle
+          int32_t saw;
+          if(ce<(RC_N_SAMPLES >> 1)){saw=(65536-tri)>>1;}
+          else saw=tri>>1;
+          if(rc>=32){saw=-saw;}                       // saw n'a pas de réglace de rc, juste une inversion de phase (montée ou descente verticale)
+          if (__builtin_expect(*sawWaveAmplChge && saw<255,false)){  
+              *waveAmplSaw = *newWaveAmplSaw;
+          }        
+          pre += (saw * *waveAmplSaw);     //>>GAIN_REDUC;
+        }          
+
+        if (__builtin_expect(*newWaveAmplSqr!=0,false)){
+          int16_t sqr=(ce & (BASIC_WAVE_TABLE_LEN>>1)) ? -0x7fff : 0x7fff;    // sqr cr not implemented
+          pre += (sqr * *newWaveAmplSqr);     //>>GAIN_REDUC;
+        }
 
         //pre = pre>>8;
         pre *= sign;

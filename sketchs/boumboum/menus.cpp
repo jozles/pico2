@@ -43,11 +43,6 @@ extern Voice voices[MAX_VOICES];
 // frequences/ampl/lfos
 
 volatile int16_t voicesWaveAmplCoders[MAX_VOICES][VCES_OUTPUTS_NB];
-uint16_t voicesMaxWaveAmplCoders[MAX_VOICES][VCES_OUTPUTS_NB];
-volatile int16_t voicesFreqCoders[MAX_VOICES];
-uint16_t voicesMaxFreqCoders[MAX_VOICES];
-volatile int16_t voicesAmplCoders[MAX_VOICES];
-uint16_t voicesMaxAmplCoders[MAX_VOICES];
 
 extern float lfosFrequency[];                       // current lfo freq
 extern uint16_t lfosCodersFreq[];
@@ -165,16 +160,9 @@ enum AdsrCoders {        // coders pour menu adsr
 // ****** inits ******
 void menus_init(){    
     for(uint8_t v=0;v<MAX_VOICES;v++){
-        voicesFreqCoders[v]=voices[v].coderFreq; // 440Hz @1943 _ 1944 force first display
-        voicesMaxFreqCoders[v]=VCES_MAX_FREQ_CODERS;    //voices[v].maxCoderFreq;
-        voicesAmplCoders[v]=voices[v].coderGenAmpl;
-        voicesMaxAmplCoders[v]=VCES_MAX_AMPL_CODERS;    //voices[v].maxCoderGenAmpl;
-        //voices[v].coderAmpl[W_SINUS]=31;    // 5793
-        //voices[v].basicWaveAmpl[W_SINUS]=amplLevel[voices[v].coderAmpl[W_SINUS]];
         
         for(uint8_t a=0;a<VCES_OUTPUTS_NB;a++){
             voices[v].coderSw[a]=true;
-            voicesMaxWaveAmplCoders[v][a]=VCES_MAX_AMPL_CODERS; //voices[v].maxCoderWaveAmpl[a];   // voicesMaxWaveAmplCoders[W_NB] est un tableu pour le coderHandler
             tempVcesCoderAmp[a][v]=voices[v].coderWaveAmpl[a];
             tempVcesCoderAtt[a][v]=voices[v].coderWaveAmplAtt[a];
         }

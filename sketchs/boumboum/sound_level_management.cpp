@@ -77,12 +77,12 @@ void __not_in_flash_func(setVoicesAmpl)(uint8_t v,uint8_t item,int32_t valeur){ 
     //printf("%u %u %i x:%u vat:%u v:%i v0:%i val:%i\n",v,item,voices[v].basicWaveAmpl[item],voices[v].voice_ctl_input_id[item],voices[v].coderWaveAmplAtt,ctl_input_val[voices[v].voice_ctl_input_id[item]],v0,vat);
     printf("%u %u %i %u %i %i\n",v,item,valeur,vat,v0,v1);
     vx=voices[v].newBasicWaveAmpl[item];
-}*/
+}//*/
     }
 }
 
 void __not_in_flash_func(setVoicesAmpl)(uint8_t v,uint8_t item){
-    setVoicesAmpl(v,item,ctl_input_val[voices[v].voice_ctl_input_id[item]]);
+                        setVoicesAmpl(v,item,ctl_input_val[voices[v].voice_ctl_input_id[item]]);
 }
 
 void __not_in_flash_func(setVoicesFreqAtt)(uint8_t v,uint32_t coderF)

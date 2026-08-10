@@ -34,6 +34,7 @@ uint32_t    adsrTimingInterval=1000/ADSR_SAMPLE_RATE;
 extern uint32_t millisCounter;
 extern uint16_t amplLevel[];
 extern int16_t  ctl_output_id_chain[];
+extern uint8_t  ctl_input_update_type[];
 
 bool adsrScopeDisp[MAX_ADSR];
 
@@ -201,14 +202,14 @@ void __not_in_flash_func(adsrHandler)()
 
         for(uint8_t a=0;a<MAX_ADSR;a++)
         {
-            bool      bol=false;
+            int16_t   bol=0;
             uint16_t  ov_=0;            // analog level output value
             uint32_t  ov0;
             uint8_t*  as=&adsrStatus[a];
             uint16_t* ap=&adsrScopeBufPtr[a];
             if (__builtin_expect(*as != ADSR_OFF, 0)) {
 
-                bol=true;
+                bol=0x7fff;
                 uint16_t  lev=amplLevel[adsrCoderLev[a]];
                 uint32_t* ce=&adsrCurrEch[a];            
                 uint32_t  cx=*ce>>16;   // prev currEch  
@@ -255,9 +256,11 @@ void __not_in_flash_func(adsrHandler)()
                 }                
 //if(a==1){printf("%i\n",adsr_ctl_output_id[a]);}
                 // update connected level inputs
-                int16_t in_lev_id=ctl_output_id_chain[adsr_ctl_output_id[a][ADSR]];
+                int16_t in_lev_id=ctl_output_id_chain[adsr_ctl_output_id[a][ADSR_SHAPE]];
                 if (__builtin_expect(in_lev_id != NO_LINK, 0)){
-                    adsrOutputsValues[a][ADSR]=ov_;
+                    ov_ &= 0x7fff; // écrêtage
+                    adsrOutputsValues[a][ADSR_SHAPE]=ov_;
+//printf("%u %u %i %u\n",a,ov_,in_lev_id,ctl_input_update_type[in_lev_id]);
                     update_inputs(in_lev_id,ov_);
                 }
 
@@ -275,7 +278,7 @@ void __not_in_flash_func(adsrHandler)()
             if(__builtin_expect(*ap>=ADSR_SCOPE_BUFFER_LEN,0)){*ap=0;adsrScopeDisp[a]=true;}
         
             // update connected bool inputs
-            int16_t in_bool_id=ctl_output_id_chain[adsr_ctl_output_id[a][ADSR]];
+            int16_t in_bool_id=ctl_output_id_chain[adsr_ctl_output_id[a][ADSR_GATE]];
             if (__builtin_expect(in_bool_id != NO_LINK, 0)){
                 adsrOutputsValues[a][ADSR_GATE]=bol;                
                 update_inputs(in_bool_id,bol);
