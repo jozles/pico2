@@ -124,6 +124,7 @@ void i2s_start(bool on_off)
 
         i2s_running = true;
         printf("I2S ON\n");
+        //sleep_ms(100);
     }
     else {
         if (!i2s_running) return;  // déjà OFF
@@ -137,8 +138,11 @@ void i2s_start(bool on_off)
 
         i2s_running = false;
         printf("I2S OFF\n");
+        //sleep_ms(100);
     }
 }
+
+
 
 int i2sSetup(PIO pio,uint8_t i2sDataPin,int32_t* buf[2]) {
 

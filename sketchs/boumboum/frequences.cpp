@@ -228,7 +228,7 @@ void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)    // cga = genAmpl l
             voices[v].coderWaveAmpl[i]=0;
             voices[v].basicWaveAmpl[i]=0;
             voices[v].waveAmplChge[i]=false;
-            voices[v].coderSw[i]=0;
+            //voices[v].coderSw[i]=0;
         }
 
         for(uint8_t w=0;w<BASIC_WAVES_NB;w++){  // init previous values for every waves
@@ -248,7 +248,7 @@ void dumpVoices(Voice* v)
     printf("%d %d-%d-%4.3f    %d       %d        %d      %d      %d       %d           %d        %d  ",n,v[n].coderFreq,MAXCODER_RC,v[n].frequency,v[n].sampleNbToFill,v[n].currentSample,v[n].stepInt,v[n].stepFra,v[n].currEch,v[n].currEchFra,v[n].noisePhase,v[n].noiseStep);
     for(uint8_t wa=0;wa<BASIC_WAVES_NB;wa++){printf("%d-%d-%d ",v[n].coderWaveAmpl[wa],VCES_MAX_FREQ_CODERS,v[n].basicWaveAmpl[wa]);}
     printf("%d=%d=%d ",v[n].coderGenAmpl,VCES_MAX_AMPL_CODERS,v[n].genAmpl);
-    for(uint8_t sw=0;sw<CODER_NB;sw++){printf("%d ",v[n].coderSw[sw]);}
+    //for(uint8_t sw=0;sw<CODER_NB;sw++){printf("%d ",v[n].coderSw[sw]);}
     printf("\n");
   }
 }

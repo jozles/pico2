@@ -17,7 +17,8 @@
 const char* version=VERSION;
 uint8_t currVoice=0;
 
-volatile bool voicesSw[CODER_NB];                   // coder it handler scans all physical coders
+volatile bool codersSw[CODER_NB];                   // coder it handler scans all physical coders
+volatile bool codersTB[CODER_NB];
 
 #define MENU0_CODER_NB 1
 volatile int16_t menu0Coders[]={0};                 // [0] curr input nb
@@ -82,16 +83,16 @@ if (watchdog_caused_reboot()) {
 
     while(1){
 //printf("menu:%d \n");
-        menu=coders_for_menu("boumboum ",(const char*)menu0_names,MENU0_NB,MENU_NAME_LEN,MENU0____,menu0Coders,voicesSw,menu0MaxCoders,nullptr,0,MENU0_CODER_NB,menu);
+        menu=coders_for_menu("boumboum ",(const char*)menu0_names,MENU0_NB,MENU_NAME_LEN,MENU0____,menu0Coders,codersSw,codersTB,menu0MaxCoders,nullptr,0,MENU0_CODER_NB,menu);
 
         switch(menu){
-            case VOICES_FR: coders_for_menu("V",(const char*)nullptr,MAX_VOICES,0,VOICES_FR,menuVcesCodersF,voicesSw,menuMaxVcesCodersF,vcesVarF,VCE_VAR_F_NB,BASIC_WAVES_NB,0);break;
-            case VOICES_AM: coders_for_menu("V_AMP",(const char*)nullptr,MAX_VOICES,0,VOICES_AM,menuVcesCodersM,voicesSw,menuMaxVcesCodersM,vcesVarM,VCE_VAR_M_NB,BASIC_WAVES_NB,0);break;
-            case VOICES_AT: coders_for_menu("V_ATT",(const char*)nullptr,MAX_VOICES,0,VOICES_AT,menuVcesCodersT,voicesSw,menuMaxVcesCodersT,vcesVarT,VCE_VAR_T_NB,BASIC_WAVES_NB,0);break;
+            case VOICES_FR: coders_for_menu("V",(const char*)nullptr,MAX_VOICES,0,VOICES_FR,menuVcesCodersF,codersSw,codersTB,menuMaxVcesCodersF,vcesVarF,VCE_VAR_F_NB,BASIC_WAVES_NB,0);break;
+            case VOICES_AM: coders_for_menu("V_AMP",(const char*)nullptr,MAX_VOICES,0,VOICES_AM,menuVcesCodersM,codersSw,codersTB,menuMaxVcesCodersM,vcesVarM,VCE_VAR_M_NB,BASIC_WAVES_NB,0);break;
+            case VOICES_AT: coders_for_menu("V_ATT",(const char*)nullptr,MAX_VOICES,0,VOICES_AT,menuVcesCodersT,codersSw,codersTB,menuMaxVcesCodersT,vcesVarT,VCE_VAR_T_NB,BASIC_WAVES_NB,0);break;
             //case WAVES_AMP: coders_for_wavesAmpl(currVoice);break;
             //case GEN_AMPL_: coders_for_genAmpl(currVoice);break;
-            case LFOS_____: coders_for_menu("L",(const char*)nullptr,MAX_LFO,0,LFOS_____,menuLfosCoders,voicesSw,menuMaxLfosCoders,lfosVar,LFO_VAR_NB,BASIC_WAVES_NB,0);break;
-            case ADSRL____: coders_for_menu("ADSR:",(const char*)nullptr,MAX_ADSR,0,ADSRL____,menuAdsrCoders,voicesSw,menuMaxAdsrCoders,adsrVar,ADSR_VAR_NB,BASIC_WAVES_NB,0);break;
+            case LFOS_____: coders_for_menu("L",(const char*)nullptr,MAX_LFO,0,LFOS_____,menuLfosCoders,codersSw,codersTB,menuMaxLfosCoders,lfosVar,LFO_VAR_NB,BASIC_WAVES_NB,0);break;
+            case ADSRL____: coders_for_menu("ADSR:",(const char*)nullptr,MAX_ADSR,0,ADSRL____,menuAdsrCoders,codersSw,codersTB,menuMaxAdsrCoders,adsrVar,ADSR_VAR_NB,BASIC_WAVES_NB,0);break;
             case MAPPING__: coders_for_mapping();break;
 
             default:break;

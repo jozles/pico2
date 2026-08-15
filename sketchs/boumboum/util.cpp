@@ -86,6 +86,8 @@ volatile uint32_t ledBlinker=0;
 
 static repeating_timer millisTimer;
 
+extern volatile bool codersTB[];
+
 void blank(void* s,uint32_t len)
 {
     blank_(s,len,0x00);
@@ -259,10 +261,10 @@ void init_global_dma_irq(){
 }
 #endif  // GLOBAL_DMA_IRQ_HANDLER
 
-bool gpio_irq_set=false;
+//bool gpio_irq_set=false;
 
-uint32_t pin_irq_cnt=0;
-void gpio_irq_handler(uint gpio, uint32_t events) {
+//uint32_t pin_irq_cnt=0;
+/*void gpio_irq_handler(uint gpio, uint32_t events) {
     if (events & GPIO_IRQ_EDGE_RISE) {
         gpio_irq_set=true;
     }
@@ -280,7 +282,7 @@ void gpio_irq_init(uint pin) {
         gpio_irq_handler
     );
     gpio_irq_set=false;
-}
+}*/
 
 // hardware full init 
 void setup(){
@@ -299,6 +301,7 @@ void setup(){
 
     // ****** coders ******
     coderInit(CODER_GPIO_CLOCK,CODER_GPIO_DATA,CODER_GPIO_SW,CODER_GPIO_VCC,CODER_PIO_SEL0,CODER_SEL_NB,CODER_NB,CODER_TIMER_POOLING_INTERVAL_MS,CODER_STROBE_NUMBER);
+    coderSetup(nullptr,nullptr,codersTB,nullptr,0);
 
     // ****** ws2812 ******
     ws_dma_channel=ledsWs2812Setup(ws2812_pio,WS2812_LED_PIN);
@@ -315,7 +318,7 @@ void setup(){
     // ****** button ******
     gpio_init(BUTTON_PIN);gpio_set_dir(BUTTON_PIN,GPIO_IN);
     gpio_init(BUT_VCC_PIN);gpio_set_dir(BUT_VCC_PIN,GPIO_OUT); gpio_put(BUT_VCC_PIN,LOW);sleep_ms(100);gpio_put(BUT_VCC_PIN,HIGH);
-    gpio_irq_init(BUTTON_PIN);  // après  init_global_dma_irq();
+    //gpio_irq_init(BUTTON_PIN);  // après  init_global_dma_irq();
 
     // ****** sound ******
     sound_tables_init();
@@ -358,18 +361,20 @@ void setup(){
     //scope(voicesScopeDataBuffer,voices[0].frequency,14,true,true,0,0,true);    // scope mode_calcul
     scope(i2s_buf0,voices[0].frequency,14,true,true,0,0,0);     // scope mode_data
 
-//pwm_timer_1khz_enable(false);testSetup();
-
     // après démo mute voices[0] sinus
     voices[0].coderWaveAmpl[WSIN]=cga;
     setVoicesAmpl(0,WSIN);
 
-    gpio_irq_set = false;
+    /*gpio_irq_set = false;               // wait touch button to start
     while(!gpio_irq_set){
         debug_ticker();
         ledblinkn(3);
     }
-    gpio_irq_set=false;
+    gpio_irq_set=false;*/
+    while(!codersTB[0]){
+        debug_ticker();
+        ledblinkn(3);
+    }
 
     // ****** hello ******
     tft_fill_rect_blank(0,0,TFT_H,TFT_W);

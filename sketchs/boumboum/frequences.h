@@ -49,7 +49,7 @@ struct Voice {
     //uint16_t    maxCoderWaveAmpl[BASIC_WAVES_NB];           // wave ampl max coder value    
     uint16_t    coderWaveAmplAtt[BASIC_WAVES_NB];           // wave ampl input attenuator value
     
-    bool        coderSw[CODER_NB];              // last Switch
+    //bool        coderSw[CODER_NB];              // last Switch
     uint16_t    soundsCc[CODER_BANK_NB];
     uint16_t    adsrlCc[CODER_BANK_NB];
     

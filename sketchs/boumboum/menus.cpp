@@ -13,9 +13,6 @@
 #include "input_tables_management.h"
 #include "sound_level_management.h"
 
-extern int32_t* i2s_buffer[];
-extern bool i2s_running;
-
 extern int16_t  ctl_input_id[MAX_INPUTS];
 extern int16_t  ctl_input_val[MAX_INPUTS];
 extern char     ctl_input_name[MAX_INPUTS][IN_OUT_NAME_LEN];
@@ -85,7 +82,8 @@ extern uint16_t* adsrVar[];
 extern int32_t  adsrScopeBufReal[MAX_ADSR*ADSR_SCOPE_BUFFER_LEN];
 extern int16_t  adsr_ctl_input_id[MAX_ADSR];
 
-extern volatile bool voicesSw[];                    // coder it handler scans all physical coders
+extern volatile bool codersSw[];                    // coder it handler scans all physical coders
+extern volatile bool codersTB[];                    // coder it handler scans all touchButtons
 
 //extern uint16_t amplLevel[];                        // table des amplitudes
 
@@ -97,6 +95,7 @@ uint16_t maxMappingCoders[]={MAX_INPUTS,MAX_OUTPUTS,3,2,4,0xffff};
 
 // i2s
 
+extern int32_t* i2s_buffer[];
 extern int32_t* i2s_buf_scope;                      // last loaded buffer for scope
 extern bool i2s_running;
 
@@ -104,6 +103,7 @@ extern bool i2s_running;
 
 #define SWIGNORE 1000
 uint32_t swIgnore=millisCounter;
+uint32_t tbIgnore=millisCounter+1;  // décale swIgnore/tbIgnore
 
 #define LINE_LEN TFT_W/12+1
 char buf[LINE_LEN];
@@ -162,7 +162,7 @@ void menus_init(){
     for(uint8_t v=0;v<MAX_VOICES;v++){
         
         for(uint8_t a=0;a<VCES_OUTPUTS_NB;a++){
-            voices[v].coderSw[a]=true;
+            //voices[v].coderSw[a]=true;
             tempVcesCoderAmp[a][v]=voices[v].coderWaveAmpl[a];
             tempVcesCoderAtt[a][v]=voices[v].coderWaveAmplAtt[a];
         }
@@ -174,7 +174,8 @@ void menus_init(){
     }
     // *** switchs ***
     for(uint8_t c=0;c<CODER_NB;c++){
-        voicesSw[c]=1;
+        codersSw[c]=1;
+        codersTB[c]=0;
     }
     // ***   osc   ***
     for(uint8_t c=0;c<CODER_NB;c++){
@@ -246,6 +247,7 @@ void menus_init(){
     menuAdsrCoders[ADSRLEV]=adsrCoderLev[0];
     
     mappingCoders[0]=0;     // ligne 0 
+
 }
 
 // ****** display title ******
@@ -280,41 +282,52 @@ void title_dsp(const char* title,uint8_t item,uint8_t type){
 // ****** switchs obsolete
 // return -1 if nothing, 0-n coder number, -99 return button 
 // other values deprecated
-#define SCOPE_MODE -2
+/*#define SCOPE_MODE -2
 extern bool gpio_irq_set;
 int8_t tst_switchs(uint8_t coder,uint8_t maxi){
     if((millisCounter-swIgnore)>=SWIGNORE){ 
-        volatile int vs=voicesSw[coder];          
+        volatile int vs=codersSw[coder];          
         if(gpio_irq_set){
             swIgnore=millisCounter;
             gpio_irq_set=false;
             return -99;}      // button return
         if((volatile int)vs==0){        // coder[coder] on
             swIgnore=millisCounter;
-            voicesSw[coder]=1;
+            codersSw[coder]=1;
             if(coder<maxi){                      
                 return coder;}          // coder number
             return -(coder-maxi+2);     // if maxi == 2 values are -2,-3,-4,-5
         }                               // if maxi == 4 values are -2,-3
     }
     return -1;                          // nothing
-} 
+} */
 
 // ****** switchs
 #define SCOPE_MODE -2       
-extern bool gpio_irq_set;
+//extern bool gpio_irq_set;
 int8_t tst_switchs_(uint8_t max_sw){      // return -1 if nothing, 0-n coder number, -99 return button 
+    
     if((millisCounter-swIgnore)>=SWIGNORE){ 
         for(uint8_t c=0;c<max_sw;c++){
-            volatile int vs=voicesSw[c];          
-            if(gpio_irq_set){gpio_irq_set=false;return -99;}      // return button 
+            volatile int vs=codersSw[c];
             if((volatile int)vs==0){    // coder[coder] on
                 swIgnore=millisCounter;
-                voicesSw[c]=1;                     
+                codersSw[c]=1;                     
                 return c;               // coder number
             }      
         }
     }
+    
+    if((millisCounter-tbIgnore)>=SWIGNORE){
+        for(uint8_t c=0;c<max_sw;c++){
+            volatile int vt=codersTB[c]; 
+            if((volatile int)vt!=0){    // touchB[coder] on
+                tbIgnore=millisCounter;
+                codersTB[c]=1;                     
+                return -99+c;           // coder number
+            }                       
+        }
+    }                
     return -1;                          // nothing
 }
 
@@ -362,7 +375,7 @@ uint8_t coders_for_mapping(){
 
     mappingCoders[3]=ctl_input_shft[currInput];mappingCoders[4]=ctl_input_trig[currInput];mappingCoders[5]=ctl_input_tlev[currInput];
 
-    coderSetup(mappingCoders,voicesSw,maxMappingCoders,3);
+    coderSetup(mappingCoders,codersSw,codersTB,maxMappingCoders,3);
     
     //uint16_t ci=46;printf("menu_mapping id:%u %s %u \n",ci,ctl_input_name[ci],ctl_input_trig[ci]);
 
@@ -383,7 +396,7 @@ uint8_t coders_for_mapping(){
                 fillVoices();
 
                 int s=tst_switchs_(MAPPING_CODER_NB);            
-                if(s>=0 || s<=-99){
+                if(s>=0 || s<=(-99+CODER_NB)){
                     // erase line 0 (tft_draw_text_11x12_dma_mult(0,line*((11+2))+FIRSTLINEH,buf11x12,fgc,bgc,1);)
                     tft_fill_rect_blank(FIRSTLINEH,0,11+3,TFT_W);
                     return s;}
@@ -606,7 +619,7 @@ void fullMenuDsp(const char* title,const char* menu,uint8_t linesNb,uint8_t line
 // les traitements associés à la modif de variables sont appelés depuis menuLineDsp() ou l'affichage de la ligne est décrit
 // switch : la sortie est déclenchée soit par le "return button" soit par l'appui du coder 0 ; la valeur retournée est le n° de ligne
 // les autres switchs passent en mode scope si le type de menu le gère ; coderNb indique le nombre de coders valides (coder 0 inclu)
-uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8_t line_len,uint8_t object_type,volatile int16_t *cTC, volatile bool *cTS, uint16_t *maxi,uint16_t** var,uint8_t varNb,uint8_t switchsNb,uint8_t line0)
+uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8_t line_len,uint8_t object_type,volatile int16_t* cTC,volatile bool* cTS, volatile bool* cTB, uint16_t *maxi,uint16_t** var,uint8_t varNb,uint8_t switchsNb,uint8_t line0)
 {
 
     uint8_t line=line0;
@@ -616,7 +629,7 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
     uint8_t wave=0;
     uint8_t debug=false;
 
-    coderSetup(cTC,cTS,maxi,linesNb);   // coderSetup ignore lineNb
+    coderSetup(cTC,cTS,cTB,maxi,linesNb);   // coderSetup ignore lineNb
 
     fullMenuDsp(title,text,linesNb,line_len,line,object_type,0,0,false);
 
@@ -634,6 +647,7 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
             }          
 
             int s=tst_switchs_(switchsNb);
+            //if(s<=(-99+CODER_NB)){i2s_start(!i2s_running);title_dsp(title,line,object_type);}           
             if(s==-99){i2s_start(!i2s_running);title_dsp(title,line,object_type);}           
             if(s==0){return line;}    // switch du coder 0 ou capaTouch
             if(s>0){                            // switch coders 1 à n

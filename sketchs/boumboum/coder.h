@@ -22,6 +22,8 @@ struct Coders{
     bool coderData0;                  // previous physical coder data value
     bool coderSwitch;                 // current physical coder switch value
     uint32_t coderSwitchTime;         // previous physical coder switch time
+    bool touchButton;                 // current physical touchButton value
+    uint32_t touchButtonTime;         // previous physical touchButton time
 };
 
 void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_t sel_nb,uint8_t nb,uint16_t ctpi,uint8_t cstn);
@@ -29,7 +31,7 @@ bool coderTimerHandler();
 
 void slow_coder_test(uint32_t ms);
 
-void coderSetup(volatile int16_t* cTC,volatile bool* cTS,uint16_t* maxi,uint8_t nb);
+void coderSetup(volatile int16_t* cTC,volatile bool* cTS,volatile bool* cTB,uint16_t* maxi,uint8_t nb);
 
 
 
