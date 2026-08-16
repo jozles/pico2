@@ -31,7 +31,7 @@ bool coderTimerHandler();
 
 void slow_coder_test(uint32_t ms);
 
-void coderSetup(volatile int16_t* cTC,volatile bool* cTS,volatile bool* cTB,uint16_t* maxi,uint8_t nb);
+void coderSetup(volatile int16_t* cTC,volatile bool* cTS,volatile bool (*cTB)[OUTPUTS_STATES_NB],uint16_t* maxi,uint8_t nb);
 
 
 

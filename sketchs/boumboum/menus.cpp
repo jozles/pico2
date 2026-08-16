@@ -70,7 +70,7 @@ extern uint16_t* vcesVarT[];
 uint16_t tempVcesCoderAtt[VCES_OUTPUTS_NB][MAX_VOICES];      // pour accéder d'un ptr aux att (sin, ampl tri etc)
 extern volatile int16_t menuVcesCodersT[];
 
-extern uint16_t adsrCoderAtt[MAX_ADSR];                       // current lfo freq
+extern uint16_t adsrCoderAtt[MAX_ADSR];                      // current lfo freq
 extern uint16_t adsrCoderDec[MAX_ADSR];
 extern uint16_t adsrCoderSus[MAX_ADSR];
 extern uint16_t adsrCoderRel[MAX_ADSR];
@@ -82,8 +82,8 @@ extern uint16_t* adsrVar[];
 extern int32_t  adsrScopeBufReal[MAX_ADSR*ADSR_SCOPE_BUFFER_LEN];
 extern int16_t  adsr_ctl_input_id[MAX_ADSR];
 
-extern volatile bool codersSw[];                    // coder it handler scans all physical coders
-extern volatile bool codersTB[];                    // coder it handler scans all touchButtons
+volatile bool codersSw[CODER_NB];                                    // coder it handler scans all physical coders
+volatile bool codersTB[CODER_NB][OUTPUTS_STATES_NB];         // coder it handler scans all touchButtons
 
 //extern uint16_t amplLevel[];                        // table des amplitudes
 
@@ -175,7 +175,8 @@ void menus_init(){
     // *** switchs ***
     for(uint8_t c=0;c<CODER_NB;c++){
         codersSw[c]=1;
-        codersTB[c]=0;
+        for(uint8_t s=0;s<OUTPUTS_STATES_NB;s++){
+            codersTB[c][s]=false;}
     }
     // ***   osc   ***
     for(uint8_t c=0;c<CODER_NB;c++){
@@ -320,10 +321,9 @@ int8_t tst_switchs_(uint8_t max_sw){      // return -1 if nothing, 0-n coder num
     
     if((millisCounter-tbIgnore)>=SWIGNORE){
         for(uint8_t c=0;c<max_sw;c++){
-            volatile int vt=codersTB[c]; 
-            if((volatile int)vt!=0){    // touchB[coder] on
+            if(codersTB[c][RISE]){      // touchB[coder] on
                 tbIgnore=millisCounter;
-                codersTB[c]=1;                     
+                codersTB[c][RISE]=false;                     
                 return -99+c;           // coder number
             }                       
         }
@@ -619,7 +619,7 @@ void fullMenuDsp(const char* title,const char* menu,uint8_t linesNb,uint8_t line
 // les traitements associés à la modif de variables sont appelés depuis menuLineDsp() ou l'affichage de la ligne est décrit
 // switch : la sortie est déclenchée soit par le "return button" soit par l'appui du coder 0 ; la valeur retournée est le n° de ligne
 // les autres switchs passent en mode scope si le type de menu le gère ; coderNb indique le nombre de coders valides (coder 0 inclu)
-uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8_t line_len,uint8_t object_type,volatile int16_t* cTC,volatile bool* cTS, volatile bool* cTB, uint16_t *maxi,uint16_t** var,uint8_t varNb,uint8_t switchsNb,uint8_t line0)
+uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8_t line_len,uint8_t object_type,volatile int16_t* cTC,volatile bool* cTS, volatile bool (*cTB)[OUTPUTS_STATES_NB], uint16_t *maxi,uint16_t** var,uint8_t varNb,uint8_t switchsNb,uint8_t line0)
 {
 
     uint8_t line=line0;

@@ -187,6 +187,13 @@ typedef enum {
 
 #define BASIC_WAVES_NB 6
 
+enum {
+        LEVEL,
+        RISE,
+        FALL,
+        OUTPUTS_STATES_NB
+} Outputs_States;
+
 // ****** inputs ******
 
 typedef enum {

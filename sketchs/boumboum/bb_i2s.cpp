@@ -95,7 +95,7 @@ int init_dma_i2s() {
     printf("i2s_start\n");
 }*/
 
-void i2s_start(bool on_off)
+/*void i2s_start(bool on_off)
 {
     if (on_off) {
         if (i2s_running) return;   // déjà ON
@@ -139,6 +139,50 @@ void i2s_start(bool on_off)
         i2s_running = false;
         printf("I2S OFF\n");
         //sleep_ms(100);
+    }
+}*/
+
+void i2s_start(bool on_off)
+{
+    if (on_off) {
+        if (i2s_running) return;   // déjà ON
+
+        // Toujours repartir d'un état DMA propre
+        dma_channel_abort(i2s_dma_chan0);
+        dma_channel_abort(i2s_dma_chan1);
+
+        memset(i2s_buffer[0], 0, SAMPLES_PER_BUFFER * 2 * 4);
+        memset(i2s_buffer[1], 0, SAMPLES_PER_BUFFER * 2 * 4);
+
+        pio_sm_clear_fifos(i2s_pio, i2s_sm);
+
+        dma_channel_configure(i2s_dma_chan0, &dma_cfg0,
+                              &i2s_pio->txf[i2s_sm],
+                              i2s_buffer[0],
+                              SAMPLES_PER_BUFFER * 2,
+                              false);
+
+        dma_channel_configure(i2s_dma_chan1, &dma_cfg1,
+                              &i2s_pio->txf[i2s_sm],
+                              i2s_buffer[1],
+                              SAMPLES_PER_BUFFER * 2,
+                              false);
+
+        dma_start_channel_mask(1u << i2s_dma_chan0);
+
+        i2s_running = true;
+        printf("I2S ON\n");
+    }
+    else {
+        if (!i2s_running) return;  // déjà OFF
+
+        dma_channel_abort(i2s_dma_chan0);
+        dma_channel_abort(i2s_dma_chan1);
+
+        pio_sm_clear_fifos(i2s_pio, i2s_sm);
+
+        i2s_running = false;
+        printf("I2S OFF\n");
     }
 }
 

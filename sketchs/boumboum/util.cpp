@@ -86,7 +86,7 @@ volatile uint32_t ledBlinker=0;
 
 static repeating_timer millisTimer;
 
-extern volatile bool codersTB[];
+extern volatile bool codersTB[CODER_NB][OUTPUTS_STATES_NB];
 
 void blank(void* s,uint32_t len)
 {
