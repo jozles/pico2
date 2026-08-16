@@ -50,7 +50,8 @@ add_subdirectory(pico_audio_i2s_32b pico_audio_i2s_32b)
 add_executable(boumboum 
 	boumboum.cpp 
 	coder.cpp 
-	util.cpp 
+	util.cpp
+	std_utils.cpp 
 	frequences.cpp
 	sound_level_management.cpp 
 	bb_i2s.cpp

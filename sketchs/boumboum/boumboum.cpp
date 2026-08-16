@@ -4,6 +4,7 @@
 #include "const.h"
 #include "coder.h"
 #include "util.h"
+#include "std_utils.h"
 #include "hardware/pio.h"
 #include "hardware/dma.h"
 #include "hardware/pwm.h"

@@ -4,6 +4,7 @@
 #include "const.h"
 #include "coder.h"
 #include "util.h"
+#include "std_utils.h"
 #include "menus.h"
 #include "st7789.h"
 #include "leds.h"
