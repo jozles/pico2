@@ -306,7 +306,8 @@ int8_t tst_switchs(uint8_t coder,uint8_t maxi){
 
 // ****** switchs
 #define SCOPE_MODE -2       
-//extern bool gpio_irq_set;
+extern bool gpio_irq_set;
+
 int8_t tst_switchs_(uint8_t max_sw){      // return -1 if nothing, 0-n coder number, -99 return button 
     
     if((millisCounter-swIgnore)>=SWIGNORE){ 
@@ -321,13 +322,17 @@ int8_t tst_switchs_(uint8_t max_sw){      // return -1 if nothing, 0-n coder num
     }
     
     if((millisCounter-tbIgnore)>=SWIGNORE){
-        for(uint8_t c=0;c<max_sw;c++){
+        if(gpio_irq_set){
+            gpio_irq_set=false;
+            return BUTTON_CODE;
+        }
+        /*for(uint8_t c=0;c<max_sw;c++){
             if(codersTB[c][RISE]){      // touchB[coder] on
                 tbIgnore=millisCounter;
                 codersTB[c][RISE]=false;                     
                 return -99+c;           // coder number
             }                       
-        }
+        }*/
     }                
     return -1;                          // nothing
 }
@@ -397,7 +402,7 @@ uint8_t coders_for_mapping(){
                 fillVoices();
 
                 int s=tst_switchs_(MAPPING_CODER_NB);            
-                if(s>=0 || s<=(-99+CODER_NB)){
+                if(s>=0 || s== BUTTON_CODE){
                     // erase line 0 (tft_draw_text_11x12_dma_mult(0,line*((11+2))+FIRSTLINEH,buf11x12,fgc,bgc,1);)
                     tft_fill_rect_blank(FIRSTLINEH,0,11+3,TFT_W);
                     return s;}
@@ -649,7 +654,7 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
 
             int s=tst_switchs_(switchsNb);
             //if(s<=(-99+CODER_NB)){i2s_start(!i2s_running);title_dsp(title,line,object_type);}           
-            if(s==-99){i2s_start(!i2s_running);title_dsp(title,line,object_type);}           
+            if(s==BUTTON_CODE){i2s_start(!i2s_running);title_dsp(title,line,object_type);}           
             if(s==0){return line;}    // switch du coder 0 ou capaTouch
             if(s>0){                            // switch coders 1 à n
                 mode_scope=true;firstScope=true;

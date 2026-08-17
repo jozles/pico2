@@ -31,6 +31,8 @@ extern int16_t   adsr_ctl_input_id[][MAX_INPUTS_PER_OBJ];
 extern int16_t   adsr_ctl_output_id[][MAX_OUTPUTS_PER_OBJ];
 //extern uint16_t  adsrOutputsValues[MAX_ADSR][MAX_OUTPUTS_PER_OBJ];
 
+extern int16_t   tbut_ctl_output_id[][MAX_OUTPUTS_PER_OBJ];
+
 extern Voice voices[MAX_VOICES];
 
 extern float     lfosFrequency[MAX_LFO]; 
@@ -116,10 +118,10 @@ extern int16_t   lfosOutputsValues[MAX_LFO][MAX_OUTPUTS_PER_OBJ];
 // each control input of each object has an unique id wich gives access to its parameters (value, source, norm, name etc)
 // each object type has an [object_type]_ctl_input_id table with [object_type#][input#] elements 
 // (the ids table for the inputs of every objects of this type)
-// the inputs of the objects are described in files [object_type]_input_names.def (ex: lfos_inputs_names.def)
+// objects inputs are described in files [object_type]_input_names.def (ex: lfos_inputs_names.def)
 // ex: lfo#3 input#1 has the id : lfo_ctl_input_id[3][1] wich is the index in the tables ctl_input_xxx[]
 // or: lfo_ctl_input_id[3][LCRA]
-// the table ctl_input_id_chain[] allows to chain the inputs wich are connected to the same output for faster access
+// table ctl_input_id_chain[] allows to chain the inputs wich are connected to the same output for faster access
 
 int16_t ctl_input_val[MAX_INPUTS];                       // all inputs values
 int16_t ctl_input_prev_val[MAX_INPUTS];                  // all inputs prev values for trig level identification
@@ -138,11 +140,11 @@ uint8_t norm_dividers[]={0,16-5,16-6,16-3};              // to add ; not used fo
 
 // each control output of each object has an unique id wich gives access to the name and input link chain of the output
 // each object type has an [object]_ctl_output_id table with [object_type#][output#] elements
-// (the ids table for the outputs of every objects of this type)
-// the outputs of the objects are described in files [object_type]_output_names.def (ex: lfos_outputs_names.def)
+// (ids table for the outputs of every objects of this type)
+// objects outputs are described in files [object_type]_output_names.def (ex: lfos_outputs_names.def)
 // ex: lfo#2 output#3 has the id : lfo_ctl_output_id[2][3] wich is the index in the tables ctl_output_xxx[] 
 // or: lfo_ctl_output_id[2][LSAW]
-// the table ctl_output_id_chain[] (one element per output) allows to chain the inputs wich are connected to this output for faster access
+// table ctl_output_id_chain[] (one element per output) allows to chain the inputs wich are connected to this output for faster access
 // contains first input id of the chain or -1/NO_LINK
 
 /* ************** fichiers *.def des enum *************** */
@@ -195,6 +197,12 @@ const char vces_outputs_names[][OBJ_IO_NAME_LEN]={
     #undef X   
 };
 
+const char tbut_outputs_names[][OBJ_IO_NAME_LEN]={
+    #define X(name,text) text,
+    #include "tbut_outputs_names.def"   
+    #undef X   
+};
+
 bool init_objects_outputs(void)
 {
     printf("init_obects_outputs\n");
@@ -231,6 +239,24 @@ bool init_objects_outputs(void)
                 char buf[IN_OUT_NAME_LEN]={'A','D','S','R'};
                 convIntToString(buf+4,adsr,2);
                 memcpy(buf+6,&adsr_outputs_names[outs],OBJ_IO_NAME_LEN-1);
+                memcpy(ctl_output_name[curr_output],buf,IN_OUT_NAME_LEN);
+            }       
+            curr_output++;
+            if(curr_output>=MAX_OUTPUTS){return false;}
+        }        
+    }
+
+    objects_first_output_id[TBUTTON__]=curr_output;    
+    for (uint8_t tbut=0;tbut<MAX_TBUT;tbut++)
+    {
+        for(uint8_t outs=0;outs<MAX_OUTPUTS_PER_OBJ;outs++)
+        {        
+            ctl_output_id_chain[curr_output]=NO_LINK;
+            tbut_ctl_output_id[tbut][outs]=curr_output;
+            if(outs<TBUT_OUTPUTS_NB){
+                char buf[IN_OUT_NAME_LEN]={'T','B','U','T'};
+                convIntToString(buf+4,tbut,2);
+                memcpy(buf+6,&tbut_outputs_names[outs],OBJ_IO_NAME_LEN-1);
                 memcpy(ctl_output_name[curr_output],buf,IN_OUT_NAME_LEN);
             }       
             curr_output++;

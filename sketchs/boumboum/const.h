@@ -18,6 +18,8 @@
 
 #define BUT_VCC_PIN 28
 #define BUTTON_PIN  27
+#define TOUCH_PIN   26
+#define BUTTON_CODE -100
 
 /* slices */
 
@@ -167,6 +169,10 @@ typedef enum {
 #define BASIC_WAVE_TABLE_POW 11                         // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
 #define BASIC_WAVE_TABLE_LEN RC_TABLES_LEN*2            // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
 
+/* touch buttons */
+
+#define MAX_TBUT CODER_NB       // use coder poling
+
 /* inputs/outputs */
 
 #define MAX_OUTPUT_OBJ          48
@@ -246,6 +252,13 @@ typedef enum {
         VCES_OUTPUTS_NB  
 #undef X
 }  Vces_outputs_names;
+
+typedef enum {
+#define X(name,text) name,    
+#include "tbut_outputs_names.def"
+        TBUT_OUTPUTS_NB  
+#undef X
+}  Tbut_outputs_names;
 
 // ****** basics waves codes ******
 

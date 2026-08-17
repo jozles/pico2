@@ -67,6 +67,7 @@ add_executable(boumboum
 	adsr_outputs_names.def
 	lfos_outputs_names.def
 	vces_outputs_names.def
+	tbut_outputs_names.def
 	norm_types.def
 	blank_.S
 	miscControls.cpp

@@ -1,0 +1,6 @@
+/* outputs names for touch_buttons */
+
+    X(TOUCH_BUTTON_GATE,"TB_V")
+    X(TOUCH_BUTTON_RISE,"TB_R")
+    X(TOUCH_BUTTON_FALL,"TB_F")
+

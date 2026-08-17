@@ -14,6 +14,8 @@ void pio_full_reset(PIO pio);
 void global_dma_irq_handler();
 void pwm_timer_1khz_enable(bool start_stop);
 
+void gpio_irq_init(uint pin);
+
 void adsr(int32_t* ccb,int32_t ccb0);
 void autoMixer(int32_t* ccb,int32_t ccb0);
 

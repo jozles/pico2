@@ -6,6 +6,7 @@
 #include "coder.h"
 #include "util.h"
 #include "st7789.h"
+#include "miscControls.h"
 
 
 uint16_t coderTimerPoolingInterval=1;       // delay betxeen Its (mS) changed by init
@@ -73,9 +74,11 @@ bool __not_in_flash_func(coderTimerHandler)(){
             }
             
             // traitement touch buttons (avant les coders pour ne pas être zappé par les "continue")
-            if(__builtin_expect(cp->touchButton!=gpio_get(BUTTON_PIN),false)){
+            if(__builtin_expect(cp->touchButton!=gpio_get(TOUCH_PIN),false)){
                 
-                if((currTime-cp->touchButtonTime)>CODER_SW_STROBE_MS){
+                touch_button_handler(coder,&(cp->touchButton),&(cp->touchButtonTime),currTime,coderTouchB);
+
+                /*if((currTime-cp->touchButtonTime)>CODER_SW_STROBE_MS){
                     cp->touchButton=!cp->touchButton;
                     cp->touchButtonTime=currTime;
                     //printf("c:%u csw:%u ",coder,cp->touchButton);
@@ -91,7 +94,7 @@ bool __not_in_flash_func(coderTimerHandler)(){
                         //printf(" :%u\n",*(coderTouchB+coder));
                     }
                     //else printf(" nul\n");
-                }
+                }*/
             }
         
         

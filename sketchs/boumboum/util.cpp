@@ -264,7 +264,7 @@ void init_global_dma_irq(){
 }
 #endif  // GLOBAL_DMA_IRQ_HANDLER
 
-/* ****** détection de gpio via irq et flag ******
+// ****** détection de gpio via irq et flag ******
 
 bool gpio_irq_set=false;
 
@@ -287,7 +287,6 @@ void gpio_irq_init(uint pin) {
     );
     gpio_irq_set=false;
 }
-*/
 
 // hardware full init 
 void setup(){
@@ -320,10 +319,9 @@ void setup(){
     // ****** global irq (st+ws) ******
     init_global_dma_irq();
 
-    // ****** button ******
-    gpio_init(BUTTON_PIN);gpio_set_dir(BUTTON_PIN,GPIO_IN);
-    gpio_init(BUT_VCC_PIN);gpio_set_dir(BUT_VCC_PIN,GPIO_OUT); gpio_put(BUT_VCC_PIN,LOW);sleep_ms(100);gpio_put(BUT_VCC_PIN,HIGH);
-    //gpio_irq_init(BUTTON_PIN);  // après  init_global_dma_irq();
+    // ****** button(s) ******
+    irq_button_init(BUTTON_PIN);
+    touch_button_init(TOUCH_PIN);
 
     // ****** sound ******
     sound_tables_init();
