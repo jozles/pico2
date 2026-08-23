@@ -42,8 +42,8 @@ if (DEFINED PICO_USE_RAM_VECTOR_TABLE AND PICO_USE_RAM_VECTOR_TABLE)
     message(FATAL_ERROR "RAM vector table detected — aborting build")
 endif()
 
-add_subdirectory(pico_audio_i2s_32b/src/pico_audio_32b pico_audio_32b)
-add_subdirectory(pico_audio_i2s_32b pico_audio_i2s_32b)
+#add_subdirectory(pico_audio_i2s_32b/src/pico_audio_32b pico_audio_32b)
+#add_subdirectory(pico_audio_i2s_32b pico_audio_i2s_32b)
 
 # Add executable. Default name is the project name, version 0.1
 
@@ -60,15 +60,15 @@ add_executable(boumboum
 	font12x12.c
 	font11x12.c
 	menus.cpp
-	menu.def
-	adsr_inputs_names.def
-	lfos_inputs_names.def
-	vces_inputs_names.def
-	adsr_outputs_names.def
-	lfos_outputs_names.def
-	vces_outputs_names.def
-	tbut_outputs_names.def
-	norm_types.def
+	def/menu.def
+	def/adsr_inputs_names.def
+	def/lfos_inputs_names.def
+	def/vces_inputs_names.def
+	def/adsr_outputs_names.def
+	def/lfos_outputs_names.def
+	def/vces_outputs_names.def
+	def/tbut_outputs_names.def
+	def/norm_types.def
 	blank_.S
 	miscControls.cpp
 	input_tables_management.cpp
@@ -103,6 +103,7 @@ target_link_libraries(boumboum
 # Add the standard include files to the build
 target_include_directories(boumboum PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
+        ${CMAKE_CURRENT_LIST_DIR}/def		
 )
 
 # Lien avec les bibliothèques nécessaires

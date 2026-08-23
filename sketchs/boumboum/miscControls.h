@@ -8,7 +8,7 @@ void setAdsrLev(uint8_t adsr,int32_t val);
 void fillDur(void);
 
 void irq_button_init(uint8_t pin);
-void touch_button_handler(uint8_t touchButtonNb,bool* touchButtonValue,uint32_t* touchButtonTime,uint32_t currTime,volatile bool (*coderTouchB)[OUTPUTS_STATES_NB]);
+void touch_button_handler(uint8_t touchButtonNb,bool* touchButtonValue,volatile bool (*coderTouchB)[OUTPUTS_STATES_NB]);
 void touch_button_init(uint8_t pin);
 
 enum AdsrStates {

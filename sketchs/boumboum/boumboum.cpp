@@ -83,7 +83,7 @@ if (watchdog_caused_reboot()) {
     uint8_t menu=1;
 
     while(1){
-//printf("menu:%d \n");
+
         menu=coders_for_menu("boumboum ",(const char*)menu0_names,MENU0_NB,MENU_NAME_LEN,MENU0____,menu0Coders,codersSw,codersTB,menu0MaxCoders,nullptr,0,MENU0_CODER_NB,menu);
 
         switch(menu){

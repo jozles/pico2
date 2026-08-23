@@ -16,7 +16,8 @@ volatile bool* coderTimerSwitch=nullptr;    // switchs values
 volatile bool (*coderTouchB)[OUTPUTS_STATES_NB]=nullptr;         // touchButtons actual values (LEVEL/RISE/FALL)
 volatile uint16_t* coderCountMaxi=nullptr;  // max value for cTc
 
-uint8_t cOT[CODER_NB]={6,7,0,1,2,5,4,3};    // CODER ORDER TABLE ordre physique
+uint8_t cOC[CODER_NB]={6,7,0,1,2,5,4,3};    // CODER ORDER TABLE ordre physique
+uint8_t cOB[CODER_NB]={0,1,2,3,4,5,6,7};    // TOUCH ORDER TABLE ordre physique
 
 // pico2 coders 
 
@@ -51,7 +52,7 @@ bool __not_in_flash_func(coderTimerHandler)(){
         for(uint8_t cod=0;cod<coder_nb;cod++){
             gpio_put_masked(sel_gpio_mask, cod << gpio_sel0_pin);     // sel current coder ; env 6uS le pas de boucle + les traitements
             
-            uint8_t coder=cOT[cod]; // récup n° coder physique (le cablage est dans le désordre)
+            uint8_t coder=cOC[cod]; // récup n° coder physique (le cablage est dans le désordre)
             cp=&c[coder];           // initialise le pointeur de la structure
             //gpio_put(TST_PIN,1);
             quick_delay(4);         // 9uS semble nécessaire pour stabiliser les coders et 4051 sinon ca fait nimporte quoi
@@ -74,27 +75,13 @@ bool __not_in_flash_func(coderTimerHandler)(){
             }
             
             // traitement touch buttons (avant les coders pour ne pas être zappé par les "continue")
-            if(__builtin_expect(cp->touchButton!=gpio_get(TOUCH_PIN),false)){
-                
-                touch_button_handler(coder,&(cp->touchButton),&(cp->touchButtonTime),currTime,coderTouchB);
+            if(__builtin_expect(cp->touchButton!=gpio_get(TOUCH_PIN) && (currTime-cp->touchButtonTime)>CODER_SW_STROBE_MS,false)){
 
-                /*if((currTime-cp->touchButtonTime)>CODER_SW_STROBE_MS){
-                    cp->touchButton=!cp->touchButton;
-                    cp->touchButtonTime=currTime;
-                    //printf("c:%u csw:%u ",coder,cp->touchButton);
-                
-                    if(coderTouchB!=nullptr){
-                        coderTouchB[coder][LEVEL]=cp->touchButton;
-                        if(cp->touchButton){
-                            //coderTouchB[coder][FALL]=false;
-                            coderTouchB[coder][RISE]=true;}
-                        else{
-                            //coderTouchB[coder][RISE]=false;
-                            coderTouchB[coder][FALL]=true;}
-                        //printf(" :%u\n",*(coderTouchB+coder));
-                    }
-                    //else printf(" nul\n");
-                }*/
+                uint8_t touch=cOB[cod];
+                cp->touchButtonTime=currTime;
+                cp->touchButton=gpio_get(TOUCH_PIN);
+                printf("c:%u:%u\n",touch,cp->touchButton);
+                //touch_button_handler(touch,&(cp->touchButton),coderTouchB);
             }
         
         

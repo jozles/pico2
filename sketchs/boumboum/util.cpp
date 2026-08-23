@@ -368,18 +368,19 @@ void setup(){
     voices[0].coderWaveAmpl[WSIN]=cga;
     setVoicesAmpl(0,WSIN);
 
-    /*gpio_irq_set = false;               // wait touch button to start
+    gpio_irq_set = false;               // wait touch button to start
     while(!gpio_irq_set){
         debug_ticker();
         ledblinkn(3);
     }
-    gpio_irq_set=false;*/
-    while(!codersTB[0][RISE]){
+    gpio_irq_set=false;
+
+    /*while(!codersTB[0][RISE]){
         debug_ticker();
         ledblinkn(3);
     }
-    codersTB[0][RISE]=false;
-
+    codersTB[0][RISE]=false;*/
+    
     // ****** hello ******
     tft_fill_rect_blank(0,0,TFT_H,TFT_W);
     
