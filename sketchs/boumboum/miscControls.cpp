@@ -296,14 +296,15 @@ void __not_in_flash_func(adsrHandler)()
 
 void irq_button_init(uint8_t pin)
 {
-    gpio_init(pin);gpio_set_dir(pin,GPIO_IN);
-    gpio_init(BUT_VCC_PIN);gpio_set_dir(BUT_VCC_PIN,GPIO_OUT); gpio_put(BUT_VCC_PIN,LOW);sleep_ms(100);gpio_put(BUT_VCC_PIN,HIGH);
+    gpio_init(pin);gpio_set_function(pin, GPIO_FUNC_SIO);gpio_set_dir(pin,GPIO_IN);
+    gpio_init(BUT_VCC_PIN);gpio_set_function(BUT_VCC_PIN, GPIO_FUNC_SIO);gpio_set_dir(BUT_VCC_PIN,GPIO_OUT);
+    gpio_put(BUT_VCC_PIN,LOW);sleep_ms(100);gpio_put(BUT_VCC_PIN,HIGH);
     gpio_irq_init(pin);  // après  init_global_dma_irq();
 }
 
 void touch_button_init(uint8_t pin)
 {
-    gpio_init(pin);gpio_set_dir(pin,GPIO_IN);
+    gpio_init(pin);gpio_set_function(pin, GPIO_FUNC_SIO);gpio_set_dir(pin,GPIO_IN);
 }
 
 void __not_in_flash_func(touch_button_handler)(uint8_t touchButtonNb,bool* touchButtonValue,volatile bool (*coderTouchB)[OUTPUTS_STATES_NB])

@@ -47,6 +47,7 @@ bool __not_in_flash_func(coderTimerHandler)(){
         int_counter=0;
 
         Coders* cp;
+        Coders* ct;
         uint32_t currTime=millisCounter;
 
         for(uint8_t cod=0;cod<coder_nb;cod++){
@@ -54,15 +55,18 @@ bool __not_in_flash_func(coderTimerHandler)(){
             
             uint8_t coder=cOC[cod]; // récup n° coder physique (le cablage est dans le désordre)
             cp=&c[coder];           // initialise le pointeur de la structure
+
+            uint8_t touch=cOB[cod];
+            ct=&c[touch];           // initialise le pointeur de la structure
             //gpio_put(TST_PIN,1);
             quick_delay(4);         // 9uS semble nécessaire pour stabiliser les coders et 4051 sinon ca fait nimporte quoi
                                     // temps total du step 19uS ! avec 8mS d'intervalle ça semble ok (v1.2)
                                     // mesure 2.5uS total avec le delay !!! incompréhensible ... et ça marche
             //gpio_put(TST_PIN,0);
             // traitement switchs (avant les coders pour ne pas être zappé par les "continue")
-            if(__builtin_expect(cp->coderSwitch!=gpio_get(gpio_switch_pin),false)){
+            if(__builtin_expect((cp->coderSwitch!=gpio_get(gpio_switch_pin))&&((currTime-cp->coderSwitchTime)>CODER_SW_STROBE_MS),false)){
                 
-                if((currTime-cp->coderSwitchTime)>CODER_SW_STROBE_MS){
+                //if((currTime-cp->coderSwitchTime)>CODER_SW_STROBE_MS){
                     cp->coderSwitch=!cp->coderSwitch;
                     cp->coderSwitchTime=currTime;
                     //printf("c:%d csw:%d ",coder,cp->coderSwitch);
@@ -71,17 +75,16 @@ bool __not_in_flash_func(coderTimerHandler)(){
                         *(coderTimerSwitch+coder)=cp->coderSwitch;
                         //printf(" :%d\n",*(coderTimerSwitch+coder));
                     }
-                }
+                //}
             }
             
-            // traitement touch buttons (avant les coders pour ne pas être zappé par les "continue")
-            if(__builtin_expect(cp->touchButton!=gpio_get(TOUCH_PIN) && (currTime-cp->touchButtonTime)>CODER_SW_STROBE_MS,false)){
+            // traitement touch buttons (avant les coders pour ne pas être zappé par les "continue")  
+            if(__builtin_expect((ct->touchButton!=gpio_get(TOUCH_PIN) && (currTime-ct->touchButtonTime >CODER_SW_STROBE_MS)),false)){
 
-                uint8_t touch=cOB[cod];
-                cp->touchButtonTime=currTime;
-                cp->touchButton=gpio_get(TOUCH_PIN);
-                printf("c:%u:%u\n",touch,cp->touchButton);
-                //touch_button_handler(touch,&(cp->touchButton),coderTouchB);
+                ct->touchButtonTime=currTime;
+                ct->touchButton=gpio_get(TOUCH_PIN);
+                printf("c:%u:%u\n",cod,ct->touchButton);
+                //touch_button_handler(touch,&(ct->touchButton),coderTouchB);
             }
         
         
@@ -173,7 +176,7 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_
         c[coder].touchButtonTime=0;                              // init debouncer        
 //printf(" -coder#%d init d:%d c:%d s:%d\n",coder,c[coder].coderData0,c[coder].coderClock0,gpio_get(gpio_switch_pin));
         c[coder].coderItStatus=0; 
-            
+        printf("gpio%u(%u)=%u\n",TOUCH_PIN,coder,gpio_get(TOUCH_PIN));    
     }
 }
 
