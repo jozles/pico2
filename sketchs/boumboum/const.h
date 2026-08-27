@@ -86,7 +86,7 @@ typedef enum {
 typedef enum {
 #define Z(name,text) name,    
 #include "objects.def"
-        OBJECTS_NB
+        OBJECT_TYPES_NB
 #undef Z
 }  objects;
 
@@ -117,6 +117,10 @@ typedef enum {
 #define ADSR_MAX_TIME_CODERS DUR_ECH_NB-1       // valeur maxi saisie par les coders      
 // multiplié par BASIC_WAVES_TABLE_LEN/ADSR_MAX_TIME_CODERS/2 : on utilise la table de cra 32 0-90° pour former les valeurs 
 #define ADSR_MAX_LEVEL_CODERS MAX_16B_LINEAR_VALUE-1
+
+/* touch buttons */
+
+#define MAX_TBUT CODER_NB       // use coder poling
 
 /* led */
 
@@ -169,15 +173,11 @@ typedef enum {
 #define BASIC_WAVE_TABLE_POW 11                         // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
 #define BASIC_WAVE_TABLE_LEN RC_TABLES_LEN*2            // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
 
-/* touch buttons */
-
-#define MAX_TBUT CODER_NB       // use coder poling
-
 /* inputs/outputs */
 
-#define MAX_OUTPUT_OBJ          48
+#define MAX_OUTPUT_OBJ          MAX_VOICES+MAX_LFO+MAX_ADSR+MAX_TBUT
 #define MAX_OUTPUTS_PER_OBJ     8
-#define MAX_OUTPUTS             MAX_OUTPUT_OBJ*MAX_OUTPUTS_PER_OBJ
+#define MAX_OUTPUTS             (MAX_OUTPUT_OBJ)*MAX_OUTPUTS_PER_OBJ
 #define MAX_INPUT_OBJ           100
 #define MAX_INPUTS_PER_OBJ      10
 #define MAX_INPUTS              MAX_INPUT_OBJ*MAX_INPUTS_PER_OBJ
@@ -192,13 +192,6 @@ typedef enum {
 #define FULL_ATTENUATION_VALUE  0x0000
 
 #define BASIC_WAVES_NB 6
-
-enum {
-        LEVEL,
-        RISE,
-        FALL,
-        OUTPUTS_STATES_NB
-} Outputs_States;
 
 // ****** inputs ******
 

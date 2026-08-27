@@ -13,7 +13,7 @@ uint16_t coderTimerPoolingInterval=1;       // delay betxeen Its (mS) changed by
 uint8_t coderStrobeNumber=3;                // 1st strobe delay (2nd strobe delay is 1)
 volatile int16_t* coderTimerCount=nullptr;  // ptr to current value to be inc or dec
 volatile bool* coderTimerSwitch=nullptr;    // switchs values
-volatile bool (*coderTouchB)[OUTPUTS_STATES_NB]=nullptr;         // touchButtons actual values (LEVEL/RISE/FALL)
+volatile bool* coderTouchB=nullptr;         // touchButtons actual values (on/off)
 volatile uint16_t* coderCountMaxi=nullptr;  // max value for cTc
 
 uint8_t cOC[CODER_NB]={6,7,0,1,2,5,4,3};    // CODER ORDER TABLE ordre physique
@@ -53,11 +53,11 @@ bool __not_in_flash_func(coderTimerHandler)(){
         for(uint8_t cod=0;cod<coder_nb;cod++){
             gpio_put_masked(sel_gpio_mask, cod << gpio_sel0_pin);     // sel current coder ; env 6uS le pas de boucle + les traitements
             
-            uint8_t coder=cOC[cod]; // récup n° coder physique (le cablage est dans le désordre)
-            cp=&c[coder];           // initialise le pointeur de la structure
+            uint8_t coder=cOC[cod]; // récup n° coder physique pour coders (le cablage est dans le désordre)
+            cp=&c[coder];           // initialise le pointeur de la structure pour coders
 
-            uint8_t touch=cOB[cod];
-            ct=&c[touch];           // initialise le pointeur de la structure
+            uint8_t touch=cOB[cod]; // récup n° coder physique pour touch (le cablage est dans le désordre - ordre différent des coders)
+            ct=&c[touch];           // initialise le pointeur de la structure  
             //gpio_put(TST_PIN,1);
             quick_delay(4);         // 9uS semble nécessaire pour stabiliser les coders et 4051 sinon ca fait nimporte quoi
                                     // temps total du step 19uS ! avec 8mS d'intervalle ça semble ok (v1.2)
@@ -66,7 +66,6 @@ bool __not_in_flash_func(coderTimerHandler)(){
             // traitement switchs (avant les coders pour ne pas être zappé par les "continue")
             if(__builtin_expect((cp->coderSwitch!=gpio_get(gpio_switch_pin))&&((currTime-cp->coderSwitchTime)>CODER_SW_STROBE_MS),false)){
                 
-                //if((currTime-cp->coderSwitchTime)>CODER_SW_STROBE_MS){
                     cp->coderSwitch=!cp->coderSwitch;
                     cp->coderSwitchTime=currTime;
                     //printf("c:%d csw:%d ",coder,cp->coderSwitch);
@@ -75,16 +74,14 @@ bool __not_in_flash_func(coderTimerHandler)(){
                         *(coderTimerSwitch+coder)=cp->coderSwitch;
                         //printf(" :%d\n",*(coderTimerSwitch+coder));
                     }
-                //}
             }
             
             // traitement touch buttons (avant les coders pour ne pas être zappé par les "continue")  
             if(__builtin_expect((ct->touchButton!=gpio_get(TOUCH_PIN) && (currTime-ct->touchButtonTime >CODER_SW_STROBE_MS)),false)){
 
                 ct->touchButtonTime=currTime;
-                ct->touchButton=gpio_get(TOUCH_PIN);
-                printf("c:%u:%u\n",cod,ct->touchButton);
-                //touch_button_handler(touch,&(ct->touchButton),coderTouchB);
+                //printf("c:%u:%u\n",cod,ct->touchButton);
+                touch_button_handler(touch,&(ct->touchButton),coderTouchB);
             }
         
         
@@ -134,7 +131,6 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_
     // ********************* doit absolument etre fait avant la mise en route du timer *******************
     coderTimerCount=nullptr;
     coderTimerSwitch=nullptr;
-    coderTouchB=nullptr;
     coderCountMaxi=nullptr;
 
     gpio_clock_pin=ck;
@@ -195,7 +191,7 @@ void slow_coder_test(uint32_t ms){
     }
 }
 
-void coderSetup(volatile int16_t* cTC,volatile bool* cTS,volatile bool (*cTB)[OUTPUTS_STATES_NB],uint16_t* maxi,uint8_t nb){
+void coderSetup(volatile int16_t* cTC,volatile bool* cTS,volatile bool* cTB,uint16_t* maxi,uint8_t nb){
     coderTimerCount=cTC;
     coderTimerSwitch=cTS;
     coderTouchB=cTB;

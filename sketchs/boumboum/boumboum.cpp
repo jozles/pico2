@@ -19,7 +19,7 @@ const char* version=VERSION;
 uint8_t currVoice=0;
 
 extern volatile bool codersSw[];                   // coder it handler scans all physical coders
-extern volatile bool codersTB[CODER_NB][OUTPUTS_STATES_NB];
+extern volatile bool codersTB[CODER_NB];
 
 #define MENU0_CODER_NB 1
 volatile int16_t menu0Coders[]={0};                 // [0] curr input nb

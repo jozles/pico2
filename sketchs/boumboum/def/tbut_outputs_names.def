@@ -1,15 +1,7 @@
 /* outputs names for touch_buttons */
 
-    X(TOUCH_BUTTON_GATE,"TB_V")
-    X(TOUCH_BUTTON_RISE,"TB_R")
-    X(TOUCH_BUTTON_FALL,"TB_F")
-    X(TOUCH_BUTTON_P_R_,"TBPR")
-    X(TOUCH_BUTTON_P_F_,"TBFF")
+    X(TOUCH_BUTTON,"TB__")
 
-/*  X(TOUCH_BUTTON_GATE,"TB_V")     // suis l'état de la sortie
-    X(TOUCH_BUTTON_RISE,"TB_R")     // passe à 1 avec rise et doit être remis à 0 par l'utiisateur
-    X(TOUCH_BUTTON_FALL,"TB_F")     // passe à 1 avec fall et doit être remis à 0 par l'utiisateur
-    X(TOUCH_BUTTON_P_R_,"TBPR")     // pulse avec rise 
-    X(TOUCH_BUTTON_P_F_,"TBFF")     // pulse avec fall
-*/   
+
+
 

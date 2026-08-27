@@ -307,25 +307,18 @@ void touch_button_init(uint8_t pin)
     gpio_init(pin);gpio_set_function(pin, GPIO_FUNC_SIO);gpio_set_dir(pin,GPIO_IN);
 }
 
-void __not_in_flash_func(touch_button_handler)(uint8_t touchButtonNb,bool* touchButtonValue,volatile bool (*coderTouchB)[OUTPUTS_STATES_NB])
+void __not_in_flash_func(touch_button_handler)(uint8_t touchButtonNb,bool* touchButtonValue,volatile bool* coderTouchB)
 {
-            *touchButtonValue=!touchButtonValue;
+            *touchButtonValue=!(*touchButtonValue);
             printf("c:%u csw:%u \n",touchButtonNb,*touchButtonValue);
-            int16_t in_bool_id=ctl_output_id_chain[tbut_ctl_output_id[touchButtonNb][TOUCH_BUTTON_GATE]];
-/*
-            if (__builtin_expect(in_bool_id != NO_LINK, 0)){                
-                update_inputs(in_bool_id,*touchButtonValue);
+            int16_t in_bool_id=ctl_output_id_chain[tbut_ctl_output_id[touchButtonNb][0]];
+            
+            if (__builtin_expect(in_bool_id != NO_LINK, 0)){
+                printf("%u\n",in_bool_id);                
+                update_inputs(in_bool_id,*touchButtonValue *2-1);
             }
         
             if(coderTouchB!=nullptr){
-                coderTouchB[touchButtonNb][LEVEL]=*touchButtonValue;
-                if(*touchButtonValue){
-                    //coderTouchB[coder][FALL]=false;
-                    coderTouchB[touchButtonNb][RISE]=true;}
-                else{
-                    //coderTouchB[coder][RISE]=false;
-                    coderTouchB[touchButtonNb][FALL]=true;}
-                //printf(" :%u\n",*(coderTouchB+coder));
+                coderTouchB[touchButtonNb]=*touchButtonValue;
             }
-*/
 }

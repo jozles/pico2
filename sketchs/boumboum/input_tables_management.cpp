@@ -75,9 +75,10 @@ extern int16_t   lfosOutputsValues[MAX_LFO][MAX_OUTPUTS_PER_OBJ];
 //
 // il y a 2 types de sorties :
 //      les signaux audio
+// les signaux audios sont sommés voix par voix par la fonction fillvoice ; chaque onde et bruit a une entrée d'amplification à 16 bits
 //      les contrôles
 // les contrôles sont des valeurs 16 bits signés (coders, sorties des lfos, adsr, switchs etc)
-// ils sont recadrés selon le type de l'entrée à laquelle ils sont appliqués (par ex, une fréquence est sur 13 bits, un rc sur 5 bits, une durée sur 7 bits)
+// ils sont recadrés selon le type de l'entrée à laquelle ils sont appliqués (par ex, une fréquence est sur 13 bits, un rc sur 5 bits, une durée sur 7 bits, les binaires (touchb) 0/1)
 // comme déjà dit, coders et sorties atténuées sont "ajoutés" selon le type d'entrée
 // le nombre de sorties possibles est fixe pour tous les objets et le plus souvent excédentaire
 // 
@@ -88,16 +89,17 @@ extern int16_t   lfosOutputsValues[MAX_LFO][MAX_OUTPUTS_PER_OBJ];
 // le "cablage" entre entrées et sorties se fait au moyen de ces tables (voir description ci-après)
 // 
 // la production des valeurs de sortie de chaque objet est cadencée via plusieurs horloges (irq)
-// la fabrication des valeurs est incorporée au producteur pour les basses fréquences 
+// la fabrication des valeurs est incorporée au producteur pour les basses fréquences
 // 
 // objets :
 //      voices  =   oscillateurs à fréquences audio fournissant sinus, triangle, dent de scie, carré
 //                  l'ensemble à rapport cyclique réglable, bruit blanc et rose. Les 6 signaux mixés
 //      lfos    =   oscillateurs à fréquences audio fournissant sinus, triangle, dent de scie, carré
 //                  l'ensemble à rapport cyclique réglable
+//      touch b =   touches du pupitre de commande
 //      shapers =   séquences à 4 étapes (adsr) + niveau de sustain ; déclenchement selon trig et tlev 
 //      mixers  =   mélangeurs audio ou de controles (atténuateurs pour chaque entrée ; ampli de sortie pour les audio)
-//      séquenceurs = générateur d'impulsions programmables
+//      séquenceurs = générateurs d'impulsions et/ou valeurs 16bits programmables
 //      générateurs d'écho = délai, niveau
 //      générateurs de réverbération, durée, niveau
 //
@@ -112,6 +114,7 @@ extern int16_t   lfosOutputsValues[MAX_LFO][MAX_OUTPUTS_PER_OBJ];
 //      ajouter le traitement d'update dans update_inputs
 //      ajouter un menu (ligne d'appel dans boumboum, inits dans boumboum et menu, traitement de ligne dans menu)
 //      ajouter un handler à l'endroit approprié
+//      ajouter le paramètre xxx_MAX dans const.h et l'utiliser dans la ligne MAX_OUTPUTS
 
 /* ************ control inputs and outputs ************* */
 
