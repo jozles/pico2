@@ -1,6 +1,8 @@
 #ifndef _MISC_H_
 #define _MISC_H_
 
+#include <stdint.h>
+
 void adsrInit();
 void adsrHandler();
 void setAdsrDur(uint8_t adsr,uint8_t adsrStatus,int32_t val);

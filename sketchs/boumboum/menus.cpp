@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 #include "pico/stdlib.h"
 #include "const.h"
 #include "coder.h"
@@ -83,6 +84,12 @@ extern uint16_t* adsrVar[];
 extern int32_t  adsrScopeBufReal[MAX_ADSR*ADSR_SCOPE_BUFFER_LEN];
 extern int16_t  adsr_ctl_input_id[MAX_ADSR];
 
+extern uint16_t lfmCoder[MAX_LFM_INPUTS][MAX_LFM];
+extern uint16_t* lfmVar[];
+uint16_t tempLfmCoder[MAX_LFM_INPUTS][MAX_LFM];
+//extern uint16_t lfmCoderAtt[MAX_LFM][MAX_LFM_INPUTS];
+//extern int16_t  lfmOutputValues[MAX_LFM];
+
 volatile bool codersSw[CODER_NB];                           // coder it handler scans all physical coders
 volatile bool codersTB[CODER_NB];                           // coder it handler scans all touchButtons
 
@@ -112,6 +119,8 @@ char buf2[LINE_LEN];
 char buf11x12[TFT_W/11+2];
 
 uint16_t begline=34;    // first line after title
+uint16_t begline_menu0=17;
+uint16_t first_row=0;
 
 const char menu0_names[][MENU_NAME_LEN]={
     #define Z(name,text) text,
@@ -178,12 +187,15 @@ void menus_init(){
         codersSw[c]=1;
         codersTB[c]=false;
     }
-    // ***   osc   ***
+    // ***   var   ***
     for(uint8_t c=0;c<CODER_NB;c++){
         lfosVar[c]=nullptr;
         vcesVarF[c]=nullptr;
         adsrVar[c]=nullptr;
+        lfmVar[c]=tempLfmCoder[c];
     }
+    
+
     // ***   lfos  ***
     lfosVar[OSCCODERFREQ-1]=lfosCodersFreq;     // lfosVar[0]
     lfosVar[OSCCODERCRA-1]=lfosCoderCycleR;     // lfosVar[1]
@@ -220,7 +232,7 @@ void menus_init(){
     menuVcesCodersM[WSQR+1]=voices[0].basicWaveAmpl[WSQR];
     menuVcesCodersM[WHIT+1]=voices[0].basicWaveAmpl[WHIT];
     menuVcesCodersM[PONK+1]=voices[0].basicWaveAmpl[PONK];
-            // ***  voices Att ***
+        // ***  voices Att ***
     vcesVarT[WSIN]=tempVcesCoderAtt[WSIN];   
     vcesVarT[WTRI]=tempVcesCoderAtt[WTRI];
     vcesVarT[WSAW]=tempVcesCoderAtt[WSAW];
@@ -234,7 +246,7 @@ void menus_init(){
     menuVcesCodersT[WSQR+1]=voices[0].coderWaveAmplAtt[WSQR];
     menuVcesCodersT[WHIT+1]=voices[0].coderWaveAmplAtt[WHIT];
     menuVcesCodersT[PONK+1]=voices[0].coderWaveAmplAtt[PONK];
-    // ***  Adsr  ****
+        // ***  Adsr  ****
     adsrVar[ADSRATT-1]=adsrCoderAtt;            // adsrVar[0]
     adsrVar[ADSRDEC-1]=adsrCoderDec;            // adsrVar[1]
     adsrVar[ADSRSUS-1]=adsrCoderSus;            // adsrVar[2]
@@ -247,8 +259,7 @@ void menus_init(){
     menuAdsrCoders[ADSRREL]=adsrCoderRel[0];
     menuAdsrCoders[ADSRLEV]=adsrCoderLev[0];
     
-    mappingCoders[0]=0;     // ligne 0 
-
+    mappingCoders[0]=0; // ligne 0 
 }
 
 // ****** display title ******
@@ -341,17 +352,17 @@ int8_t tst_switchs_(uint8_t max_sw){      // return -1 if nothing, 0-n coder num
 #define NB_DSP_LINES 13
 #define FIRSTLINEH 20
 
-void mappingLineDsp(uint8_t inp,uint8_t line,bool rev){
+void mappingLineDsp(uint16_t inp,uint16_t line,bool rev){
     
     memset(buf11x12,0x00,LINE_LEN);
-    convIntToString(buf11x12,(int32_t)inp,2);                           //  2 input#
-    buf11x12[2]=' ';                                                    // +1
-    uint8_t ln=IN_OUT_NAME_LEN-1;
-    memcpy(buf11x12+3,&ctl_input_name[inp][0],ln);                      // +8 input name
+    convIntToString(buf11x12,(int32_t)inp,3);                           //  3 input#
+    buf11x12[3]=' ';                                                    // +1
+    uint8_t ln=IN_OUT_NAME_LEN-2;
+    memcpy(buf11x12+4,&ctl_input_name[inp][0],ln);                      // +8 input name
     //printf("%s i:%d %s\n",buf,inp,ctl_input_name[inp]);
 
-    buf11x12[3+ln]=' ';                                                 // +1
-    memcpy(buf11x12+3+ln+1,&ctl_output_name[ctl_input_srce[inp]],9);    // +7 //IN_OUT_NAME_LEN);
+    buf11x12[3+1+ln]=' ';                                                 // +1
+    memcpy(buf11x12+3+1+ln+1,&ctl_output_name[ctl_input_srce[inp]],8);    // +8 //IN_OUT_NAME_LEN);
     uint16_t fgc=0x07EF;
     uint16_t bgc=0x0000;
     uint16_t buc=fgc;
@@ -360,7 +371,7 @@ void mappingLineDsp(uint8_t inp,uint8_t line,bool rev){
     tft_draw_text_11x12_dma_mult(0,line*((11+2))+FIRSTLINEH,buf11x12,fgc,bgc,1);
 }
 
-void fullMappingDsp(uint8_t firstInput,uint8_t currDspInput){
+void fullMappingDsp(uint16_t firstInput,uint16_t currDspInput){
     tft_fill_rect_blank(FIRSTLINEH,0,TFT_H,TFT_W);
     for(uint8_t l=0;l<NB_DSP_LINES;l++){
         while(ctl_input_name[firstInput+l][0]==0 && firstInput+l<MAX_INPUTS){firstInput++;}
@@ -375,8 +386,8 @@ uint8_t coders_for_mapping(){
     
     bool mode_scope=false;
     
-    uint8_t currInput=1;    // input for current cursor 
-    uint8_t currDsp=0;      // line for current cursor
+    uint16_t currInput=1;    // input for current cursor 
+    uint16_t currDsp=0;      // line for current cursor
 
     mappingCoders[3]=ctl_input_shft[currInput];mappingCoders[4]=ctl_input_trig[currInput];mappingCoders[5]=ctl_input_tlev[currInput];
 
@@ -408,7 +419,7 @@ uint8_t coders_for_mapping(){
 
                 uint8_t cod=coder;if(coder>1){cod++;}
                 uint32_t cc=mappingCoders[cod];
-                if(coder==0){                                           // coder 0 vertical movements
+                if(coder==0){                                           // coder 0 vertical movements(scroll)
 
                         if(currInput<MAX_INPUTS-1 && cc>currInput){             // cursor moves down
                                               
@@ -421,7 +432,7 @@ uint8_t coders_for_mapping(){
                             else {                                              // scroll down
                                 currInput++;                                    
                                 while(ctl_input_name[currInput][0]==0 && currInput<MAX_INPUTS-1){currInput++;} // get next Input to display
-                                uint8_t schdInput=currInput;
+                                uint16_t schdInput=currInput;
                                 for(uint8_t l=0;l<NB_DSP_LINES-1;l++){          // search first displayable input
                                     // INPUT 1 MUST BE DISPLAYABLE
                                     schdInput--;
@@ -594,22 +605,30 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                 }
                 sprintf(buf+2,"%3u %3u %3u %3u %2u",adsrCoderAtt[line],adsrCoderDec[line],adsrCoderSus[line],adsrCoderRel[line],adsrCoderLev[line]);
                 break;
+
+            case LMUX_____:
+                setLfm(line,coder-1,cc);
+                sprintf(buf+2,"%3u %3u %3u %3u",lfmCoder[0][line],lfmCoder[1][line],lfmCoder[2][line],lfmCoder[3][line]);
+                break;
+
             default:break;
         }
 
-        if(!mode_scope){tft_draw_text_12x12_dma_mult(0,line*(12*2+1)+begline,buf,fgc,bgc,1);}
+        if(!mode_scope){tft_draw_text_12x12_dma_mult(0,line*(12*2+1)+first_row,buf,fgc,bgc,1);}
 }
 
 void fullMenuDsp(const char* title,const char* menu,uint8_t linesNb,uint8_t line_len,uint8_t currline,uint8_t type,uint8_t coder,uint32_t cc,bool mode_scope){
 
-    tft_fill_rect_blank(0,0,TFT_H-begline,TFT_W);
+    first_row=begline;
+    if(type==MENU0____){first_row=begline_menu0;}
+    tft_fill_rect_blank(0,0,TFT_H-first_row,TFT_W);
     title_dsp(title,0,type);
     uint8_t bgl=0;          // first line to display
     if(type==0){bgl=1;}     // skip unused MENU0___ entry
 
     for(uint8_t l=bgl;l<linesNb;l++){
         fillVoices();
-        printf("beg:%d m:%s l:%d len:%d cl:%d type:%d cod:%d\n",begline,menu+line_len*l,l,line_len,currline==l,type,coder);//,cc,mode_scope,NO_VAR_CHANGE);
+        printf("beg:%d m:%s l:%d len:%d cl:%d type:%d cod:%d\n",first_row,menu+line_len*l,l,line_len,currline==l,type,coder);//,cc,mode_scope,NO_VAR_CHANGE);
         menuLineDsp(menu,l,line_len,currline==l,type,coder,cc,mode_scope,NO_VAR_CHANGE);
     }
 }
@@ -665,13 +684,12 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
 //printf("0\n");            
 //if(object_type==VOICES_AM){printf("VOICES_AM\n");while(1){fillVoices();}}
 
-            for(uint8_t coder=0;coder<varNb+1;coder++){       
+            for(uint8_t coder=0;coder<varNb+1;coder++){      // varNb nbre d'items dans la ligne + 1 = nbre coders utilisés + coder de scroll
 
-                // sleep_ms(1); // needeed for coder stabilizes
                 uint32_t cc=cTC[coder];
                 if(object_type==MENU0____ && cc==0){cc=1;}   // skip unused MENU0____ entry
 
-                // coder 0 : depl vertical
+                // coder 0 : depl vertical(scroll)
                 if(coder==0 && cc!=line){
                                   
 //printf("1_%u\n",cc);

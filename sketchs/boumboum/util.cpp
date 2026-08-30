@@ -337,6 +337,9 @@ void setup(){
     fillDur();
     adsrInit();
 
+    // ****** lmuxs *******
+    lf_mixer_init();
+
     // ****** 1kHZ irq ******
     init_pwm_timer_1khz();      // init engine for millitimers+coders+lfos+adsr
 

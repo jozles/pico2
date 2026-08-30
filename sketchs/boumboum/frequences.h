@@ -1,6 +1,7 @@
 #ifndef _FREQUENCES_H_
 #define _FREQUENCES_H_ 
 
+#include <stdint.h>
 #include "const.h"
 
 /* générateur de fréquences discrètes à partir de valeurs linéaires

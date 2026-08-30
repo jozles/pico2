@@ -45,10 +45,10 @@ extern int16_t   lfo_ctl_input_id[][MAX_INPUTS_PER_OBJ];
 extern int16_t   lfo_ctl_output_id[][MAX_OUTPUTS_PER_OBJ];
 extern int16_t   lfosOutputsValues[MAX_LFO][MAX_OUTPUTS_PER_OBJ]; 
 
-extern uint16_t  lfmCoder[MAX_LFM][MAX_LFM_INPUTS];
-extern uint16_t  lfmCoderAtt[MAX_LFM][MAX_LFM_INPUTS];
-extern int16_t   lfm_ctl_input_id[][MAX_INPUTS_PER_OBJ];
-extern int16_t   lfm_ctl_output_id[][MAX_OUTPUTS_PER_OBJ];
+extern uint16_t  lfmCoder[MAX_LFM_INPUTS][MAX_LFM];
+extern uint16_t  lfmCoderAtt[MAX_LFM_INPUTS][MAX_LFM];
+extern int16_t   lfm_ctl_input_id[MAX_INPUTS_PER_OBJ][MAX_LFM];
+extern int16_t   lfm_ctl_output_id[MAX_OUTPUTS_PER_OBJ][MAX_LFM];
 extern int16_t   lfmOutputValues[MAX_LFM];
 extern uint8_t   lfmNb[MAX_INPUTS];
  
@@ -314,6 +314,12 @@ bool init_objects_inputs(void)
 {
     printf("init_obects_inputs\n");
 
+    uint8_t inputNum=3;
+    uint8_t objName=3;
+    uint8_t objNum=2;
+    uint8_t objOutType=3;
+    uint8_t lenInpName=objName+objNum+objOutType;
+
     memset(ctl_input_name,0x00,MAX_INPUTS*IN_OUT_NAME_LEN);
     memset(ctl_input_srce,0x00,MAX_INPUTS);
     memset(ctl_input_shft,0x00,MAX_INPUTS);
@@ -325,7 +331,7 @@ bool init_objects_inputs(void)
         ctl_input_val[i]=0;
     }
 
-    memcpy(ctl_input_name[0],"---",3);
+    memset(ctl_input_name[0],'-',objName);
     int16_t curr_input=1;
 
     objects_first_input_id[LFO______]=curr_input;
@@ -343,9 +349,9 @@ bool init_objects_inputs(void)
             
             if(ins<LFO_INPUTS_NB){
                 char buf[IN_OUT_NAME_LEN]={'L','F','O','S'};
-                convIntToString(buf+4,lfo,2);
-                memcpy(buf+6,&lfo_inputs_names[ins],OBJ_IO_NAME_LEN-1);
-                memcpy(ctl_input_name[curr_input],buf,IN_OUT_NAME_LEN);
+                convIntToString(buf+objName,lfo,objNum);
+                memcpy(buf+objName+objNum,&lfo_inputs_names[ins],objOutType);  //OBJ_IO_NAME_LEN-1);
+                memcpy(ctl_input_name[curr_input],buf,lenInpName);   //IN_OUT_NAME_LEN);
             }
             curr_input++;
             if(curr_input>=MAX_INPUTS){return false;}
@@ -375,9 +381,9 @@ bool init_objects_inputs(void)
             }           
             if(ins<ADSR_INPUTS_NB){
                 char buf[IN_OUT_NAME_LEN]={'A','D','S','R'};
-                convIntToString(buf+4,adsr,2);
-                memcpy(buf+6,&adsr_inputs_names[ins],OBJ_IO_NAME_LEN-1);
-                memcpy(ctl_input_name[curr_input],buf,IN_OUT_NAME_LEN);
+                convIntToString(buf+objName,adsr,objNum);
+                memcpy(buf+objName+objNum,&adsr_inputs_names[ins],objOutType);    //OBJ_IO_NAME_LEN-1);
+                memcpy(ctl_input_name[curr_input],buf,lenInpName);   //IN_OUT_NAME_LEN);
             }
             curr_input++;
             if(curr_input>=MAX_INPUTS){return false;}
@@ -406,9 +412,9 @@ bool init_objects_inputs(void)
             }
             if(ins<VOICES_INPUTS_NB){
                 char buf[IN_OUT_NAME_LEN]={'V','C','E','S'};
-                convIntToString(buf+4,(uint32_t)vce,2);
-                memcpy(buf+6,&voices_inputs_names[ins],OBJ_IO_NAME_LEN-1);
-                memcpy(ctl_input_name[curr_input],buf,IN_OUT_NAME_LEN);
+                convIntToString(buf+objName,(uint32_t)vce,objNum);
+                memcpy(buf+objName+objNum,&voices_inputs_names[ins],objOutType);  //OBJ_IO_NAME_LEN-1);
+                memcpy(ctl_input_name[curr_input],buf,lenInpName);   //IN_OUT_NAME_LEN);
             }
             curr_input++;
             if(curr_input>=MAX_INPUTS){return false;}
@@ -426,11 +432,11 @@ bool init_objects_inputs(void)
             ctl_input_update_type[curr_input]=LFM____;break;
             ctl_input_val[curr_input]=0;
             
-            if(ins<LFM_INPUTS_NB){
+            if(ins<MAX_LFM_INPUTS){
                 char buf[IN_OUT_NAME_LEN]={'L','F','M','_'};
-                convIntToString(buf+4,lfm,2);
-                memcpy(buf+6,&lfm_inputs_names[ins],OBJ_IO_NAME_LEN-1);
-                memcpy(ctl_input_name[curr_input],buf,IN_OUT_NAME_LEN);
+                convIntToString(buf+objName,lfm,objNum);
+                memcpy(buf+objName+objNum,&lfm_inputs_names[ins],objOutType); //OBJ_IO_NAME_LEN-1);
+                memcpy(ctl_input_name[curr_input],buf,lenInpName);   //IN_OUT_NAME_LEN);
             }
             lfmNb[curr_input]=lfm;
             curr_input++;
@@ -641,14 +647,14 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
                                 //printf("s:%u ",adsrStatus[object]);
                                 break;
                 case LFM____ :  {
-                                uint8_t lfm=lfmNb[id];                          // lfm#
+                                uint8_t lfm=lfmNb[id];                          // lfm #
                                 uint8_t inp=id-lfm_ctl_input_id[lfm][0];        // lfm inp #
-                                val=valeur*lfmCoderAtt[lfm][inp]>>MAX_CTL_ATT_SHIFT;   // actual inp value
+                                val=valeur*lfmCoderAtt[inp][lfm]>>MAX_CTL_ATT_SHIFT;   // actual inp value
                                 int32_t old=ctl_input_val[id];
                                 ctl_input_val[id]=val;
 
                                 lfmOutputValues[lfm]+=val-old;                        // actual output value
-                                update_inputs(lfm_ctl_output_id[lfm][0],lfmOutputValues[lfm]);
+                                update_inputs(lfm_ctl_output_id[0][lfm],lfmOutputValues[lfm]);
                                 }break;
                 default: break;
             }

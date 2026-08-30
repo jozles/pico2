@@ -5,7 +5,9 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "${userHome}/.pico-sdk/sdk/2.2.0/**",
-                "${userHome}/.pico-sdk/toolchain/14_2_Rel1/arm-none-eabi/include"
+                "${userHome}/.pico-sdk/toolchain/14_2_Rel1/arm-none-eabi/include",
+                "${userHome}/.pico-sdk/toolchain/14_2_Rel1/lib/gcc/arm-none-eabi/14.2.1/include",
+                "${userHome}/.pico-sdk/toolchain/14_2_Rel1/lib/gcc/arm-none-eabi/14.2.1/include-fixed"
             ],
             "forcedInclude": [
                 "${workspaceFolder}/build/generated/pico_base/pico/config_autogen.h",

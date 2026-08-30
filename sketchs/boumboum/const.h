@@ -1,6 +1,7 @@
 #ifndef _CONST_H_
 #define _CONST_H_
 
+#include <stdint.h>
 #include "pico/stdlib.h"
 #include "util.h"
 

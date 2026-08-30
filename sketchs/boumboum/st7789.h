@@ -9,6 +9,7 @@
 #define GREEN   0x07e0 
 #define RED     0x001f
 
+#include <stdint.h>
 
 int st7789_setup(uint32_t spiSpeed);
 volatile bool get_st_dma_free();        // uniquement à des fins de consultation

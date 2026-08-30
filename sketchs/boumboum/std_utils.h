@@ -1,6 +1,8 @@
 #ifndef _STD_UTILS_H_
 #define _STD_UTILS_H_
 
+#include <stdint.h>
+
 void print_memory_report(void);
 
 void dumpStr(int32_t* str,uint32_t nb);

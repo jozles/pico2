@@ -1,6 +1,7 @@
 #ifndef _LEDS_H_
 #define _LEDS_H_
 
+#include <stdint.h>
 
 int ledsWs2812Setup(PIO pio,uint8_t ledPin);
 volatile bool get_ws_dma_done();        // pour debug

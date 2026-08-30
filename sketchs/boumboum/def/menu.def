@@ -8,5 +8,6 @@
     Z(LFOS_____,"lfos       ")
     Z(ADSRL____,"adsrl      ")
     Z(MAPPING__,"I/O mapping")
+    Z(LMUX_____,"lf mux     ")
     
 

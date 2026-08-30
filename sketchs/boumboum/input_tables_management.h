@@ -1,6 +1,7 @@
 #ifndef _INPUTS_TB_MNGT_H_
 #define _INPUTS_TB_MNGT_H_
 
+#include <stdint.h>
 
 bool init_objects_outputs(void);
 bool init_objects_inputs(void);

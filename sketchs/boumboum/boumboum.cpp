@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 #include "pico/stdlib.h"
 #include "const.h"
 #include "coder.h"
@@ -59,6 +60,12 @@ volatile int16_t menuAdsrCoders[ADSR_VAR_NB+1];     // [0] curr input nb ; [1] c
 uint16_t menuMaxAdsrCoders[]={MAX_ADSR-1,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_LEVEL_CODERS};
 uint16_t* adsrVar[CODER_NB];                        // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
 
+#define LFM_VAR_NB MAX_LFM_INPUTS
+volatile int16_t menuLfmCoders[LFM_VAR_NB+1];       // [0] curr input nb ; [1] curr coder value for Att ; [2] curr coder value for Dec ; [3] curr coder value for Sus ; [4] curr coder value for Rel ; [5] curr coder value for Lev
+uint16_t menuMaxLfmCoders[]={MAX_LFM-1,MAX_CTL_ATT,MAX_CTL_ATT,MAX_CTL_ATT,MAX_CTL_ATT,MAX_CTL_ATT,MAX_CTL_ATT,MAX_CTL_ATT};
+uint16_t* lfmVar[CODER_NB];                         // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
+
+
 int main() {
 
     stdio_init_all();
@@ -94,6 +101,7 @@ if (watchdog_caused_reboot()) {
             //case GEN_AMPL_: coders_for_genAmpl(currVoice);break;
             case LFOS_____: coders_for_menu("L",(const char*)nullptr,MAX_LFO,0,LFOS_____,menuLfosCoders,codersSw,codersTB,menuMaxLfosCoders,lfosVar,LFO_VAR_NB,BASIC_WAVES_NB,0);break;
             case ADSRL____: coders_for_menu("ADSR:",(const char*)nullptr,MAX_ADSR,0,ADSRL____,menuAdsrCoders,codersSw,codersTB,menuMaxAdsrCoders,adsrVar,ADSR_VAR_NB,BASIC_WAVES_NB,0);break;
+            case LMUX_____: coders_for_menu("LM",(const char*)nullptr,MAX_LFM,0,LMUX_____,menuLfmCoders,codersSw,codersTB,menuMaxLfmCoders,lfmVar,LFM_VAR_NB,MAX_LFM_INPUTS,0);break;            
             case MAPPING__: coders_for_mapping();break;
 
             default:break;

@@ -1,6 +1,8 @@
 #ifndef _MENUS_H_
 #define _MENUS_H_
 
+#include <stdint.h>
+
 void inputsInit();
 void menus_init();
 uint8_t coders_for_wavesAmpl(uint8_t currVoice);

@@ -1,6 +1,8 @@
 #ifndef CODER_H_
 #define CODER_H_
 
+#include <stdint.h>
+
 /*  ********* architecture des codeurs *********
 
     la cinématique est locale à coder.cpp avec la structure Coders

@@ -42,10 +42,10 @@ int16_t  tbut_ctl_output_id[MAX_TBUT][MAX_OUTPUTS_PER_OBJ];
 
 /* *******  lf_mixers  ******** */
 
-uint16_t lfmCoder[MAX_LFM][MAX_LFM_INPUTS];
-uint16_t lfmCoderAtt[MAX_LFM][MAX_LFM_INPUTS];
+uint16_t lfmCoder[MAX_LFM_INPUTS][MAX_LFM];
+uint16_t lfmCoderAtt[MAX_LFM_INPUTS][MAX_LFM];
 int16_t  lfmOutputValues[MAX_LFM];
-int16_t  lfm_ctl_input_id[MAX_LFM][MAX_LFM_INPUTS];
+int16_t  lfm_ctl_input_id[MAX_LFM_INPUTS][MAX_LFM];
 int16_t  lfm_ctl_output_id[MAX_LFM];
 uint8_t  lfmNb[MAX_INPUTS];                 // les n° de lfm par input id
 
@@ -338,10 +338,11 @@ void __not_in_flash_func(touch_button_handler)(uint8_t touchButtonNb,bool* touch
 
 void lf_mixer_init()
 {
+    printf("%u lfm init\n",MAX_LFM);
     for(uint8_t lfm=0;lfm<MAX_LFM;lfm++){
-        for(uint8_t inp=0;inp<MAX_LFM_INPUTS;inp++){
-            lfmCoder[lfm][inp]=0;
-            lfmCoderAtt[lfm][inp]=0;
+        for(uint8_t inp=0;inp<MAX_LFM_INPUTS;inp++){   
+            lfmCoder[inp][lfm]=0;
+            lfmCoderAtt[inp][lfm]=0;
         }
         lfmOutputValues[lfm]=0;
     }
@@ -349,5 +350,5 @@ void lf_mixer_init()
 
 void __not_in_flash_func(setLfm)(uint8_t lfm,uint8_t inp,int16_t val)
 {
-    lfmCoder[lfm][inp]=val;
+    lfmCoder[inp][lfm]=val;
 }
