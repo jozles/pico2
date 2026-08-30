@@ -6,7 +6,7 @@
 
 #include "rc_33tables.h"
 
-#define VERSION "v1.42"
+#define VERSION "v1.43"
 
 #define PI 3.141592636
 
