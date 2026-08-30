@@ -4,3 +4,4 @@
     Z(LFO______,"lfos")
     Z(ADSR_____,"adsr")
     Z(TBUTTON__,"t_but")
+    Z(LF_MUX___,"lf_mux")

@@ -1,0 +1,3 @@
+/* inputs names for lf_mux */
+
+    X(LMUXI,"LMXI")

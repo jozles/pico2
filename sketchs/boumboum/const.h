@@ -122,6 +122,11 @@ typedef enum {
 
 #define MAX_TBUT CODER_NB       // use coder poling
 
+/* lf mixers */
+
+#define MAX_LFM 4
+#define MAX_LFM_INPUTS 4
+
 /* led */
 
 #define LEDBLINK  if((millisCounter-ledBlinker)>durOffOn[led]){ledBlinker=millisCounter;led=!led;gpio_put(LED,led);}
@@ -175,7 +180,7 @@ typedef enum {
 
 /* inputs/outputs */
 
-#define MAX_OUTPUT_OBJ          MAX_VOICES+MAX_LFO+MAX_ADSR+MAX_TBUT
+#define MAX_OUTPUT_OBJ          MAX_VOICES+MAX_LFO+MAX_ADSR+MAX_TBUT+MAX_LFM
 #define MAX_OUTPUTS_PER_OBJ     8
 #define MAX_OUTPUTS             (MAX_OUTPUT_OBJ)*MAX_OUTPUTS_PER_OBJ
 #define MAX_INPUT_OBJ           100
@@ -223,6 +228,13 @@ typedef enum {
 #undef X
 }  Norm_types_names;
 
+typedef enum {
+#define X(name,text) name,    
+#include "lfm_inputs_names.def"
+        LFM_INPUTS_NB  
+#undef X
+}  Lfm_inputs_names;
+
 // ****** outputs ******
 
 typedef enum {
@@ -252,6 +264,13 @@ typedef enum {
         TBUT_OUTPUTS_NB  
 #undef X
 }  Tbut_outputs_names;
+
+typedef enum {
+#define X(name,text) name,    
+#include "lfm_outputs_names.def"
+        LFM_OUTPUTS_NB  
+#undef X
+}  Lfm_outputs_names;
 
 // ****** basics waves codes ******
 

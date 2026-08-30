@@ -45,6 +45,12 @@ extern int16_t   lfo_ctl_input_id[][MAX_INPUTS_PER_OBJ];
 extern int16_t   lfo_ctl_output_id[][MAX_OUTPUTS_PER_OBJ];
 extern int16_t   lfosOutputsValues[MAX_LFO][MAX_OUTPUTS_PER_OBJ]; 
 
+extern uint16_t  lfmCoder[MAX_LFM][MAX_LFM_INPUTS];
+extern uint16_t  lfmCoderAtt[MAX_LFM][MAX_LFM_INPUTS];
+extern int16_t   lfm_ctl_input_id[][MAX_INPUTS_PER_OBJ];
+extern int16_t   lfm_ctl_output_id[][MAX_OUTPUTS_PER_OBJ];
+extern int16_t   lfmOutputValues[MAX_LFM];
+extern uint8_t   lfmNb[MAX_INPUTS];
  
 
 /* ************            objets           ************ */
@@ -107,14 +113,15 @@ extern int16_t   lfosOutputsValues[MAX_LFO][MAX_OUTPUTS_PER_OBJ];
 //      créer sa description (structure comme voice ou tables comme lfo)
 //      l'ajouter à la liste dans objects.def
 //      créer les 2 fichiers *.def pour décrire ses entrées et sorties
-//          (ajouter un paragraphe dans le chapitre nom des e/s des objets et dans inputs et outputs de const.h)
 //      ajouter pour chaque entrée un nom de type dans norm_types.def
-//      ajouter un paragraphe d'init dans init_objects_inputs et init_objects_outputs 
+//      ajouter ses constantes dans const.h (MAX_xxx à utiliser dans la ligne MAX_OUTPUTS)
+//      ajouter un paragraphe enum d'entrées et de sorties dans const.h
+//      ajouter un paragraphe nom des entrées et des sorties ci-après
+//      ajouter un paragraphe d'init dans init_objects_inputs et init_objects_outputs ci-après
 //      ajouter la fonction setxxxxyyyy vue plus haut
 //      ajouter le traitement d'update dans update_inputs
 //      ajouter un menu (ligne d'appel dans boumboum, inits dans boumboum et menu, traitement de ligne dans menu)
 //      ajouter un handler à l'endroit approprié
-//      ajouter le paramètre xxx_MAX dans const.h et l'utiliser dans la ligne MAX_OUTPUTS
 
 /* ************ control inputs and outputs ************* */
 
@@ -170,15 +177,21 @@ const char lfo_inputs_names[][OBJ_IO_NAME_LEN]={
     #undef X   
 };
 
+const char voices_inputs_names[][OBJ_IO_NAME_LEN]={
+    #define X(name,text) text,
+    #include "vces_inputs_names.def"   
+    #undef X   
+};
+
 const char adsr_inputs_names[][OBJ_IO_NAME_LEN]={
     #define X(name,text) text,
     #include "adsr_inputs_names.def"   
     #undef X   
 };
 
-const char voices_inputs_names[][OBJ_IO_NAME_LEN]={
+const char lfm_inputs_names[][OBJ_IO_NAME_LEN]={
     #define X(name,text) text,
-    #include "vces_inputs_names.def"   
+    #include "lfm_inputs_names.def"   
     #undef X   
 };
 
@@ -188,15 +201,15 @@ const char lfo_outputs_names[][OBJ_IO_NAME_LEN]={
     #undef X   
 };
 
-const char adsr_outputs_names[][OBJ_IO_NAME_LEN]={
-    #define X(name,text) text,
-    #include "adsr_outputs_names.def"   
-    #undef X   
-};
-
 const char vces_outputs_names[][OBJ_IO_NAME_LEN]={
     #define X(name,text) text,
     #include "vces_outputs_names.def"   
+    #undef X   
+};
+
+const char adsr_outputs_names[][OBJ_IO_NAME_LEN]={
+    #define X(name,text) text,
+    #include "adsr_outputs_names.def"   
     #undef X   
 };
 
@@ -205,6 +218,13 @@ const char tbut_outputs_names[][OBJ_IO_NAME_LEN]={
     #include "tbut_outputs_names.def"   
     #undef X   
 };
+
+const char lfm_outputs_names[][OBJ_IO_NAME_LEN]={
+    #define X(name,text) text,
+    #include "lfm_outputs_names.def"   
+    #undef X   
+};
+
 
 bool init_objects_outputs(void)
 {
@@ -262,6 +282,24 @@ bool init_objects_outputs(void)
                 memcpy(buf+6,&tbut_outputs_names[outs],OBJ_IO_NAME_LEN-1);
                 memcpy(ctl_output_name[curr_output],buf,IN_OUT_NAME_LEN);
             }       
+            curr_output++;
+            if(curr_output>=MAX_OUTPUTS){return false;}
+        }        
+    }
+
+    objects_first_output_id[LF_MUX___]=curr_output;    
+    for (uint8_t lfm=0;lfm<MAX_LFM;lfm++)
+    {
+        for(uint8_t outs=0;outs<MAX_OUTPUTS_PER_OBJ;outs++)
+        {        
+            ctl_output_id_chain[curr_output]=NO_LINK;
+            lfm_ctl_output_id[lfm][outs]=curr_output;
+            if(outs<LFM_OUTPUTS_NB){
+                char buf[IN_OUT_NAME_LEN]={'L','F','M','_'};
+                convIntToString(buf+4,lfm,2);
+                memcpy(buf+6,&lfm_outputs_names[outs],OBJ_IO_NAME_LEN-1);
+                memcpy(ctl_output_name[curr_output],buf,IN_OUT_NAME_LEN);
+            }
             curr_output++;
             if(curr_output>=MAX_OUTPUTS){return false;}
         }        
@@ -376,6 +414,30 @@ bool init_objects_inputs(void)
             if(curr_input>=MAX_INPUTS){return false;}
         }
     }
+
+    objects_first_input_id[LF_MUX___]=curr_input;
+    for (uint8_t lfm=0;lfm<MAX_LFM;lfm++)
+    {
+        for(uint8_t ins=0;ins<MAX_INPUTS_PER_OBJ;ins++)
+        {
+            lfm_ctl_input_id[lfm][ins]=curr_input;
+            ctl_input_id_chain[curr_input]=NO_LINK;
+            ctl_input_object[curr_input]=lfm;
+            ctl_input_update_type[curr_input]=LFM____;break;
+            ctl_input_val[curr_input]=0;
+            
+            if(ins<LFM_INPUTS_NB){
+                char buf[IN_OUT_NAME_LEN]={'L','F','M','_'};
+                convIntToString(buf+4,lfm,2);
+                memcpy(buf+6,&lfm_inputs_names[ins],OBJ_IO_NAME_LEN-1);
+                memcpy(ctl_input_name[curr_input],buf,IN_OUT_NAME_LEN);
+            }
+            lfmNb[curr_input]=lfm;
+            curr_input++;
+            if(curr_input>=MAX_INPUTS){return false;}
+        }
+    }
+        
 
     // ajouter ici d'autres entrées  (sequencers etc)
 
@@ -511,11 +573,11 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
             //printf("s:%u/%u u_i:%i=%s:%u v:%i ",src0,src_id,id,ctl_input_name+id*IN_OUT_NAME_LEN,ctl_input_update_type[id],valeur);
 
             switch(ctl_input_update_type[id]){
-                case VCE_FREQ:  val=(valeur>>6)*voices[object].coderFreqAtt/MAX_CTL_ATT;                // 8k max VCES_MAX_FREQ_CODERS ; att 0-255
+                case VCE_FREQ:  val=(valeur>>6)*voices[object].coderFreqAtt>>MAX_CTL_ATT_SHIFT;                // 8k max VCES_MAX_FREQ_CODERS ; att 0-255
                                 fr=calcFreq(val+voices[object].coderFreq);
                                 setVoiceFrequency(fr,&voices[object],voices[object].coderCycleR);       // ajouter un ctl d'overflow
                                 break;
-                case VCE_CRA :  val=voices[object].coderCycleR+(valeur>>10)*voices[object].coderCycleRAtt/MAX_CTL_ATT; // 0-62 ; att 0-255                
+                case VCE_CRA :  val=voices[object].coderCycleR+(valeur>>10)*voices[object].coderCycleRAtt>>MAX_CTL_ATT_SHIFT; // 0-62 ; att 0-255                
                                 setVoiceFrequency(voices[object].frequency,&voices[object],val);        // ajouter un ctl d'overflow
                                 break;
                 case VCE_WSIN:  setVoicesAmpl(object,WSIN,valeur);break;
@@ -525,27 +587,27 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
                 case VCE_WHIT:  setVoicesAmpl(object,WHIT,valeur);break;
                 case VCE_WPNK:  setVoicesAmpl(object,PONK,valeur);break;                                                                                                                
                 case VCE_GENA:  setVoicesAmpl(object,BASIC_WAVES_NB,valeur);break;
-                case LFO_FREQ:  val=(valeur>>3)*lfosCodersFreqAtt[object]/MAX_CTL_ATT;                  // 8k max VCES_MAX_FREQ_CODERS ; att 0-255 
+                case LFO_FREQ:  val=(valeur>>3)*lfosCodersFreqAtt[object]>>MAX_CTL_ATT_SHIFT;                  // 8k max VCES_MAX_FREQ_CODERS ; att 0-255 
                                 fr=calcFreq(val+lfosCodersFreq[object])/VOICE_FREQ_DIVIDER;
                                 //if(lfo==0){printf("l%d id:%d v:%i val:%i out#:%d fc:%i f:%f\n",lfo,id,valeur,val,output,lfosCodersFreq[lfo],fr);}
                                 setLfosFrequency(fr,object,lfosCoderCycleR[object]);                    // ajouter un ctl d'overflow
                                 break;
-                case LFO_CRA :  val=lfosCoderCycleR[object]+(valeur>>10)*lfosCoderCycleRAtt[object]/MAX_CTL_ATT; // 0-62 ; att 0-255
+                case LFO_CRA :  val=lfosCoderCycleR[object]+(valeur>>10)*lfosCoderCycleRAtt[object]>>MAX_CTL_ATT_SHIFT; // 0-62 ; att 0-255
                                 setLfosFrequency(lfosFrequency[object],object,val);                     // ajouter un ctl d'overflow
                                 break;
-                case A_ATTACK:  val=(valeur>>9)*adsrCoderAttAtt[object]/MAX_CTL_ATT;                    // durée 0-127
+                case A_ATTACK:  val=(valeur>>9)*adsrCoderAttAtt[object]>>MAX_CTL_ATT_SHIFT;                    // durée 0-127
                                 setAdsrDur(object,adsrStatus[object],val);
                                 break;
-                case A_DECAY :  val=(valeur>>9)*adsrCoderDecAtt[object]/MAX_CTL_ATT;                    // durée 0-127
+                case A_DECAY :  val=(valeur>>9)*adsrCoderDecAtt[object]>>MAX_CTL_ATT_SHIFT;                    // durée 0-127
                                 setAdsrDur(object,adsrStatus[object],val);
                                 break;
-                case A_SUST  :  val=(valeur>>3)*adsrCoderSusAtt[object]/MAX_CTL_ATT;                    // durée 0-127
+                case A_SUST  :  val=(valeur>>3)*adsrCoderSusAtt[object]>>MAX_CTL_ATT_SHIFT;                    // durée 0-127
                                 setAdsrDur(object,adsrStatus[object],val);
                                 break;
-                case A_RELEAS:  val=(valeur>>3)*adsrCoderRelAtt[object]/MAX_CTL_ATT;                    // durée 0-127
+                case A_RELEAS:  val=(valeur>>3)*adsrCoderRelAtt[object]>>MAX_CTL_ATT_SHIFT;                    // durée 0-127
                                 setAdsrDur(object,adsrStatus[object],val);
                                 break;
-                case A_LEVEL :  val=(valeur>>3)*adsrCoderLevAtt[object]/MAX_CTL_ATT;                    
+                case A_LEVEL :  val=(valeur>>3)*adsrCoderLevAtt[object]>>MAX_CTL_ATT_SHIFT;                    
                                 setAdsrLev(object,val);
                                 break;                        
                 case A_START :  ctl_input_prev_val[id]=prev;                                            // start adsr
@@ -578,6 +640,16 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
                                 }
                                 //printf("s:%u ",adsrStatus[object]);
                                 break;
+                case LFM____ :  {
+                                uint8_t lfm=lfmNb[id];                          // lfm#
+                                uint8_t inp=id-lfm_ctl_input_id[lfm][0];        // lfm inp #
+                                val=valeur*lfmCoderAtt[lfm][inp]>>MAX_CTL_ATT_SHIFT;   // actual inp value
+                                int32_t old=ctl_input_val[id];
+                                ctl_input_val[id]=val;
+
+                                lfmOutputValues[lfm]+=val-old;                        // actual output value
+                                update_inputs(lfm_ctl_output_id[lfm][0],lfmOutputValues[lfm]);
+                                }break;
                 default: break;
             }
             //printf("\n");

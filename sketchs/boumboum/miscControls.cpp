@@ -34,18 +34,29 @@ uint16_t adsrScopeBufPtr[MAX_ADSR];
 uint32_t    adsrTime=0;
 uint32_t    adsrTimingInterval=1000/ADSR_SAMPLE_RATE;
 
-extern uint32_t millisCounter;
-extern uint16_t amplLevel[];
-extern int16_t  ctl_output_id_chain[];
-extern uint8_t  ctl_input_update_type[];
-
 bool adsrScopeDisp[MAX_ADSR];
 
 /* ******* touchButtons ******* */
 
 int16_t  tbut_ctl_output_id[MAX_TBUT][MAX_OUTPUTS_PER_OBJ];
 
-void adsrInit()
+/* *******  lf_mixers  ******** */
+
+uint16_t lfmCoder[MAX_LFM][MAX_LFM_INPUTS];
+uint16_t lfmCoderAtt[MAX_LFM][MAX_LFM_INPUTS];
+int16_t  lfmOutputValues[MAX_LFM];
+int16_t  lfm_ctl_input_id[MAX_LFM][MAX_LFM_INPUTS];
+int16_t  lfm_ctl_output_id[MAX_LFM];
+uint8_t  lfmNb[MAX_INPUTS];                 // les n° de lfm par input id
+
+/* *******  extern  ******** */
+
+extern uint32_t millisCounter;
+extern uint16_t amplLevel[];
+extern int16_t  ctl_output_id_chain[];
+extern uint8_t  ctl_input_update_type[];
+
+void adsrInit()                     // (id ptrs dans inits_objects_inputs/outputs)
 {
     printf("%u adsr init\n",MAX_ADSR);
     for(uint8_t a=0;a<MAX_ADSR;a++){
@@ -73,7 +84,9 @@ void adsrInit()
         adsrCoderRelAtt[a]=FULL_ATTENUATION_VALUE;
         adsrCoderLevAtt[a]=FULL_ATTENUATION_VALUE;
 
-        for(uint8_t v=0;v<MAX_OUTPUTS_PER_OBJ;v++){adsrOutputsValues[a][v]=0;}
+        for(uint8_t v=0;v<MAX_OUTPUTS_PER_OBJ;v++){
+            adsrOutputsValues[a][v]=0;
+        }
     }
 }
 
@@ -310,15 +323,31 @@ void touch_button_init(uint8_t pin)
 void __not_in_flash_func(touch_button_handler)(uint8_t touchButtonNb,bool* touchButtonValue,volatile bool* coderTouchB)
 {
             *touchButtonValue=!(*touchButtonValue);
-            printf("c:%u csw:%u \n",touchButtonNb,*touchButtonValue);
             int16_t in_bool_id=ctl_output_id_chain[tbut_ctl_output_id[touchButtonNb][0]];
+            //printf("c:%u csw:%u id:%i\n",touchButtonNb,*touchButtonValue,in_bool_id);
             
-            if (__builtin_expect(in_bool_id != NO_LINK, 0)){
-                printf("%u\n",in_bool_id);                
+            if (__builtin_expect(in_bool_id != NO_LINK, 0)){     
                 update_inputs(in_bool_id,*touchButtonValue *2-1);
             }
         
             if(coderTouchB!=nullptr){
                 coderTouchB[touchButtonNb]=*touchButtonValue;
             }
+}
+
+
+void lf_mixer_init()
+{
+    for(uint8_t lfm=0;lfm<MAX_LFM;lfm++){
+        for(uint8_t inp=0;inp<MAX_LFM_INPUTS;inp++){
+            lfmCoder[lfm][inp]=0;
+            lfmCoderAtt[lfm][inp]=0;
+        }
+        lfmOutputValues[lfm]=0;
+    }
+}
+
+void __not_in_flash_func(setLfm)(uint8_t lfm,uint8_t inp,int16_t val)
+{
+    lfmCoder[lfm][inp]=val;
 }

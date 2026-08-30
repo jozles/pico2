@@ -11,6 +11,9 @@ void irq_button_init(uint8_t pin);
 void touch_button_handler(uint8_t touchButtonNb,bool* touchButtonValue,volatile bool* coderTouchB);
 void touch_button_init(uint8_t pin);
 
+void lf_mixer_init();
+void setLfm(uint8_t lfm,uint8_t inp,int16_t val);
+
 enum AdsrStates {
     ADSR_OFF,
     ADSR_ATT,

@@ -69,6 +69,8 @@ add_executable(boumboum
 	def/vces_outputs_names.def
 	def/tbut_outputs_names.def
 	def/norm_types.def
+	def/lfmux_inputs_names.def
+	def/lfmux_outputs_names.def
 	blank_.S
 	miscControls.cpp
 	input_tables_management.cpp
