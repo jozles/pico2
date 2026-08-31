@@ -160,7 +160,7 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_
     }
     gpio_set_dir_out_masked(sel_gpio_mask);
 
-    printf("coders sel gpio mask:%X sel0 pin:%d sel_nb:%d\n",sel_gpio_mask,gpio_sel0_pin,coder_sel_nb);
+    printf("coders sel gpio mask:%X sel0_pin:%d sel_nb:%d\n",sel_gpio_mask,gpio_sel0_pin,coder_sel_nb);
 
     for(uint8_t coder=0;coder<coder_nb;coder++){
         gpio_put_masked(sel_gpio_mask,coder<<gpio_sel0_pin);     // sel one coder
@@ -173,7 +173,7 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_
         c[coder].touchButtonTime=0;                              // init debouncer        
 //printf(" -coder#%d init d:%d c:%d s:%d\n",coder,c[coder].coderData0,c[coder].coderClock0,gpio_get(gpio_switch_pin));
         c[coder].coderItStatus=0; 
-        printf("gpio%u(%u)=%u\n",TOUCH_PIN,coder,gpio_get(TOUCH_PIN));    
+        //printf("gpio%u(%u)=%u\n",TOUCH_PIN,coder,gpio_get(TOUCH_PIN));    
     }
 }
 

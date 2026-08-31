@@ -56,15 +56,15 @@ int32_t i2s_buf1[SAMPLES_PER_BUFFER*2] __attribute__((aligned(32)));     // le b
 extern struct Voice voices[];
 //extern uint16_t amplLevel[];
 
-extern int32_t voicesScopeDataBuffer[];
-extern int16_t voice_first_input_id;
+extern int32_t  voicesScopeDataBuffer[];
+extern int16_t  voice_first_input_id;
 
-extern float      lfosFrequency[MAX_LFO];                   
-extern uint16_t   lfosCodersFreq[MAX_LFO];
-extern int16_t    lfo_first_output_id;
-extern int16_t    adsr_first_output_id;
-extern int16_t    lfo_first_input_id;
-extern int16_t    adsr_first_input_id;
+extern float    lfosFrequency[MAX_LFO];                   
+extern uint16_t lfosCodersFreq[MAX_LFO];
+extern int16_t  lfo_first_output_id;
+extern int16_t  adsr_first_output_id;
+extern int16_t  lfo_first_input_id;
+extern int16_t  adsr_first_input_id;
 
 extern uint16_t adsrCoderAtt[MAX_ADSR];
 extern uint16_t adsrCoderDec[MAX_ADSR];
@@ -72,9 +72,11 @@ extern uint16_t adsrCoderSus[MAX_ADSR];
 extern uint16_t adsrCoderRel[MAX_ADSR];
 extern uint16_t adsrCoderLev[MAX_ADSR];
 
-extern int16_t    ctl_input_srce[MAX_INPUTS];
-extern char       ctl_input_name[MAX_INPUTS][IN_OUT_NAME_LEN]; 
-extern char       ctl_output_name[MAX_OUTPUTS][IN_OUT_NAME_LEN];
+extern uint16_t lfmCoderAtt[MAX_LFM_INPUTS][MAX_LFM];
+
+extern int16_t  ctl_input_srce[MAX_INPUTS];
+extern char     ctl_input_name[MAX_INPUTS][IN_OUT_NAME_LEN]; 
+extern char     ctl_output_name[MAX_OUTPUTS][IN_OUT_NAME_LEN];
 
 volatile uint32_t millisCounter;
 
@@ -481,6 +483,9 @@ void testSetup()
     uint32_t adsrLfoCoder=1384;         // 1384 6sec // 1790 3sec
     uint8_t  crLfo=4;
     uint16_t crLfoCoder=1820;
+    uint8_t  lfm=0;
+    uint8_t  lfmInp0=0;
+    uint8_t  lfmInp1=1;
 
     voiceConfig(voice,wave,coderFreq,attenFreqLevel,freqLfo,freqLfoCoder,manualAmpLevel,attenAmpLevel,adsr,adsrLfo,adsrLfoCoder,cr);
     // CX (voice)SQP (adsr) 
@@ -530,13 +535,30 @@ void testSetup()
     adsr=2;
     adsrLfo=-1;    
     attenAmpLevel=30;
-    adsrLfoCoder=0; //1790;         // 1384 6sec // 1790 3sec 
+    adsrLfoCoder=0; //1790;         // 1384 6sec // 1790 3sec
+    lfm=0;
+    lfmInp0=0;
+    lfmInp1=1;
+    uint8_t voice2ampLfo=5;
+    uint16_t freqV2ALfo=3499;       // 6Hz
+    uint8_t  ampV2ALfoAtt=8;
 
+    // config adsr 
     voiceConfig(voice,wave,coderFreq,attenFreqLevel,freqLfo,freqLfoCoder,manualAmpLevel,attenAmpLevel,adsr,adsrLfo,adsrLfoCoder,cr); 
     adsrCoderAtt[adsr]=6;setAdsrDur(adsr,ADSR_ATT,0);
     adsrCoderDec[adsr]=28;setAdsrDur(adsr,ADSR_DEC,0);
     adsrCoderSus[adsr]=12;setAdsrDur(adsr,ADSR_SUS,0);
-    adsrCoderRel[adsr]=56;setAdsrDur(adsr,ADSR_REL,0); 
+    adsrCoderRel[adsr]=56;setAdsrDur(adsr,ADSR_REL,0);
+    // connect lfm0 to voice:wave
+    test_connect(objects_first_input_id[VOICE____]+voice*MAX_INPUTS_PER_OBJ+VSPW+wave,objects_first_output_id[LF_MUX___]+lfm*MAX_OUTPUTS_PER_OBJ+LMUXO);
+    // connect adsr to lfm0:0    
+    lfmCoderAtt[lfmInp0][lfm]=MAX_CTL_ATT;
+    test_connect(objects_first_input_id[LF_MUX___]+lfm*MAX_INPUTS_PER_OBJ+lfmInp0,objects_first_output_id[ADSR_____]+adsr*MAX_OUTPUTS_PER_OBJ+ADSR_SHAPE);
+    // config lfo
+    setLfosFreq(voice2ampLfo,freqV2ALfo);
+    // connect lfo to lfm0:1
+    //test_connect(objects_first_input_id[LF_MUX___]+lfm*MAX_INPUTS_PER_OBJ+lfmInp1,objects_first_output_id[LFO______]+voice2ampLfo*MAX_OUTPUTS_PER_OBJ+LSIN);
+    //lfmCoderAtt[lfmInp1][lfm]=ampV2ALfoAtt;
     //*/    
 
 //pwm_timer_1khz_enable(false);while(1){}

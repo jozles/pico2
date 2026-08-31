@@ -335,6 +335,21 @@ void __not_in_flash_func(touch_button_handler)(uint8_t touchButtonNb,bool* touch
             }
 }
 
+/* ******  lf mixers  ****** */
+//
+// 2 coders : base value + att value 
+// every change on coders or inputs change the output
+// base value is converted if log mode then added to attenuated input value
+// att value is applied to input value with lin or log mode
+//
+// every input has attributes (toogled by touchs):
+//      master : global output level
+//      lin/log
+//      positive only : neg values are zeroed
+//
+// actual feature : input 0 global lin, 1 global log ; inputs 2,3,4 lin 5,6,7 log
+//                  all positive only
+//
 
 void lf_mixer_init()
 {

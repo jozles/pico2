@@ -228,8 +228,6 @@ const char lfm_outputs_names[][OBJ_IO_NAME_LEN]={
 
 bool init_objects_outputs(void)
 {
-    printf("init_obects_outputs\n");
-
     memset(ctl_output_name,'-',MAX_OUTPUTS*IN_OUT_NAME_LEN);
     int16_t curr_output=1;            // output 0 is null
 
@@ -307,12 +305,13 @@ bool init_objects_outputs(void)
 
 // ajouter ici d'autres générateurs lents  (sequencers, kbd etc) ps: les voices n'ont pas de sorties lentes
 
+    printf("init_obects_outputs(%u)\n",curr_output-1);
+
     return true;
 }
 
 bool init_objects_inputs(void)
 {
-    printf("init_obects_inputs\n");
 
     uint8_t inputNum=3;
     uint8_t objName=3;
@@ -357,6 +356,7 @@ bool init_objects_inputs(void)
             if(curr_input>=MAX_INPUTS){return false;}
         }
     }
+    //printf(" lfo_curr_input  :%u %u\n",objects_first_input_id[LFO______],curr_input-1);
 
     objects_first_input_id[ADSR_____]=curr_input;
     for (uint8_t adsr=0;adsr<MAX_ADSR;adsr++)
@@ -389,6 +389,7 @@ bool init_objects_inputs(void)
             if(curr_input>=MAX_INPUTS){return false;}
         }
     }
+    //printf(" adsr_curr_input :%u %u\n",objects_first_input_id[ADSR_____],curr_input-1);
 
     objects_first_input_id[VOICE____]=curr_input;
     for (uint8_t vce=0;vce<MAX_VOICES;vce++)
@@ -420,6 +421,7 @@ bool init_objects_inputs(void)
             if(curr_input>=MAX_INPUTS){return false;}
         }
     }
+    //printf(" voice_curr_input:%u %u\n",objects_first_input_id[VOICE____],curr_input-1);
 
     objects_first_input_id[LF_MUX___]=curr_input;
     for (uint8_t lfm=0;lfm<MAX_LFM;lfm++)
@@ -429,30 +431,28 @@ bool init_objects_inputs(void)
             lfm_ctl_input_id[lfm][ins]=curr_input;
             ctl_input_id_chain[curr_input]=NO_LINK;
             ctl_input_object[curr_input]=lfm;
-            ctl_input_update_type[curr_input]=LFM____;break;
+            ctl_input_update_type[curr_input]=LFM____;
             ctl_input_val[curr_input]=0;
             
             if(ins<MAX_LFM_INPUTS){
                 char buf[IN_OUT_NAME_LEN]={'L','F','M','_'};
                 convIntToString(buf+objName,lfm,objNum);
-                memcpy(buf+objName+objNum,&lfm_inputs_names[ins],objOutType); //OBJ_IO_NAME_LEN-1);
+                *(buf+objName+objNum)='_';
+                convIntToString(buf+objName+objNum+1,ins,2);
+                //memcpy(buf+objName+objNum,&lfm_inputs_names[ins],objOutType); //OBJ_IO_NAME_LEN-1);
                 memcpy(ctl_input_name[curr_input],buf,lenInpName);   //IN_OUT_NAME_LEN);
             }
             lfmNb[curr_input]=lfm;
             curr_input++;
+            //printf("%u %s\n",curr_input-1,ctl_input_name[curr_input-1]);
             if(curr_input>=MAX_INPUTS){return false;}
         }
     }
-        
+    //printf(" lfm_curr_input  :%u %u\n",objects_first_input_id[LF_MUX___],curr_input-1);        
 
     // ajouter ici d'autres entrées  (sequencers etc)
 
-    /*for(uint16_t k=0;k<MAX_INPUTS;k++)
-        {
-            if(ctl_input_name[k][0]!=0){
-                printf("#%u %s\n",k,&ctl_input_name[k][0]);
-            }
-        }*/
+    printf("init_obects_inputs(%u)\n",curr_input-1);
 
     return true;
 }  
@@ -647,14 +647,16 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
                                 //printf("s:%u ",adsrStatus[object]);
                                 break;
                 case LFM____ :  {
-                                uint8_t lfm=lfmNb[id];                          // lfm #
-                                uint8_t inp=id-lfm_ctl_input_id[lfm][0];        // lfm inp #
-                                val=valeur*lfmCoderAtt[inp][lfm]>>MAX_CTL_ATT_SHIFT;   // actual inp value
-                                int32_t old=ctl_input_val[id];
-                                ctl_input_val[id]=val;
+                                uint8_t lfm=lfmNb[id];                                  // lfm #
+                                uint8_t inp=id-lfm_ctl_input_id[lfm][0];                // lfm inp #
+                                val=valeur*lfmCoderAtt[inp][lfm]>>MAX_CTL_ATT_SHIFT;    // actual inp value
+                                //ctl_input_val[id]=val;
 
-                                lfmOutputValues[lfm]+=val-old;                        // actual output value
-                                update_inputs(lfm_ctl_output_id[0][lfm],lfmOutputValues[lfm]);
+                                lfmOutputValues[lfm]+=val-prev;                         // actual output value
+                                uint8_t zer=(lfmOutputValues[lfm]>=0);
+                                printf("m:%u-%u old:%i iv:%i v:%i ov:%i\n",lfm,inp,prev,valeur,val,lfmOutputValues[lfm]*zer);
+                                
+                                update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],lfmOutputValues[lfm]*zer);    // ctl_output_id_chain[adsr_ctl_output_id[a][ADSR_SHAPE]];
                                 }break;
                 default: break;
             }
