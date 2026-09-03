@@ -486,6 +486,7 @@ void testSetup()
     uint8_t  lfm=0;
     uint8_t  lfmInp0=0;
     uint8_t  lfmInp1=1;
+    uint8_t  lfmInp2=2;
 
     voiceConfig(voice,wave,coderFreq,attenFreqLevel,freqLfo,freqLfoCoder,manualAmpLevel,attenAmpLevel,adsr,adsrLfo,adsrLfoCoder,cr);
     // CX (voice)SQP (adsr) 
@@ -539,6 +540,7 @@ void testSetup()
     lfm=0;
     lfmInp0=0;
     lfmInp1=1;
+    lfmInp2=2;
     uint8_t voice2ampLfo=5;
     uint16_t freqV2ALfo=3499;       // 6Hz
     uint8_t  ampV2ALfoAtt=8;
@@ -556,9 +558,9 @@ void testSetup()
     test_connect(objects_first_input_id[LF_MUX___]+lfm*MAX_INPUTS_PER_OBJ+lfmInp0,objects_first_output_id[ADSR_____]+adsr*MAX_OUTPUTS_PER_OBJ+ADSR_SHAPE);
     // config lfo
     setLfosFreq(voice2ampLfo,freqV2ALfo);
-    // connect lfo to lfm0:1
-    //test_connect(objects_first_input_id[LF_MUX___]+lfm*MAX_INPUTS_PER_OBJ+lfmInp1,objects_first_output_id[LFO______]+voice2ampLfo*MAX_OUTPUTS_PER_OBJ+LSIN);
-    //lfmCoderAtt[lfmInp1][lfm]=ampV2ALfoAtt;
+    // connect lfo to lfm0:2
+    //test_connect(objects_first_input_id[LF_MUX___]+lfm*MAX_INPUTS_PER_OBJ+lfmInp2,objects_first_output_id[LFO______]+voice2ampLfo*MAX_OUTPUTS_PER_OBJ+LSIN);
+    //lfmCoderAtt[lfmInp2][lfm]=ampV2ALfoAtt;
     //*/    
 
 //pwm_timer_1khz_enable(false);while(1){}

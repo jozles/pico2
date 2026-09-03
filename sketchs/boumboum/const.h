@@ -192,8 +192,9 @@ typedef enum {
 #define IN_OUT_NAME_LEN         10
 
 #define MAX_CTL_ATT             256     // in case of change, change MAX_CTL_ATT_SHIFT 
-#define MAX_CTL_ATT_SHIFT       8       // in case of change, change MAX_CTL_ATT 
+#define MAX_CTL_ATT_SHIFT       8       // in case of change, change MAX_CTL_ATT
 
+#define NO_ATTENUATION_SHIFT    15
 #define NO_ATTENUATION_VALUE    0x7fff
 #define FULL_ATTENUATION_VALUE  0x0000
 

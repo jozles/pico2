@@ -44,6 +44,7 @@ int16_t  tbut_ctl_output_id[MAX_TBUT][MAX_OUTPUTS_PER_OBJ];
 
 uint16_t lfmCoder[MAX_LFM_INPUTS][MAX_LFM];
 uint16_t lfmCoderAtt[MAX_LFM_INPUTS][MAX_LFM];
+int16_t  intermediateOutputValues[MAX_LFM];
 int16_t  lfmOutputValues[MAX_LFM];
 int16_t  lfm_ctl_input_id[MAX_LFM_INPUTS][MAX_LFM];
 int16_t  lfm_ctl_output_id[MAX_LFM];
@@ -53,6 +54,7 @@ uint8_t  lfmNb[MAX_INPUTS];                 // les n° de lfm par input id
 
 extern uint32_t millisCounter;
 extern uint16_t amplLevel[];
+extern int16_t ctl_input_val[MAX_INPUTS];
 extern int16_t  ctl_output_id_chain[];
 extern uint8_t  ctl_input_update_type[];
 
@@ -347,7 +349,8 @@ void __not_in_flash_func(touch_button_handler)(uint8_t touchButtonNb,bool* touch
 //      lin/log
 //      positive only : neg values are zeroed
 //
-// actual feature : input 0 global lin, 1 global log ; inputs 2,3,4 lin 5,6,7 log
+// actual feature : input 0 global lin, 1 global log ; inputs 2,3 lin 4,5 log
+//                  every input with 1 att value coder (0-255) & 1 level value coder (0-255)
 //                  all positive only
 //
 
@@ -359,6 +362,9 @@ void lf_mixer_init()
             lfmCoder[inp][lfm]=0;
             lfmCoderAtt[inp][lfm]=0;
         }
+        lfmCoder[0][lfm]=MAX_CTL_ATT;                                       // le gen à fond par defaut ?
+        ctl_input_val[lfm_ctl_input_id[0][lfm]]=NO_ATTENUATION_VALUE;       // le gen à fond par defaut ?
+        intermediateOutputValues[lfm]=0;
         lfmOutputValues[lfm]=0;
     }
 }

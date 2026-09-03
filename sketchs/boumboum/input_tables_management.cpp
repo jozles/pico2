@@ -49,6 +49,7 @@ extern uint16_t  lfmCoder[MAX_LFM_INPUTS][MAX_LFM];
 extern uint16_t  lfmCoderAtt[MAX_LFM_INPUTS][MAX_LFM];
 extern int16_t   lfm_ctl_input_id[MAX_INPUTS_PER_OBJ][MAX_LFM];
 extern int16_t   lfm_ctl_output_id[MAX_OUTPUTS_PER_OBJ][MAX_LFM];
+extern int16_t   intermediateOutputValues[MAX_LFM];
 extern int16_t   lfmOutputValues[MAX_LFM];
 extern uint8_t   lfmNb[MAX_INPUTS];
  
@@ -647,17 +648,64 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
                                 //printf("s:%u ",adsrStatus[object]);
                                 break;
                 case LFM____ :  {
-                                uint8_t lfm=lfmNb[id];                                  // lfm #
-                                uint8_t inp=id-lfm_ctl_input_id[lfm][0];                // lfm inp #
-                                val=valeur*lfmCoderAtt[inp][lfm]>>MAX_CTL_ATT_SHIFT;    // actual inp value
-                                //ctl_input_val[id]=val;
+                                uint32_t carry_hi;
+                                uint32_t carry_lo;
+                                uint8_t  lfm=lfmNb[id];                                  // lfm #
+                                uint8_t  inp=id-lfm_ctl_input_id[lfm][0];                // lfm inp #
+                                int32_t  vv=(valeur*lfmCoderAtt[inp][lfm])>>MAX_CTL_ATT_SHIFT;
+                                int16_t* iov=&intermediateOutputValues[lfm];                  
+                                int32_t  iv=*iov;
+                                // inp 0 global lin ; 1 global log ; 2,3 lin ; 4,5 log                                              
+                                switch(inp){
+                                    case 0:
+                                        break;
+                                    case 1:
+                                        break;
+                                    case 2:
+                                        val=lfmCoder[inp][lfm]+vv;      // actual inp value toujours <0x00ffffff
+                                        //carry=(val<=NO_ATTENUATION_VALUE);
+                                        //ctl_input_val[id] = (val & -carry) | (NO_ATTENUATION_VALUE & ~(-carry));
 
-                                lfmOutputValues[lfm]+=val-prev;                         // actual output value
-                                uint8_t zer=(lfmOutputValues[lfm]>=0);
-                                printf("m:%u-%u old:%i iv:%i v:%i ov:%i\n",lfm,inp,prev,valeur,val,lfmOutputValues[lfm]*zer);
-                                
-                                update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],lfmOutputValues[lfm]*zer);    // ctl_output_id_chain[adsr_ctl_output_id[a][ADSR_SHAPE]];
-                                }break;
+                                        // iv, val : int32_t
+                                        // iov : int16_t*
+                                        // NO_ATTENUATION_VALUE = 0x7FFF
+                                        // MAX_CTL_ATT_SHIFT = 8
+
+                                        iv += val - *iov;   // intermediate value
+
+                                        // ---- Saturation haute (+32767) ----
+                                        carry_hi = (iv <= 0x7FFF);
+                                        iv = (iv & -carry_hi) | (0x7FFF & ~(-carry_hi));
+
+                                        // ---- Saturation basse (-32768) ----
+                                        carry_lo = (iv >= -0x8000);
+                                        iv = (iv & -carry_lo) | (-0x8000 & ~(-carry_lo));
+
+                                        *iov = (int16_t)iv;   // safe cast (iv est maintenant dans [-32768..32767])
+
+                                        // ---- Recalcul ----
+                                        iv = *iov * (lfmCoder[0][lfm] + (lfmCoderAtt[0][lfm] >> MAX_CTL_ATT_SHIFT));
+
+                                        // ---- Saturation haute (+32767) ----
+                                        carry_hi = (iv <= 0x7FFF);
+                                        iv = (iv & -carry_hi) | (0x7FFF & ~(-carry_hi));
+
+                                        // ---- Saturation basse (-32768) ----
+                                        carry_lo = (iv >= -0x8000);
+                                        iv = (iv & -carry_lo) | (-0x8000 & ~(-carry_lo));
+
+                                        lfmOutputValues[lfm] = (int16_t)iv;
+
+                                                         
+                                        update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],lfmOutputValues[lfm]);    // ctl_output_id_chain[adsr_ctl_output_id[a][ADSR_SHAPE]];
+
+                                        printf("m:%u-%u old:%i iv:%i v:%i ov:%i\n",lfm,inp,prev,valeur,val,lfmOutputValues[lfm]);
+                                        break;
+                                    case 3:
+                                        break;
+                                    default:break;
+                                }                                    
+                }break;
                 default: break;
             }
             //printf("\n");
