@@ -9,6 +9,8 @@ void connect_input(uint16_t input_id, uint16_t output);
 void disconnect_input(uint16_t input_id, uint16_t output);
 void update_inputs(int16_t input_id,int16_t valeur);
 void objects_table_init();
+void lfm_update_inputs_0(uint8_t lfm,int16_t valeur);
+void lfm_update_inputs(int16_t id,uint8_t lfm,uint8_t inp,int16_t prev,int16_t* iov);
 
 // (0 no trig ; 1 up ; 2 down ; 3 both)
 enum Inputs_trig_modes {

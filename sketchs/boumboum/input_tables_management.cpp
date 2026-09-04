@@ -50,6 +50,7 @@ extern uint16_t  lfmCoderAtt[MAX_LFM_INPUTS][MAX_LFM];
 extern int16_t   lfm_ctl_input_id[MAX_INPUTS_PER_OBJ][MAX_LFM];
 extern int16_t   lfm_ctl_output_id[MAX_OUTPUTS_PER_OBJ][MAX_LFM];
 extern int16_t   intermediateOutputValues[MAX_LFM];
+extern int16_t   lfmGenAtt[MAX_LFM];
 extern int16_t   lfmOutputValues[MAX_LFM];
 extern uint8_t   lfmNb[MAX_INPUTS];
  
@@ -555,6 +556,63 @@ void __not_in_flash_func(disconnect_input)(uint16_t input_id, uint16_t output)
     spin_unlock(inputs_id__lock, f);
 }
 
+void __not_in_flash_func(lfm_update_inputs_0)(uint8_t lfm,int16_t valeur)
+{
+    // ---- recalcul du gain général ----
+    lfmGenAtt[lfm] =
+        lfmCoder[0][lfm] +
+        ((valeur * lfmCoderAtt[0][lfm]) >> MAX_CTL_ATT_SHIFT);
+
+    // ---- appliquer le gain général à la valeur intermédiaire ----
+    int32_t iv = intermediateOutputValues[lfm] * lfmGenAtt[lfm];
+
+    // ---- saturation haute (+32767) ----
+    uint32_t carry_hi = (iv <= 0x7FFF);
+    iv = (iv & -carry_hi) | (0x7FFF & ~(-carry_hi));
+
+    // ---- saturation basse (-32768) ----
+    uint32_t carry_lo = (iv >= -0x8000);
+    iv = (iv & -carry_lo) | (-0x8000 & ~(-carry_lo));
+
+    lfmOutputValues[lfm] = (int16_t)iv;
+    //update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],lfmOutputValues[lfm]);
+}                                            
+
+void __not_in_flash_func(lfm_update_inputs)(int16_t id,uint8_t lfm,uint8_t inp,int16_t prev,int16_t* iov) // valeur new input value ; iov intermediate output value (before gen)
+{
+    // ---- compute new iov (no level coder change) ----
+    int32_t iv=*iov;
+
+    iv=iv-((lfmCoderAtt[inp][lfm]*(prev-ctl_input_val[id]))>>MAX_CTL_ATT_SHIFT);      // new intermediate value (level coders included)
+
+    // ---- Saturation haute (+32767) ----
+    uint32_t carry_hi = (iv <= 0x7FFF);
+    iv = (iv & -carry_hi) | (0x7FFF & ~(-carry_hi));
+
+    // ---- Saturation basse (-32768) ----
+    uint32_t carry_lo = (iv >= -0x8000);
+    iv = (iv & -carry_lo) | (-0x8000 & ~(-carry_lo));
+
+    *iov = (int16_t)iv;   // safe cast (iv [-32768..32767])
+
+    // ---- apply gen ----
+    //int32_t genAtt = lfmCoder[0][lfm] + ((ctl_input_val[lfm_ctl_input_id[0][lfm]] * lfmCoderAtt[0][lfm]) >> MAX_CTL_ATT_SHIFT);
+    //iv = *iov * genAtt;                                                             //(lfmCoder[0][lfm] + (lfmCoderAtt[0][lfm] >> MAX_CTL_ATT_SHIFT));
+    iv=*iov*lfmGenAtt[lfm];
+
+    // ---- Saturation haute (+32767) ----
+    carry_hi = (iv <= 0x7FFF);
+    iv = (iv & -carry_hi) | (0x7FFF & ~(-carry_hi));
+
+    // ---- Saturation basse (-32768) ----
+    carry_lo = (iv >= -0x8000);
+    iv = (iv & -carry_lo) | (-0x8000 & ~(-carry_lo));
+
+    lfmOutputValues[lfm] = (int16_t)iv;
+
+    //update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],lfmOutputValues[lfm]);    // ctl_output_id_chain[adsr_ctl_output_id[a][ADSR_SHAPE]];    
+}
+
 void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs update with valeur
                                                                     // valeur est la valeur linéaire à atténuer sur 16 bits recadrée selon le type d'entrée
                                                                     // id numéro unique de l'input donne accès à toutes ses caractéristiques
@@ -565,8 +623,8 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
 {
     //int16_t id = ctl_output_id_chain[output];
     int16_t prev = ctl_input_val[id];
-    int16_t tlev;
     ctl_input_val[id] = valeur;
+    int16_t tlev;
     uint8_t object=ctl_input_object[id];
     int32_t val;
     float fr;
@@ -648,60 +706,25 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
                                 //printf("s:%u ",adsrStatus[object]);
                                 break;
                 case LFM____ :  {
-                                uint32_t carry_hi;
-                                uint32_t carry_lo;
-                                uint8_t  lfm=lfmNb[id];                                  // lfm #
-                                uint8_t  inp=id-lfm_ctl_input_id[lfm][0];                // lfm inp #
-                                int32_t  vv=(valeur*lfmCoderAtt[inp][lfm])>>MAX_CTL_ATT_SHIFT;
-                                int16_t* iov=&intermediateOutputValues[lfm];                  
-                                int32_t  iv=*iov;
+                                uint8_t  lfm=lfmNb[id];                                 // lfm #
+                                uint8_t  inp=id-lfm_ctl_input_id[lfm][0];               // lfm inp #
+
                                 // inp 0 global lin ; 1 global log ; 2,3 lin ; 4,5 log                                              
                                 switch(inp){
-                                    case 0:
-                                        break;
+                                    case 0: {                                           // Entrée 0 : contrôle du gain général                                
+                                        lfm_update_inputs_0(lfm,valeur);
+                                        }break;
                                     case 1:
                                         break;
                                     case 2:
-                                        val=lfmCoder[inp][lfm]+vv;      // actual inp value toujours <0x00ffffff
-                                        //carry=(val<=NO_ATTENUATION_VALUE);
-                                        //ctl_input_val[id] = (val & -carry) | (NO_ATTENUATION_VALUE & ~(-carry));
-
-                                        // iv, val : int32_t
-                                        // iov : int16_t*
-                                        // NO_ATTENUATION_VALUE = 0x7FFF
-                                        // MAX_CTL_ATT_SHIFT = 8
-
-                                        iv += val - *iov;   // intermediate value
-
-                                        // ---- Saturation haute (+32767) ----
-                                        carry_hi = (iv <= 0x7FFF);
-                                        iv = (iv & -carry_hi) | (0x7FFF & ~(-carry_hi));
-
-                                        // ---- Saturation basse (-32768) ----
-                                        carry_lo = (iv >= -0x8000);
-                                        iv = (iv & -carry_lo) | (-0x8000 & ~(-carry_lo));
-
-                                        *iov = (int16_t)iv;   // safe cast (iv est maintenant dans [-32768..32767])
-
-                                        // ---- Recalcul ----
-                                        iv = *iov * (lfmCoder[0][lfm] + (lfmCoderAtt[0][lfm] >> MAX_CTL_ATT_SHIFT));
-
-                                        // ---- Saturation haute (+32767) ----
-                                        carry_hi = (iv <= 0x7FFF);
-                                        iv = (iv & -carry_hi) | (0x7FFF & ~(-carry_hi));
-
-                                        // ---- Saturation basse (-32768) ----
-                                        carry_lo = (iv >= -0x8000);
-                                        iv = (iv & -carry_lo) | (-0x8000 & ~(-carry_lo));
-
-                                        lfmOutputValues[lfm] = (int16_t)iv;
-
-                                                         
-                                        update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],lfmOutputValues[lfm]);    // ctl_output_id_chain[adsr_ctl_output_id[a][ADSR_SHAPE]];
+                                        lfm_update_inputs(id,lfm,inp,prev,&intermediateOutputValues[lfm]);
 
                                         printf("m:%u-%u old:%i iv:%i v:%i ov:%i\n",lfm,inp,prev,valeur,val,lfmOutputValues[lfm]);
                                         break;
                                     case 3:
+                                        lfm_update_inputs(id,lfm,inp,prev,&intermediateOutputValues[lfm]);
+
+                                        printf("m:%u-%u old:%i iv:%i v:%i ov:%i\n",lfm,inp,prev,valeur,val,lfmOutputValues[lfm]);                                    
                                         break;
                                     default:break;
                                 }                                    

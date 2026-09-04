@@ -45,6 +45,7 @@ int16_t  tbut_ctl_output_id[MAX_TBUT][MAX_OUTPUTS_PER_OBJ];
 uint16_t lfmCoder[MAX_LFM_INPUTS][MAX_LFM];
 uint16_t lfmCoderAtt[MAX_LFM_INPUTS][MAX_LFM];
 int16_t  intermediateOutputValues[MAX_LFM];
+int16_t  lfmGenAtt[MAX_LFM];
 int16_t  lfmOutputValues[MAX_LFM];
 int16_t  lfm_ctl_input_id[MAX_LFM_INPUTS][MAX_LFM];
 int16_t  lfm_ctl_output_id[MAX_LFM];
@@ -54,7 +55,7 @@ uint8_t  lfmNb[MAX_INPUTS];                 // les n° de lfm par input id
 
 extern uint32_t millisCounter;
 extern uint16_t amplLevel[];
-extern int16_t ctl_input_val[MAX_INPUTS];
+extern int16_t  ctl_input_val[MAX_INPUTS];
 extern int16_t  ctl_output_id_chain[];
 extern uint8_t  ctl_input_update_type[];
 
@@ -362,14 +363,27 @@ void lf_mixer_init()
             lfmCoder[inp][lfm]=0;
             lfmCoderAtt[inp][lfm]=0;
         }
-        lfmCoder[0][lfm]=MAX_CTL_ATT;                                       // le gen à fond par defaut ?
-        ctl_input_val[lfm_ctl_input_id[0][lfm]]=NO_ATTENUATION_VALUE;       // le gen à fond par defaut ?
+        //lfmCoder[0][lfm]=MAX_CTL_ATT;                                       // le gen à fond par defaut ?
+        //ctl_input_val[lfm_ctl_input_id[0][lfm]]=NO_ATTENUATION_VALUE;       // le gen à fond par defaut ?
         intermediateOutputValues[lfm]=0;
+        lfmGenAtt[lfm]=0;
         lfmOutputValues[lfm]=0;
     }
 }
 
-void __not_in_flash_func(setLfm)(uint8_t lfm,uint8_t inp,int16_t val)
+void __not_in_flash_func(setLfm)(uint8_t lfm,uint8_t inp,int16_t val)       // update mixer when level coder changes
 {
+    uint16_t prev=lfmCoder[inp][lfm];
     lfmCoder[inp][lfm]=val;
+
+    int16_t id=lfm_ctl_input_id[inp][lfm];
+
+    if(inp==0){lfm_update_inputs_0(lfm,ctl_input_val[id]);}                 // input doesnt change so prev/new valeur is current
+    else {
+        int16_t iov=intermediateOutputValues[lfm]-prev+val;
+        lfm_update_inputs(id,lfm,inp,ctl_input_val[id],&intermediateOutputValues[lfm]);
+    }
 }
+
+void __not_in_flash_func(setLfmAtt)(uint8_t lfm,uint8_t inp,int16_t val)       // update mixer when att coder changes
+{}
