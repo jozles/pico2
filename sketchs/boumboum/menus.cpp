@@ -85,6 +85,9 @@ extern int32_t  adsrScopeBufReal[MAX_ADSR*ADSR_SCOPE_BUFFER_LEN];
 extern int16_t  adsr_ctl_input_id[MAX_ADSR];
 
 extern uint16_t lfmCoder[MAX_LFM_INPUTS][MAX_LFM];
+extern uint16_t lfmCoderAtt[MAX_LFM_INPUTS][MAX_LFM];
+extern uint8_t  lfmInputType[MAX_LFM_INPUTS][MAX_LFM];
+extern uint8_t  lfmCh[];
 extern uint16_t* lfmVar[];
 uint16_t tempLfmCoder[MAX_LFM_INPUTS][MAX_LFM];
 //extern uint16_t lfmCoderAtt[MAX_LFM][MAX_LFM_INPUTS];
@@ -607,8 +610,17 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                 break;
 
             case LMUX_____:
-                setLfm(line,coder-1,cc);
-                sprintf(buf+2,"%3u %3u %3u %3u",lfmCoder[0][line],lfmCoder[1][line],lfmCoder[2][line],lfmCoder[3][line]);
+                // coder 0 : line ; 1:gen_level ; 2:genAtt ; 3:in1_level ; 4:in1_att ; 5:in2_level ; 6:in2_att ; 
+                switch(coder){
+                    case 1:setLfm(line,0,cc);break;
+                    case 2:setLfmAtt(line,0,cc);break;
+                    case 3:setLfm(line,1,cc);break;
+                    case 4:setLfmAtt(line,1,cc);break;
+                    case 5:setLfm(line,2,cc);break;
+                    case 6:setLfmAtt(line,21,cc);break;
+                    default:break;
+                }                    
+                sprintf(buf+2,"%c%3u %3u %c%3u %3u %c%3u %3u",lfmCh[lfmInputType[0][line]],lfmCoder[0][line],lfmCoderAtt[0][line],lfmCh[lfmInputType[1][line]],lfmCoder[1][line],lfmCoderAtt[1][line],lfmCh[lfmInputType[2][line]],lfmCoder[2][line],lfmCoderAtt[2][line]);
                 break;
 
             default:break;

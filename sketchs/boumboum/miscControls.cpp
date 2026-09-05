@@ -45,11 +45,13 @@ int16_t  tbut_ctl_output_id[MAX_TBUT][MAX_OUTPUTS_PER_OBJ];
 uint16_t lfmCoder[MAX_LFM_INPUTS][MAX_LFM];
 uint16_t lfmCoderAtt[MAX_LFM_INPUTS][MAX_LFM];
 int16_t  intermediateOutputValues[MAX_LFM];
-int16_t  lfmGenAtt[MAX_LFM];
+int16_t  lfmGenAttValue[MAX_LFM];
 int16_t  lfmOutputValues[MAX_LFM];
+uint8_t  lfmInputType[MAX_LFM_INPUTS][MAX_LFM];
 int16_t  lfm_ctl_input_id[MAX_LFM_INPUTS][MAX_LFM];
 int16_t  lfm_ctl_output_id[MAX_LFM];
 uint8_t  lfmNb[MAX_INPUTS];                 // les n° de lfm par input id
+uint8_t  lfmCh[]={'_','\\','/'};
 
 /* *******  extern  ******** */
 
@@ -342,17 +344,13 @@ void __not_in_flash_func(touch_button_handler)(uint8_t touchButtonNb,bool* touch
 //
 // 2 coders : base value + att value 
 // every change on coders or inputs change the output
-// base value is converted if log mode then added to attenuated input value
-// att value is applied to input value with lin or log mode
 //
-// every input has attributes (toogled by touchs):
-//      master : global output level
-//      lin/log
-//      positive only : neg values are zeroed
-//
-// actual feature : input 0 global lin, 1 global log ; inputs 2,3 lin 4,5 log
-//                  every input with 1 att value coder (0-255) & 1 level value coder (0-255)
-//                  all positive only
+// actual feature : input 0 gen level ; 1,2,3,4 individual inputs 
+//                  every input with 1 att coder (0-255) & 1 level coder (0-255)
+//                  every input with a type : 0 lin , 1 log , 2 inv log (code to add)
+// log mode to be discussed (actual is lin only - use 2 tables to convert lin to log or ilog ; where should the conversion be done ? )
+// dans la version actuelle, les coders de level ne sont pas pris en compte dans les recalculs de lfm_update_inputs 
+// les valeurs d'entrées atténuées et leveled peuvent être négatives ...
 //
 
 void lf_mixer_init()
@@ -362,11 +360,10 @@ void lf_mixer_init()
         for(uint8_t inp=0;inp<MAX_LFM_INPUTS;inp++){   
             lfmCoder[inp][lfm]=0;
             lfmCoderAtt[inp][lfm]=0;
+            lfmInputType[inp][lfm]=0;
         }
-        //lfmCoder[0][lfm]=MAX_CTL_ATT;                                       // le gen à fond par defaut ?
-        //ctl_input_val[lfm_ctl_input_id[0][lfm]]=NO_ATTENUATION_VALUE;       // le gen à fond par defaut ?
         intermediateOutputValues[lfm]=0;
-        lfmGenAtt[lfm]=0;
+        lfmGenAttValue[lfm]=0;
         lfmOutputValues[lfm]=0;
     }
 }
@@ -380,10 +377,23 @@ void __not_in_flash_func(setLfm)(uint8_t lfm,uint8_t inp,int16_t val)       // u
 
     if(inp==0){lfm_update_inputs_0(lfm,ctl_input_val[id]);}                 // input doesnt change so prev/new valeur is current
     else {
-        int16_t iov=intermediateOutputValues[lfm]-prev+val;
-        lfm_update_inputs(id,lfm,inp,ctl_input_val[id],&intermediateOutputValues[lfm]);
+        int16_t* iov=&intermediateOutputValues[lfm];
+        *iov-=prev+val;
+        lfm_update_inputs(id,lfm,inp,ctl_input_val[id],iov);
     }
 }
 
-void __not_in_flash_func(setLfmAtt)(uint8_t lfm,uint8_t inp,int16_t val)       // update mixer when att coder changes
-{}
+void __not_in_flash_func(setLfmAtt)(uint8_t lfm,uint8_t inp,int16_t val)    // update mixer when att coder changes
+{
+    //uint16_t prev=lfmCoderAtt[inp][lfm];
+    lfmCoderAtt[inp][lfm]=val;
+
+    int16_t id=lfm_ctl_input_id[inp][lfm];
+
+    if(inp==0){lfm_update_inputs_0(lfm,ctl_input_val[id]);}                 // input doesnt change so prev/new valeur is current
+    else {
+        int16_t* iov=&intermediateOutputValues[lfm];
+        //*iov-=prev+val;
+        lfm_update_inputs(id,lfm,inp,ctl_input_val[id],iov);
+    }
+}

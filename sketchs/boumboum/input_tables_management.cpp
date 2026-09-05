@@ -50,8 +50,9 @@ extern uint16_t  lfmCoderAtt[MAX_LFM_INPUTS][MAX_LFM];
 extern int16_t   lfm_ctl_input_id[MAX_INPUTS_PER_OBJ][MAX_LFM];
 extern int16_t   lfm_ctl_output_id[MAX_OUTPUTS_PER_OBJ][MAX_LFM];
 extern int16_t   intermediateOutputValues[MAX_LFM];
-extern int16_t   lfmGenAtt[MAX_LFM];
+extern int16_t   lfmGenAttValue[MAX_LFM];
 extern int16_t   lfmOutputValues[MAX_LFM];
+extern uint8_t   lfmInputType[MAX_LFM_INPUTS][MAX_LFM];
 extern uint8_t   lfmNb[MAX_INPUTS];
  
 
@@ -559,12 +560,12 @@ void __not_in_flash_func(disconnect_input)(uint16_t input_id, uint16_t output)
 void __not_in_flash_func(lfm_update_inputs_0)(uint8_t lfm,int16_t valeur)
 {
     // ---- recalcul du gain général ----
-    lfmGenAtt[lfm] =
+    lfmGenAttValue[lfm] =
         lfmCoder[0][lfm] +
         ((valeur * lfmCoderAtt[0][lfm]) >> MAX_CTL_ATT_SHIFT);
 
     // ---- appliquer le gain général à la valeur intermédiaire ----
-    int32_t iv = intermediateOutputValues[lfm] * lfmGenAtt[lfm];
+    int32_t iv = intermediateOutputValues[lfm] * lfmGenAttValue[lfm];
 
     // ---- saturation haute (+32767) ----
     uint32_t carry_hi = (iv <= 0x7FFF);
@@ -583,28 +584,26 @@ void __not_in_flash_func(lfm_update_inputs)(int16_t id,uint8_t lfm,uint8_t inp,i
     // ---- compute new iov (no level coder change) ----
     int32_t iv=*iov;
 
-    iv=iv-((lfmCoderAtt[inp][lfm]*(prev-ctl_input_val[id]))>>MAX_CTL_ATT_SHIFT);      // new intermediate value (level coders included)
+    iv-=((lfmCoderAtt[inp][lfm]*(prev-ctl_input_val[id]))>>MAX_CTL_ATT_SHIFT);           // new intermediate value (level coders included)
 
-    // ---- Saturation haute (+32767) ----
+    // ---- high ovf (+32767) ----
     uint32_t carry_hi = (iv <= 0x7FFF);
     iv = (iv & -carry_hi) | (0x7FFF & ~(-carry_hi));
 
-    // ---- Saturation basse (-32768) ----
+    // ---- low ovf (-32768) ----
     uint32_t carry_lo = (iv >= -0x8000);
     iv = (iv & -carry_lo) | (-0x8000 & ~(-carry_lo));
 
-    *iov = (int16_t)iv;   // safe cast (iv [-32768..32767])
+    *iov = (int16_t)iv;                                                                 // safe cast (iv [-32768..32767])
 
     // ---- apply gen ----
-    //int32_t genAtt = lfmCoder[0][lfm] + ((ctl_input_val[lfm_ctl_input_id[0][lfm]] * lfmCoderAtt[0][lfm]) >> MAX_CTL_ATT_SHIFT);
-    //iv = *iov * genAtt;                                                             //(lfmCoder[0][lfm] + (lfmCoderAtt[0][lfm] >> MAX_CTL_ATT_SHIFT));
-    iv=*iov*lfmGenAtt[lfm];
+    iv=*iov*lfmGenAttValue[lfm];
 
-    // ---- Saturation haute (+32767) ----
+    // ---- high ovf (+32767) ----
     carry_hi = (iv <= 0x7FFF);
     iv = (iv & -carry_hi) | (0x7FFF & ~(-carry_hi));
 
-    // ---- Saturation basse (-32768) ----
+    // ---- low ovf (-32768) ----
     carry_lo = (iv >= -0x8000);
     iv = (iv & -carry_lo) | (-0x8000 & ~(-carry_lo));
 
@@ -709,23 +708,22 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
                                 uint8_t  lfm=lfmNb[id];                                 // lfm #
                                 uint8_t  inp=id-lfm_ctl_input_id[lfm][0];               // lfm inp #
 
-                                // inp 0 global lin ; 1 global log ; 2,3 lin ; 4,5 log                                              
+                                // inp 0 gen ; 1,2 individual
                                 switch(inp){
                                     case 0: {                                           // Entrée 0 : contrôle du gain général                                
                                         lfm_update_inputs_0(lfm,valeur);
                                         }break;
                                     case 1:
+                                        lfm_update_inputs(id,lfm,inp,prev,&intermediateOutputValues[lfm]);
+
+                                        printf("m:%u-%u old:%i iv:%i v:%i ov:%i\n",lfm,inp,prev,valeur,val,lfmOutputValues[lfm]);                                    
                                         break;
                                     case 2:
                                         lfm_update_inputs(id,lfm,inp,prev,&intermediateOutputValues[lfm]);
 
                                         printf("m:%u-%u old:%i iv:%i v:%i ov:%i\n",lfm,inp,prev,valeur,val,lfmOutputValues[lfm]);
                                         break;
-                                    case 3:
-                                        lfm_update_inputs(id,lfm,inp,prev,&intermediateOutputValues[lfm]);
 
-                                        printf("m:%u-%u old:%i iv:%i v:%i ov:%i\n",lfm,inp,prev,valeur,val,lfmOutputValues[lfm]);                                    
-                                        break;
                                     default:break;
                                 }                                    
                 }break;

@@ -126,7 +126,7 @@ typedef enum {
 /* lf mixers */
 
 #define MAX_LFM 4
-#define MAX_LFM_INPUTS 4
+#define MAX_LFM_INPUTS 3        // 0: gen ; 1,2 individual
 
 /* led */
 
