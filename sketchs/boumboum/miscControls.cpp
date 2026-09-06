@@ -342,11 +342,10 @@ void __not_in_flash_func(touch_button_handler)(uint8_t touchButtonNb,bool* touch
 
 /* ******  lf mixers  ****** */
 //
-// 2 coders : base value + att value 
 // every change on coders or inputs change the output
 //
 // actual feature : input 0 gen level ; 1,2,3,4 individual inputs 
-//                  every input with 1 att coder (0-255) & 1 level coder (0-255)
+//                  every input with 1 att coder & 1 level coder (values uint16 but coders capture is 0-255)                 
 //                  every input with a type : 0 lin , 1 log , 2 inv log (code to add)
 // log mode to be discussed (actual is lin only - use 2 tables to convert lin to log or ilog ; where should the conversion be done ? )
 // dans la version actuelle, les coders de level ne sont pas pris en compte dans les recalculs de lfm_update_inputs 
@@ -370,30 +369,29 @@ void lf_mixer_init()
 
 void __not_in_flash_func(setLfm)(uint8_t lfm,uint8_t inp,int16_t val)       // update mixer when level coder changes
 {
-    uint16_t prev=lfmCoder[inp][lfm];
-    lfmCoder[inp][lfm]=val;
+    uint16_t* lfmc=&lfmCoder[inp][lfm];
+    uint16_t prev=*lfmc;
+    *lfmc=val<<(sizeof(lfmc)*8-MAX_CTL_ATT_SHIFT);                            // val 0-255
 
     int16_t id=lfm_ctl_input_id[inp][lfm];
 
     if(inp==0){lfm_update_inputs_0(lfm,ctl_input_val[id]);}                 // input doesnt change so prev/new valeur is current
     else {
         int16_t* iov=&intermediateOutputValues[lfm];
-        *iov-=prev+val;
+        *iov=*iov-prev+val;
         lfm_update_inputs(id,lfm,inp,ctl_input_val[id],iov);
     }
 }
 
 void __not_in_flash_func(setLfmAtt)(uint8_t lfm,uint8_t inp,int16_t val)    // update mixer when att coder changes
 {
-    //uint16_t prev=lfmCoderAtt[inp][lfm];
-    lfmCoderAtt[inp][lfm]=val;
+    //printf("sla %u %u %i\n",lfm,inp,val);
+    lfmCoderAtt[inp][lfm]=val<<(sizeof(lfmCoderAtt[0][0])*8-MAX_CTL_ATT_SHIFT);       // val 0-255
 
     int16_t id=lfm_ctl_input_id[inp][lfm];
 
     if(inp==0){lfm_update_inputs_0(lfm,ctl_input_val[id]);}                 // input doesnt change so prev/new valeur is current
     else {
-        int16_t* iov=&intermediateOutputValues[lfm];
-        //*iov-=prev+val;
-        lfm_update_inputs(id,lfm,inp,ctl_input_val[id],iov);
+        lfm_update_inputs(id,lfm,inp,ctl_input_val[id],&intermediateOutputValues[lfm]);
     }
 }

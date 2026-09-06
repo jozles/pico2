@@ -86,7 +86,7 @@ extern uint8_t   lfmNb[MAX_INPUTS];
 //      les signaux audio
 // les signaux audios sont sommés voix par voix par la fonction fillvoice ; chaque onde et bruit a une entrée d'amplification à 16 bits
 //      les contrôles
-// les contrôles sont des valeurs 16 bits signés (coders, sorties des lfos, adsr, switchs etc)
+// les contrôles sont des valeurs 16 bits signés (coders, sorties des lfos, adsr, mux, switchs etc)
 // ils sont recadrés selon le type de l'entrée à laquelle ils sont appliqués (par ex, une fréquence est sur 13 bits, un rc sur 5 bits, une durée sur 7 bits, les binaires (touchb) 0/1)
 // comme déjà dit, coders et sorties atténuées sont "ajoutés" selon le type d'entrée
 // le nombre de sorties possibles est fixe pour tous les objets et le plus souvent excédentaire
@@ -576,10 +576,12 @@ void __not_in_flash_func(lfm_update_inputs_0)(uint8_t lfm,int16_t valeur)
     iv = (iv & -carry_lo) | (-0x8000 & ~(-carry_lo));
 
     lfmOutputValues[lfm] = (int16_t)iv;
-    //update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],lfmOutputValues[lfm]);
+    printf("lui0 %u %i %u %i %i %i - ",lfm,valeur,lfmCoderAtt[0][lfm],intermediateOutputValues[lfm],lfmGenAttValue[lfm],iv);    
+    update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],lfmOutputValues[lfm]);
+    uint8_t vnb=2;printf("v:%u :%u :%i\n",vnb,voices[vnb].basicWaveAmpl[WSIN],iv);
 }                                            
 
-void __not_in_flash_func(lfm_update_inputs)(int16_t id,uint8_t lfm,uint8_t inp,int16_t prev,int16_t* iov) // valeur new input value ; iov intermediate output value (before gen)
+void __not_in_flash_func(lfm_update_inputs)(int16_t id,uint8_t lfm,uint8_t inp,int16_t prev,int16_t* iov) // iov intermediate output value (before gen)
 {
     // ---- compute new iov (no level coder change) ----
     int32_t iv=*iov;
@@ -609,7 +611,7 @@ void __not_in_flash_func(lfm_update_inputs)(int16_t id,uint8_t lfm,uint8_t inp,i
 
     lfmOutputValues[lfm] = (int16_t)iv;
 
-    //update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],lfmOutputValues[lfm]);    // ctl_output_id_chain[adsr_ctl_output_id[a][ADSR_SHAPE]];    
+    update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],lfmOutputValues[lfm]);    // ctl_output_id_chain[adsr_ctl_output_id[a][ADSR_SHAPE]];    
 }
 
 void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs update with valeur
@@ -710,9 +712,9 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
 
                                 // inp 0 gen ; 1,2 individual
                                 switch(inp){
-                                    case 0: {                                           // Entrée 0 : contrôle du gain général                                
+                                    case 0:                                             // Entrée 0 : contrôle du gain général                                
                                         lfm_update_inputs_0(lfm,valeur);
-                                        }break;
+                                        break;
                                     case 1:
                                         lfm_update_inputs(id,lfm,inp,prev,&intermediateOutputValues[lfm]);
 

@@ -436,11 +436,13 @@ void sub_lfo(uint8_t object_type,uint8_t object_nb,uint8_t vInpNb,int8_t lfo,uin
     }
     
     // CX (voice)vInpNb (lfo out touche)lOutNb
-    printf("(%i-%i-%i) %s:%u inp:%u lfo:%u outNb:%u f:%f",objects_first_input_id[VOICE____],objects_first_output_id[launcher],objects_first_output_id[ADSR_____],objects_names[object_type],object_nb,vInpNb,lfo,lOutNb,lfosFrequency[lfo]);
+    printf("(%i-%i-%i) %s:%u inp:%u lfo:%u outNb:%u f:%f",
+        objects_first_input_id[VOICE____],objects_first_output_id[launcher],objects_first_output_id[ADSR_____],objects_names[object_type],object_nb,vInpNb,lfo,lOutNb,lfosFrequency[lfo]);
     test_connect(objects_first_input_id[object_type]+object_nb*MAX_INPUTS_PER_OBJ+vInpNb,objects_first_output_id[launcher]+lfo*MAX_OUTPUTS_PER_OBJ+lOutNb);
 }
 
-void voiceConfig(uint8_t voice,uint8_t wave,uint16_t coderFreq,uint8_t attenFreqLevel,uint8_t freqLfo,uint16_t freqLfoCoder,uint8_t manualAmpLevel,uint8_t attenAmpLevel,uint8_t adsr,int8_t adsrLfo,uint16_t adsrLfoFreqCoder,int8_t rc)
+void voiceConfig(uint8_t voice,uint8_t wave,uint16_t coderFreq,uint8_t attenFreqLevel,uint8_t freqLfo,uint16_t freqLfoCoder,
+    uint8_t manualAmpLevel,uint8_t attenAmpLevel,uint8_t adsr,int8_t adsrLfo,uint16_t adsrLfoFreqCoder,int8_t rc)       // adsrLfo >=0 lfo ; <0 touch
 {
     voices[voice].coderFreq=coderFreq;              
     float f=calcFreq(voices[voice].coderFreq);
@@ -461,7 +463,8 @@ void voiceConfig(uint8_t voice,uint8_t wave,uint16_t coderFreq,uint8_t attenFreq
 
     sub_lfo(ADSR_____,adsr,STAR,adsrLfo,adsrLfoFreqCoder,WTRI);                 // adsr launcher lfo/touchB
     
-    printf("voice:%u freq:%f coderFreq:%i frAtt:%i wave:%u Ampl:%u amplAtt:%i\n\n",voice,voices[voice].basicFrequency,voices[voice].coderFreq,voices[voice].coderFreqAtt,wave,voices[voice].coderWaveAmpl[wave],voices[voice].coderWaveAmplAtt[wave]);    
+    printf("voice:%u freq:%f coderFreq:%i frAtt:%i wave:%u Ampl:%u amplAtt:%i\n\n",
+        voice,voices[voice].basicFrequency,voices[voice].coderFreq,voices[voice].coderFreqAtt,wave,voices[voice].coderWaveAmpl[wave],voices[voice].coderWaveAmplAtt[wave]);    
 }
 
 void testSetup()
@@ -551,16 +554,17 @@ void testSetup()
     adsrCoderDec[adsr]=28;setAdsrDur(adsr,ADSR_DEC,0);
     adsrCoderSus[adsr]=12;setAdsrDur(adsr,ADSR_SUS,0);
     adsrCoderRel[adsr]=56;setAdsrDur(adsr,ADSR_REL,0);
-    // connect lfm0 to voice:wave
+    // connect lfm0 to voice:wave amp input
     test_connect(objects_first_input_id[VOICE____]+voice*MAX_INPUTS_PER_OBJ+VSPW+wave,objects_first_output_id[LF_MUX___]+lfm*MAX_OUTPUTS_PER_OBJ+LMUXO);
-    // connect adsr to lfm0:0    
-    lfmCoderAtt[lfmInp0][lfm]=MAX_CTL_ATT;
+    // connect adsr to lfm0:0 genAmp input   
+    setLfmAtt(lfm,lfmInp0,MAX_CTL_ATT);
+    setLfm(lfm,lfmInp1,1);  // minimal value to put adsr out
     test_connect(objects_first_input_id[LF_MUX___]+lfm*MAX_INPUTS_PER_OBJ+lfmInp0,objects_first_output_id[ADSR_____]+adsr*MAX_OUTPUTS_PER_OBJ+ADSR_SHAPE);
     // config lfo
     setLfosFreq(voice2ampLfo,freqV2ALfo);
-    // connect lfo to lfm0:2
-    //test_connect(objects_first_input_id[LF_MUX___]+lfm*MAX_INPUTS_PER_OBJ+lfmInp2,objects_first_output_id[LFO______]+voice2ampLfo*MAX_OUTPUTS_PER_OBJ+LSIN);
-    //lfmCoderAtt[lfmInp2][lfm]=ampV2ALfoAtt;
+    // connect lfo to lfm0:1
+    test_connect(objects_first_input_id[LF_MUX___]+lfm*MAX_INPUTS_PER_OBJ+lfmInp1,objects_first_output_id[LFO______]+voice2ampLfo*MAX_OUTPUTS_PER_OBJ+LSIN);
+    lfmCoderAtt[lfmInp1][lfm]=ampV2ALfoAtt;
     //*/    
 
 //pwm_timer_1khz_enable(false);while(1){}
