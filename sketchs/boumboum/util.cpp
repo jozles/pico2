@@ -546,7 +546,7 @@ void testSetup()
     lfmInp2=2;
     uint8_t voice2ampLfo=5;
     uint16_t freqV2ALfo=3499;       // 6Hz
-    uint8_t  ampV2ALfoAtt=8;
+    uint8_t  ampV2ALfoAtt=1;
 
     // config adsr 
     voiceConfig(voice,wave,coderFreq,attenFreqLevel,freqLfo,freqLfoCoder,manualAmpLevel,attenAmpLevel,adsr,adsrLfo,adsrLfoCoder,cr); 
@@ -564,7 +564,7 @@ void testSetup()
     setLfosFreq(voice2ampLfo,freqV2ALfo);
     // connect lfo to lfm0:1
     test_connect(objects_first_input_id[LF_MUX___]+lfm*MAX_INPUTS_PER_OBJ+lfmInp1,objects_first_output_id[LFO______]+voice2ampLfo*MAX_OUTPUTS_PER_OBJ+LSIN);
-    lfmCoderAtt[lfmInp1][lfm]=ampV2ALfoAtt;
+    setLfmAtt(lfm,lfmInp1,ampV2ALfoAtt);
     //*/    
 
 //pwm_timer_1khz_enable(false);while(1){}

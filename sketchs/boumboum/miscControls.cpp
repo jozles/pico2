@@ -345,8 +345,9 @@ void __not_in_flash_func(touch_button_handler)(uint8_t touchButtonNb,bool* touch
 // every change on coders or inputs change the output
 //
 // actual feature : input 0 gen level ; 1,2,3,4 individual inputs 
-//                  every input with 1 att coder & 1 level coder (values uint16 but coders capture is 0-255)                 
-//                  every input with a type : 0 lin , 1 log , 2 inv log (code to add)
+//                  every input with 1 level coder (capture is 0-255 ; setLfm extends to 16 bits)
+//                  every input with 1 att coder (capture is 0-255 ; unchanged storage)                 
+//                  every input with a type : 0 lin , 1 log , 2 inv log (code for log to be added)
 // log mode to be discussed (actual is lin only - use 2 tables to convert lin to log or ilog ; where should the conversion be done ? )
 // dans la version actuelle, les coders de level ne sont pas pris en compte dans les recalculs de lfm_update_inputs 
 // les valeurs d'entrées atténuées et leveled peuvent être négatives ...
@@ -371,7 +372,7 @@ void __not_in_flash_func(setLfm)(uint8_t lfm,uint8_t inp,int16_t val)       // u
 {
     uint16_t* lfmc=&lfmCoder[inp][lfm];
     uint16_t prev=*lfmc;
-    *lfmc=val<<(sizeof(lfmc)*8-MAX_CTL_ATT_SHIFT);                            // val 0-255
+    *lfmc=val<<(sizeof(lfmc)*8-MAX_CTL_ATT_SHIFT-1);                        // coder val 0-ff change to 0-7fff
 
     int16_t id=lfm_ctl_input_id[inp][lfm];
 
@@ -386,7 +387,7 @@ void __not_in_flash_func(setLfm)(uint8_t lfm,uint8_t inp,int16_t val)       // u
 void __not_in_flash_func(setLfmAtt)(uint8_t lfm,uint8_t inp,int16_t val)    // update mixer when att coder changes
 {
     //printf("sla %u %u %i\n",lfm,inp,val);
-    lfmCoderAtt[inp][lfm]=val<<(sizeof(lfmCoderAtt[0][0])*8-MAX_CTL_ATT_SHIFT);       // val 0-255
+    lfmCoderAtt[inp][lfm]=val;                                              // val 0-255 
 
     int16_t id=lfm_ctl_input_id[inp][lfm];
 

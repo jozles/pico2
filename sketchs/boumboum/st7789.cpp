@@ -1005,7 +1005,6 @@ void __not_in_flash_func(test_st7789_2)(void)
       tft_draw_rect(l,0,1,TFT_W,&tft_frame[bgad]);          
       l++;     
     }
-    // ton code ici
 }
 
 /*void __not_in_flash_func(test_st7789_2)(void)

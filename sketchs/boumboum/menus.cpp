@@ -620,7 +620,8 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                     case 6:setLfmAtt(line,21,cc);break;
                     default:break;
                 }                    
-                sprintf(buf+2,"%c%3u %3u %c%3u %3u %c%3u %3u",lfmCh[lfmInputType[0][line]],lfmCoder[0][line],lfmCoderAtt[0][line],lfmCh[lfmInputType[1][line]],lfmCoder[1][line],lfmCoderAtt[1][line],lfmCh[lfmInputType[2][line]],lfmCoder[2][line],lfmCoderAtt[2][line]);
+                //sprintf(buf+2,"%c%3u %3u %c%3u %3u %c%3u %3u",lfmCh[lfmInputType[0][line]],lfmCoder[0][line],lfmCoderAtt[0][line],lfmCh[lfmInputType[1][line]],lfmCoder[1][line],lfmCoderAtt[1][line],lfmCh[lfmInputType[2][line]],lfmCoder[2][line],lfmCoderAtt[2][line]);
+                sprintf(buf+2,"%3u %3u %3u %3u %3u %3u",lfmCoder[0][line],lfmCoderAtt[0][line],lfmCoder[1][line],lfmCoderAtt[1][line],lfmCoder[2][line],lfmCoderAtt[2][line]);
                 break;
 
             default:break;

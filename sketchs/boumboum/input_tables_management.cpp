@@ -61,35 +61,47 @@ extern uint8_t   lfmNb[MAX_INPUTS];
 // les objets de l'application sont des boites munies d'entrées et de sorties
 //
 // il y a 2 types d'entrées : 
-//      les controles (à chacun est associé un coder d'atténuation) 
+//      les signaux de controle
 //      les signaux audio 
-// chaque entrée a un codeur de valeur manuelle + coder d'atténuation pour une valeur "externe"
-// un paramètre interne de "normalisation" associé à chaque entrée sert à leur mise à l'échelle
-// la valeur finale de l'entrée est le résultat de la fonction setxxxxyyyy (ci-aprés) 
+// chaque entrée de signal a un codeur de valeur manuelle + 1 coder d'atténuation pour la valeur "externe" 
+// certains paramètres d'objets n'ont pas d'entrée externe donc juste un coder (durées des adsr)
+// un paramètre interne de "normalisation" associé à chaque entrée sert à leur mise à l'échelle (inutilisé?)
 // le nombre maxi d'entrées est fixe pour tous les objets et en général excédentaire
-// Donc, pour chaque entrée d'objet, il y a 4 variables stockées : valeur du coder de niveau manuel, niveau manuel normalisé, valeur de normalisation et valeur de coder d'atténuation
+// Donc, pour chaque entrée d'objet, il y a au moins : valeur du coder de base, valeur de coder d'atténuation, niveau manuel normalisé, valeur de normalisation
 // En cours de développement, les valeurs de normalisation ne sont pas toujours implémentées
 //
-// la mise à jour d'une entrée d'un objet se fait avec la fonction set/objet/paramètre (ex setAdsrDur ou setLFoFreq)
+// Dynamique :
+//      Lorsque quelque chose change, l'effet doit être reporté sur tout ce qui est concerné
+//      Le changement d'un coder de base peut ne concerner que la caractéristique concernée (level des adsr), ou nécessiter un recalcul de l'entrée (freq de voice), ou nécessiter un recalcul global de la sortie (lfm)
+//      Le changement d'un coder d'atténuation ou d'une valeur d'entrée nécessitera au moins un recalcul de l'entrée et global selon l'objet
+//
+// la mise à jour d'une entrée d'un objet se fait avec la fonction set/objet/paramètre (ex setAdsrDur, setLFoFreq, setLfm)
 // avec des arguments selon le type d'objet (ex le n° d'objet, l'entrée concernée et la valeur de l'entrée - setAdsrDur(adsr,ADSR_ATT,dur) )
+// la mise à jour des entrées chainées sur une sortie se fait avec la fonction update_inputs/id/valeur qui remonte la chaine
+// 
 // Cas des fréquences et durées
 //      En principe le coder et l'entrée sont linéaires et la conversion de la somme est à la fin de la fonction setxxxxyyyy 
 //      cette somme est en principe un step dans une table, la valeur du step étant la vitesse de lecture de la table
 //      la table est lue dans le handler de l'objet (lfosHandler,AdsrHandler,FillVoices etc) à une fréquence d'échantillonage propre.
 // Cas des amplitudes
-//      Il s'agit de sons qui sont à ajouter : les 2 niveaux (coder et entrée atténuée/normalisée) sont convertis puis la somme est effecuée
+//      Il s'agit de sons qui sont à ajouter : les 2 niveaux (coder de base et entrée atténuée/normalisée) sont convertis puis la somme est effectuée
 //      cette somme est l'indice d'une table de dé-linéarisation (amplLevel[])
+// Cas banalisé (devrait devenir la norme) (ex lfm) : les coders sont des valeurs 8 bits ; 
+//      le coder de base, multiplié pour obtenir une valeur 16 bits, est stocké dans les params de l'objet
+//      le coder d'atténuation est stocké en valeur 8 bits;
+//      la valeur entrée provient d'une sortie d'objet en int16_t 
+//      la mise à jour des coders se fait via la fonction set qui recalcule éventuellemnt la sortie via update_inputs 
 // la fonction set est utilisée 3 fois : dans les inits, dans le menu de saisie des coders et dans la mise à jour des entrées (update_inputs)
 // ainsi les paramètres utilisés dans la production des voices sont tenus à jour en temps réel (ils sont échantillonnés à chaque début de remplissage de buffer de son)
 //
 // il y a 2 types de sorties :
 //      les signaux audio
-// les signaux audios sont sommés voix par voix par la fonction fillvoice ; chaque onde et bruit a une entrée d'amplification à 16 bits
+//          les signaux audios sont sommés voix par voix par la fonction fillvoice ; chaque onde et bruit a une entrée d'amplification à 16 bits
 //      les contrôles
-// les contrôles sont des valeurs 16 bits signés (coders, sorties des lfos, adsr, mux, switchs etc)
-// ils sont recadrés selon le type de l'entrée à laquelle ils sont appliqués (par ex, une fréquence est sur 13 bits, un rc sur 5 bits, une durée sur 7 bits, les binaires (touchb) 0/1)
-// comme déjà dit, coders et sorties atténuées sont "ajoutés" selon le type d'entrée
-// le nombre de sorties possibles est fixe pour tous les objets et le plus souvent excédentaire
+//          les contrôles sont des sorties en 16 bits signés (lfos, adsr, mux, switchs etc)
+//          ils sont recadrés selon le type de l'entrée à laquelle ils sont appliqués (par ex, une fréquence est sur 13 bits, un rc sur 5 bits, une durée sur 7 bits, les binaires (touchb) 0/1)
+//          comme déjà dit, coders et sorties atténuées sont "ajoutés" selon le type d'entrée
+//          le nombre de sorties possibles est fixe pour tous les objets et excédentaire
 // 
 // les variables décrivant les objets sont réparties entre
 //      les objets (jeu de tables indicées sur le numéro d'objet)
@@ -107,7 +119,7 @@ extern uint8_t   lfmNb[MAX_INPUTS];
 //                  l'ensemble à rapport cyclique réglable
 //      touch b =   touches du pupitre de commande
 //      shapers =   séquences à 4 étapes (adsr) + niveau de sustain ; déclenchement selon trig et tlev 
-//      mixers  =   mélangeurs audio ou de controles (atténuateurs pour chaque entrée ; ampli de sortie pour les audio)
+//      mixers  =   mélangeurs audio ou de controles (atténuateurs pour chaque entrée, entrée 0=gain général ; ampli de sortie pour les audio)
 //      séquenceurs = générateurs d'impulsions et/ou valeurs 16bits programmables
 //      générateurs d'écho = délai, niveau
 //      générateurs de réverbération, durée, niveau
@@ -116,14 +128,15 @@ extern uint8_t   lfmNb[MAX_INPUTS];
 //      créer sa description (structure comme voice ou tables comme lfo)
 //      l'ajouter à la liste dans objects.def
 //      créer les 2 fichiers *.def pour décrire ses entrées et sorties
-//      ajouter pour chaque entrée un nom de type dans norm_types.def
+//      (ajouter pour chaque entrée un nom de type dans norm_types.def)
 //      ajouter ses constantes dans const.h (MAX_xxx à utiliser dans la ligne MAX_OUTPUTS)
 //      ajouter un paragraphe enum d'entrées et de sorties dans const.h
 //      ajouter un paragraphe nom des entrées et des sorties ci-après
 //      ajouter un paragraphe d'init dans init_objects_inputs et init_objects_outputs ci-après
 //      ajouter la fonction setxxxxyyyy vue plus haut
 //      ajouter le traitement d'update dans update_inputs
-//      ajouter un menu (ligne d'appel dans boumboum, inits dans boumboum et menu, traitement de ligne dans menu)
+//      ajouter un menu (ligne d'appel dans boumboum, inits dans boumboum et menu)
+//      ajouter un case dans menu_line_dsp qui gère la mise à jour des coders
 //      ajouter un handler à l'endroit approprié
 
 /* ************ control inputs and outputs ************* */
@@ -557,12 +570,12 @@ void __not_in_flash_func(disconnect_input)(uint16_t input_id, uint16_t output)
     spin_unlock(inputs_id__lock, f);
 }
 
-void __not_in_flash_func(lfm_update_inputs_0)(uint8_t lfm,int16_t valeur)
+void __not_in_flash_func(lfm_update_inputs_0)(uint8_t lfm,int16_t valeur)   // inp0 is gen control ; valeur is new input value 
 {
     // ---- recalcul du gain général ----
     lfmGenAttValue[lfm] =
         lfmCoder[0][lfm] +
-        ((valeur * lfmCoderAtt[0][lfm]) >> MAX_CTL_ATT_SHIFT);
+        ((valeur * lfmCoderAtt[0][lfm]) >> MAX_CTL_ATT_SHIFT);              // new gen control
 
     // ---- appliquer le gain général à la valeur intermédiaire ----
     int32_t iv = intermediateOutputValues[lfm] * lfmGenAttValue[lfm];
@@ -576,12 +589,12 @@ void __not_in_flash_func(lfm_update_inputs_0)(uint8_t lfm,int16_t valeur)
     iv = (iv & -carry_lo) | (-0x8000 & ~(-carry_lo));
 
     lfmOutputValues[lfm] = (int16_t)iv;
-    printf("lui0 %u %i %u %i %i %i - ",lfm,valeur,lfmCoderAtt[0][lfm],intermediateOutputValues[lfm],lfmGenAttValue[lfm],iv);    
+    //printf("lui0 %u %i %u %i %i %i - ",lfm,valeur,lfmCoderAtt[0][lfm],intermediateOutputValues[lfm],lfmGenAttValue[lfm],iv);    
     update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],lfmOutputValues[lfm]);
-    uint8_t vnb=2;printf("v:%u :%u :%i\n",vnb,voices[vnb].basicWaveAmpl[WSIN],iv);
+    //uint8_t vnb=2;printf("v:%u :%u :%i\n",vnb,voices[vnb].basicWaveAmpl[WSIN],iv);
 }                                            
 
-void __not_in_flash_func(lfm_update_inputs)(int16_t id,uint8_t lfm,uint8_t inp,int16_t prev,int16_t* iov) // iov intermediate output value (before gen)
+void __not_in_flash_func(lfm_update_inputs)(int16_t id,uint8_t lfm,uint8_t inp,int16_t prev,int16_t* iov) // iov intermediate output value (before gen) ; ctl_input_val[id] new input value
 {
     // ---- compute new iov (no level coder change) ----
     int32_t iv=*iov;
@@ -718,12 +731,12 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
                                     case 1:
                                         lfm_update_inputs(id,lfm,inp,prev,&intermediateOutputValues[lfm]);
 
-                                        printf("m:%u-%u old:%i iv:%i v:%i ov:%i\n",lfm,inp,prev,valeur,val,lfmOutputValues[lfm]);                                    
+                                        //printf("m:%u-%u old:%i iv:%i v:%i ov:%i\n",lfm,inp,prev,valeur,val,lfmOutputValues[lfm]);                                    
                                         break;
                                     case 2:
                                         lfm_update_inputs(id,lfm,inp,prev,&intermediateOutputValues[lfm]);
 
-                                        printf("m:%u-%u old:%i iv:%i v:%i ov:%i\n",lfm,inp,prev,valeur,val,lfmOutputValues[lfm]);
+                                        //printf("m:%u-%u old:%i iv:%i v:%i ov:%i\n",lfm,inp,prev,valeur,val,lfmOutputValues[lfm]);
                                         break;
 
                                     default:break;
