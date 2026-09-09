@@ -368,7 +368,7 @@ void lf_mixer_init()
     }
 }
 
-void __not_in_flash_func(setLfm)(uint8_t lfm,uint8_t inp,int16_t val)       // update mixer when level coder changes
+void __not_in_flash_func(setLfm)(uint8_t lfm,uint8_t inp,uint16_t val)       // update mixer when level coder changes
 {
     uint16_t* lfmc=&lfmCoder[inp][lfm];
     uint16_t prev=*lfmc;
