@@ -363,7 +363,7 @@ bool init_objects_inputs(void)
             }
             
             if(ins<LFO_INPUTS_NB){
-                char buf[IN_OUT_NAME_LEN]={'L','F','O','S'};
+                char buf[IN_OUT_NAME_LEN]={'L','F','O','S'};    // see objName value
                 convIntToString(buf+objName,lfo,objNum);
                 memcpy(buf+objName+objNum,&lfo_inputs_names[ins],objOutType);  //OBJ_IO_NAME_LEN-1);
                 memcpy(ctl_input_name[curr_input],buf,lenInpName);   //IN_OUT_NAME_LEN);
@@ -396,7 +396,7 @@ bool init_objects_inputs(void)
                 default: break;
             }           
             if(ins<ADSR_INPUTS_NB){
-                char buf[IN_OUT_NAME_LEN]={'A','D','S','R'};
+                char buf[IN_OUT_NAME_LEN]={'A','D','S','R'};    // see objName value
                 convIntToString(buf+objName,adsr,objNum);
                 memcpy(buf+objName+objNum,&adsr_inputs_names[ins],objOutType);    //OBJ_IO_NAME_LEN-1);
                 memcpy(ctl_input_name[curr_input],buf,lenInpName);   //IN_OUT_NAME_LEN);
@@ -428,7 +428,7 @@ bool init_objects_inputs(void)
                 default:break;
             }
             if(ins<VOICES_INPUTS_NB){
-                char buf[IN_OUT_NAME_LEN]={'V','C','E','S'};
+                char buf[IN_OUT_NAME_LEN]={'V','C','E','S'};    // see objName value
                 convIntToString(buf+objName,(uint32_t)vce,objNum);
                 memcpy(buf+objName+objNum,&voices_inputs_names[ins],objOutType);  //OBJ_IO_NAME_LEN-1);
                 memcpy(ctl_input_name[curr_input],buf,lenInpName);   //IN_OUT_NAME_LEN);
@@ -451,7 +451,7 @@ bool init_objects_inputs(void)
             ctl_input_val[curr_input]=0;
             
             if(ins<MAX_LFM_INPUTS){
-                char buf[IN_OUT_NAME_LEN]={'L','F','M','_'};
+                char buf[IN_OUT_NAME_LEN]={'L','F','M','_'};    // see objName value
                 convIntToString(buf+objName,lfm,objNum);
                 *(buf+objName+objNum)='_';
                 convIntToString(buf+objName+objNum+1,ins,2);
@@ -640,7 +640,7 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
     ctl_input_val[id] = valeur;
     int16_t tlev;
     uint8_t object=ctl_input_object[id];
-    int32_t val;
+    int32_t val=0;
     float fr;
     //uint8_t src0=src/MAX_OBJECTS;
     //uint8_t src_id=src-src0*MAX_OBJECTS;

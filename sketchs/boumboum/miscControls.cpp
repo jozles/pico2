@@ -372,7 +372,7 @@ void __not_in_flash_func(setLfm)(uint8_t lfm,uint8_t inp,uint16_t val)       // 
 {
     uint16_t* lfmc=&lfmCoder[inp][lfm];
     uint16_t prev=*lfmc;
-    *lfmc=val<<(sizeof(lfmc)*8-MAX_CTL_ATT_SHIFT-1);                        // coder val 0-ff change to 0-7fff
+    *lfmc=val<<(sizeof(*lfmc)*8-MAX_CTL_ATT_SHIFT-1);                        // coder val 0-ff change to 0-7fff  !!!  in case of change, change init tempLfmCoder in menus
 
     int16_t id=lfm_ctl_input_id[inp][lfm];
 
@@ -384,7 +384,7 @@ void __not_in_flash_func(setLfm)(uint8_t lfm,uint8_t inp,uint16_t val)       // 
     }
 }
 
-void __not_in_flash_func(setLfmAtt)(uint8_t lfm,uint8_t inp,int16_t val)    // update mixer when att coder changes
+void __not_in_flash_func(setLfmAtt)(uint8_t lfm,uint8_t inp,uint16_t val)    // update mixer when att coder changes
 {
     //printf("sla %u %u %i\n",lfm,inp,val);
     lfmCoderAtt[inp][lfm]=val;                                              // val 0-255 

@@ -1,4 +1,4 @@
 /* outputs names for adsr */
 
-    X(ADSR_SHAPE,"ADSR")
-    X(ADSR_GATE,"AD_G")
+    X(ADSR_SHAPE,"SHAP")
+    X(ADSR_GATE,"GATE")
