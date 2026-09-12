@@ -101,7 +101,7 @@ if (watchdog_caused_reboot()) {
             //case GEN_AMPL_: coders_for_genAmpl(currVoice);break;
             case LFOS_____: coders_for_menu("L",(const char*)nullptr,MAX_LFO,0,LFOS_____,menuLfosCoders,codersSw,codersTB,menuMaxLfosCoders,lfosVar,LFO_VAR_NB,BASIC_WAVES_NB,0);break;
             case ADSRL____: coders_for_menu("ADSR:",(const char*)nullptr,MAX_ADSR,0,ADSRL____,menuAdsrCoders,codersSw,codersTB,menuMaxAdsrCoders,adsrVar,ADSR_VAR_NB,BASIC_WAVES_NB,0);break;
-            case LMUX_____: coders_for_menu("LM",(const char*)nullptr,MAX_LFM,0,LMUX_____,menuLfmCoders,codersSw,codersTB,menuMaxLfmCoders,lfmVar,LFM_VAR_NB,MAX_LFM_INPUTS,0);break;            
+            case LMUX_____: coders_for_menu("LM",(const char*)nullptr,MAX_LFM,0,LMUX_____,menuLfmCoders,codersSw,codersTB,menuMaxLfmCoders,lfmVar,LFM_VAR_NB,LFM_INPUTS_NB,0);break;            
             case MAPPING__: coders_for_mapping();break;
 
             default:break;

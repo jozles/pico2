@@ -482,7 +482,7 @@ void testSetup()
     uint8_t  manualAmpLevel=8;    
     uint8_t  adsr=0;
     int8_t   adsrLfo=2;    
-    uint8_t  attenAmpLevel=60;
+    uint8_t  attenAmpLevel=20;
     uint32_t adsrLfoCoder=1384;         // 1384 6sec // 1790 3sec
     uint8_t  crLfo=4;
     uint16_t crLfoCoder=1820;
@@ -561,10 +561,10 @@ void testSetup()
     setLfm(lfm,lfmInp1,1);  // minimal value to put adsr out
     test_connect(objects_first_input_id[LF_MUX___]+lfm*MAX_INPUTS_PER_OBJ+lfmInp0,objects_first_output_id[ADSR_____]+adsr*MAX_OUTPUTS_PER_OBJ+ADSR_SHAPE);
     // config lfo
-    setLfosFreq(voice2ampLfo,freqV2ALfo);
+    //setLfosFreq(voice2ampLfo,freqV2ALfo);
     // connect lfo to lfm0:1
     //test_connect(objects_first_input_id[LF_MUX___]+lfm*MAX_INPUTS_PER_OBJ+lfmInp1,objects_first_output_id[LFO______]+voice2ampLfo*MAX_OUTPUTS_PER_OBJ+LSIN);
-    setLfmAtt(lfm,lfmInp1,ampV2ALfoAtt);
+    //setLfmAtt(lfm,lfmInp1,ampV2ALfoAtt);
     //*/    
 
 //pwm_timer_1khz_enable(false);while(1){}

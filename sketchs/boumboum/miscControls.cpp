@@ -45,7 +45,7 @@ int16_t  tbut_ctl_output_id[MAX_TBUT][MAX_OUTPUTS_PER_OBJ];
 uint16_t lfmCoder[MAX_LFM_INPUTS][MAX_LFM];
 uint16_t lfmCoderAtt[MAX_LFM_INPUTS][MAX_LFM];
 int16_t  intermediateOutputValues[MAX_LFM];
-int16_t  lfmGenAttValue[MAX_LFM];
+int32_t  lfmGenAttValue[MAX_LFM];
 int16_t  lfmOutputValues[MAX_LFM];
 uint8_t  lfmInputType[MAX_LFM_INPUTS][MAX_LFM];
 int16_t  lfm_ctl_input_id[MAX_LFM_INPUTS][MAX_LFM];
@@ -372,14 +372,14 @@ void __not_in_flash_func(setLfm)(uint8_t lfm,uint8_t inp,uint16_t val)       // 
 {
     uint16_t* lfmc=&lfmCoder[inp][lfm];
     uint16_t prev=*lfmc;
-    *lfmc=val<<(sizeof(*lfmc)*8-MAX_CTL_ATT_SHIFT-1);                        // coder val 0-ff change to 0-7fff  !!!  in case of change, change init tempLfmCoder in menus
+    *lfmc=val<<((sizeof(*lfmc)*8)-MAX_CTL_ATT_SHIFT-1);                      // coder val 0-ff change to 0-7fff  !!!  in case of change, change init tempLfmCoder in menus
 
     int16_t id=lfm_ctl_input_id[inp][lfm];
 
-    if(inp==0){lfm_update_inputs_0(lfm,ctl_input_val[id]);}                 // input doesnt change so prev/new valeur is current
+    if(inp==0){lfm_update_inputs_0(lfm,ctl_input_val[id]);}                  // input doesnt change so prev/new valeur is current
     else {
         int16_t* iov=&intermediateOutputValues[lfm];
-        *iov=*iov-prev+val;
+        *iov=*iov-prev+*lfmc;
         lfm_update_inputs(id,lfm,inp,ctl_input_val[id],iov);
     }
 }

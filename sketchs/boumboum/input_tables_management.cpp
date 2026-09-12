@@ -573,7 +573,7 @@ void __not_in_flash_func(disconnect_input)(uint16_t input_id, uint16_t output)
 void __not_in_flash_func(lfm_update_inputs_0)(uint8_t lfm,int16_t valeur)   // inp0 is gen control ; valeur is new input value 
 {
     // ---- recalcul du gain général ----
-    lfmGenAttValue[lfm] =
+    lfmGenAttValue[lfm] =                                                   // lfmGen int32 ; lfmCoder uint16 ; valeur int16 ; lfmCoderAtt uint16
         lfmCoder[0][lfm] +
         ((valeur * lfmCoderAtt[0][lfm]) >> MAX_CTL_ATT_SHIFT);              // new gen control
 

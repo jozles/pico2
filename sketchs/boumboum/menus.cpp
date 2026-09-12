@@ -89,9 +89,10 @@ extern uint16_t lfmCoderAtt[MAX_LFM_INPUTS][MAX_LFM];
 extern uint8_t  lfmInputType[MAX_LFM_INPUTS][MAX_LFM];
 extern uint8_t  lfmCh[];
 extern int16_t  lfmOutputValues[MAX_LFM];
+extern int16_t  intermediateOutputValues[MAX_LFM];
 extern volatile int16_t menuLfmCoders[];
-extern uint16_t* lfmVar[];
-uint16_t tempLfmCoders[MAX_LFM_INPUTS][MAX_LFM];    // lfmVar ne peut vas être utilisé pour modifier directement lfmCoder qui est "ré-encodé" dans setLfm
+extern uint16_t* lfmVar[];                          // ptr sur les valeur du coder de l'input pour chaque mux
+uint16_t tempLfmCoders[MAX_LFM_INPUTS*2][MAX_LFM];    // lfmVar ne peut vas être utilisé pour modifier directement lfmCoder qui est "ré-encodé" dans setLfm
 //uint16_t tempLfmCoder[MAX_LFM_INPUTS][MAX_LFM];
 //extern uint16_t lfmCoderAtt[MAX_LFM][MAX_LFM_INPUTS];
 //extern int16_t  lfmOutputValues[MAX_LFM];
@@ -265,17 +266,20 @@ void menus_init(){
     menuAdsrCoders[ADSRREL]=adsrCoderRel[0];
     menuAdsrCoders[ADSRLEV]=adsrCoderLev[0];
         // ***  Lfm  ****
+    for(uint8_t c=0;c<CODER_NB;c++){menuLfmCoders[c]=0;}        
     for(uint8_t in=0;in<LFM_INPUTS_NB;in++){
-        for(uint8_t l=0;l<MAX_LFM;l++){tempLfmCoders[in][l]=lfmCoder[in][l]>>(sizeof(lfmCoder[0][0])*8-MAX_CTL_ATT_SHIFT-1);}   
-        lfmVar[in*2]=tempLfmCoders[in];            // inputs data ptr
-        lfmVar[in*2+1]=lfmCoderAtt[in];
-        menuLfmCoders[in+1]=lfmCoder[in][0];    // préchargt inputs data values
-    }
-    menuLfmCoders[0]=0;                         // unused (coder 0 : menu line)
+        for(uint8_t l=0;l<MAX_LFM;l++){
+            tempLfmCoders[in*2][l]=lfmCoder[in][l]>>(sizeof(lfmCoder[0][0])*8-MAX_CTL_ATT_SHIFT-1);
+            tempLfmCoders[in*2+1][l]=lfmCoderAtt[in][l];
+        }   
+        lfmVar[in*2]=tempLfmCoders[in*2];            // inputs data ptr
+        lfmVar[in*2+1]=tempLfmCoders[in*2+1];        // inputs data ptr        
+        menuLfmCoders[in+1]=tempLfmCoders[in][0];    // préchargt inputs data values mux 0
+    }                         
 
-    printf("\nlf_mux\n");
-    for(uint8_t i=0;i<MAX_LFM;i++){
-        printf("m%i: ",i);
+    printf("\nlf_mux c0 ca0  c1 ca1  c2 ca2\n");
+    for(uint8_t i=0;i<LFM_INPUTS_NB;i++){
+        printf("m%i:  ",i);
         for(uint8_t j=0;j<LFM_INPUTS_NB*2;j++){
             printf(" %3i",lfmVar[j][i]);
         }
@@ -643,7 +647,7 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                 break;
 
             case LMUX_____:
-                printf("%c %u %u %u %u %u %u\n",fl[varChge ? 1:0],line,coder,cc,lfmVar[coder-(varChge ? 1:0)][line],lfmCoder[coder-(varChge ? 1:0)][line],lfmCoderAtt[coder-(varChge ? 1:0)][line]); // varChge true uniquement avec coder>0
+                printf("%c=%u:%u cc:%3u v:%3u la:%3u lc:%3u ",fl[varChge ? 1:0],line,coder-(varChge ? 1:0),cc16,lfmVar[coder-(varChge ? 1:0)][line],lfmCoderAtt[coder-(varChge ? 1:0)][line],lfmCoder[coder-(varChge ? 1:0)][line]); // varChge true uniquement avec coder>0
                 if(varChge){
                 // coder 0 : line ; 1:gen_level ; 2:genAtt ; 3:in1_level ; 4:in1_att ; 5:in2_level ; 6:in2_att ; 
                     switch(coder){
@@ -655,8 +659,8 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                         case 6:setLfmAtt(line,2,cc16);break;
                         default:break;
                     }
-                    printf("%i\n",lfmOutputValues[line]);
                 }
+                printf(" lc:%6u iv:%i out:%i\n",lfmCoder[coder-(varChge ? 1:0)][line],intermediateOutputValues[line],lfmOutputValues[line]);                
                 sprintf(buf+2,"%3u %3u %3u %3u %3u %3u",tempLfmCoders[0][line],lfmCoderAtt[0][line],tempLfmCoders[1][line],lfmCoderAtt[1][line],tempLfmCoders[2][line],lfmCoderAtt[2][line]);
                 break;
 
@@ -677,7 +681,7 @@ void fullMenuDsp(const char* title,const char* menu,uint8_t linesNb,uint8_t line
 
     for(uint8_t l=bgl;l<linesNb;l++){
         fillVoices();
-        printf("beg:%d m:%s l:%d len:%d cl:%d type:%d cod:%d\n",first_row,menu+line_len*l,l,line_len,currline==l,type,coder);//,cc,mode_scope,NO_VAR_CHANGE);
+        //printf("beg:%d m:%s l:%d len:%d cl:%d type:%d cod:%d\n",first_row,menu+line_len*l,l,line_len,currline==l,type,coder);//,cc,mode_scope,NO_VAR_CHANGE);
         menuLineDsp(menu,l,line_len,currline==l,type,coder,cc,mode_scope,NO_VAR_CHANGE);
     }
 }
@@ -705,10 +709,11 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
     uint8_t wave=0;
     uint8_t debug=false;
 
-    coderSetup(cTC,cTS,cTB,maxi,linesNb);   // coderSetup ignore lineNb
+    coderSetup(cTC,cTS,cTB,maxi,linesNb);   // coderSetup initialise les variables du coder_handler avec cTC,cTS,cTB,maxi ; ignore lineNb
 
+    printf("cTC:");for(uint8_t c=0;c<CODER_NB;c++){printf(" %u",cTC[c]);}printf("\n lnb:%u l:%u\n",linesNb,line);
     fullMenuDsp(title,text,linesNb,line_len,line,object_type,0,0,false);
-
+    
     //start adsr 0
     //adsrStatus[0]=ADSR_ATT
 
@@ -736,16 +741,16 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
 //printf("0\n");            
 //if(object_type==VOICES_AM){printf("VOICES_AM\n");while(1){fillVoices();}}
 
-            for(uint8_t coder=0;coder<varNb+1;coder++){      // varNb nbre d'items dans la ligne + 1 = nbre coders utilisés + coder de scroll
+            for(uint8_t coder=0;coder<varNb+1;coder++){     // varNb nbre d'items dans la ligne + 1 = nbre coders utilisés + coder de scroll
 
                 uint32_t cc=cTC[coder];
-                if(object_type==MENU0____ && cc==0){cc=1;}   // skip unused MENU0____ entry
+                if(object_type==MENU0____ && cc==0){cc=1;}  // skip unused MENU0____ entry
 
-                if(coder==0 && cc!=line){       // coder 0 && new line : scroll
+                if(coder==0 && cc!=line){                   // coder 0 && line chge : scroll
                                   
                     menuLineDsp(text,line,line_len,false,object_type,coder,cc,mode_scope,NO_VAR_CHANGE);    // prev line no reverse display
                     line=cc;
-                    for(uint8_t k=0;k<varNb;k++){   // rechargement de la valeur actuelle des coder(1 à n, le 0 est pour le depl vertical) pour la nouvelle ligne ()
+                    for(uint8_t k=0;k<varNb;k++){           // rechargement de la valeur actuelle des coder(1 à n, le 0 est pour le depl vertical) pour la nouvelle ligne ()
                         if(var[k]!=nullptr){
                             cTC[k+1]=var[k][line];
                         }
@@ -758,8 +763,9 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
                                                                         // var[coder-1] : current coder object var ptr (ex lfos : var[0] = lfosCodersFreq ; var[1] lfosCoderCr etc )   
 
                         if(var[coder-1][line]!=cc){                     // update coder value & display changes 
+printf("c=%u var:%u cc:%u\n",coder,var[coder-1][line],cc);    // coders 1-n pour var 0-(n-1)                          
                             var[coder-1][line]=cc;
-                            menuLineDsp(text,line,line_len,true,object_type,coder,cc,mode_scope,VAR_CHANGE);  // include values updates
+                            menuLineDsp(text,line,line_len,true,object_type,coder,cc,mode_scope,VAR_CHANGE);  // values updates included 
                             title_dsp(title,line,object_type);
                         }
                 }        
