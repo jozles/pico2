@@ -72,6 +72,7 @@ extern uint16_t adsrCoderSus[MAX_ADSR];
 extern uint16_t adsrCoderRel[MAX_ADSR];
 extern uint16_t adsrCoderLev[MAX_ADSR];
 
+extern uint16_t lfmCoder[MAX_LFM_INPUTS][MAX_LFM];
 extern uint16_t lfmCoderAtt[MAX_LFM_INPUTS][MAX_LFM];
 
 extern int16_t  ctl_input_srce[MAX_INPUTS];
@@ -557,14 +558,14 @@ void testSetup()
     // connect lfm0 to voice:wave amp input
     test_connect(objects_first_input_id[VOICE____]+voice*MAX_INPUTS_PER_OBJ+VSPW+wave,objects_first_output_id[LF_MUX___]+lfm*MAX_OUTPUTS_PER_OBJ+LMUXO);
     // connect adsr to lfm0:0 genAmp input   
-    setLfmAtt(lfm,lfmInp0,MAX_CTL_ATT-1);
-    setLfm(lfm,lfmInp1,1);  // minimal value to put adsr out
+    setLfm(lfm,lfmInp0,lfmCoder[lfmInp0][lfm],MAX_CTL_ATT-1);
+    setLfm(lfm,lfmInp1,1,lfmCoderAtt[lfmInp1][lfm]);  // minimal value to put adsr out
     test_connect(objects_first_input_id[LF_MUX___]+lfm*MAX_INPUTS_PER_OBJ+lfmInp0,objects_first_output_id[ADSR_____]+adsr*MAX_OUTPUTS_PER_OBJ+ADSR_SHAPE);
     // config lfo
     //setLfosFreq(voice2ampLfo,freqV2ALfo);
     // connect lfo to lfm0:1
     //test_connect(objects_first_input_id[LF_MUX___]+lfm*MAX_INPUTS_PER_OBJ+lfmInp1,objects_first_output_id[LFO______]+voice2ampLfo*MAX_OUTPUTS_PER_OBJ+LSIN);
-    //setLfmAtt(lfm,lfmInp1,ampV2ALfoAtt);
+    //setLfm(lfm,lfmInp1,lfmCoder[lfmInp1][lfm],ampV2ALfoAtt);
     //*/    
 
 //pwm_timer_1khz_enable(false);while(1){}

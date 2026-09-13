@@ -651,12 +651,12 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                 if(varChge){
                 // coder 0 : line ; 1:gen_level ; 2:genAtt ; 3:in1_level ; 4:in1_att ; 5:in2_level ; 6:in2_att ; 
                     switch(coder){
-                        case 1:setLfm(line,0,cc16);break;
-                        case 2:setLfmAtt(line,0,cc16);break;
-                        case 3:setLfm(line,1,cc16);break;
-                        case 4:setLfmAtt(line,1,cc16);break;
-                        case 5:setLfm(line,2,cc16);break;
-                        case 6:setLfmAtt(line,2,cc16);break;
+                        case 1:setLfm(line,0,cc16,lfmCoderAtt[0][line]);break;
+                        case 2:setLfm(line,0,lfmCoder[0][line],cc16);break;
+                        case 3:setLfm(line,1,cc16,lfmCoderAtt[1][line]);break;
+                        case 4:setLfm(line,1,lfmCoder[1][line],cc16);break;
+                        case 5:setLfm(line,2,cc16,lfmCoderAtt[2][line]);break;
+                        case 6:setLfm(line,2,lfmCoder[2][line],cc16);break;
                         default:break;
                     }
                 }

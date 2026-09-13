@@ -87,11 +87,11 @@ extern uint8_t   lfmNb[MAX_INPUTS];
 //      Il s'agit de sons qui sont à ajouter : les 2 niveaux (coder de base et entrée atténuée/normalisée) sont convertis puis la somme est effectuée
 //      cette somme est l'indice d'une table de dé-linéarisation (amplLevel[])
 // Cas banalisé (devrait devenir la norme) (ex lfm) : les coders sont des valeurs 8 bits ; 
-//      le coder de base, multiplié pour obtenir une valeur 16 bits, est stocké dans les params de l'objet
-//      le coder d'atténuation est stocké en valeur 8 bits;
+//      le coder de base, est stocké dans les params de l'objet en valeur 8 bits ; lors de son utilisation il est shifté en int16
+//      le coder d'atténuation est stocké dans les params de l'objet en valeur 8 bits;
 //      la valeur entrée provient d'une sortie d'objet en int16_t 
 //      la mise à jour des coders se fait via la fonction set qui recalcule éventuellemnt la sortie via update_inputs 
-// la fonction set est utilisée 3 fois : dans les inits, dans le menu de saisie des coders et dans la mise à jour des entrées (update_inputs)
+// la fonction set est utilisée 3 fois : dans les inits, dans le menu de saisie des coders (menuLineDsp) et dans la mise à jour des entrées (update_inputs)
 // ainsi les paramètres utilisés dans la production des voices sont tenus à jour en temps réel (ils sont échantillonnés à chaque début de remplissage de buffer de son)
 //
 // il y a 2 types de sorties :
@@ -149,7 +149,7 @@ extern uint8_t   lfmNb[MAX_INPUTS];
 // or: lfo_ctl_input_id[3][LCRA]
 // table ctl_input_id_chain[] allows to chain the inputs wich are connected to the same output for faster access
 
-int16_t ctl_input_val[MAX_INPUTS];                       // all inputs values
+int16_t ctl_input_val[MAX_INPUTS];                       // all inputs actual input value
 int16_t ctl_input_prev_val[MAX_INPUTS];                  // all inputs prev values for trig level identification
 int16_t ctl_input_srce[MAX_INPUTS];                      // all inputs sources ie outputs used for inputs (usefull for disconnection) 
 //uint8_t ctl_input_norm[MAX_INPUTS];                      // all inputs norm type (0 nothing ; 1 lfo_freq ; 2 vce freq ; 3 rc ; 4 ampl 0-31 etc)
@@ -448,7 +448,7 @@ bool init_objects_inputs(void)
             ctl_input_id_chain[curr_input]=NO_LINK;
             ctl_input_object[curr_input]=lfm;
             ctl_input_update_type[curr_input]=LFM____;
-            ctl_input_val[curr_input]=0;
+            //ctl_input_val[curr_input]=0;  déjà fait
             
             if(ins<MAX_LFM_INPUTS){
                 char buf[IN_OUT_NAME_LEN]={'L','F','M','_'};    // see objName value
@@ -570,15 +570,15 @@ void __not_in_flash_func(disconnect_input)(uint16_t input_id, uint16_t output)
     spin_unlock(inputs_id__lock, f);
 }
 
-void __not_in_flash_func(lfm_update_inputs_0)(uint8_t lfm,int16_t valeur)   // inp0 is gen control ; valeur is new input value 
+void __not_in_flash_func(lfm_update_inputs_0)(uint8_t lfm,int16_t valeur)   // inp0 is gen control ; valeur is new input value (any object output)
 {
     // ---- recalcul du gain général ----
     lfmGenAttValue[lfm] =                                                   // lfmGen int32 ; lfmCoder uint16 ; valeur int16 ; lfmCoderAtt uint16
-        lfmCoder[0][lfm] +
+        (lfmCoder[0][lfm]<<((sizeof(lfmCoder[0][0])*8)-MAX_CTL_ATT_SHIFT-1)) +
         ((valeur * lfmCoderAtt[0][lfm]) >> MAX_CTL_ATT_SHIFT);              // new gen control
 
     // ---- appliquer le gain général à la valeur intermédiaire ----
-    int32_t iv = intermediateOutputValues[lfm] * lfmGenAttValue[lfm];
+    int32_t iv = intermediateOutputValues[lfm] * (lfmGenAttValue[lfm] >> 15);
 
     // ---- saturation haute (+32767) ----
     uint32_t carry_hi = (iv <= 0x7FFF);
@@ -594,12 +594,12 @@ void __not_in_flash_func(lfm_update_inputs_0)(uint8_t lfm,int16_t valeur)   // i
     //uint8_t vnb=2;printf("v:%u :%u :%i\n",vnb,voices[vnb].basicWaveAmpl[WSIN],iv);
 }                                            
 
-void __not_in_flash_func(lfm_update_inputs)(int16_t id,uint8_t lfm,uint8_t inp,int16_t prev,int16_t* iov) // iov intermediate output value (before gen) ; ctl_input_val[id] new input value
+void __not_in_flash_func(lfm_update_inputs)(int16_t id,uint8_t lfm,int16_t valeur,int16_t prev)
 {
     // ---- compute new iov (no level coder change) ----
+    int16_t* iov=&intermediateOutputValues[lfm];
     int32_t iv=*iov;
-
-    iv-=((lfmCoderAtt[inp][lfm]*(prev-ctl_input_val[id]))>>MAX_CTL_ATT_SHIFT);           // new intermediate value (level coders included)
+    iv-=(((prev-ctl_input_val[id]) * lfmCoderAtt[0][lfm]) >> MAX_CTL_ATT_SHIFT);      // new intermediate value (no chge on level coders)
 
     // ---- high ovf (+32767) ----
     uint32_t carry_hi = (iv <= 0x7FFF);
@@ -609,7 +609,7 @@ void __not_in_flash_func(lfm_update_inputs)(int16_t id,uint8_t lfm,uint8_t inp,i
     uint32_t carry_lo = (iv >= -0x8000);
     iv = (iv & -carry_lo) | (-0x8000 & ~(-carry_lo));
 
-    *iov = (int16_t)iv;                                                                 // safe cast (iv [-32768..32767])
+    *iov = (int16_t)iv;                                                               // safe cast (iv [-32768..32767])
 
     // ---- apply gen ----
     iv=*iov*lfmGenAttValue[lfm];
@@ -624,10 +624,10 @@ void __not_in_flash_func(lfm_update_inputs)(int16_t id,uint8_t lfm,uint8_t inp,i
 
     lfmOutputValues[lfm] = (int16_t)iv;
 
-    update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],lfmOutputValues[lfm]);    // ctl_output_id_chain[adsr_ctl_output_id[a][ADSR_SHAPE]];    
+    update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],iv);    // ctl_output_id_chain[adsr_ctl_output_id[a][ADSR_SHAPE]];    
 }
 
-void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs update with valeur
+void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs update with valeur (any object output)
                                                                     // valeur est la valeur linéaire à atténuer sur 16 bits recadrée selon le type d'entrée
                                                                     // id numéro unique de l'input donne accès à toutes ses caractéristiques
                                                                     //  le ptr dans ctl_input_id_chain de l'id suivant recevant la meme output/valeur
@@ -729,12 +729,12 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
                                         lfm_update_inputs_0(lfm,valeur);
                                         break;
                                     case 1:
-                                        lfm_update_inputs(id,lfm,inp,prev,&intermediateOutputValues[lfm]);
+                                        lfm_update_inputs(id,lfm,valeur,prev);
 
                                         //printf("m:%u-%u old:%i iv:%i v:%i ov:%i\n",lfm,inp,prev,valeur,val,lfmOutputValues[lfm]);                                    
                                         break;
                                     case 2:
-                                        lfm_update_inputs(id,lfm,inp,prev,&intermediateOutputValues[lfm]);
+                                        lfm_update_inputs(id,lfm,valeur,prev);
 
                                         //printf("m:%u-%u old:%i iv:%i v:%i ov:%i\n",lfm,inp,prev,valeur,val,lfmOutputValues[lfm]);
                                         break;

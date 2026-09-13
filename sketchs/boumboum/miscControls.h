@@ -14,8 +14,8 @@ void touch_button_handler(uint8_t touchButtonNb,bool* touchButtonValue,volatile 
 void touch_button_init(uint8_t pin);
 
 void lf_mixer_init();
-void setLfm(uint8_t lfm,uint8_t inp,uint16_t val);
-void setLfmAtt(uint8_t lfm,uint8_t inp,uint16_t val);
+void setLfm(uint8_t lfm,uint8_t inp,uint16_t lcoder,uint16_t acoder);
+//void setLfmAtt(uint8_t lfm,uint8_t inp,uint16_t val);
 
 enum AdsrStates {
     ADSR_OFF,
