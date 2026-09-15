@@ -118,6 +118,7 @@ typedef enum {
 #define ADSR_MAX_TIME_CODERS DUR_ECH_NB-1       // valeur maxi saisie par les coders      
 // multiplié par BASIC_WAVES_TABLE_LEN/ADSR_MAX_TIME_CODERS/2 : on utilise la table de cra 32 0-90° pour former les valeurs 
 #define ADSR_MAX_LEVEL_CODERS MAX_16B_LINEAR_VALUE-1
+#define ADSR_SCOPE_BUFFER_LEN TFT_W
 
 /* touch buttons */
 
@@ -127,6 +128,7 @@ typedef enum {
 
 #define MAX_LFM 4
 #define MAX_LFM_INPUTS 3        // 0: gen ; 1,2 individual
+#define LFM_SCOPE_BUFFER_LEN TFT_W
 
 /* led */
 
@@ -299,7 +301,7 @@ typedef enum {
 #define ST7789_spi __CONCAT(spi, ST7789_SPI)
 #define ST7789_SPI_SPEED 40000000
 
-#define ADSR_SCOPE_BUFFER_LEN TFT_W
+
 
 #endif  // _CONST_H_
 

@@ -34,7 +34,7 @@ uint16_t adsrScopeBufPtr[MAX_ADSR];
 uint32_t    adsrTime=0;
 uint32_t    adsrTimingInterval=1000/ADSR_SAMPLE_RATE;
 
-bool adsrScopeDisp[MAX_ADSR];
+bool     adsrScopeDisp[MAX_ADSR];
 
 /* ******* touchButtons ******* */
 
@@ -42,16 +42,19 @@ int16_t  tbut_ctl_output_id[MAX_TBUT][MAX_OUTPUTS_PER_OBJ];
 
 /* *******  lf_mixers  ******** */
 
-uint16_t lfmCoder[MAX_LFM_INPUTS][MAX_LFM];
-uint16_t lfmCoderAtt[MAX_LFM_INPUTS][MAX_LFM];
-int16_t  intermediateOutputValues[MAX_LFM];
-int32_t  lfmGenAttValue[MAX_LFM];
+uint16_t lfmCoder[MAX_LFM_INPUTS][MAX_LFM];                 // 8 bits basic coder value before 16 bits extension
+uint16_t lfmCoderAtt[MAX_LFM_INPUTS][MAX_LFM];              // 8 bits input attenuator value
+int16_t  intermediateOutputValues[MAX_LFM];                 // outputValue before genAtt Attenuation
+int32_t  lfmGenAttValue[MAX_LFM];                           // outputValue Attenuation
 int16_t  lfmOutputValues[MAX_LFM];
 uint8_t  lfmInputType[MAX_LFM_INPUTS][MAX_LFM];
 int16_t  lfm_ctl_input_id[MAX_LFM_INPUTS][MAX_LFM];
 int16_t  lfm_ctl_output_id[MAX_LFM];
 uint8_t  lfmNb[MAX_INPUTS];                 // les n° de lfm par input id
 uint8_t  lfmCh[]={'_','\\','/'};
+int32_t  lfmScopeBufReal[MAX_LFM*LFM_SCOPE_BUFFER_LEN];
+uint16_t lfmScopeBufPtr[MAX_LFM];
+bool     lfmScopeDisp[MAX_LFM];
 
 /* *******  extern  ******** */
 
@@ -367,6 +370,7 @@ void lf_mixer_init()
         intermediateOutputValues[lfm]=0;
         lfmGenAttValue[lfm]=0;
         lfmOutputValues[lfm]=0;
+        lfmScopeBufPtr[lfm]=0;
     }
 }
 
@@ -404,3 +408,15 @@ void __not_in_flash_func(setLfm)(uint8_t lfm,uint8_t inp,uint16_t lcoder,uint16_
         lfm_update_inputs(id,lfm,inp,ctl_input_val[id],&intermediateOutputValues[lfm]);
     }
 }*/
+
+void __not_in_flash_func(lfmScopeHandler)()
+{
+    for(uint8_t l=0;l<MAX_LFM;l++){
+        uint16_t* lp=&lfmScopeBufPtr[l];
+        lfmScopeBufReal[l*LFM_SCOPE_BUFFER_LEN+*lp]=lfmOutputValues[l];
+        //printf(" %i",lfmOutputValues[l]);
+        *lp++;
+        if(__builtin_expect(*lp>=LFM_SCOPE_BUFFER_LEN,0)){*lp=0;lfmScopeDisp[l]=true;}
+    }
+    //printf("\n");
+}

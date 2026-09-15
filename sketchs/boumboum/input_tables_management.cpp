@@ -590,7 +590,7 @@ void __not_in_flash_func(lfm_update_inputs_0)(uint8_t lfm,int16_t valeur)   // i
 
     lfmOutputValues[lfm] = (int16_t)iv;
     //printf("lui0 %u %i %u %i %i %i - ",lfm,valeur,lfmCoderAtt[0][lfm],intermediateOutputValues[lfm],lfmGenAttValue[lfm],iv);    
-    update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],lfmOutputValues[lfm]);
+    update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],iv);
     //uint8_t vnb=2;printf("v:%u :%u :%i\n",vnb,voices[vnb].basicWaveAmpl[WSIN],iv);
 }                                            
 

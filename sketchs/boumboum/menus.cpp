@@ -29,7 +29,7 @@ extern int16_t  ctl_output_id_chain[MAX_OUTPUTS];
 
 extern volatile uint32_t millisCounter;
 
-extern bool adsrScopeDisp[];
+
 
 // mapping
 
@@ -82,6 +82,7 @@ extern uint32_t adsrCurrEch[MAX_ADSR];
 extern volatile int16_t menuAdsrCoders[];
 extern uint16_t* adsrVar[];
 extern int32_t  adsrScopeBufReal[MAX_ADSR*ADSR_SCOPE_BUFFER_LEN];
+extern bool     adsrScopeDisp[];
 extern int16_t  adsr_ctl_input_id[MAX_ADSR];
 
 extern uint16_t lfmCoder[MAX_LFM_INPUTS][MAX_LFM];
@@ -93,9 +94,8 @@ extern int16_t  intermediateOutputValues[MAX_LFM];
 extern volatile int16_t menuLfmCoders[];
 extern uint16_t* lfmVar[];                          // ptr sur les valeur du coder de l'input pour chaque mux
 uint16_t tempLfmCoders[MAX_LFM_INPUTS*2][MAX_LFM];    // lfmVar ne peut vas être utilisé pour modifier directement lfmCoder qui est "ré-encodé" dans setLfm
-//uint16_t tempLfmCoder[MAX_LFM_INPUTS][MAX_LFM];
-//extern uint16_t lfmCoderAtt[MAX_LFM][MAX_LFM_INPUTS];
-//extern int16_t  lfmOutputValues[MAX_LFM];
+extern int32_t  lfmScopeBufReal[MAX_LFM*LFM_SCOPE_BUFFER_LEN];
+extern bool     lfmScopeDisp[];
 
 volatile bool codersSw[CODER_NB];                           // coder it handler scans all physical coders
 volatile bool codersTB[CODER_NB];                           // coder it handler scans all touchButtons
@@ -790,6 +790,14 @@ printf("c=%u var:%u cc:%u\n",coder,var[coder-1][line],cc);    // coders 1-n pour
                             adsrScopeDisp[line]=false;
                             if(firstScope){title_dsp(title,line,ADSRL____);}
                             scope(&adsrScopeBufReal[line],0,begline,false,firstScope,0,0,3,line,1);
+                        }
+                        break;
+                    case LMUX_____:
+                        if(lfmScopeDisp[line]==true){
+printf("---\n");
+                            lfmScopeDisp[line]=false;
+                            if(firstScope){title_dsp(title,line,LFM____);}
+                            scope(&lfmScopeBufReal[line],0,begline,false,firstScope,0,0,3,line,1);
                         }
                         break;
                     default:break;
