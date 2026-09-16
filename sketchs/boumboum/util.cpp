@@ -560,7 +560,7 @@ void testSetup()
     test_connect(objects_first_input_id[VOICE____]+voice*MAX_INPUTS_PER_OBJ+VSPW+wave,objects_first_output_id[LF_MUX___]+lfm*MAX_OUTPUTS_PER_OBJ+LMUXO);
     // connect adsr to lfm0:0 genAmp input   
     setLfm(lfm,lfmInp0,lfmCoder[lfmInp0][lfm],MAX_CTL_ATT-1);   // genAmp input att coder max value
-    setLfm(lfm,lfmInp1,1,lfmCoderAtt[lfmInp1][lfm]);            // inp1 basic coder minimal value
+    setLfm(lfm,lfmInp1,128,lfmCoderAtt[lfmInp1][lfm]);          // inp1 basic coder : value to have output=inp0
     test_connect(objects_first_input_id[LF_MUX___]+lfm*MAX_INPUTS_PER_OBJ+lfmInp0,objects_first_output_id[ADSR_____]+adsr*MAX_OUTPUTS_PER_OBJ+ADSR_SHAPE);
     // config lfo
     //setLfosFreq(voice2ampLfo,freqV2ALfo);

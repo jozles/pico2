@@ -56,6 +56,9 @@ int32_t  lfmScopeBufReal[MAX_LFM*LFM_SCOPE_BUFFER_LEN];
 uint16_t lfmScopeBufPtr[MAX_LFM];
 bool     lfmScopeDisp[MAX_LFM];
 
+uint32_t    lfmTime=0;
+uint32_t    lfmTimingInterval=1000/LFM_SAMPLE_RATE;
+
 /* *******  extern  ******** */
 
 extern uint32_t millisCounter;
@@ -392,7 +395,7 @@ void __not_in_flash_func(setLfm)(uint8_t lfm,uint8_t inp,uint16_t lcoder,uint16_
         int16_t* iov=&intermediateOutputValues[lfm];
         *iov=*iov-((preLc-*lfmc)<<((sizeof(*lfmc)*8)-MAX_CTL_ATT_SHIFT-1)); // new iov for lcoder chge
         *iov=*iov-(((preAc-*lfma) * *civ)>>MAX_CTL_ATT_SHIFT);              // new iov for acoder chge
-        lfm_update_inputs(id,lfm,*civ,*civ);
+        lfm_update_inputs(id,lfm,*civ,*civ);                                // lfm_update_inputs(int16_t id,uint8_t lfm,int16_t valeur,int16_t prev)
     }
 }
 
@@ -411,12 +414,15 @@ void __not_in_flash_func(setLfm)(uint8_t lfm,uint8_t inp,uint16_t lcoder,uint16_
 
 void __not_in_flash_func(lfmScopeHandler)()
 {
-    for(uint8_t l=0;l<MAX_LFM;l++){
-        uint16_t* lp=&lfmScopeBufPtr[l];
-        lfmScopeBufReal[l*LFM_SCOPE_BUFFER_LEN+*lp]=lfmOutputValues[l];
-        //printf(" %i",lfmOutputValues[l]);
-        *lp++;
-        if(__builtin_expect(*lp>=LFM_SCOPE_BUFFER_LEN,0)){*lp=0;lfmScopeDisp[l]=true;}
+    if((millisCounter-lfmTime)>lfmTimingInterval){
+        lfmTime=millisCounter;
+        for(uint8_t l=0;l<MAX_LFM;l++){
+            uint16_t* lp=&lfmScopeBufPtr[l];
+            lfmScopeBufReal[l*LFM_SCOPE_BUFFER_LEN+*lp]=lfmOutputValues[l];
+            //printf(" %l",lfmOutputValues[l]);
+            *lp++;
+            if(__builtin_expect(*lp>=LFM_SCOPE_BUFFER_LEN,0)){*lp=0;lfmScopeDisp[l]=true;}
+        }
     }
     //printf("\n");
 }

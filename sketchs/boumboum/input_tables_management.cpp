@@ -578,7 +578,7 @@ void __not_in_flash_func(lfm_update_inputs_0)(uint8_t lfm,int16_t valeur)   // i
         ((valeur * lfmCoderAtt[0][lfm]) >> MAX_CTL_ATT_SHIFT);              // new gen control
 
     // ---- appliquer le gain général à la valeur intermédiaire ----
-    int32_t iv = intermediateOutputValues[lfm] * (lfmGenAttValue[lfm] >> 15);
+    int32_t iv = (intermediateOutputValues[lfm] * lfmGenAttValue[lfm]) >> 15;
 
     // ---- saturation haute (+32767) ----
     uint32_t carry_hi = (iv <= 0x7FFF);
@@ -589,7 +589,7 @@ void __not_in_flash_func(lfm_update_inputs_0)(uint8_t lfm,int16_t valeur)   // i
     iv = (iv & -carry_lo) | (-0x8000 & ~(-carry_lo));
 
     lfmOutputValues[lfm] = (int16_t)iv;
-    //printf("lui0 %u %i %u %i %i %i - ",lfm,valeur,lfmCoderAtt[0][lfm],intermediateOutputValues[lfm],lfmGenAttValue[lfm],iv);    
+printf("%i %u %i %i %i\n",valeur,lfmCoderAtt[0][lfm],intermediateOutputValues[lfm],lfmGenAttValue[lfm],iv);    
     update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],iv);
     //uint8_t vnb=2;printf("v:%u :%u :%i\n",vnb,voices[vnb].basicWaveAmpl[WSIN],iv);
 }                                            
@@ -599,7 +599,7 @@ void __not_in_flash_func(lfm_update_inputs)(int16_t id,uint8_t lfm,int16_t valeu
     // ---- compute new iov (no level coder change) ----
     int16_t* iov=&intermediateOutputValues[lfm];
     int32_t iv=*iov;
-    iv-=(((prev-ctl_input_val[id]) * lfmCoderAtt[0][lfm]) >> MAX_CTL_ATT_SHIFT);      // new intermediate value (no chge on level coders)
+    iv-=(((prev-valeur) * lfmCoderAtt[0][lfm]) >> MAX_CTL_ATT_SHIFT);    // new intermediate value (no chge on level coders)
 
     // ---- high ovf (+32767) ----
     uint32_t carry_hi = (iv <= 0x7FFF);
@@ -609,7 +609,7 @@ void __not_in_flash_func(lfm_update_inputs)(int16_t id,uint8_t lfm,int16_t valeu
     uint32_t carry_lo = (iv >= -0x8000);
     iv = (iv & -carry_lo) | (-0x8000 & ~(-carry_lo));
 
-    *iov = (int16_t)iv;                                                               // safe cast (iv [-32768..32767])
+    *iov = (int16_t)iv;                                                  // safe cast (iv [-32768..32767])
 
     // ---- apply gen ----
     iv=*iov*lfmGenAttValue[lfm];
@@ -722,7 +722,7 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
                 case LFM____ :  {
                                 uint8_t  lfm=lfmNb[id];                                 // lfm #
                                 uint8_t  inp=id-lfm_ctl_input_id[lfm][0];               // lfm inp #
-
+printf("l:%u i:%u v:%i ",lfm,inp,valeur);
                                 // inp 0 gen ; 1,2 individual
                                 switch(inp){
                                     case 0:                                             // Entrée 0 : contrôle du gain général                                

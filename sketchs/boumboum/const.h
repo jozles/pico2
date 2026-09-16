@@ -129,6 +129,7 @@ typedef enum {
 #define MAX_LFM 4
 #define MAX_LFM_INPUTS 3        // 0: gen ; 1,2 individual
 #define LFM_SCOPE_BUFFER_LEN TFT_W
+#define LFM_SAMPLE_RATE 250
 
 /* led */
 

@@ -269,7 +269,7 @@ void menus_init(){
     for(uint8_t c=0;c<CODER_NB;c++){menuLfmCoders[c]=0;}        
     for(uint8_t in=0;in<LFM_INPUTS_NB;in++){
         for(uint8_t l=0;l<MAX_LFM;l++){
-            tempLfmCoders[in*2][l]=lfmCoder[in][l]>>(sizeof(lfmCoder[0][0])*8-MAX_CTL_ATT_SHIFT-1);
+            tempLfmCoders[in*2][l]=lfmCoder[in][l];         //>>(sizeof(lfmCoder[0][0])*8-MAX_CTL_ATT_SHIFT-1);
             tempLfmCoders[in*2+1][l]=lfmCoderAtt[in][l];
         }   
         lfmVar[in*2]=tempLfmCoders[in*2];            // inputs data ptr
@@ -647,7 +647,7 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                 break;
 
             case LMUX_____:
-                printf("%c=%u:%u cc:%3u v:%3u la:%3u lc:%3u ",fl[varChge ? 1:0],line,coder-(varChge ? 1:0),cc16,lfmVar[coder-(varChge ? 1:0)][line],lfmCoderAtt[coder-(varChge ? 1:0)][line],lfmCoder[coder-(varChge ? 1:0)][line]); // varChge true uniquement avec coder>0
+                //printf("%c=%u:%u cc:%3u v:%3u la:%3u lc:%3u ",fl[varChge ? 1:0],line,coder-(varChge ? 1:0),cc16,lfmVar[coder-(varChge ? 1:0)][line],lfmCoderAtt[coder-(varChge ? 1:0)][line],lfmCoder[coder-(varChge ? 1:0)][line]); // varChge true uniquement avec coder>0
                 if(varChge){
                 // coder 0 : line ; 1:gen_level ; 2:genAtt ; 3:in1_level ; 4:in1_att ; 5:in2_level ; 6:in2_att ; 
                     switch(coder){
@@ -660,8 +660,9 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                         default:break;
                     }
                 }
-                printf(" lc:%6u iv:%i out:%i\n",lfmCoder[coder-(varChge ? 1:0)][line],intermediateOutputValues[line],lfmOutputValues[line]);                
-                sprintf(buf+2,"%3u %3u %3u %3u %3u %3u",tempLfmCoders[0][line],lfmCoderAtt[0][line],tempLfmCoders[1][line],lfmCoderAtt[1][line],tempLfmCoders[2][line],lfmCoderAtt[2][line]);
+printf("c0:%u a0:%u c1:%u a1:%u c2:%u a2:%u\n",lfmCoder[0][line],lfmCoderAtt[0][line],lfmCoder[1][line],lfmCoderAtt[1][line],lfmCoder[2][line],lfmCoderAtt[2][line]);
+//printf(" lc:%6u iv:%i out:%i\n",lfmCoder[coder-(varChge ? 1:0)][line],intermediateOutputValues[line],lfmOutputValues[line]);                
+                sprintf(buf+2,"%3u %3u %3u %3u %3u %3u",lfmCoder[0][line],lfmCoderAtt[0][line],lfmCoder[1][line],lfmCoderAtt[1][line],lfmCoder[2][line],lfmCoderAtt[2][line]);
                 break;
 
             default:break;
@@ -763,7 +764,7 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
                                                                         // var[coder-1] : current coder object var ptr (ex lfos : var[0] = lfosCodersFreq ; var[1] lfosCoderCr etc )   
 
                         if(var[coder-1][line]!=cc){                     // update coder value & display changes 
-printf("c=%u var:%u cc:%u\n",coder,var[coder-1][line],cc);    // coders 1-n pour var 0-(n-1)                          
+//printf("c=%u var:%u cc:%u\n",coder,var[coder-1][line],cc);    // coders 1-n pour var 0-(n-1)                          
                             var[coder-1][line]=cc;
                             menuLineDsp(text,line,line_len,true,object_type,coder,cc,mode_scope,VAR_CHANGE);  // values updates included 
                             title_dsp(title,line,object_type);
