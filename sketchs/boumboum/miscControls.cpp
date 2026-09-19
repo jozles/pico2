@@ -380,21 +380,35 @@ void lf_mixer_init()
 void __not_in_flash_func(setLfm)(uint8_t lfm,uint8_t inp,uint16_t lcoder,uint16_t acoder)       // update mixer when coders change
 {
     uint16_t* lfmc=&lfmCoder[inp][lfm];
+    uint16_t* lfmc0=&lfmCoder[0][lfm];
+    uint16_t* lfmc1=&lfmCoder[1][lfm];
+    uint16_t* lfmc2=&lfmCoder[2][lfm];    
     uint16_t preLc=*lfmc;
     *lfmc=lcoder;
     uint16_t* lfma=&lfmCoderAtt[inp][lfm];
+    uint16_t* lfma0=&lfmCoderAtt[0][lfm];
+    uint16_t* lfma1=&lfmCoderAtt[1][lfm];
+    uint16_t* lfma2=&lfmCoderAtt[2][lfm];
     uint16_t preAc=*lfma;
     *lfma=acoder;
 
     int16_t id=lfm_ctl_input_id[inp][lfm];
+    int16_t id0=lfm_ctl_input_id[0][lfm];
     int16_t* civ=&ctl_input_val[id];
+    int16_t* civ1=&ctl_input_val[id0+1];
+    int16_t* civ2=&ctl_input_val[id0+2];
+
+//if(lfm==1){printf("l:%u c0:%u a0:%u c1:%u a1:%u c2:%u a2:%u ",lfm,lfmCoder[0][lfm],lfmCoderAtt[0][lfm],lfmCoder[1][lfm],lfmCoderAtt[1][lfm],lfmCoder[2][lfm],lfmCoderAtt[2][lfm]);}
 
     if(inp==0){lfm_update_inputs_0(lfm,*civ);}
     else {
         // compute new iov
         int16_t* iov=&intermediateOutputValues[lfm];
+        
         *iov=*iov-((preLc-*lfmc)<<((sizeof(*lfmc)*8)-MAX_CTL_ATT_SHIFT-1)); // new iov for lcoder chge
         *iov=*iov-(((preAc-*lfma) * *civ)>>MAX_CTL_ATT_SHIFT);              // new iov for acoder chge
+        
+        //*iov=(*lfmc1+*lfmc2)<<((sizeof(*lfmc)*8)-MAX_CTL_ATT_SHIFT-1)+(*civ1)*(*lfma1)+(*civ2)*(*lfma2);
         lfm_update_inputs(id,lfm,*civ,*civ);                                // lfm_update_inputs(int16_t id,uint8_t lfm,int16_t valeur,int16_t prev)
     }
 }

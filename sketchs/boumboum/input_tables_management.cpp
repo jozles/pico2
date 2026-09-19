@@ -589,7 +589,10 @@ void __not_in_flash_func(lfm_update_inputs_0)(uint8_t lfm,int16_t valeur)   // i
     iv = (iv & -carry_lo) | (-0x8000 & ~(-carry_lo));
 
     lfmOutputValues[lfm] = (int16_t)iv;
-printf("%i %u %i %i %i\n",valeur,lfmCoderAtt[0][lfm],intermediateOutputValues[lfm],lfmGenAttValue[lfm],iv);    
+if(lfmGenAttValue[lfm]!=0 && lfm==1){ 
+    printf("l_:%u c0:%u a0:%u c1:%u a1:%u c2:%u a2:%u ",lfm,lfmCoder[0][lfm],lfmCoderAtt[0][lfm],lfmCoder[1][lfm],lfmCoderAtt[1][lfm],lfmCoder[2][lfm],lfmCoderAtt[2][lfm]);
+    printf("%i %i %i %i\n",valeur,intermediateOutputValues[lfm],lfmGenAttValue[lfm],iv);
+}
     update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],iv);
     //uint8_t vnb=2;printf("v:%u :%u :%i\n",vnb,voices[vnb].basicWaveAmpl[WSIN],iv);
 }                                            
@@ -600,7 +603,7 @@ void __not_in_flash_func(lfm_update_inputs)(int16_t id,uint8_t lfm,int16_t valeu
     int16_t* iov=&intermediateOutputValues[lfm];
     int32_t iv=*iov;
     iv-=(((prev-valeur) * lfmCoderAtt[0][lfm]) >> MAX_CTL_ATT_SHIFT);    // new intermediate value (no chge on level coders)
-
+//printf("%u ",iv);
     // ---- high ovf (+32767) ----
     uint32_t carry_hi = (iv <= 0x7FFF);
     iv = (iv & -carry_hi) | (0x7FFF & ~(-carry_hi));
@@ -624,6 +627,10 @@ void __not_in_flash_func(lfm_update_inputs)(int16_t id,uint8_t lfm,int16_t valeu
 
     lfmOutputValues[lfm] = (int16_t)iv;
 
+if(lfmGenAttValue[lfm]!=0 && lfm==1){   
+    printf("l:%u c0:%u a0:%u c1:%u a1:%u c2:%u a2:%u ",lfm,lfmCoder[0][lfm],lfmCoderAtt[0][lfm],lfmCoder[1][lfm],lfmCoderAtt[1][lfm],lfmCoder[2][lfm],lfmCoderAtt[2][lfm]);
+    printf("%i %i %i %i\n",valeur,intermediateOutputValues[lfm],lfmGenAttValue[lfm],iv);
+}
     update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],iv);    // ctl_output_id_chain[adsr_ctl_output_id[a][ADSR_SHAPE]];    
 }
 
@@ -722,7 +729,7 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
                 case LFM____ :  {
                                 uint8_t  lfm=lfmNb[id];                                 // lfm #
                                 uint8_t  inp=id-lfm_ctl_input_id[lfm][0];               // lfm inp #
-printf("l:%u i:%u v:%i ",lfm,inp,valeur);
+//printf("l:%u i:%u v:%i ",lfm,inp,valeur);
                                 // inp 0 gen ; 1,2 individual
                                 switch(inp){
                                     case 0:                                             // Entrée 0 : contrôle du gain général                                

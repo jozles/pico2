@@ -277,13 +277,13 @@ void menus_init(){
         menuLfmCoders[in+1]=tempLfmCoders[in][0];    // préchargt inputs data values mux 0
     }                         
 
-    printf("\nlf_mux c0 ca0  c1 ca1  c2 ca2\n");
-    for(uint8_t i=0;i<LFM_INPUTS_NB;i++){
+    printf("\nlf_mux c0 ca0  c1 ca1  c2 ca2 iov\n");
+    for(uint8_t i=0;i<MAX_LFM;i++){
         printf("m%i:  ",i);
         for(uint8_t j=0;j<LFM_INPUTS_NB*2;j++){
             printf(" %3i",lfmVar[j][i]);
         }
-        printf("\n");
+        printf(" %5i\n",intermediateOutputValues[i]);
     }printf("\n");
     
     mappingCoders[0]=0; // ligne 0 
@@ -660,7 +660,7 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                         default:break;
                     }
                 }
-printf("c0:%u a0:%u c1:%u a1:%u c2:%u a2:%u\n",lfmCoder[0][line],lfmCoderAtt[0][line],lfmCoder[1][line],lfmCoderAtt[1][line],lfmCoder[2][line],lfmCoderAtt[2][line]);
+//printf("c0:%u a0:%u c1:%u a1:%u c2:%u a2:%u out:%i\n",lfmCoder[0][line],lfmCoderAtt[0][line],lfmCoder[1][line],lfmCoderAtt[1][line],lfmCoder[2][line],lfmCoderAtt[2][line],lfmOutputValues[line]);
 //printf(" lc:%6u iv:%i out:%i\n",lfmCoder[coder-(varChge ? 1:0)][line],intermediateOutputValues[line],lfmOutputValues[line]);                
                 sprintf(buf+2,"%3u %3u %3u %3u %3u %3u",lfmCoder[0][line],lfmCoderAtt[0][line],lfmCoder[1][line],lfmCoderAtt[1][line],lfmCoder[2][line],lfmCoderAtt[2][line]);
                 break;
