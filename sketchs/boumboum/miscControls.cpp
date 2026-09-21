@@ -42,13 +42,13 @@ int16_t  tbut_ctl_output_id[MAX_TBUT][MAX_OUTPUTS_PER_OBJ];
 
 /* *******  lf_mixers  ******** */
 
-uint16_t lfmCoder[MAX_LFM_INPUTS][MAX_LFM];                 // 8 bits basic coder value before 16 bits extension
-uint16_t lfmCoderAtt[MAX_LFM_INPUTS][MAX_LFM];              // 8 bits input attenuator value
+uint16_t lfmCoder[MAX_INPUTS_PER_OBJ][MAX_LFM];                 // 8 bits basic coder value before 16 bits extension
+uint16_t lfmCoderAtt[MAX_INPUTS_PER_OBJ][MAX_LFM];              // 8 bits input attenuator value
 int16_t  intermediateOutputValues[MAX_LFM];                 // outputValue before genAtt Attenuation
 int32_t  lfmGenAttValue[MAX_LFM];                           // outputValue Attenuation
 int16_t  lfmOutputValues[MAX_LFM];
-uint8_t  lfmInputType[MAX_LFM_INPUTS][MAX_LFM];
-int16_t  lfm_ctl_input_id[MAX_LFM_INPUTS][MAX_LFM];
+uint8_t  lfmInputType[MAX_INPUTS_PER_OBJ][MAX_LFM];
+int16_t  lfm_ctl_input_id[MAX_INPUTS_PER_OBJ][MAX_LFM];
 int16_t  lfm_ctl_output_id[MAX_LFM];
 uint8_t  lfmNb[MAX_INPUTS];                 // les n° de lfm par input id
 uint8_t  lfmCh[]={'_','\\','/'};
@@ -58,6 +58,8 @@ bool     lfmScopeDisp[MAX_LFM];
 
 uint32_t    lfmTime=0;
 uint32_t    lfmTimingInterval=1000/LFM_SAMPLE_RATE;
+
+extern uint16_t* lfmVar[];
 
 /* *******  extern  ******** */
 
@@ -380,23 +382,15 @@ void lf_mixer_init()
 void __not_in_flash_func(setLfm)(uint8_t lfm,uint8_t inp,uint16_t lcoder,uint16_t acoder)       // update mixer when coders change
 {
     uint16_t* lfmc=&lfmCoder[inp][lfm];
-    uint16_t* lfmc0=&lfmCoder[0][lfm];
-    uint16_t* lfmc1=&lfmCoder[1][lfm];
-    uint16_t* lfmc2=&lfmCoder[2][lfm];    
     uint16_t preLc=*lfmc;
     *lfmc=lcoder;
     uint16_t* lfma=&lfmCoderAtt[inp][lfm];
-    uint16_t* lfma0=&lfmCoderAtt[0][lfm];
-    uint16_t* lfma1=&lfmCoderAtt[1][lfm];
-    uint16_t* lfma2=&lfmCoderAtt[2][lfm];
     uint16_t preAc=*lfma;
     *lfma=acoder;
 
     int16_t id=lfm_ctl_input_id[inp][lfm];
-    int16_t id0=lfm_ctl_input_id[0][lfm];
     int16_t* civ=&ctl_input_val[id];
-    int16_t* civ1=&ctl_input_val[id0+1];
-    int16_t* civ2=&ctl_input_val[id0+2];
+
 
 //if(lfm==1){printf("l:%u c0:%u a0:%u c1:%u a1:%u c2:%u a2:%u ",lfm,lfmCoder[0][lfm],lfmCoderAtt[0][lfm],lfmCoder[1][lfm],lfmCoderAtt[1][lfm],lfmCoder[2][lfm],lfmCoderAtt[2][lfm]);}
 
@@ -405,9 +399,51 @@ void __not_in_flash_func(setLfm)(uint8_t lfm,uint8_t inp,uint16_t lcoder,uint16_
         // compute new iov
         int16_t* iov=&intermediateOutputValues[lfm];
         
-        *iov=*iov-((preLc-*lfmc)<<((sizeof(*lfmc)*8)-MAX_CTL_ATT_SHIFT-1)); // new iov for lcoder chge
-        *iov=*iov-(((preAc-*lfma) * *civ)>>MAX_CTL_ATT_SHIFT);              // new iov for acoder chge
-        
+        //*iov=*iov-((preLc-*lfmc)<<((sizeof(*lfmc)*8)-MAX_CTL_ATT_SHIFT-1)); // new iov for lcoder chge
+        //*iov=*iov-(((preAc-*lfma) * *civ)>>MAX_CTL_ATT_SHIFT);              // new iov for acoder chge
+
+        // --- v0 ---
+        int32_t c1 = lfmCoder[1][lfm];
+        int32_t c2 = lfmCoder[2][lfm];
+        int32_t c3 = lfmCoder[3][lfm];
+
+        int32_t v0 = (c1 + c2 + c3) << ((sizeof(*lfmc)*8) - MAX_CTL_ATT_SHIFT - 1);
+
+        // --- id1 ---
+        int16_t id1 = lfm_ctl_input_id[1][lfm];
+
+        // --- v1 ---
+        int32_t t1 = ctl_input_val[id1];
+        int32_t t2 = ctl_input_val[id1 + 1];
+        int32_t t3 = ctl_input_val[id1 + 2];
+
+        int32_t a1 = lfmCoderAtt[1][lfm];
+        int32_t a2 = lfmCoderAtt[2][lfm];
+        int32_t a3 = lfmCoderAtt[3][lfm];
+
+        // produits en 32 bits
+        int64_t p1 = (int64_t)t1 * (int64_t)a1;
+        int64_t p2 = (int64_t)t2 * (int64_t)a2;
+        int64_t p3 = (int64_t)t3 * (int64_t)a3;
+
+        // somme en 64 bits
+        int64_t s64 = p1 + p2 + p3;
+
+        // saturation 64 -> 32 bits
+        if (s64 > INT32_MAX) s64 = INT32_MAX;
+        if (s64 < INT32_MIN) s64 = INT32_MIN;
+
+        int32_t v1 = (int32_t)s64;
+        v1 >>= MAX_CTL_ATT_SHIFT;
+
+        // --- somme finale v0 + v1 avec saturation 16 bits ---
+        int64_t sum = (int64_t)v0 + (int64_t)v1;
+
+        if (sum > INT16_MAX) sum = INT16_MAX;
+        if (sum < INT16_MIN) sum = INT16_MIN;
+
+        *iov=(int16_t)sum;
+
         //*iov=(*lfmc1+*lfmc2)<<((sizeof(*lfmc)*8)-MAX_CTL_ATT_SHIFT-1)+(*civ1)*(*lfma1)+(*civ2)*(*lfma2);
         lfm_update_inputs(id,lfm,*civ,*civ);                                // lfm_update_inputs(int16_t id,uint8_t lfm,int16_t valeur,int16_t prev)
     }
@@ -440,3 +476,29 @@ void __not_in_flash_func(lfmScopeHandler)()
     }
     //printf("\n");
 }
+
+void disp_lfm(uint8_t lfm,char* t)
+{
+    if(t!=nullptr){printf("%s",t);}
+    uint8_t maxLfm=lfm;
+    uint8_t minLfm=lfm;
+    if(lfm>MAX_LFM){
+        maxLfm=MAX_LFM-1;
+        minLfm=0;
+    } 
+
+    printf("\nlf_mux c0      ca0       c1      ca1       c2      ca2      iov\n");
+    for(uint8_t i=minLfm;i<=maxLfm;i++){
+        printf("m%i:  ",i);
+        for(uint8_t j=0;j<LFM_INPUTS_NB*2;j++){
+            printf(" %5i(%5i)",lfmVar[j][i],lfm_ctl_input_id[j][i]);
+        }
+        printf(" %5i\n",intermediateOutputValues[i]);
+    }
+    if(lfm>MAX_LFM){printf("\n");}
+}
+
+void disp_lfm(uint8_t lfm){
+    disp_lfm(lfm,nullptr);
+}
+

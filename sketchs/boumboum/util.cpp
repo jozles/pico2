@@ -72,8 +72,9 @@ extern uint16_t adsrCoderSus[MAX_ADSR];
 extern uint16_t adsrCoderRel[MAX_ADSR];
 extern uint16_t adsrCoderLev[MAX_ADSR];
 
-extern uint16_t lfmCoder[MAX_LFM_INPUTS][MAX_LFM];
-extern uint16_t lfmCoderAtt[MAX_LFM_INPUTS][MAX_LFM];
+extern uint16_t lfmCoder[MAX_INPUTS_PER_OBJ][MAX_LFM];
+extern uint16_t lfmCoderAtt[MAX_INPUTS_PER_OBJ][MAX_LFM];
+extern int16_t  lfm_ctl_input_id[MAX_INPUTS_PER_OBJ][MAX_LFM];
 
 extern int16_t  ctl_input_srce[MAX_INPUTS];
 extern char     ctl_input_name[MAX_INPUTS][IN_OUT_NAME_LEN]; 
@@ -408,8 +409,6 @@ void setup(){
     tft_fill_rect_blank(0,0,TFT_H,TFT_W);
 
     printf("end setup \n\n");
-
-//print_diag();
 }
 
 void obj_connect(int16_t inp,int16_t out)
@@ -568,18 +567,20 @@ void testSetup()
     setLfm(lfm,lfmInp0,lfmCoder[lfmInp0][lfm],MAX_CTL_ATT-1);               // genAmp att maxi    
     obj_connect(objects_first_input_id[LF_MUX___]+lfm*MAX_INPUTS_PER_OBJ+lfmInp0,objects_first_output_id[ADSR_____]+adsr*MAX_OUTPUTS_PER_OBJ+ADSR_SHAPE); 
     //setLfm(lfm,lfmInp1,lfmCoder[lfmInp1][lfm],MAX_CTL_ATT-1);               // in1 att maxi 
-    setLfm(lfm,lfmInp1,MAX_CTL_ATT-1,MAX_CTL_ATT-1);               // in1 att maxi 
-    /*// config lfo
+    //setLfm(lfm,lfmInp1,MAX_CTL_ATT-1,MAX_CTL_ATT-1);                        // in1 att maxi 
+    setLfm(lfm,lfmInp1,(MAX_CTL_ATT-1)>>3,(MAX_CTL_ATT-1)>>3);              // basic lev 1/8 ; att 1/4
+    // config lfo
     setLfosFreq(voice2ampLfo,freqV2ALfo);
-    // connect lfo to lfm1:1
-    obj_connect(objects_first_input_id[LF_MUX___]+lfm1*MAX_INPUTS_PER_OBJ+lfm1Inp1,objects_first_output_id[LFO______]+voice2ampLfo*MAX_OUTPUTS_PER_OBJ+LSIN);
-    setLfm(lfm1,lfm1Inp0,(MAX_CTL_ATT-1)>>1,(MAX_CTL_ATT-1)>>1);            // genAmp maxi/2
-    setLfm(lfm1,lfm1Inp1,128,(MAX_CTL_ATT-1)>>1);                           // in1 shift lfo ; att maxi/2
+    // connect lfo to lfm0:1
+    obj_connect(objects_first_input_id[LF_MUX___]+lfm*MAX_INPUTS_PER_OBJ+lfmInp1,objects_first_output_id[LFO______]+voice2ampLfo*MAX_OUTPUTS_PER_OBJ+LSIN);
+    //setLfm(lfm1,lfm1Inp0,(MAX_CTL_ATT-1)>>1,(MAX_CTL_ATT-1)>>1);            // genAmp maxi/2
+    //setLfm(lfm1,lfm1Inp1,128,(MAX_CTL_ATT-1)>>1);                           // in1 shift lfo ; att maxi/2
     // connect lfm1 to lfm0:1
-    obj_connect(objects_first_input_id[LF_MUX___]+lfm*MAX_INPUTS_PER_OBJ+lfmInp1,objects_first_output_id[LF_MUX___]+lfm1*MAX_OUTPUTS_PER_OBJ+LMUXO);
+    //obj_connect(objects_first_input_id[LF_MUX___]+lfm*MAX_INPUTS_PER_OBJ+lfmInp1,objects_first_output_id[LF_MUX___]+lfm1*MAX_OUTPUTS_PER_OBJ+LMUXO);
     //*/
 
 //pwm_timer_1khz_enable(false);while(1){}
+//disp_lfm(255,"testSetup");
 }
 
 // ******** diags/debug ********

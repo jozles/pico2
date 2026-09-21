@@ -141,8 +141,9 @@ extern uint8_t   lfmNb[MAX_INPUTS];
 
 /* ************ control inputs and outputs ************* */
 
-// each control input of each object has an unique id wich gives access to its parameters (value, source, norm, name etc)
-// each object type has an [object_type]_ctl_input_id table with [object_type#][input#] elements 
+// every (MAX_INPUTS_PER_OBJ) control input of every object (including unuseful inputs)
+//    have an unique id wich gives access to its parameters (value, source, norm, name etc)
+// every object type has an [object_type]_ctl_input_id table with [object_type#][input#] elements 
 // (the ids table for the inputs of every objects of this type)
 // objects inputs are described in files [object_type]_input_names.def (ex: lfos_inputs_names.def)
 // ex: lfo#3 input#1 has the id : lfo_ctl_input_id[3][1] wich is the index in the tables ctl_input_xxx[]
@@ -164,8 +165,8 @@ int16_t ctl_input_id_chain[MAX_INPUTS];                  // next id(input) with 
 
 uint8_t norm_dividers[]={0,16-5,16-6,16-3};              // to add ; not used for now
 
-// each control output of each object has an unique id wich gives access to the name and input link chain of the output
-// each object type has an [object]_ctl_output_id table with [object_type#][output#] elements
+// every control output of every object has an unique id wich gives access to the name and input link chain of the output
+// every object type has an [object]_ctl_output_id table with [object_type#][output#] elements
 // (ids table for the outputs of every objects of this type)
 // objects outputs are described in files [object_type]_output_names.def (ex: lfos_outputs_names.def)
 // ex: lfo#2 output#3 has the id : lfo_ctl_output_id[2][3] wich is the index in the tables ctl_output_xxx[] 
@@ -179,11 +180,10 @@ uint8_t norm_dividers[]={0,16-5,16-6,16-3};              // to add ; not used fo
 // chaque objet a une liste de ses entrées (0-n) avec un mnémo associé pour l'utilitaire de cablage [objet]_inputs_names.def
 // pareil pour ses sorties [objet]_outputs_names.def
 // une autre liste concerne les procédures de mise à jour des valeurs des entrées
-//
 
-//int16_t*  ctl_output_val[MAX_OUTPUTS];                    // all objects ptrs to outputs values
-char      ctl_output_name[MAX_OUTPUTS][IN_OUT_NAME_LEN];    // all objects outputs names
-int16_t   ctl_output_id_chain[MAX_OUTPUTS];    // all objects outputs chain to input (first link)
+//int16_t*  ctl_output_val[MAX_OUTPUTS];        // see xxxOutputValues  // all objects ptrs to outputs values
+char      ctl_output_name[MAX_OUTPUTS][IN_OUT_NAME_LEN];                // all objects outputs names
+int16_t   ctl_output_id_chain[MAX_OUTPUTS];     // all objects outputs chain to input (first link)
 
 // ***** noms des entrées/sorties des objets *****
 
@@ -444,7 +444,8 @@ bool init_objects_inputs(void)
     {
         for(uint8_t ins=0;ins<MAX_INPUTS_PER_OBJ;ins++)
         {
-            lfm_ctl_input_id[lfm][ins]=curr_input;
+            lfm_ctl_input_id[ins][lfm]=curr_input;
+//printf("l:%u i:%u ctid:%i\n",lfm,ins,lfm_ctl_input_id[ins][lfm]);           
             ctl_input_id_chain[curr_input]=NO_LINK;
             ctl_input_object[curr_input]=lfm;
             ctl_input_update_type[curr_input]=LFM____;
@@ -589,20 +590,22 @@ void __not_in_flash_func(lfm_update_inputs_0)(uint8_t lfm,int16_t valeur)   // i
     iv = (iv & -carry_lo) | (-0x8000 & ~(-carry_lo));
 
     lfmOutputValues[lfm] = (int16_t)iv;
-if(lfmGenAttValue[lfm]!=0 && lfm==1){ 
-    printf("l_:%u c0:%u a0:%u c1:%u a1:%u c2:%u a2:%u ",lfm,lfmCoder[0][lfm],lfmCoderAtt[0][lfm],lfmCoder[1][lfm],lfmCoderAtt[1][lfm],lfmCoder[2][lfm],lfmCoderAtt[2][lfm]);
-    printf("%i %i %i %i\n",valeur,intermediateOutputValues[lfm],lfmGenAttValue[lfm],iv);
-}
+/*if(lfmGenAttValue[lfm]!=0 && lfm==0){ 
+    printf("l_:%u c0:%3u a0:%3u c1:%3u a1:%3u c2:%3u a2:%3u ",lfm,lfmCoder[0][lfm],lfmCoderAtt[0][lfm],lfmCoder[1][lfm],lfmCoderAtt[1][lfm],lfmCoder[2][lfm],lfmCoderAtt[2][lfm]);
+    printf("v:%i iov:%i ga:%i ov:%i\n",valeur,intermediateOutputValues[lfm],lfmGenAttValue[lfm],iv);
+}*/
     update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],iv);
     //uint8_t vnb=2;printf("v:%u :%u :%i\n",vnb,voices[vnb].basicWaveAmpl[WSIN],iv);
 }                                            
 
 void __not_in_flash_func(lfm_update_inputs)(int16_t id,uint8_t lfm,int16_t valeur,int16_t prev)
 {
+    // ---- inp n° ----
+    int16_t inp=id-lfm_ctl_input_id[0][lfm];
     // ---- compute new iov (no level coder change) ----
     int16_t* iov=&intermediateOutputValues[lfm];
     int32_t iv=*iov;
-    iv-=(((prev-valeur) * lfmCoderAtt[0][lfm]) >> MAX_CTL_ATT_SHIFT);    // new intermediate value (no chge on level coders)
+    iv-=(((prev-valeur) * lfmCoderAtt[inp][lfm]) >> MAX_CTL_ATT_SHIFT); // new intermediate value (no chge on level coders)
 //printf("%u ",iv);
     // ---- high ovf (+32767) ----
     uint32_t carry_hi = (iv <= 0x7FFF);
@@ -612,7 +615,7 @@ void __not_in_flash_func(lfm_update_inputs)(int16_t id,uint8_t lfm,int16_t valeu
     uint32_t carry_lo = (iv >= -0x8000);
     iv = (iv & -carry_lo) | (-0x8000 & ~(-carry_lo));
 
-    *iov = (int16_t)iv;                                                  // safe cast (iv [-32768..32767])
+    *iov = (int16_t)iv;                                                 // safe cast (iv [-32768..32767])
 
     // ---- apply gen ----
     iv=*iov*lfmGenAttValue[lfm];
@@ -627,10 +630,10 @@ void __not_in_flash_func(lfm_update_inputs)(int16_t id,uint8_t lfm,int16_t valeu
 
     lfmOutputValues[lfm] = (int16_t)iv;
 
-if(lfmGenAttValue[lfm]!=0 && lfm==1){   
+/*if(lfmGenAttValue[lfm]!=0 && lfm==0){   
     printf("l:%u c0:%u a0:%u c1:%u a1:%u c2:%u a2:%u ",lfm,lfmCoder[0][lfm],lfmCoderAtt[0][lfm],lfmCoder[1][lfm],lfmCoderAtt[1][lfm],lfmCoder[2][lfm],lfmCoderAtt[2][lfm]);
     printf("%i %i %i %i\n",valeur,intermediateOutputValues[lfm],lfmGenAttValue[lfm],iv);
-}
+}*/
     update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],iv);    // ctl_output_id_chain[adsr_ctl_output_id[a][ADSR_SHAPE]];    
 }
 
@@ -728,8 +731,8 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
                                 break;
                 case LFM____ :  {
                                 uint8_t  lfm=lfmNb[id];                                 // lfm #
-                                uint8_t  inp=id-lfm_ctl_input_id[lfm][0];               // lfm inp #
-//printf("l:%u i:%u v:%i ",lfm,inp,valeur);
+                                int16_t  inp=id-lfm_ctl_input_id[0][lfm];               // lfm inp #
+//printf("l:%u id:%i fo:%i li:%i i:%i v:%i \n",lfm,id,objects_first_input_id[LF_MUX___],lfm_ctl_input_id[0][lfm],inp,valeur);
                                 // inp 0 gen ; 1,2 individual
                                 switch(inp){
                                     case 0:                                             // Entrée 0 : contrôle du gain général                                

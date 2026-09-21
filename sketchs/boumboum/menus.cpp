@@ -85,15 +85,15 @@ extern int32_t  adsrScopeBufReal[MAX_ADSR*ADSR_SCOPE_BUFFER_LEN];
 extern bool     adsrScopeDisp[];
 extern int16_t  adsr_ctl_input_id[MAX_ADSR];
 
-extern uint16_t lfmCoder[MAX_LFM_INPUTS][MAX_LFM];
-extern uint16_t lfmCoderAtt[MAX_LFM_INPUTS][MAX_LFM];
-extern uint8_t  lfmInputType[MAX_LFM_INPUTS][MAX_LFM];
+extern uint16_t lfmCoder[MAX_INPUTS_PER_OBJ][MAX_LFM];
+extern uint16_t lfmCoderAtt[MAX_INPUTS_PER_OBJ][MAX_LFM];
+extern uint8_t  lfmInputType[MAX_INPUTS_PER_OBJ][MAX_LFM];
 extern uint8_t  lfmCh[];
 extern int16_t  lfmOutputValues[MAX_LFM];
 extern int16_t  intermediateOutputValues[MAX_LFM];
 extern volatile int16_t menuLfmCoders[];
 extern uint16_t* lfmVar[];                          // ptr sur les valeur du coder de l'input pour chaque mux
-uint16_t tempLfmCoders[MAX_LFM_INPUTS*2][MAX_LFM];    // lfmVar ne peut vas être utilisé pour modifier directement lfmCoder qui est "ré-encodé" dans setLfm
+uint16_t tempLfmCoders[CODER_NB][MAX_LFM];    // lfmVar ne peut vas être utilisé pour modifier directement lfmCoder qui est "ré-encodé" dans setLfm
 extern int32_t  lfmScopeBufReal[MAX_LFM*LFM_SCOPE_BUFFER_LEN];
 extern bool     lfmScopeDisp[];
 
@@ -265,9 +265,9 @@ void menus_init(){
     menuAdsrCoders[ADSRSUS]=adsrCoderSus[0];
     menuAdsrCoders[ADSRREL]=adsrCoderRel[0];
     menuAdsrCoders[ADSRLEV]=adsrCoderLev[0];
-        // ***  Lfm  ****
+        // ***  Lfm  ****     
     for(uint8_t c=0;c<CODER_NB;c++){menuLfmCoders[c]=0;}        
-    for(uint8_t in=0;in<LFM_INPUTS_NB;in++){
+    for(uint8_t in=0;in<(CODER_NB/2);in++){
         for(uint8_t l=0;l<MAX_LFM;l++){
             tempLfmCoders[in*2][l]=lfmCoder[in][l];         //>>(sizeof(lfmCoder[0][0])*8-MAX_CTL_ATT_SHIFT-1);
             tempLfmCoders[in*2+1][l]=lfmCoderAtt[in][l];
@@ -277,14 +277,7 @@ void menus_init(){
         menuLfmCoders[in+1]=tempLfmCoders[in][0];    // préchargt inputs data values mux 0
     }                         
 
-    printf("\nlf_mux c0 ca0  c1 ca1  c2 ca2 iov\n");
-    for(uint8_t i=0;i<MAX_LFM;i++){
-        printf("m%i:  ",i);
-        for(uint8_t j=0;j<LFM_INPUTS_NB*2;j++){
-            printf(" %3i",lfmVar[j][i]);
-        }
-        printf(" %5i\n",intermediateOutputValues[i]);
-    }printf("\n");
+    disp_lfm(255,(char*)"menu_Init");
     
     mappingCoders[0]=0; // ligne 0 
 }
@@ -660,6 +653,7 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                         default:break;
                     }
                 }
+//disp_lfm(line);
 //printf("c0:%u a0:%u c1:%u a1:%u c2:%u a2:%u out:%i\n",lfmCoder[0][line],lfmCoderAtt[0][line],lfmCoder[1][line],lfmCoderAtt[1][line],lfmCoder[2][line],lfmCoderAtt[2][line],lfmOutputValues[line]);
 //printf(" lc:%6u iv:%i out:%i\n",lfmCoder[coder-(varChge ? 1:0)][line],intermediateOutputValues[line],lfmOutputValues[line]);                
                 sprintf(buf+2,"%3u %3u %3u %3u %3u %3u",lfmCoder[0][line],lfmCoderAtt[0][line],lfmCoder[1][line],lfmCoderAtt[1][line],lfmCoder[2][line],lfmCoderAtt[2][line]);

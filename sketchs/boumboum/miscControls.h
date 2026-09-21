@@ -17,6 +17,8 @@ void lf_mixer_init();
 void setLfm(uint8_t lfm,uint8_t inp,uint16_t lcoder,uint16_t acoder);
 //void setLfmAtt(uint8_t lfm,uint8_t inp,uint16_t val);
 void lfmScopeHandler();
+void disp_lfm(uint8_t lfm);
+void disp_lfm(uint8_t lfm,char* t);
 
 enum AdsrStates {
     ADSR_OFF,
