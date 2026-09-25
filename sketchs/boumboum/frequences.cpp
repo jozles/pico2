@@ -39,8 +39,8 @@ uint32_t    lfosStepFraD[MAX_LFO];                    // partie fractionnaire du
 uint16_t    currLfoEch[MAX_LFO];
 uint32_t    currLfoEchFra[MAX_LFO];
 int16_t     lfosOutputsValues[MAX_LFO][MAX_OUTPUTS_PER_OBJ];  // inutilisé ??
-uint32_t    lfoTime=0;
-uint32_t    lfoTimingInterval=1000/LFOS_SAMPLE_RATE;
+uint32_t    lfoTime=1;                                // synchrone avec le handler adsr 
+uint32_t    lfoTimingInterval=1000/LFOS_SAMPLE_RATE;  
 int32_t     lfoScopeBuffer[MAX_LFO*OSC_SCOPE_BUFFER_LEN];   // n° echantillons+rc_table 
 int32_t     lfoScopeBufReal[MAX_LFO*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB];  // real values
 uint16_t    lfoScopeBufPtr=0;
@@ -376,7 +376,7 @@ void __not_in_flash_func(lfosHandler)()
         ce &= RC_TABLES_LEN-1;
 
         uint32_t ce_idx = ce;
-        if (rc > 32){ce_idx = (RC_TABLES_LEN - 1) - ce_idx;}
+        if (rc > (RC_N_TABLES-1)){ce_idx = (RC_TABLES_LEN - 1) - ce_idx;}
         
         const int16_t *w = &rc_tables[rcTableNb][0][0]+RC_N_WAVES*ce_idx;    // rc_table values ptr 
         
@@ -384,12 +384,12 @@ void __not_in_flash_func(lfosHandler)()
         uint16_t out_id;
         out_id=ctl_output_id_chain[lfo_ctl_output_id[l][LSIN]];
         lfosOutputsValues[l][LSIN]=c0;
-        if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,c0);}  //update_inputs(src,out_id,c0);}
+        if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,c0);}
 
         int16_t c1=sign*w[LTRI];
         out_id=ctl_output_id_chain[lfo_ctl_output_id[l][LTRI]];
         lfosOutputsValues[l][LTRI]=c1;
-        if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,c1);}  //update_inputs(src,out_id,c1);}
+        if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,c1);}
 
         int16_t tri=base32[RC_N_WAVES*ce+LTRI];
         int32_t c2;
@@ -399,12 +399,12 @@ void __not_in_flash_func(lfosHandler)()
         if(rc>=32){c2=-c2;}
         out_id=ctl_output_id_chain[lfo_ctl_output_id[l][LSAW]];
         lfosOutputsValues[l][LSAW]=c2;
-        if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,c2);}  //update_inputs(src,out_id,c2);}
+        if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,c2);}
 
         int16_t c3=(currLfoEch[l] & (BASIC_WAVE_TABLE_LEN>>1)) ? -0x7fff : 0x7fff;
         out_id=ctl_output_id_chain[lfo_ctl_output_id[l][LSQR]];
         lfosOutputsValues[l][LSQR]=c3;
-        if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,c3);}  //update_inputs(src,out_id,c3);}
+        if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,c3);}
         
         uint32_t bufScopeOffset=l*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB + lfoScopeBufPtr*BASIC_WAVES_NB;
         lfoScopeBufReal[bufScopeOffset+LSIN]=c0;

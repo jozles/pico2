@@ -63,7 +63,7 @@ extern uint8_t   lfmNb[MAX_INPUTS];
 // il y a 2 types d'entrées : 
 //      les signaux de controle
 //      les signaux audio 
-// chaque entrée de signal a un codeur de valeur manuelle + 1 coder d'atténuation pour la valeur "externe" 
+// chaque entrée a un codeur de valeur manuelle + 1 coder d'atténuation pour la valeur "externe" 
 // certains paramètres d'objets n'ont pas d'entrée externe donc juste un coder (durées des adsr)
 // un paramètre interne de "normalisation" associé à chaque entrée sert à leur mise à l'échelle (inutilisé?)
 // le nombre maxi d'entrées est fixe pour tous les objets et en général excédentaire
@@ -73,11 +73,12 @@ extern uint8_t   lfmNb[MAX_INPUTS];
 // Dynamique :
 //      Lorsque quelque chose change, l'effet doit être reporté sur tout ce qui est concerné
 //      Le changement d'un coder de base peut ne concerner que la caractéristique concernée (level des adsr), ou nécessiter un recalcul de l'entrée (freq de voice), ou nécessiter un recalcul global de la sortie (lfm)
-//      Le changement d'un coder d'atténuation ou d'une valeur d'entrée nécessitera au moins un recalcul de l'entrée et global selon l'objet
+//      Le changement d'un coder (base ou atténuation) ou d'une valeur d'entrée nécessite au moins le recalcul de l'entrée, 
+//          et si c'est un objet de controle, la mise à jour de la sortie et de toutes les entrées chainées
 //
 // la mise à jour d'une entrée d'un objet se fait avec la fonction set/objet/paramètre (ex setAdsrDur, setLFoFreq, setLfm)
 // avec des arguments selon le type d'objet (ex le n° d'objet, l'entrée concernée et la valeur de l'entrée - setAdsrDur(adsr,ADSR_ATT,dur) )
-// la mise à jour des entrées chainées sur une sortie se fait avec la fonction update_inputs/id/valeur qui remonte la chaine
+// la mise à jour des entrées chainées sur une sortie se fait avec la fonction update_inputs(id,valeur) qui remonte la chaine des id
 // 
 // Cas des fréquences et durées
 //      En principe le coder et l'entrée sont linéaires et la conversion de la somme est à la fin de la fonction setxxxxyyyy 
@@ -87,8 +88,8 @@ extern uint8_t   lfmNb[MAX_INPUTS];
 //      Il s'agit de sons qui sont à ajouter : les 2 niveaux (coder de base et entrée atténuée/normalisée) sont convertis puis la somme est effectuée
 //      cette somme est l'indice d'une table de dé-linéarisation (amplLevel[])
 // Cas banalisé (devrait devenir la norme) (ex lfm) : les coders sont des valeurs 8 bits ; 
-//      le coder de base, est stocké dans les params de l'objet en valeur 8 bits ; lors de son utilisation il est shifté en int16
-//      le coder d'atténuation est stocké dans les params de l'objet en valeur 8 bits;
+//      le 'base coder' est stocké dans les params de l'objet en valeur 8 bits ; lors de son utilisation il est shifté en int16
+//      le 'att coder' est stocké dans les params de l'objet en valeur 8 bits; il multiplie la valeur entrée et le résultat est >>8 (atténuateur)
 //      la valeur entrée provient d'une sortie d'objet en int16_t 
 //      la mise à jour des coders se fait via la fonction set qui recalcule éventuellemnt la sortie via update_inputs 
 // la fonction set est utilisée 3 fois : dans les inits, dans le menu de saisie des coders (menuLineDsp) et dans la mise à jour des entrées (update_inputs)
@@ -101,7 +102,7 @@ extern uint8_t   lfmNb[MAX_INPUTS];
 //          les contrôles sont des sorties en 16 bits signés (lfos, adsr, mux, switchs etc)
 //          ils sont recadrés selon le type de l'entrée à laquelle ils sont appliqués (par ex, une fréquence est sur 13 bits, un rc sur 5 bits, une durée sur 7 bits, les binaires (touchb) 0/1)
 //          comme déjà dit, coders et sorties atténuées sont "ajoutés" selon le type d'entrée
-//          le nombre de sorties possibles est fixe pour tous les objets et excédentaire
+//          le nombre maxi de sorties possibles est fixe pour tous les objets et excédentaire
 // 
 // les variables décrivant les objets sont réparties entre
 //      les objets (jeu de tables indicées sur le numéro d'objet)
@@ -484,19 +485,20 @@ void objects_table_init()
     if(!init_objects_outputs()){system_error("init_objects_outputs");}
 }
 
-void __not_in_flash_func(connect_input)(uint16_t input_id, uint16_t output)     // add input_id at end of output_id_chain * setup ctl_input_srce[input_id] to output_id
+void __not_in_flash_func(connect_input)(uint16_t input_id, uint16_t output_id)     // add input_id at end of output_id_chain * setup ctl_input_srce[input_id] to output_id
 {
     uint32_t f = spin_lock_blocking(inputs_id__lock);
 
     // link init only (norm/shft/trig/tlev update by menu_mapping)
+    // make sure chain ends here
     ctl_input_id_chain[input_id] = NO_LINK;
 
-    int16_t next_id = ctl_output_id_chain[output];
-    printf("\nctl_output_id_chain[%u]=%i ",output,ctl_output_id_chain[output]);
+    int16_t next_id = ctl_output_id_chain[output_id];
+    printf("\nctl_output_id_chain[%u]=%i ",output_id,ctl_output_id_chain[output_id]);
 
     if(next_id==NO_LINK)
-        {ctl_output_id_chain[output]=input_id;
-        ctl_input_srce[input_id]=output;
+        {ctl_output_id_chain[output_id]=input_id;
+        ctl_input_srce[input_id]=output_id;
         printf("->%u\n",input_id);
         } // end of update
 
@@ -511,22 +513,22 @@ void __not_in_flash_func(connect_input)(uint16_t input_id, uint16_t output)     
                 spin_unlock(inputs_id__lock, f);
                 system_error("input_id overflow c",next_id);}
         }        
-        ctl_input_id_chain[prev]=input_id;
-        ctl_input_srce[input_id]=output;
+        ctl_input_id_chain[prev]=input_id;      // update end of chain
+        ctl_input_srce[input_id]=output_id;     // update output_id of the last input of the chain
         printf(" ciic[%i]->%i \n",prev,ctl_input_id_chain[prev]);
     }        
 
     spin_unlock(inputs_id__lock, f);
 
-    printf("out#:%d in_id:%d out_id_chain:%i inp_id_chain:%i\n",output,input_id,ctl_output_id_chain[output],ctl_input_id_chain[input_id]);
+    printf("out#:%d in_id:%d out_id_chain:%i inp_id_chain:%i\n",output_id,input_id,ctl_output_id_chain[output_id],ctl_input_id_chain[input_id]);
 }
 
-void __not_in_flash_func(disconnect_input)(uint16_t input_id, uint16_t output)
+void __not_in_flash_func(disconnect_input)(uint16_t input_id, uint16_t output_id)
 {
-    if(output==0){return;}
+    if(output_id==0){return;}
 
     uint32_t f = spin_lock_blocking(inputs_id__lock);
-    int16_t first = ctl_output_id_chain[output];            // que faire quand output = 0 ??????????????????????????????????????????????????????????????
+    int16_t first = ctl_output_id_chain[output_id];
 
     // chaîne vide → rien à faire
     if (first == NO_LINK) {
@@ -537,7 +539,7 @@ void __not_in_flash_func(disconnect_input)(uint16_t input_id, uint16_t output)
     }
     // cas 1 : le maillon à retirer est en tête
     if (first == input_id) {
-        ctl_output_id_chain[output] = ctl_input_id_chain[input_id];   // nouveau head = suivant
+        ctl_output_id_chain[output_id] = ctl_input_id_chain[input_id];   // nouveau head = suivant
         ctl_input_id_chain[input_id] = NO_LINK;
         ctl_input_srce[input_id] = NO_LINK;                  
         spin_unlock(inputs_id__lock, f);
@@ -598,15 +600,17 @@ void __not_in_flash_func(lfm_update_inputs_0)(uint8_t lfm,int16_t valeur)   // i
     //uint8_t vnb=2;printf("v:%u :%u :%i\n",vnb,voices[vnb].basicWaveAmpl[WSIN],iv);
 }                                            
 
-void __not_in_flash_func(lfm_update_inputs)(int16_t id,uint8_t lfm,int16_t valeur,int16_t prev)
+void __not_in_flash_func(lfm_update_inputs)(int16_t input_id,uint8_t lfm,int16_t valeur,int16_t prev)
 {
     // ---- inp n° ----
-    int16_t inp=id-lfm_ctl_input_id[0][lfm];
+    int16_t inp=input_id-lfm_ctl_input_id[0][lfm];
     // ---- compute new iov (no level coder change) ----
     int16_t* iov=&intermediateOutputValues[lfm];
     int32_t iv=*iov;
-    iv-=(((prev-valeur) * lfmCoderAtt[inp][lfm]) >> MAX_CTL_ATT_SHIFT); // new intermediate value (no chge on level coders)
-//printf("%u ",iv);
+    int32_t iv0=*iov;
+    int32_t delta=(((prev-valeur) * lfmCoderAtt[inp][lfm]) >> MAX_CTL_ATT_SHIFT);
+    iv-=delta;                                      // new intermediate value (no chge on base coders)
+//
     // ---- high ovf (+32767) ----
     uint32_t carry_hi = (iv <= 0x7FFF);
     iv = (iv & -carry_hi) | (0x7FFF & ~(-carry_hi));
@@ -634,6 +638,7 @@ void __not_in_flash_func(lfm_update_inputs)(int16_t id,uint8_t lfm,int16_t valeu
     printf("l:%u c0:%u a0:%u c1:%u a1:%u c2:%u a2:%u ",lfm,lfmCoder[0][lfm],lfmCoderAtt[0][lfm],lfmCoder[1][lfm],lfmCoderAtt[1][lfm],lfmCoder[2][lfm],lfmCoderAtt[2][lfm]);
     printf("%i %i %i %i\n",valeur,intermediateOutputValues[lfm],lfmGenAttValue[lfm],iv);
 }*/
+if(lfmGenAttValue[lfm]!=0){printf("LFO: iv0=%5ld delta=%-5ld iv=%5ld LFM out=%5d genAtt=%5d\n", iv0, delta, iv,lfmOutputValues[lfm], lfmGenAttValue[lfm]);}
     update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],iv);    // ctl_output_id_chain[adsr_ctl_output_id[a][ADSR_SHAPE]];    
 }
 

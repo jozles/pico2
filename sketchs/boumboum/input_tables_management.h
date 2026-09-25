@@ -5,8 +5,8 @@
 
 bool init_objects_outputs(void);
 bool init_objects_inputs(void);
-void connect_input(uint16_t input_id, uint16_t output);
-void disconnect_input(uint16_t input_id, uint16_t output);
+void connect_input(uint16_t input_id, uint16_t output_id);
+void disconnect_input(uint16_t input_id, uint16_t output_id);
 void update_inputs(int16_t input_id,int16_t valeur);
 void objects_table_init();
 void lfm_update_inputs_0(uint8_t lfm,int16_t valeur);

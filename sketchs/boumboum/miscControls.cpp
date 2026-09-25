@@ -56,7 +56,7 @@ int32_t  lfmScopeBufReal[MAX_LFM*LFM_SCOPE_BUFFER_LEN];
 uint16_t lfmScopeBufPtr[MAX_LFM];
 bool     lfmScopeDisp[MAX_LFM];
 
-uint32_t    lfmTime=0;
+uint32_t    lfmTime=0;                     
 uint32_t    lfmTimingInterval=1000/LFM_SAMPLE_RATE;
 
 extern uint16_t* lfmVar[];
