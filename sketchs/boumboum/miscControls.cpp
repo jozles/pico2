@@ -402,17 +402,17 @@ void __not_in_flash_func(setLfm)(uint8_t lfm,uint8_t inp,uint16_t lcoder,uint16_
         //*iov=*iov-((preLc-*lfmc)<<((sizeof(*lfmc)*8)-MAX_CTL_ATT_SHIFT-1)); // new iov for lcoder chge
         //*iov=*iov-(((preAc-*lfma) * *civ)>>MAX_CTL_ATT_SHIFT);              // new iov for acoder chge
 
-        // --- v0 ---
+        // --- v0 cumul des coders de base ---
         int32_t c1 = lfmCoder[1][lfm];
         int32_t c2 = lfmCoder[2][lfm];
         int32_t c3 = lfmCoder[3][lfm];
 
         int32_t v0 = (c1 + c2 + c3) << ((sizeof(*lfmc)*8) - MAX_CTL_ATT_SHIFT - 1);
 
-        // --- id1 ---
+        // --- id1 1er id des inputs 1-n ---
         int16_t id1 = lfm_ctl_input_id[1][lfm];
 
-        // --- v1 ---
+        // --- inputs vals et att ---
         int32_t t1 = ctl_input_val[id1];
         int32_t t2 = ctl_input_val[id1 + 1];
         int32_t t3 = ctl_input_val[id1 + 2];
@@ -433,6 +433,7 @@ void __not_in_flash_func(setLfm)(uint8_t lfm,uint8_t inp,uint16_t lcoder,uint16_
         if (s64 > INT32_MAX) s64 = INT32_MAX;
         if (s64 < INT32_MIN) s64 = INT32_MIN;
 
+        // --- v1 input vals atténuées cumulées
         int32_t v1 = (int32_t)s64;
         v1 >>= MAX_CTL_ATT_SHIFT;
 

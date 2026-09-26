@@ -591,12 +591,15 @@ void __not_in_flash_func(lfm_update_inputs_0)(uint8_t lfm,int16_t valeur)   // i
     uint32_t carry_lo = (iv >= -0x8000);
     iv = (iv & -carry_lo) | (-0x8000 & ~(-carry_lo));
 
-    lfmOutputValues[lfm] = (int16_t)iv;
+    if(__builtin_expect(iv==1,0)){
+        lfmOutputValues[lfm] = 0;}
+    else
+        lfmOutputValues[lfm] = (int16_t)iv;
 /*if(lfmGenAttValue[lfm]!=0 && lfm==0){ 
     printf("l_:%u c0:%3u a0:%3u c1:%3u a1:%3u c2:%3u a2:%3u ",lfm,lfmCoder[0][lfm],lfmCoderAtt[0][lfm],lfmCoder[1][lfm],lfmCoderAtt[1][lfm],lfmCoder[2][lfm],lfmCoderAtt[2][lfm]);
     printf("v:%i iov:%i ga:%i ov:%i\n",valeur,intermediateOutputValues[lfm],lfmGenAttValue[lfm],iv);
 }*/
-    update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],iv);
+    update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],lfmOutputValues[lfm]);
     //uint8_t vnb=2;printf("v:%u :%u :%i\n",vnb,voices[vnb].basicWaveAmpl[WSIN],iv);
 }                                            
 
@@ -632,14 +635,20 @@ void __not_in_flash_func(lfm_update_inputs)(int16_t input_id,uint8_t lfm,int16_t
     carry_lo = (iv >= -0x8000);
     iv = (iv & -carry_lo) | (-0x8000 & ~(-carry_lo));
 
-    lfmOutputValues[lfm] = (int16_t)iv;
+    if(__builtin_expect(iv==1,0)){
+        lfmOutputValues[lfm] = 0;}
+    else
+        lfmOutputValues[lfm] = (int16_t)iv;
 
 /*if(lfmGenAttValue[lfm]!=0 && lfm==0){   
     printf("l:%u c0:%u a0:%u c1:%u a1:%u c2:%u a2:%u ",lfm,lfmCoder[0][lfm],lfmCoderAtt[0][lfm],lfmCoder[1][lfm],lfmCoderAtt[1][lfm],lfmCoder[2][lfm],lfmCoderAtt[2][lfm]);
     printf("%i %i %i %i\n",valeur,intermediateOutputValues[lfm],lfmGenAttValue[lfm],iv);
 }*/
 if(lfmGenAttValue[lfm]!=0){printf("LFO: iv0=%5ld delta=%-5ld iv=%5ld LFM out=%5d genAtt=%5d\n", iv0, delta, iv,lfmOutputValues[lfm], lfmGenAttValue[lfm]);}
-    update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],iv);    // ctl_output_id_chain[adsr_ctl_output_id[a][ADSR_SHAPE]];    
+//if(lfmGenAttValue[lfm]!=0){printf("a");}
+//for (volatile int i = 0; i < 36000; i++) { }
+
+    update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],lfmOutputValues[lfm]);    // ctl_output_id_chain[adsr_ctl_output_id[a][ADSR_SHAPE]];    
 }
 
 void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs update with valeur (any object output)
