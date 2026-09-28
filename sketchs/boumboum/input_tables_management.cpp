@@ -573,7 +573,7 @@ void __not_in_flash_func(disconnect_input)(uint16_t input_id, uint16_t output_id
     spin_unlock(inputs_id__lock, f);
 }
 
-void __not_in_flash_func(lfm_update_inputs_0)(uint8_t lfm,int16_t valeur)   // inp0 is gen control ; valeur is new input value (any object output)
+void __not_in_flash_func(lfm_update_inputs_0)(uint8_t lfm,int16_t valeur)   // inp0 is the general gain control ; valeur is the new input value (any object output)
 {
     // ---- recalcul du gain général ----
     lfmGenAttValue[lfm] =                                                   // lfmGen int32 ; lfmCoder uint16 ; valeur int16 ; lfmCoderAtt uint16
@@ -600,20 +600,31 @@ void __not_in_flash_func(lfm_update_inputs_0)(uint8_t lfm,int16_t valeur)   // i
     printf("v:%i iov:%i ga:%i ov:%i\n",valeur,intermediateOutputValues[lfm],lfmGenAttValue[lfm],iv);
 }*/
     update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],lfmOutputValues[lfm]);
-    //uint8_t vnb=2;printf("v:%u :%u :%i\n",vnb,voices[vnb].basicWaveAmpl[WSIN],iv);
-}                                            
+}
 
-void __not_in_flash_func(lfm_update_inputs)(int16_t input_id,uint8_t lfm,int16_t valeur,int16_t prev)
+void __not_in_flash_func(lfm_update_inputs)(uint8_t lfm)     // inputs 1-3: recompute the intermediate value from scratch
 {
-    // ---- inp n° ----
-    int16_t inp=input_id-lfm_ctl_input_id[0][lfm];
-    // ---- compute new iov (no level coder change) ----
-    int16_t* iov=&intermediateOutputValues[lfm];
-    int32_t iv=*iov;
-    int32_t iv0=*iov;
-    int32_t delta=(((prev-valeur) * lfmCoderAtt[inp][lfm]) >> MAX_CTL_ATT_SHIFT);
-    iv-=delta;                                      // new intermediate value (no chge on base coders)
-//
+    // ---- base coders sum ----
+    int32_t v0 = (lfmCoder[1][lfm] + lfmCoder[2][lfm] + lfmCoder[3][lfm])
+                 << ((sizeof(lfmCoder[0][0])*8) - MAX_CTL_ATT_SHIFT - 1);
+
+    // ---- attenuated inputs sum ----
+    int16_t id1 = lfm_ctl_input_id[1][lfm];                   // first id of inputs 1-3 (consecutive ids)
+
+    // worst case: 3 * 32768 * 255 = 25,067,520, which fits in 32 bits
+    int32_t v1 = ((int32_t)ctl_input_val[id1]     * lfmCoderAtt[1][lfm]
+                + (int32_t)ctl_input_val[id1 + 1] * lfmCoderAtt[2][lfm]
+                + (int32_t)ctl_input_val[id1 + 2] * lfmCoderAtt[3][lfm]) >> MAX_CTL_ATT_SHIFT;
+
+    // ---- intermediate value, clipped to 16 bits ----
+    int32_t iv = v0 + v1;
+    if (iv > INT16_MAX) iv = INT16_MAX;
+    if (iv < INT16_MIN) iv = INT16_MIN;
+    intermediateOutputValues[lfm] = (int16_t)iv;
+
+    // ---- apply gen ----
+    iv = (iv * lfmGenAttValue[lfm]) >> 15;
+
     // ---- high ovf (+32767) ----
     uint32_t carry_hi = (iv <= 0x7FFF);
     iv = (iv & -carry_hi) | (0x7FFF & ~(-carry_hi));
@@ -622,33 +633,12 @@ void __not_in_flash_func(lfm_update_inputs)(int16_t input_id,uint8_t lfm,int16_t
     uint32_t carry_lo = (iv >= -0x8000);
     iv = (iv & -carry_lo) | (-0x8000 & ~(-carry_lo));
 
-    *iov = (int16_t)iv;                                                 // safe cast (iv [-32768..32767])
-
-    // ---- apply gen ----
-    iv=*iov*lfmGenAttValue[lfm];
-
-    // ---- high ovf (+32767) ----
-    carry_hi = (iv <= 0x7FFF);
-    iv = (iv & -carry_hi) | (0x7FFF & ~(-carry_hi));
-
-    // ---- low ovf (-32768) ----
-    carry_lo = (iv >= -0x8000);
-    iv = (iv & -carry_lo) | (-0x8000 & ~(-carry_lo));
-
     if(__builtin_expect(iv==1,0)){
         lfmOutputValues[lfm] = 0;}
     else
         lfmOutputValues[lfm] = (int16_t)iv;
 
-/*if(lfmGenAttValue[lfm]!=0 && lfm==0){   
-    printf("l:%u c0:%u a0:%u c1:%u a1:%u c2:%u a2:%u ",lfm,lfmCoder[0][lfm],lfmCoderAtt[0][lfm],lfmCoder[1][lfm],lfmCoderAtt[1][lfm],lfmCoder[2][lfm],lfmCoderAtt[2][lfm]);
-    printf("%i %i %i %i\n",valeur,intermediateOutputValues[lfm],lfmGenAttValue[lfm],iv);
-}*/
-if(lfmGenAttValue[lfm]!=0){printf("LFO: iv0=%5ld delta=%-5ld iv=%5ld LFM out=%5d genAtt=%5d\n", iv0, delta, iv,lfmOutputValues[lfm], lfmGenAttValue[lfm]);}
-//if(lfmGenAttValue[lfm]!=0){printf("a");}
-//for (volatile int i = 0; i < 36000; i++) { }
-
-    update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],lfmOutputValues[lfm]);    // ctl_output_id_chain[adsr_ctl_output_id[a][ADSR_SHAPE]];    
+    update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],lfmOutputValues[lfm]);
 }
 
 void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs update with valeur (any object output)
@@ -659,24 +649,19 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
                                                                     //  le type d'entrée via ctl_input_update_type
                                                                     //  la valeur précédente de l'entrée via ctl_input_val
 {
-    //int16_t id = ctl_output_id_chain[output];
-    int16_t prev = ctl_input_val[id];
-    ctl_input_val[id] = valeur;
-    int16_t tlev;
-    uint8_t object=ctl_input_object[id];
-    int32_t val=0;
-    float fr;
-    //uint8_t src0=src/MAX_OBJECTS;
-    //uint8_t src_id=src-src0*MAX_OBJECTS;
 
-    //if(output==10){printf("out#:%d input_id:%i inp_type:%d val:%i \n",output,id,ctl_input_update_type[id],valeur);}
+        int16_t tlev;
+        int32_t val=0;
+        float fr;
 
         while(id!=NO_LINK){
 
-            //printf("s:%u/%u u_i:%i=%s:%u v:%i ",src0,src_id,id,ctl_input_name+id*IN_OUT_NAME_LEN,ctl_input_update_type[id],valeur);
+            int16_t prev = ctl_input_val[id];
+            ctl_input_val[id] = valeur;
+            uint8_t object=ctl_input_object[id];
 
             switch(ctl_input_update_type[id]){
-                case VCE_FREQ:  val=(valeur>>6)*voices[object].coderFreqAtt>>MAX_CTL_ATT_SHIFT;                // 8k max VCES_MAX_FREQ_CODERS ; att 0-255
+                case VCE_FREQ:  val=(valeur>>6)*voices[object].coderFreqAtt>>MAX_CTL_ATT_SHIFT;         // 8k max VCES_MAX_FREQ_CODERS ; att 0-255
                                 fr=calcFreq(val+voices[object].coderFreq);
                                 setVoiceFrequency(fr,&voices[object],voices[object].coderCycleR);       // ajouter un ctl d'overflow
                                 break;
@@ -690,85 +675,57 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
                 case VCE_WHIT:  setVoicesAmpl(object,WHIT,valeur);break;
                 case VCE_WPNK:  setVoicesAmpl(object,PONK,valeur);break;                                                                                                                
                 case VCE_GENA:  setVoicesAmpl(object,BASIC_WAVES_NB,valeur);break;
-                case LFO_FREQ:  val=(valeur>>3)*lfosCodersFreqAtt[object]>>MAX_CTL_ATT_SHIFT;                  // 8k max VCES_MAX_FREQ_CODERS ; att 0-255 
+                case LFO_FREQ:  val=(valeur>>3)*lfosCodersFreqAtt[object]>>MAX_CTL_ATT_SHIFT;           // 8k max VCES_MAX_FREQ_CODERS ; att 0-255 
                                 fr=calcFreq(val+lfosCodersFreq[object])/VOICE_FREQ_DIVIDER;
-                                //if(lfo==0){printf("l%d id:%d v:%i val:%i out#:%d fc:%i f:%f\n",lfo,id,valeur,val,output,lfosCodersFreq[lfo],fr);}
                                 setLfosFrequency(fr,object,lfosCoderCycleR[object]);                    // ajouter un ctl d'overflow
                                 break;
                 case LFO_CRA :  val=lfosCoderCycleR[object]+(valeur>>10)*lfosCoderCycleRAtt[object]>>MAX_CTL_ATT_SHIFT; // 0-62 ; att 0-255
                                 setLfosFrequency(lfosFrequency[object],object,val);                     // ajouter un ctl d'overflow
                                 break;
-                case A_ATTACK:  val=(valeur>>9)*adsrCoderAttAtt[object]>>MAX_CTL_ATT_SHIFT;                    // durée 0-127
-                                setAdsrDur(object,adsrStatus[object],val);
+                case A_ATTACK:  val=(valeur>>9)*adsrCoderAttAtt[object]>>MAX_CTL_ATT_SHIFT;             // durée 0-127
+                                setAdsrDur(object,ADSR_ATT,val);
                                 break;
-                case A_DECAY :  val=(valeur>>9)*adsrCoderDecAtt[object]>>MAX_CTL_ATT_SHIFT;                    // durée 0-127
-                                setAdsrDur(object,adsrStatus[object],val);
+                case A_DECAY :  val=(valeur>>9)*adsrCoderDecAtt[object]>>MAX_CTL_ATT_SHIFT;             // durée 0-127
+                                setAdsrDur(object,ADSR_DEC,val);
                                 break;
-                case A_SUST  :  val=(valeur>>3)*adsrCoderSusAtt[object]>>MAX_CTL_ATT_SHIFT;                    // durée 0-127
-                                setAdsrDur(object,adsrStatus[object],val);
+                case A_SUST  :  val=(valeur>>3)*adsrCoderSusAtt[object]>>MAX_CTL_ATT_SHIFT;             // durée 0-127
+                                setAdsrDur(object,ADSR_SUS,val);
                                 break;
-                case A_RELEAS:  val=(valeur>>3)*adsrCoderRelAtt[object]>>MAX_CTL_ATT_SHIFT;                    // durée 0-127
-                                setAdsrDur(object,adsrStatus[object],val);
+                case A_RELEAS:  val=(valeur>>3)*adsrCoderRelAtt[object]>>MAX_CTL_ATT_SHIFT;             // durée 0-127
+                                setAdsrDur(object,ADSR_REL,val);
                                 break;
                 case A_LEVEL :  val=(valeur>>3)*adsrCoderLevAtt[object]>>MAX_CTL_ATT_SHIFT;                    
                                 setAdsrLev(object,val);
                                 break;                        
                 case A_START :  ctl_input_prev_val[id]=prev;                                            // start adsr
                                 tlev=ctl_input_tlev[id];
-                                //printf("t:%u l:%i p:%i",ctl_input_trig[id],tlev,prev);
                                 switch(ctl_input_trig[id]){
                                     case INP_NO_TRIG:break;
                                     case INP_UP_TRIG:
                                         if(valeur>=tlev && prev<tlev){
                                             adsrStatus[object]=ADSR_ATT;
                                             adsrCurrEch[object]=0;
-                                            //adsrCurrEchFra[object]=0;
-                                        }
-                                        break;
+                                        }break;
                                     case INP_DOWN_TRIG:
                                         if(valeur<=tlev && prev>tlev){
                                             adsrStatus[object]=ADSR_ATT;
                                             adsrCurrEch[object]=0;
-                                            //adsrCurrEchFra[object]=0;
-                                        }
-                                        break;
+                                        }break;
                                     case INP_U_D_TRIG:
                                         if((valeur>tlev && prev<tlev) || (valeur<=tlev && prev>tlev)){
                                             adsrStatus[object]=ADSR_ATT;
                                             adsrCurrEch[object]=0;
-                                            //adsrCurrEchFra[object]=0;
-                                        }
-                                        break;
+                                        }break;
                                     default:break;
-                                }
-                                //printf("s:%u ",adsrStatus[object]);
-                                break;
+                                }break;
                 case LFM____ :  {
                                 uint8_t  lfm=lfmNb[id];                                 // lfm #
                                 int16_t  inp=id-lfm_ctl_input_id[0][lfm];               // lfm inp #
-//printf("l:%u id:%i fo:%i li:%i i:%i v:%i \n",lfm,id,objects_first_input_id[LF_MUX___],lfm_ctl_input_id[0][lfm],inp,valeur);
-                                // inp 0 gen ; 1,2 individual
-                                switch(inp){
-                                    case 0:                                             // Entrée 0 : contrôle du gain général                                
-                                        lfm_update_inputs_0(lfm,valeur);
-                                        break;
-                                    case 1:
-                                        lfm_update_inputs(id,lfm,valeur,prev);
-
-                                        //printf("m:%u-%u old:%i iv:%i v:%i ov:%i\n",lfm,inp,prev,valeur,val,lfmOutputValues[lfm]);                                    
-                                        break;
-                                    case 2:
-                                        lfm_update_inputs(id,lfm,valeur,prev);
-
-                                        //printf("m:%u-%u old:%i iv:%i v:%i ov:%i\n",lfm,inp,prev,valeur,val,lfmOutputValues[lfm]);
-                                        break;
-
-                                    default:break;
-                                }                                    
-                }break;
+                                if(inp==0){lfm_update_inputs_0(lfm,valeur);}            // Entrée 0 : contrôle du gain général                                
+                                else lfm_update_inputs(lfm);                            // les autres entrées                        
+                                }break;
                 default: break;
             }
-            //printf("\n");
             id = ctl_input_id_chain[id];
         }
 }

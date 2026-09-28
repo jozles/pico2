@@ -193,18 +193,19 @@ void __not_in_flash_func(setAdsrLev)(uint8_t adsr,int32_t val)
     adsrCoderLev[adsr]=val;
 }
 
-void __not_in_flash_func(setAdsrDur)(uint8_t adsr,uint8_t adsrStatus,int32_t val)
+void __not_in_flash_func(setAdsrDur)(uint8_t adsr,uint8_t adsrStage,int32_t val)
 {
     uint32_t* vv;
-    uint32_t v0;
+    int32_t v0;
 
-    switch(adsrStatus){
+    switch(adsrStage){
         case ADSR_ATT:vv=&adsrDurAtt[adsr];v0=adsrCoderAtt[adsr]+val;break;
         case ADSR_DEC:vv=&adsrDurDec[adsr];v0=adsrCoderDec[adsr]+val;break;
         case ADSR_SUS:vv=&adsrDurSus[adsr];v0=adsrCoderSus[adsr]+val;break;
         case ADSR_REL:vv=&adsrDurRel[adsr];v0=adsrCoderRel[adsr]+val;break;
-        default:break;
+        default:return;
     }
+    if(v0<0){v0=0;}
     if (v0 >= DUR_ECH_NB){v0 = DUR_ECH_NB - 1;}
 
 
@@ -230,7 +231,7 @@ uint16_t adsrNext(uint32_t* currEchQ16,uint32_t stepQ16)    // production indice
 
 void __not_in_flash_func(adsrHandler)()
 {
-    if((millisCounter-adsrTime)>adsrTimingInterval){
+    if((millisCounter-adsrTime)>=adsrTimingInterval){
         adsrTime=millisCounter;
 
         for(uint8_t a=0;a<MAX_ADSR;a++)
@@ -350,15 +351,15 @@ void __not_in_flash_func(touch_button_handler)(uint8_t touchButtonNb,bool* touch
 
 /* ******  lf mixers  ****** */
 //
-// every change on coders need to do setLfm ; change of the output via lfm_udate_input(_0)
+// every change off a coder needs a call to setLfm ; change of the output go through lfm_udate_input(_0)
 // 
 //
-// actual feature : input 0 gen level ; 1,2,3,4 mixed inputs 
-//                  every input with 1 level coder (capture is 0-255 extended to 16 bits)
-//                  every input with 1 att coder (capture is 0-255 ; unchanged storage)
-//                  every inputs are int16_t                 
+// current features : input 0 gen level ; 1,2,3 mixed inputs 
+//                  every input has 1 level coder (captured as 0-255 ; extended to 16 bits)
+//                  every input has 1 att coder (captured as 0-255 ; stored unchanged)
+//                  all inputs are int16_t                 
 //                  every input with a type : 0 lin , 1 log , 2 inv log (code for log to be added)
-// log mode to be discussed (actual is lin only - use 2 tables to convert lin to log or ilog ; where should the conversion be done ? )
+// log mode to be discussed (currently lin only - use 2 tables to convert lin to log or ilog ; where should the conversion be done ? )
 // 
 // 
 //
@@ -379,7 +380,7 @@ void lf_mixer_init()
     }
 }
 
-void __not_in_flash_func(setLfm)(uint8_t lfm,uint8_t inp,uint16_t lcoder,uint16_t acoder)       // update mixer when coders change
+/*void __not_in_flash_func(setLfm)(uint8_t lfm,uint8_t inp,uint16_t lcoder,uint16_t acoder)       // update mixer when coders change
 {
     uint16_t* lfmc=&lfmCoder[inp][lfm];
     uint16_t preLc=*lfmc;
@@ -391,16 +392,10 @@ void __not_in_flash_func(setLfm)(uint8_t lfm,uint8_t inp,uint16_t lcoder,uint16_
     int16_t id=lfm_ctl_input_id[inp][lfm];
     int16_t* civ=&ctl_input_val[id];
 
-
-//if(lfm==1){printf("l:%u c0:%u a0:%u c1:%u a1:%u c2:%u a2:%u ",lfm,lfmCoder[0][lfm],lfmCoderAtt[0][lfm],lfmCoder[1][lfm],lfmCoderAtt[1][lfm],lfmCoder[2][lfm],lfmCoderAtt[2][lfm]);}
-
     if(inp==0){lfm_update_inputs_0(lfm,*civ);}
     else {
-        // compute new iov
+        // compute the new iov
         int16_t* iov=&intermediateOutputValues[lfm];
-        
-        //*iov=*iov-((preLc-*lfmc)<<((sizeof(*lfmc)*8)-MAX_CTL_ATT_SHIFT-1)); // new iov for lcoder chge
-        //*iov=*iov-(((preAc-*lfma) * *civ)>>MAX_CTL_ATT_SHIFT);              // new iov for acoder chge
 
         // --- v0 cumul des coders de base ---
         int32_t c1 = lfmCoder[1][lfm];
@@ -445,23 +440,17 @@ void __not_in_flash_func(setLfm)(uint8_t lfm,uint8_t inp,uint16_t lcoder,uint16_
 
         *iov=(int16_t)sum;
 
-        //*iov=(*lfmc1+*lfmc2)<<((sizeof(*lfmc)*8)-MAX_CTL_ATT_SHIFT-1)+(*civ1)*(*lfma1)+(*civ2)*(*lfma2);
-        lfm_update_inputs(id,lfm,*civ,*civ);                                // lfm_update_inputs(int16_t id,uint8_t lfm,int16_t valeur,int16_t prev)
-    }
-}
-
-/*void __not_in_flash_func(setLfmAtt)(uint8_t lfm,uint8_t inp,uint16_t val)   // update mixer when att coder changes
-{
-    //printf("sla %u %u %i\n",lfm,inp,val);
-    lfmCoderAtt[inp][lfm]=val;                                              // val 0-255 
-
-    int16_t id=lfm_ctl_input_id[inp][lfm];
-
-    if(inp==0){lfm_update_inputs_0(lfm,ctl_input_val[id]);}                 // input doesnt change so prev/new valeur is current
-    else {
-        lfm_update_inputs(id,lfm,inp,ctl_input_val[id],&intermediateOutputValues[lfm]);
+        lfm_update_inputs(id,lfm,*civ,*civ); 
     }
 }*/
+void __not_in_flash_func(setLfm)(uint8_t lfm,uint8_t inp,uint16_t lcoder,uint16_t acoder)       // update mixer when coders change
+{
+    lfmCoder[inp][lfm]    = lcoder;
+    lfmCoderAtt[inp][lfm] = acoder;
+
+    if(inp==0){lfm_update_inputs_0(lfm, ctl_input_val[lfm_ctl_input_id[0][lfm]]);}
+    else      {lfm_update_inputs(lfm);}
+}
 
 void __not_in_flash_func(lfmScopeHandler)()
 {
@@ -471,7 +460,7 @@ void __not_in_flash_func(lfmScopeHandler)()
             uint16_t* lp=&lfmScopeBufPtr[l];
             lfmScopeBufReal[l*LFM_SCOPE_BUFFER_LEN+*lp]=lfmOutputValues[l];
             //printf(" %l",lfmOutputValues[l]);
-            *lp++;
+            (*lp)++;
             if(__builtin_expect(*lp>=LFM_SCOPE_BUFFER_LEN,0)){*lp=0;lfmScopeDisp[l]=true;}
         }
     }

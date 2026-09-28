@@ -5,7 +5,7 @@
 
 void adsrInit();
 void adsrHandler();
-void setAdsrDur(uint8_t adsr,uint8_t adsrStatus,int32_t val);
+void setAdsrDur(uint8_t adsr,uint8_t adsrStage,int32_t val);
 void setAdsrLev(uint8_t adsr,int32_t val);
 void fillDur(void);
 

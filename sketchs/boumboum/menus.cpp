@@ -79,6 +79,7 @@ extern uint16_t adsrCoderRel[MAX_ADSR];
 extern uint16_t adsrCoderLev[MAX_ADSR];
 extern uint8_t  adsrStatus[MAX_ADSR];
 extern uint32_t adsrCurrEch[MAX_ADSR];
+extern uint16_t adsrOutputsValues[MAX_ADSR][MAX_OUTPUTS_PER_OBJ];
 extern volatile int16_t menuAdsrCoders[];
 extern uint16_t* adsrVar[];
 extern int32_t  adsrScopeBufReal[MAX_ADSR*ADSR_SCOPE_BUFFER_LEN];
@@ -720,7 +721,11 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
             if(!mode_scope){test_st7789_2();}    // animation balayage de lignes            
             if(debug_ticker()){
                 //if(adsrStatus[0]==ADSR_OFF){adsrStatus[0]=ADSR_ATT;adsrCurrEch[0]=0;}
-            }          
+            }
+            
+            //if((millisCounter&0x000001ff)==0){
+            //    printf("%u %i %u %u\n",adsrOutputsValues[2][ADSR_SHAPE],lfmOutputValues[0],voices[2].newBasicWaveAmpl[WSIN],voices[2].genAmpl);
+            //}
 
             int s=tst_switchs_(switchsNb);
             //if(s<=(-99+CODER_NB)){i2s_start(!i2s_running);title_dsp(title,line,object_type);}           
