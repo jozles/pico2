@@ -39,7 +39,7 @@ struct Voice {
 
     volatile uint16_t    genAmpl;               // genAmpl value
     volatile int16_t     coderGenAmpl;          // genAmpl coder value
-    uint16_t    coderGenAmplAtt;                // genAmpl input attenuator value    
+    volatile uint16_t    coderGenAmplAtt;       // genAmpl input attenuator value    
     
     volatile uint32_t    basicWaveAmpl[BASIC_WAVES_NB];     // wave ampl value
     volatile uint32_t    newBasicWaveAmpl[BASIC_WAVES_NB];
@@ -47,7 +47,7 @@ struct Voice {
     volatile int32_t     diffWaveAmpl[BASIC_WAVES_NB];
     volatile uint16_t    coderWaveAmpl[BASIC_WAVES_NB];     // wave ampl coder value
     //uint16_t    maxCoderWaveAmpl[BASIC_WAVES_NB];           // wave ampl max coder value    
-    uint16_t    coderWaveAmplAtt[BASIC_WAVES_NB];           // wave ampl input attenuator value
+    volatile uint16_t    coderWaveAmplAtt[BASIC_WAVES_NB];           // wave ampl input attenuator value
     
     //bool        coderSw[CODER_NB];              // last Switch
     uint16_t    soundsCc[CODER_BANK_NB];
@@ -55,8 +55,8 @@ struct Voice {
     
     volatile float       frequency;             // current frequency
     volatile int16_t     coderFreq;             // frequency coder value
-    volatile float       basicFrequency;    
-    int16_t              coderFreqAtt;          // frequency input attenuator value (0-7fff)
+    //volatile float       basicFrequency;    
+    volatile int16_t     coderFreqAtt;          // frequency input attenuator value (0-7fff)
 
     volatile uint8_t     cycleR;                // cyclic ratio value (somme coderCycleR et ctl_input_val)
     volatile uint8_t     coderCycleR;           // cyclic ratio -64/+64 coder value

@@ -49,7 +49,7 @@ int32_t  lfmGenAttValue[MAX_LFM];                           // outputValue Atten
 int16_t  lfmOutputValues[MAX_LFM];
 uint8_t  lfmInputType[MAX_INPUTS_PER_OBJ][MAX_LFM];
 int16_t  lfm_ctl_input_id[MAX_INPUTS_PER_OBJ][MAX_LFM];
-int16_t  lfm_ctl_output_id[MAX_LFM];
+int16_t  lfm_ctl_output_id[MAX_OUTPUTS_PER_OBJ][MAX_LFM];
 uint8_t  lfmNb[MAX_INPUTS];                 // les n° de lfm par input id
 uint8_t  lfmCh[]={'_','\\','/'};
 int32_t  lfmScopeBufReal[MAX_LFM*LFM_SCOPE_BUFFER_LEN];
@@ -57,13 +57,14 @@ uint16_t lfmScopeBufPtr[MAX_LFM];
 bool     lfmScopeDisp[MAX_LFM];
 
 uint32_t    lfmTime=0;                     
-uint32_t    lfmTimingInterval=1000/LFM_SAMPLE_RATE;
+uint32_t    lfmScopeTimingInterval=1000/LFM_SAMPLE_RATE;
 
 extern uint16_t* lfmVar[];
 
 /* *******  extern  ******** */
 
 extern uint32_t millisCounter;
+extern bool     setupComplete;
 extern uint16_t amplLevel[];
 extern int16_t  ctl_input_val[MAX_INPUTS];
 extern int16_t  ctl_output_id_chain[];
@@ -454,7 +455,7 @@ void __not_in_flash_func(setLfm)(uint8_t lfm,uint8_t inp,uint16_t lcoder,uint16_
 
 void __not_in_flash_func(lfmScopeHandler)()
 {
-    if((millisCounter-lfmTime)>lfmTimingInterval){
+    if((millisCounter-lfmTime)>lfmScopeTimingInterval && setupComplete){
         lfmTime=millisCounter;
         for(uint8_t l=0;l<MAX_LFM;l++){
             uint16_t* lp=&lfmScopeBufPtr[l];
@@ -463,6 +464,7 @@ void __not_in_flash_func(lfmScopeHandler)()
             (*lp)++;
             if(__builtin_expect(*lp>=LFM_SCOPE_BUFFER_LEN,0)){*lp=0;lfmScopeDisp[l]=true;}
         }
+        uint8_t l=1;printf("l:%u %i\n",l,lfmOutputValues[l]);
     }
     //printf("\n");
 }
@@ -477,13 +479,14 @@ void disp_lfm(uint8_t lfm,char* t)
         minLfm=0;
     } 
 
-    printf("\nlf_mux c0      ca0       c1      ca1       c2      ca2      iov\n");
+    printf("\nlf_mux   c0   ca0  (id)    c1   ca1  (id)    c2   ca2  (id)   iov (id)\n");
     for(uint8_t i=minLfm;i<=maxLfm;i++){
         printf("m%i:  ",i);
-        for(uint8_t j=0;j<LFM_INPUTS_NB*2;j++){
-            printf(" %5i(%5i)",lfmVar[j][i],lfm_ctl_input_id[j][i]);
+        for(uint8_t j=0;j<MAX_LFM_INPUTS;j++){
+            printf(" %5i",lfmVar[j*2][i]);
+            printf(" %5i(%4i)",lfmVar[j*2+1][i],lfm_ctl_input_id[j][i]);
         }
-        printf(" %5i\n",intermediateOutputValues[i]);
+        printf(" %-5i %i\n",intermediateOutputValues[i],lfm_ctl_output_id[0][i]);
     }
     if(lfm>MAX_LFM){printf("\n");}
 }

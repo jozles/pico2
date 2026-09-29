@@ -303,12 +303,12 @@ bool init_objects_outputs(void)
     }
 
     objects_first_output_id[LF_MUX___]=curr_output;    
-    for (uint8_t lfm=0;lfm<MAX_LFM;lfm++)
+    for (uint8_t outs=0;outs<MAX_OUTPUTS_PER_OBJ;outs++)
     {
-        for(uint8_t outs=0;outs<MAX_OUTPUTS_PER_OBJ;outs++)
+        for(uint8_t lfm=0;lfm<MAX_LFM;lfm++)
         {        
             ctl_output_id_chain[curr_output]=NO_LINK;
-            lfm_ctl_output_id[lfm][outs]=curr_output;
+            lfm_ctl_output_id[outs][lfm]=curr_output;
             if(outs<LFM_OUTPUTS_NB){
                 char buf[IN_OUT_NAME_LEN]={'L','F','M','_'};
                 convIntToString(buf+4,lfm,2);
@@ -441,9 +441,9 @@ bool init_objects_inputs(void)
     //printf(" voice_curr_input:%u %u\n",objects_first_input_id[VOICE____],curr_input-1);
 
     objects_first_input_id[LF_MUX___]=curr_input;
-    for (uint8_t lfm=0;lfm<MAX_LFM;lfm++)
+    for (uint8_t ins=0;ins<MAX_INPUTS_PER_OBJ;ins++)
     {
-        for(uint8_t ins=0;ins<MAX_INPUTS_PER_OBJ;ins++)
+        for(uint8_t lfm=0;lfm<MAX_LFM;lfm++)
         {
             lfm_ctl_input_id[ins][lfm]=curr_input;
 //printf("l:%u i:%u ctid:%i\n",lfm,ins,lfm_ctl_input_id[ins][lfm]);           

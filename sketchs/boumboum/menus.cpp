@@ -292,7 +292,8 @@ void title_dsp(const char* title,uint8_t item,uint8_t type,float v0, int32_t v1,
     switch(type){
         //case WAVES_AMP:sprintf(buf,"v:%d %4.3f amp",item,voices[item].frequency);break;
 
-        case VOICES_FR:sprintf(buf,"%s:%u %1.3f%+i %c",title,item,voices[item].basicFrequency,voices[item].coderCycleR-MAXCODER_RC/2,onoff[i2s_running]);break;
+        //case VOICES_FR:sprintf(buf,"%s:%u %1.3f%+i %c",title,item,voices[item].basicFrequency,voices[item].coderCycleR-MAXCODER_RC/2,onoff[i2s_running]);break;
+        case VOICES_FR:sprintf(buf,"%s:%u %+i %u %c",title,item,voices[item].coderCycleR-MAXCODER_RC/2,onoff[i2s_running]);break;
         case VOICES_AM:sprintf(buf,"%s:%u %c",title,item,onoff[i2s_running]);break;
         case VOICES_AT:sprintf(buf,"%s:%u %c",title,item,onoff[i2s_running]);break;
         case LFOS_____:sprintf(buf,"%s:%u %1.3f%+i %c",title,item,lfosFrequency[item],lfosCoderCycleR[item]-MAXCODER_RC/2,onoff[i2s_running]);
@@ -575,12 +576,12 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                 switch (coder){
                     case OSCMENU:if(varChge){
                         float f=calcFreq(voices[line].coderFreq);
-                        voices[line].basicFrequency=f;                
+                        //voices[line].basicFrequency=f;                
                         setVoiceFrequency(f,&voices[line],voices[line].coderCycleR);
                         }break;
                     case OSCCODERFREQ:if(varChge){
                         float f=calcFreq(cc);
-                        voices[line].basicFrequency=f;                        
+                        //voices[line].basicFrequency=f;                        
                         setVoiceFrequency(f,&voices[line],voices[line].coderCycleR);
                         voices[line].coderFreq=cc;}
                         break;
@@ -794,7 +795,6 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
                         break;
                     case LMUX_____:
                         if(lfmScopeDisp[line]==true){
-printf("---\n");
                             lfmScopeDisp[line]=false;
                             if(firstScope){title_dsp(title,line,LFM____);}
                             scope(&lfmScopeBufReal[line],0,begline,false,firstScope,0,0,3,line,1);

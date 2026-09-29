@@ -212,7 +212,7 @@ void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)    // cga = genAmpl l
 
         voices[v].coderFreq=coderF;
         float f=calcFreq(voices[v].coderFreq);          // 440Hz
-        voices[v].basicFrequency=f;
+        //voices[v].basicFrequency=f;
         setVoiceFrequency(f,&voices[v],voices[v].coderCycleR);
         voices[v].coderFreqAtt=FULL_ATTENUATION_VALUE;    
 
