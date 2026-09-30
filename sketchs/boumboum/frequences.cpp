@@ -443,6 +443,8 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
       uint32_t rc = v->cycleR&63;                   // rc=0-63
       uint32_t rcTableNb = (rc <= 32) ? rc : (64 - rc);
       uint32_t rcnb16=rc<<16;
+      bool     reverseCeIdx = (rc > 32);            // was tested every sample as "if (rc > 32)"
+      int      sawRcSign    = (rc >= 32) ? -1 : 1;  // was tested every sample as "if(rc>=32){saw=-saw;}"
 
       const int16_t* rcTableCurr = &rc_tables[rcTableNb][0][0];
       const int16_t* rcTable32 = &rc_tables[32][0][0];                           // base table 32 pour saw      
@@ -478,9 +480,9 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
         uint32_t carry = (currEchFra >= MAX_STEP_FRA);
         currEchFra -= carry * MAX_STEP_FRA;
         currEch += stepInt + carry;
-        currEch &= BASIC_WAVE_TABLE_LEN-1;      // currEch 0-2047
+        currEch &= BASIC_WAVE_TABLE_LEN-1;        // currEch 0-2047
 
-        vsBuffer[SAMPLES_PER_BUFFER-s]=currEch+rcnb16;             // currEch + rc table nb
+        vsBuffer[SAMPLES_PER_BUFFER-s]=currEch; 
         s--;
       }
       while (s!=0);
@@ -507,7 +509,6 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
                 // waves
 
                 uint32_t ce=vsBuffer[s];          // ce : 16 bits gauche = rc, 16 bits droite num ech
-                uint32_t rc=ce>>16; 
                 
                 ce &= (BASIC_WAVE_TABLE_LEN-1);                   // local currEch (cyclic ratio management)
 
@@ -519,7 +520,7 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
                 ce &= RC_TABLES_LEN-1;
 
                 uint32_t ce_idx = ce;
-                if (rc > 32) ce_idx = (RC_TABLES_LEN - 1) - ce_idx;
+                if (reverseCeIdx) ce_idx = (RC_TABLES_LEN - 1) - ce_idx;
                 const int16_t* w=rcTableCurr+RC_N_WAVES*ce_idx;   // rc_table values ptr
 
                 int32_t pre=0;
@@ -543,11 +544,11 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
                   int32_t saw;
                   if(ce<(RC_N_SAMPLES >> 1)){saw=(65536-tri)>>1;}
                   else saw=tri>>1;
-                  if(rc>=32){saw=-saw;}                       // saw n'a pas de réglace de rc, juste une inversion de phase (montée ou descente verticale)
+                  saw *= sawRcSign;                 // saw n'a pas de réglace de rc, juste une inversion de phase (montée ou descente verticale)
                   if (__builtin_expect(*sawWaveAmplChge && saw<255,false)){  
                       *waveAmplSaw = *newWaveAmplSaw;
                   }        
-                  pre += (saw * *waveAmplSaw);     //>>GAIN_REDUC;
+                  pre += (saw * *waveAmplSaw);      //>>GAIN_REDUC;
                 }          
 
                 if (__builtin_expect(*newWaveAmplSqr!=0,false)){
