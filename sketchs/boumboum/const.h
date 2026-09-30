@@ -194,8 +194,11 @@ typedef enum {
 #define OBJ_IO_NAME_LEN         5
 #define IN_OUT_NAME_LEN         10
 
-#define MAX_CTL_ATT             256     // in case of change, change MAX_CTL_ATT_SHIFT 
-#define MAX_CTL_ATT_SHIFT       8       // in case of change, change MAX_CTL_ATT
+#define MAX_CTL_ATT             256     
+#define MAX_CTL_ATT_SHIFT       __builtin_ctz(MAX_CTL_ATT)
+static_assert(MAX_CTL_ATT == (1 << MAX_CTL_ATT_SHIFT), "MAX_CTL_ATT and MAX_CTL_ATT_SHIFT are inconsistent");
+#define CODER_BASE_SHIFT (15 - MAX_CTL_ATT_SHIFT)   // maps an N-bit base coder onto the same signed 16-bit scale as the attenuated term
+static_assert(CODER_BASE_SHIFT > 0 && CODER_BASE_SHIFT < 15, "MAX_CTL_ATT_SHIFT out of the range CODER_BASE_SHIFT can handle");
 
 #define NO_ATTENUATION_SHIFT    15
 #define NO_ATTENUATION_VALUE    0x7fff

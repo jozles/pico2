@@ -497,7 +497,7 @@ void testSetup()
     #define VOICE0 0x80
     #define VOICE1 0x40
     #define VOICE2 0x20
-    uint8_t action=VOICE2;//VOICE0|VOICE1|VOICE2;
+    uint8_t action=VOICE0|VOICE1|VOICE2;
 
     // config voice 0    
     uint8_t  voice=0;
@@ -594,7 +594,7 @@ void testSetup()
         // connect touchB to adsr
         obj_connect(objects_first_input_id[ADSR_____]+adsr*MAX_INPUTS_PER_OBJ+STAR,objects_first_output_id[TBUTTON__]+tbut*MAX_OUTPUTS_PER_OBJ);        
         // config adsr 
-        adsrCoderAtt[adsr]=6;setAdsrDur(adsr,ADSR_ATT,0);
+        adsrCoderAtt[adsr]=127;setAdsrDur(adsr,ADSR_ATT,0);           // 6
         adsrCoderDec[adsr]=32;setAdsrDur(adsr,ADSR_DEC,0);
         adsrCoderSus[adsr]=16;setAdsrDur(adsr,ADSR_SUS,0);
         adsrCoderRel[adsr]=127;setAdsrDur(adsr,ADSR_REL,0);
@@ -607,10 +607,25 @@ void testSetup()
         setLfosFreq(voice2ampLfo,freqV2ALfo);
         // connect lfo amp to lfm0:1
         obj_connect(objects_first_input_id[LF_MUX___]+lfmInp1*MAX_LFM+lfm,objects_first_output_id[LFO______]+voice2ampLfo*MAX_OUTPUTS_PER_OBJ+LSIN);
+        // config lfo modulation
         setLfm(lfm,lfmInp1,255,120);                           
         // connect lfo to voice2 freq
-        obj_connect(objects_first_input_id[VOICE____]+voice*MAX_INPUTS_PER_OBJ+VFRQ,objects_first_output_id[LFO______]+voice2ampLfo*MAX_OUTPUTS_PER_OBJ+LSIN);
+        //obj_connect(objects_first_input_id[VOICE____]+voice*MAX_INPUTS_PER_OBJ+VFRQ,objects_first_output_id[LFO______]+voice2ampLfo*MAX_OUTPUTS_PER_OBJ+LSIN);
     
+        // connect lfo to lfm1:1
+        obj_connect(objects_first_input_id[LF_MUX___]+lfmInp1*MAX_LFM+lfm1,objects_first_output_id[LFO______]+voice2ampLfo*MAX_OUTPUTS_PER_OBJ+LSIN);
+        // connect lfm1 to voice2 freq
+        obj_connect(objects_first_input_id[VOICE____]+voice*MAX_INPUTS_PER_OBJ+VFRQ,objects_first_output_id[LF_MUX___]+LMUXO*MAX_LFM+lfm1);
+        // lfm1 in0 base wide open ; no input   
+        setLfm(lfm1,lfmInp0,MAX_CTL_ATT-1,0);
+        // lfm1 in1 att wide open
+        setLfm(lfm1,lfmInp1,0,MAX_CTL_ATT/2-1);
+        // connect adsr to lfm1:2
+        obj_connect(objects_first_input_id[LF_MUX___]+lfmInp2*MAX_LFM+lfm1,objects_first_output_id[ADSR_____]+adsr*MAX_OUTPUTS_PER_OBJ+ADSR_SHAPE);         
+        // lfm1 in2 att wide open
+        setLfm(lfm1,lfmInp2,0,MAX_CTL_ATT/2-1);
+        //*/
+
         /*// lfm1 mux adsr + lfo to voice2 fr
         setLfm(lfm1,lfmInp0,MAX_CTL_ATT-1,0);                                    // in0 base wide open ; no input
         // connect adsr to lfm1:1

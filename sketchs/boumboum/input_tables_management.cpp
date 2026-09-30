@@ -457,7 +457,6 @@ bool init_objects_inputs(void)
                 convIntToString(buf+objName,lfm,objNum);
                 *(buf+objName+objNum)='_';
                 convIntToString(buf+objName+objNum+1,ins,2);
-                //memcpy(buf+objName+objNum,&lfm_inputs_names[ins],objOutType); //OBJ_IO_NAME_LEN-1);
                 memcpy(ctl_input_name[curr_input],buf,lenInpName);   //IN_OUT_NAME_LEN);
             }
             lfmNb[curr_input]=lfm;
@@ -573,73 +572,7 @@ void __not_in_flash_func(disconnect_input)(uint16_t input_id, uint16_t output_id
     spin_unlock(inputs_id__lock, f);
 }
 
-void __not_in_flash_func(lfm_update_inputs_0)(uint8_t lfm,int16_t valeur)   // inp0 is the general gain control ; valeur is the new input value (any object output)
-{
-    // ---- recalcul du gain général ----
-    lfmGenAttValue[lfm] =                                                   // lfmGen int32 ; lfmCoder uint16 ; valeur int16 ; lfmCoderAtt uint16
-        (lfmCoder[0][lfm]<<((sizeof(lfmCoder[0][0])*8)-MAX_CTL_ATT_SHIFT-1)) +
-        ((valeur * lfmCoderAtt[0][lfm]) >> MAX_CTL_ATT_SHIFT);              // new gen control
 
-    // ---- appliquer le gain général à la valeur intermédiaire ----
-    int32_t iv = (intermediateOutputValues[lfm] * lfmGenAttValue[lfm]) >> 15;
-
-    // ---- saturation haute (+32767) ----
-    uint32_t carry_hi = (iv <= 0x7FFF);
-    iv = (iv & -carry_hi) | (0x7FFF & ~(-carry_hi));
-
-    // ---- saturation basse (-32768) ----
-    uint32_t carry_lo = (iv >= -0x8000);
-    iv = (iv & -carry_lo) | (-0x8000 & ~(-carry_lo));
-
-    if(__builtin_expect(iv==1,0)){
-        lfmOutputValues[lfm] = 0;}
-    else
-        lfmOutputValues[lfm] = (int16_t)iv;
-/*if(lfmGenAttValue[lfm]!=0 && lfm==0){ 
-    printf("l_:%u c0:%3u a0:%3u c1:%3u a1:%3u c2:%3u a2:%3u ",lfm,lfmCoder[0][lfm],lfmCoderAtt[0][lfm],lfmCoder[1][lfm],lfmCoderAtt[1][lfm],lfmCoder[2][lfm],lfmCoderAtt[2][lfm]);
-    printf("v:%i iov:%i ga:%i ov:%i\n",valeur,intermediateOutputValues[lfm],lfmGenAttValue[lfm],iv);
-}*/
-    update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],lfmOutputValues[lfm]);
-}
-
-void __not_in_flash_func(lfm_update_inputs)(uint8_t lfm)     // inputs 1-3: recompute the intermediate value from scratch
-{
-    // ---- base coders sum ----
-    int32_t v0 = (lfmCoder[1][lfm] + lfmCoder[2][lfm] + lfmCoder[3][lfm])
-                 << ((sizeof(lfmCoder[0][0])*8) - MAX_CTL_ATT_SHIFT - 1);
-
-    // ---- attenuated inputs sum ----
-    int16_t id1 = lfm_ctl_input_id[1][lfm];                   // first id of inputs 1-3 (consecutive ids)
-
-    // worst case: 3 * 32768 * 255 = 25,067,520, which fits in 32 bits
-    int32_t v1 = ((int32_t)ctl_input_val[id1]     * lfmCoderAtt[1][lfm]
-                + (int32_t)ctl_input_val[id1 + 1] * lfmCoderAtt[2][lfm]
-                + (int32_t)ctl_input_val[id1 + 2] * lfmCoderAtt[3][lfm]) >> MAX_CTL_ATT_SHIFT;
-
-    // ---- intermediate value, clipped to 16 bits ----
-    int32_t iv = v0 + v1;
-    if (iv > INT16_MAX) iv = INT16_MAX;
-    if (iv < INT16_MIN) iv = INT16_MIN;
-    intermediateOutputValues[lfm] = (int16_t)iv;
-
-    // ---- apply gen ----
-    iv = (iv * lfmGenAttValue[lfm]) >> 15;
-
-    // ---- high ovf (+32767) ----
-    uint32_t carry_hi = (iv <= 0x7FFF);
-    iv = (iv & -carry_hi) | (0x7FFF & ~(-carry_hi));
-
-    // ---- low ovf (-32768) ----
-    uint32_t carry_lo = (iv >= -0x8000);
-    iv = (iv & -carry_lo) | (-0x8000 & ~(-carry_lo));
-
-    if(__builtin_expect(iv==1,0)){
-        lfmOutputValues[lfm] = 0;}
-    else
-        lfmOutputValues[lfm] = (int16_t)iv;
-
-    update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],lfmOutputValues[lfm]);
-}
 
 void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs update with valeur (any object output)
                                                                     // valeur est la valeur linéaire à atténuer sur 16 bits recadrée selon le type d'entrée

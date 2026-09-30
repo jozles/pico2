@@ -591,11 +591,11 @@ void __not_in_flash_func(fillVoiceBuffer)(int32_t* vBuffer, Voice* voices, uint8
     blank_(vBuffer,SAMPLES_PER_BUFFER*2*4,0x00);   // env 12uS
 
     for(uint8_t v=0;v<MAX_VOICES;v++){   //MAX_VOICES;v++){
-//gpio_put(TST_PIN,1);      
+gpio_put(TST_PIN,1);      
       fillVoiceBuffer_mono(vBuffer, &voices[v],v);
       
       //printf("v:%u\n",v);for(uint16_t b=0;b<1024;b++){printf("%u %i %X ; ",b,vBuffer[b],(uint32_t)vBuffer[b]);}printf("\n");
-//gpio_put(TST_PIN,0);      
+gpio_put(TST_PIN,0);      
     }
     i2s_buf_free[bufNum] = false;
 }
