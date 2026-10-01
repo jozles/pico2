@@ -463,7 +463,7 @@ void __not_in_flash_func(lfmScopeHandler)()
             (*lp)++;
             if(__builtin_expect(*lp>=LFM_SCOPE_BUFFER_LEN,0)){*lp=0;lfmScopeDisp[l]=true;}
         }
-        uint8_t l=1;printf("l:%u %i\n",l,lfmOutputValues[l]);
+        //uint8_t l=1;printf("l:%u %i\n",l,lfmOutputValues[l]);
     }
     //printf("\n");
 }

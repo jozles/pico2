@@ -475,7 +475,6 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
       int32_t* vsBuffer=voicesScopeDataBuffer+voiceNum*SAMPLES_PER_BUFFER; // temporary buffer for fast currech computation       
       do {
         
-
         currEchFra += stepFra;
         uint32_t carry = (currEchFra >= MAX_STEP_FRA);
         currEchFra -= carry * MAX_STEP_FRA;
@@ -493,13 +492,22 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
       static_assert((SAMPLES_PER_BUFFER % RAMP_LEN) == 0, "SAMPLES_PER_BUFFER must be a multiple of RAMP_LEN");
 
       int32_t sinAmpl = *waveAmplSin;
+      int32_t triAmpl = *waveAmplTri;
+      int32_t sawAmpl = *waveAmplSaw;
       for (uint32_t sb = 0; sb < SAMPLES_PER_BUFFER; sb += RAMP_LEN)    // NEW: outer loop, one pass per sub-block
       {
           const int32_t sinTarget = *newWaveAmplSin;                    // NEW: read the target once per sub-block
           const int32_t sinInc    = sinTarget - sinAmpl;                // NEW: gap between target and current amplitude
           int32_t       sinAcc    = sinAmpl << RAMP_SHIFT;              // NEW: current amplitude times 32
 
-          //for(uint32_t s = 0; s < SAMPLES_PER_BUFFER; s++)
+          const int32_t triTarget = *newWaveAmplTri;                    // NEW: read the target once per sub-block
+          const int32_t triInc    = triTarget - triAmpl;                // NEW: gap between target and current amplitude
+          int32_t       triAcc    = triAmpl << RAMP_SHIFT;              // NEW: current amplitude times 32
+
+          const int32_t sawTarget = *newWaveAmplSaw;                    // NEW: read the target once per sub-block
+          const int32_t sawInc    = sawTarget - sawAmpl;                // NEW: gap between target and current amplitude
+          int32_t       sawAcc    = sawAmpl << RAMP_SHIFT;              // NEW: current amplitude times 32          
+
           for(uint32_t s = sb; s < sb + RAMP_LEN; s++)
           {
 
@@ -508,9 +516,7 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
 
                 // waves
 
-                uint32_t ce=vsBuffer[s];          // ce : 16 bits gauche = rc, 16 bits droite num ech
-                
-                ce &= (BASIC_WAVE_TABLE_LEN-1);                   // local currEch (cyclic ratio management)
+                uint32_t ce=vsBuffer[s];          
 
                 bool vv=(ce<RC_TABLES_LEN);
                 int sign=(vv*2-1);                                // invert 180-360°
@@ -525,38 +531,37 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
 
                 int32_t pre=0;
 
-                int16_t wwave=w[WSIN];
-                sinAcc += sinInc;                           // per sample: add + shift
-                pre = wwave * (sinAcc >> RAMP_SHIFT);       // replaces pre=(wwave * *waveAmplSin);     
+                int16_t wwave;
+                
+                //if (__builtin_expect((*waveAmplSin + *newWaveAmplSin),false)!=0){                
+                  wwave=w[WSIN];
+                  sinAcc += sinInc;                           // per sample: add + shift
+                  pre = wwave * (sinAcc >> RAMP_SHIFT);       // replaces pre=(wwave * *waveAmplSin);     
+                //}
 
-                if (__builtin_expect((*waveAmplTri + *newWaveAmplTri),false)!=0){
+                //if (__builtin_expect((*waveAmplTri + *newWaveAmplTri),false)!=0){
                   wwave=w[WTRI];
-                  if (__builtin_expect(*triWaveAmplChge && wwave<255,false)){ 
-                      *waveAmplTri = *newWaveAmplTri;
-                  }
-                  pre += (wwave * *waveAmplTri);
-                }
+                  triAcc += triInc;                           
+                  pre += wwave * (triAcc >> RAMP_SHIFT);     
+                //}
 
         // saw et sqr semblent faire une fréquence double        
 
-                if (__builtin_expect((*waveAmplSaw + *newWaveAmplSaw),false)!=0){
+                //if (__builtin_expect((*waveAmplSaw + *newWaveAmplSaw),false)!=0){
                   int16_t tri=rcTable32[RC_N_WAVES*ce+WTRI];  // saw utilise la table 32 du triangle
                   int32_t saw;
                   if(ce<(RC_N_SAMPLES >> 1)){saw=(65536-tri)>>1;}
                   else saw=tri>>1;
                   saw *= sawRcSign;                 // saw n'a pas de réglace de rc, juste une inversion de phase (montée ou descente verticale)
-                  if (__builtin_expect(*sawWaveAmplChge && saw<255,false)){  
-                      *waveAmplSaw = *newWaveAmplSaw;
-                  }        
-                  pre += (saw * *waveAmplSaw);      //>>GAIN_REDUC;
-                }          
+                  sawAcc += sawInc;                           
+                  pre += saw * (sawAcc >> RAMP_SHIFT);        
+                //}          
 
-                if (__builtin_expect(*newWaveAmplSqr!=0,false)){
+                //if (__builtin_expect(*newWaveAmplSqr!=0,false)){
                   int16_t sqr=(ce & (BASIC_WAVE_TABLE_LEN>>1)) ? -0x7fff : 0x7fff;    // sqr cr not implemented
                   pre += (sqr * *newWaveAmplSqr);     //>>GAIN_REDUC;
-                }
+                //}
 
-                //pre = pre>>8;
                 pre *= sign;
 
                 // noises
@@ -579,8 +584,12 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
                 vBuffer++;
           }
           sinAmpl = sinTarget;                            // exact landing on the target
+          triAmpl = triTarget;                            // exact landing on the target
+          sawAmpl = sawTarget;                            // exact landing on the target          
       }
       *waveAmplSin = sinAmpl;
+      *waveAmplTri = triAmpl;
+      *waveAmplSaw = sawAmpl;           
 
       v->currEch    = currEch;
       v->currEchFra = currEchFra;

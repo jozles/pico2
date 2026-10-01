@@ -108,6 +108,8 @@ target_include_directories(boumboum PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/def		
 )
 
+target_compile_options(boumboum PRIVATE -fstack-usage)
+
 # Lien avec les bibliothèques nécessaires
 #target_link_libraries(boumboum pico_stdlib hardware_pio hardware_clocks audio)
 
