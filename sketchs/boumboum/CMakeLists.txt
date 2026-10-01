@@ -32,6 +32,8 @@ include(pico_sdk_import.cmake)
 set(PICO_EXTRAS_FETCH_FROM_GIT ON CACHE BOOL "Set to ON to fetch copy of PICO EXTRAS from git if not otherwise locatable")
 include(pico_extras_import.cmake)
 
+set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Build type" FORCE)
+
 project(boumboum C CXX ASM)
 
 # Initialise the Raspberry Pi Pico SDK

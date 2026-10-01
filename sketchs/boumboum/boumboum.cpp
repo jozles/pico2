@@ -38,17 +38,22 @@ extern const char menu0_names[][MENU_NAME_LEN];
 #define VCE_VAR_F_NB 6                                // voices frequencies menu
 volatile int16_t menuVcesCodersF[VCE_VAR_F_NB+1];     // [0] curr input nb ; [1] curr coder value for freq ; [2] curr coder value for rc ; [3] curr coder value for genAmpl
 uint16_t menuMaxVcesCodersF[]={MAX_VOICES-1,VCES_MAX_FREQ_CODERS,MAXCODER_RC,MAX_CTL_ATT,MAX_CTL_ATT,MAX_16B_LINEAR_VALUE-1};
-uint16_t* vcesVarF[CODER_NB];                        // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
+uint16_t* vcesVarF[CODER_NB];                         // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
 
 #define VCE_VAR_M_NB 8                                // voices ampl menu
 volatile int16_t menuVcesCodersM[VCE_VAR_M_NB+1];     // [0] curr input nb ; [1] curr coder value for sin ; [2] curr coder value for tri etc (saw,sqr,wh,pnk)
 uint16_t menuMaxVcesCodersM[]={MAX_VOICES-1,MAX_16B_LINEAR_VALUE-1,MAX_16B_LINEAR_VALUE-1,MAX_16B_LINEAR_VALUE-1,MAX_16B_LINEAR_VALUE-1,MAX_16B_LINEAR_VALUE-1,MAX_16B_LINEAR_VALUE-1,MAX_16B_LINEAR_VALUE-1};
-uint16_t* vcesVarM[CODER_NB];                        // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
+uint16_t* vcesVarM[CODER_NB];                         // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
 
 #define VCE_VAR_T_NB 8                                // voices attenuators menu
 volatile int16_t menuVcesCodersT[VCE_VAR_T_NB+1];     // [0] curr input nb ; [1] curr coder value for sin att ; [2] curr coder value for tri att etc (saw,sqr,wh,pnk)
 uint16_t menuMaxVcesCodersT[]={MAX_VOICES-1,MAX_CTL_ATT,MAX_CTL_ATT,MAX_CTL_ATT,MAX_CTL_ATT,MAX_CTL_ATT,MAX_CTL_ATT,MAX_CTL_ATT};
-uint16_t* vcesVarT[CODER_NB];                        // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
+uint16_t* vcesVarT[CODER_NB];                         // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
+
+#define VCE_VAR_FI_NB 5                                // voices attenuators menu
+volatile int16_t menuVcesCodersFi[VCE_VAR_FI_NB+1];    // [0] curr input nb ; [1] curr coder value for freq ; [2] curr coder value for freq att ; [3] curr coder value for inp ; [4] inp att
+uint16_t menuMaxVcesCodersFi[]={MAX_VOICES-1,VCES_MAX_FREQ_CODERS,MAX_CTL_ATT,MAX_CTL_ATT,MAX_CTL_ATT};
+uint16_t* vcesVarFi[CODER_NB];                         // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
 
 #define LFO_VAR_NB 5
 volatile int16_t menuLfosCoders[LFO_VAR_NB+1];      // [0] curr input nb ; [1] curr coder value freq ; [2] curr coder value cr ; [3] att value freq ; [4] att value cr
@@ -63,7 +68,7 @@ uint16_t* adsrVar[CODER_NB];                        // inits dans menu.cpp ; les
 #define LFM_VAR_NB CODER_NB //(MAX_INPUTS_PER_OBJ)*2  !!!! le plus petit entre le nombre de coders et le nombre de variables             // 2 coders/input
 volatile int16_t menuLfmCoders[CODER_NB];       // [0] curr input nb ; [1] curr coder value for inp0 ; [2] curr coder value for inp0 att ; [3] curr coder value for inp1 ; [4] curr coder value for inp1 att
 uint16_t menuMaxLfmCoders[]={MAX_LFM-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1};
-uint16_t* lfmVar[CODER_NB];                         // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
+uint16_t* lfmVar[CODER_NB];                         // inits dans menu.cpp ; les éléments inutilisés sont nullptr
 
 
 int main() {
@@ -97,6 +102,7 @@ if (watchdog_caused_reboot()) {
             case VOICES_FR: coders_for_menu("V",(const char*)nullptr,MAX_VOICES,0,VOICES_FR,menuVcesCodersF,codersSw,codersTB,menuMaxVcesCodersF,vcesVarF,VCE_VAR_F_NB,BASIC_WAVES_NB,0);break;
             case VOICES_AM: coders_for_menu("V_AMP",(const char*)nullptr,MAX_VOICES,0,VOICES_AM,menuVcesCodersM,codersSw,codersTB,menuMaxVcesCodersM,vcesVarM,VCE_VAR_M_NB,BASIC_WAVES_NB,0);break;
             case VOICES_AT: coders_for_menu("V_ATT",(const char*)nullptr,MAX_VOICES,0,VOICES_AT,menuVcesCodersT,codersSw,codersTB,menuMaxVcesCodersT,vcesVarT,VCE_VAR_T_NB,BASIC_WAVES_NB,0);break;
+            case VOICES_FI: coders_for_menu("V_FI",(const char*)nullptr,MAX_VOICES,0,VOICES_FI,menuVcesCodersFi,codersSw,codersTB,menuMaxVcesCodersFi,vcesVarFi,VCE_VAR_FI_NB,BASIC_WAVES_NB,0);break;
             //case WAVES_AMP: coders_for_wavesAmpl(currVoice);break;
             //case GEN_AMPL_: coders_for_genAmpl(currVoice);break;
             case LFOS_____: coders_for_menu("L",(const char*)nullptr,MAX_LFO,0,LFOS_____,menuLfosCoders,codersSw,codersTB,menuMaxLfosCoders,lfosVar,LFO_VAR_NB,BASIC_WAVES_NB,0);break;

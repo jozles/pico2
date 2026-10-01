@@ -4,6 +4,7 @@
     Z(VOICES_FR,"voices freq")
     Z(VOICES_AM,"voices ampl")
     Z(VOICES_AT,"voices att ")
+    Z(VOICES_FI,"voices filt")
     //Z(WAVES_AMP,"waves ampl ")
     Z(LFOS_____,"lfos       ")
     Z(ADSRL____,"adsrl      ")

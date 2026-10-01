@@ -27,6 +27,14 @@
 #define INCRNB 409    // int(4096/10)=409
 #define FREQ0 16.345  // pour avoir un LA à 440Hz avecc 409 incréments par octave 
 
+// --- Filtre, prototype v1 — voir /areas/synthe-rp2350.md pour l'architecture complète ---
+
+#define FILTER_MAX_STAGES 4          // allocated size; filterStages chooses how many are actually used (2 or 4)
+
+struct VoiceFilter {
+    int32_t z[FILTER_MAX_STAGES];    // per-stage state, evolves sample by sample — same role as currEch, but one value per stage
+};
+
 struct Voice {
     uint16_t    sampleNbToFill;                 // sample Nb for 1 period    
     uint32_t    currentSample;                  // last value pushed in i2s buffer                  
@@ -57,6 +65,18 @@ struct Voice {
     volatile int16_t     coderFreq;             // frequency coder value
     //volatile float       basicFrequency;    
     volatile int16_t     coderFreqAtt;          // frequency input attenuator value (0-7fff)
+
+    volatile float       filterFrequency;       // current frequency
+    volatile int16_t     coderFilterFreq;       // filterFrequency coder value
+    volatile int16_t     coderFilterFreqAtt;    // frequency input attenuator value (0-7fff)
+    volatile uint8_t     coderFilterLev;
+    volatile uint8_t     coderFilterLevAtt;
+
+    // --- filtre : fonctionnement réel, lu/écrit par fillVoiceBuffer_mono ---
+    int32_t     newFilterG;          // Q15, target coefficient — written by setFilter(), never read by the render loop
+    int32_t     filterG;             // Q15, current (ramped) coefficient — read live in fillVoiceBuffer_mono
+    VoiceFilter filter;               // per-stage state (z[]), persists across buffers
+    uint8_t     filterStages;         // active stage count: 2 (12 dB/oct) or 4 (24 dB/oct)
 
     volatile uint8_t     cycleR;                // cyclic ratio value (somme coderCycleR et ctl_input_val)
     volatile uint8_t     coderCycleR;           // cyclic ratio -64/+64 coder value

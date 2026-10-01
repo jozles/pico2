@@ -224,6 +224,13 @@ void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)    // cga = genAmpl l
         voices[v].noisePhase = 0;           // Q16.16
         voices[v].noiseStep  = 60817408;    // Q16.16
 
+        voices[v].coderFilterFreq    = 0;
+        voices[v].coderFilterFreqAtt = 0;
+        voices[v].newFilterG         = 32767;
+        voices[v].filterG            = 32767;
+        voices[v].filterStages       = 4;           // valeur de départ pour ce prototype
+        memset(voices[v].filter.z, 0, sizeof(voices[v].filter.z));
+
         for(uint8_t i=0;i<VCES_OUTPUTS_NB;i++){
             voices[v].coderWaveAmpl[i]=0;
             voices[v].basicWaveAmpl[i]=0;
@@ -285,6 +292,16 @@ void __not_in_flash_func(setVoiceFrequency)(float freq,Voice* v,int8_t rc){
     
     v->frequency=freq;
     v->cycleR=rc;
+
+    float k=(float)BASIC_WAVE_TABLE_LEN*v->frequency/SAMPLE_RATE;
+
+    v->stepInt = (uint32_t)k;
+    v->stepFra = (uint32_t)((k - (float)v->stepInt) * (MAX_STEP_FRA));
+}
+
+void __not_in_flash_func(setFilterFrequency)(float freq,Voice* v){
+    
+    v->filterFrequency=freq;
 
     float k=(float)BASIC_WAVE_TABLE_LEN*v->frequency/SAMPLE_RATE;
 
@@ -423,6 +440,8 @@ void __not_in_flash_func(lfosHandler)()
 
 // 
 void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* v,uint8_t voiceNum){   // 360uS ; >900uS avec rc_tables en flash pour les 6 sources @512 samples (23mS@44100Hz)
+gpio_put(TST_PIN,1);  
+      uint32_t ints = save_and_disable_interrupts();
   
       i2s_buf_scope=vBuffer;
 
@@ -437,7 +456,7 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
       uint32_t stepInt      = v->stepInt;
       uint32_t stepFra      = v->stepFra;
 
-      int32_t* w0Sin = &w0[voiceNum][WSIN];
+      //int32_t* w0Sin = &w0[voiceNum][WSIN];
 
 // init rc
       uint32_t rc = v->cycleR&63;                   // rc=0-63
@@ -452,17 +471,17 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
 // init waves ampl (pointers needed for real time changes)     
       volatile uint32_t* waveAmplSin    = &v->basicWaveAmpl[WSIN];
       volatile uint32_t* newWaveAmplSin = &v->newBasicWaveAmpl[WSIN];
-      volatile bool* sinWaveAmplChge    = &v->waveAmplChge[WSIN];
+      //volatile bool* sinWaveAmplChge    = &v->waveAmplChge[WSIN];
       volatile int32_t*  diffSin        = &v->diffWaveAmpl[WSIN];
       volatile uint32_t* waveAmplTri    = &v->basicWaveAmpl[WTRI];
       volatile uint32_t* newWaveAmplTri = &v->newBasicWaveAmpl[WTRI];
-      volatile bool* triWaveAmplChge    = &v->waveAmplChge[WTRI];      
+      //volatile bool* triWaveAmplChge    = &v->waveAmplChge[WTRI];      
       volatile uint32_t* waveAmplSaw    = &v->basicWaveAmpl[WSAW];
       volatile uint32_t* newWaveAmplSaw = &v->newBasicWaveAmpl[WSAW];
-      volatile bool* sawWaveAmplChge    = &v->waveAmplChge[WSAW];              
+      //volatile bool* sawWaveAmplChge    = &v->waveAmplChge[WSAW];              
       volatile uint32_t* waveAmplSqr    = &v->basicWaveAmpl[WSQR]; 
       volatile uint32_t* newWaveAmplSqr = &v->newBasicWaveAmpl[WSQR];
-      volatile bool* sqrWaveAmplChge    = &v->waveAmplChge[WSQR];      
+      //volatile bool* sqrWaveAmplChge    = &v->waveAmplChge[WSQR];      
       volatile uint32_t* waveAmplWhi    = &v->basicWaveAmpl[WHIT];
       volatile uint32_t* waveAmplPnk    = &v->basicWaveAmpl[PONK];
 
@@ -470,130 +489,165 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
 
       //if(voiceNum==0){printf("v:%u f:%f %i %i %i %i %i\n",voiceNum,v->frequency,waveAmplSin,waveAmplTri,waveAmplSaw,waveAmplSqr,waveAmplGen);}
 
-// fast loop computing samples index
-      uint32_t s = SAMPLES_PER_BUFFER;
-      int32_t* vsBuffer=voicesScopeDataBuffer+voiceNum*SAMPLES_PER_BUFFER; // temporary buffer for fast currech computation       
-      do {
-        
-        currEchFra += stepFra;
-        uint32_t carry = (currEchFra >= MAX_STEP_FRA);
-        currEchFra -= carry * MAX_STEP_FRA;
-        currEch += stepInt + carry;
-        currEch &= BASIC_WAVE_TABLE_LEN-1;        // currEch 0-2047
-
-        vsBuffer[SAMPLES_PER_BUFFER-s]=currEch; 
-        s--;
-      }
-      while (s!=0);
-
-// waves gen + noises (filling i2s data)
-      #define RAMP_SHIFT  7                                             // 32-sample sub-blocks = 0.73 ms at 44.1 kHz
-      #define RAMP_LEN   (1u << RAMP_SHIFT)
-      static_assert((SAMPLES_PER_BUFFER % RAMP_LEN) == 0, "SAMPLES_PER_BUFFER must be a multiple of RAMP_LEN");
-
-      int32_t sinAmpl = *waveAmplSin;
-      int32_t triAmpl = *waveAmplTri;
-      int32_t sawAmpl = *waveAmplSaw;
-      for (uint32_t sb = 0; sb < SAMPLES_PER_BUFFER; sb += RAMP_LEN)    // NEW: outer loop, one pass per sub-block
       {
-          const int32_t sinTarget = *newWaveAmplSin;                    // NEW: read the target once per sub-block
-          const int32_t sinInc    = sinTarget - sinAmpl;                // NEW: gap between target and current amplitude
-          int32_t       sinAcc    = sinAmpl << RAMP_SHIFT;              // NEW: current amplitude times 32
+      volatile int32_t* vb=vBuffer;
+  // fast loop computing samples index
+        uint32_t s = SAMPLES_PER_BUFFER;
+        int32_t* vsBuffer=voicesScopeDataBuffer+voiceNum*SAMPLES_PER_BUFFER; // temporary buffer for fast currech computation       
+        do {
+          
+          currEchFra += stepFra;
+          uint32_t carry = (currEchFra >= MAX_STEP_FRA);
+          currEchFra -= carry * MAX_STEP_FRA;
+          currEch += stepInt + carry;
+          currEch &= BASIC_WAVE_TABLE_LEN-1;        // currEch 0-2047
 
-          const int32_t triTarget = *newWaveAmplTri;                    // NEW: read the target once per sub-block
-          const int32_t triInc    = triTarget - triAmpl;                // NEW: gap between target and current amplitude
-          int32_t       triAcc    = triAmpl << RAMP_SHIFT;              // NEW: current amplitude times 32
+          vsBuffer[SAMPLES_PER_BUFFER-s]=currEch; 
+          s--;
+        }
+        while (s!=0);
 
-          const int32_t sawTarget = *newWaveAmplSaw;                    // NEW: read the target once per sub-block
-          const int32_t sawInc    = sawTarget - sawAmpl;                // NEW: gap between target and current amplitude
-          int32_t       sawAcc    = sawAmpl << RAMP_SHIFT;              // NEW: current amplitude times 32          
+  // waves gen (filling i2s data)
+        #define RAMP_SHIFT  7                                             // 32-sample sub-blocks = 0.73 ms at 44.1 kHz
+        #define RAMP_LEN   (1u << RAMP_SHIFT)
+        static_assert((SAMPLES_PER_BUFFER % RAMP_LEN) == 0, "SAMPLES_PER_BUFFER must be a multiple of RAMP_LEN");
 
-          for(uint32_t s = sb; s < sb + RAMP_LEN; s++)
-          {
+        int32_t sinAmpl = *waveAmplSin;
+        int32_t triAmpl = *waveAmplTri;
+        int32_t sawAmpl = *waveAmplSaw;
+        for (uint32_t sb = 0; sb < SAMPLES_PER_BUFFER; sb += RAMP_LEN)    // NEW: outer loop, one pass per sub-block
+        {
+            const int32_t sinTarget = *newWaveAmplSin;                    // NEW: read the target once per sub-block
+            const int32_t sinInc    = sinTarget - sinAmpl;                // NEW: gap between target and current amplitude
+            int32_t       sinAcc    = sinAmpl << RAMP_SHIFT;              // NEW: current amplitude times 32
 
-                // !!!!! pour le scope un buffer séparé serait utile : !!!!! 
-                // le scope affiche lentement et i2sbuf est modifié rapidement 
+            const int32_t triTarget = *newWaveAmplTri;                    // NEW: read the target once per sub-block
+            const int32_t triInc    = triTarget - triAmpl;                // NEW: gap between target and current amplitude
+            int32_t       triAcc    = triAmpl << RAMP_SHIFT;              // NEW: current amplitude times 32
 
-                // waves
+            const int32_t sawTarget = *newWaveAmplSaw;                    // NEW: read the target once per sub-block
+            const int32_t sawInc    = sawTarget - sawAmpl;                // NEW: gap between target and current amplitude
+            int32_t       sawAcc    = sawAmpl << RAMP_SHIFT;              // NEW: current amplitude times 32          
 
-                uint32_t ce=vsBuffer[s];          
+            for(uint32_t s = sb; s < sb + RAMP_LEN; s++)
+            {
 
-                bool vv=(ce<RC_TABLES_LEN);
-                int sign=(vv*2-1);                                // invert 180-360°
+                  // !!!!! pour le scope un buffer séparé serait utile : !!!!! 
+                  // le scope affiche lentement et i2sbuf est modifié rapidement 
 
-                // if ce<RC_TABLES_LEN ce=ce else ce=(RC_TABLES_LEN - 1) - (ce - RC_TABLE_LEN) ... 2*RC_TABLE_LEN - ce - 1
-                ce ^= (!vv) * (BASIC_WAVE_TABLE_LEN - 1);         // ce = vv*ce+!vv*((BASIC_WAVE_TABLE_LEN-1) - ce);  // invert 180-360°           
-                ce &= RC_TABLES_LEN-1;
+                  // waves
 
-                uint32_t ce_idx = ce;
-                if (reverseCeIdx) ce_idx = (RC_TABLES_LEN - 1) - ce_idx;
-                const int16_t* w=rcTableCurr+RC_N_WAVES*ce_idx;   // rc_table values ptr
+                  uint32_t ce=vsBuffer[s];          
 
-                int32_t pre=0;
+                  bool vv=(ce<RC_TABLES_LEN);
+                  int sign=(vv*2-1);                                // invert 180-360°
 
-                int16_t wwave;
-                
-                //if (__builtin_expect((*waveAmplSin + *newWaveAmplSin),false)!=0){                
-                  wwave=w[WSIN];
-                  sinAcc += sinInc;                           // per sample: add + shift
-                  pre = wwave * (sinAcc >> RAMP_SHIFT);       // replaces pre=(wwave * *waveAmplSin);     
-                //}
+                  // if ce<RC_TABLES_LEN ce=ce else ce=(RC_TABLES_LEN - 1) - (ce - RC_TABLE_LEN) ... 2*RC_TABLE_LEN - ce - 1
+                  ce ^= (!vv) * (BASIC_WAVE_TABLE_LEN - 1);         // ce = vv*ce+!vv*((BASIC_WAVE_TABLE_LEN-1) - ce);  // invert 180-360°           
+                  ce &= RC_TABLES_LEN-1;
 
-                //if (__builtin_expect((*waveAmplTri + *newWaveAmplTri),false)!=0){
-                  wwave=w[WTRI];
-                  triAcc += triInc;                           
-                  pre += wwave * (triAcc >> RAMP_SHIFT);     
-                //}
+                  uint32_t ce_idx = ce;
+                  if (reverseCeIdx) ce_idx = (RC_TABLES_LEN - 1) - ce_idx;
+                  const int16_t* w=rcTableCurr+RC_N_WAVES*ce_idx;   // rc_table values ptr
 
-        // saw et sqr semblent faire une fréquence double        
+                  int32_t pre=0;
 
-                //if (__builtin_expect((*waveAmplSaw + *newWaveAmplSaw),false)!=0){
-                  int16_t tri=rcTable32[RC_N_WAVES*ce+WTRI];  // saw utilise la table 32 du triangle
-                  int32_t saw;
-                  if(ce<(RC_N_SAMPLES >> 1)){saw=(65536-tri)>>1;}
-                  else saw=tri>>1;
-                  saw *= sawRcSign;                 // saw n'a pas de réglace de rc, juste une inversion de phase (montée ou descente verticale)
-                  sawAcc += sawInc;                           
-                  pre += saw * (sawAcc >> RAMP_SHIFT);        
-                //}          
+                  int16_t wwave;
+                  
+                  //if (__builtin_expect((*waveAmplSin + *newWaveAmplSin),false)!=0){                
+                    wwave=w[WSIN];
+                    sinAcc += sinInc;                           // per sample: add + shift
+                    pre = wwave * (sinAcc >> RAMP_SHIFT);       // replaces pre=(wwave * *waveAmplSin);     
+                  //}
 
-                //if (__builtin_expect(*newWaveAmplSqr!=0,false)){
-                  int16_t sqr=(ce & (BASIC_WAVE_TABLE_LEN>>1)) ? -0x7fff : 0x7fff;    // sqr cr not implemented
-                  pre += (sqr * *newWaveAmplSqr);     //>>GAIN_REDUC;
-                //}
+                  //if (__builtin_expect((*waveAmplTri + *newWaveAmplTri),false)!=0){
+                    wwave=w[WTRI];
+                    triAcc += triInc;                           
+                    pre += wwave * (triAcc >> RAMP_SHIFT);     
+                  //}
 
-                pre *= sign;
+          // saw et sqr semblent faire une fréquence double        
 
-                // noises
+                  //if (__builtin_expect((*waveAmplSaw + *newWaveAmplSaw),false)!=0){
+                    int16_t tri=rcTable32[RC_N_WAVES*ce+WTRI];  // saw utilise la table 32 du triangle
+                    int32_t saw;
+                    if(ce<(RC_N_SAMPLES >> 1)){saw=(65536-tri)>>1;}
+                    else saw=tri>>1;
+                    saw *= sawRcSign;                 // saw n'a pas de réglace de rc, juste une inversion de phase (montée ou descente verticale)
+                    sawAcc += sawInc;                           
+                    pre += saw * (sawAcc >> RAMP_SHIFT);        
+                  //}          
 
-                nPhase += nStep;
-                uint32_t tmp = nPhase - limit;
-                nPhase = tmp + ((tmp >> 31) & limit);
-                int32_t white = noise_table[nPhase>>16];
-                pre += (white * *waveAmplWhi);     //>>GAIN_REDUC;
+                  //if (__builtin_expect(*newWaveAmplSqr!=0,false)){
+                    int16_t sqr=(ce & (BASIC_WAVE_TABLE_LEN>>1)) ? -0x7fff : 0x7fff;    // sqr cr not implemented
+                    pre += (sqr * *newWaveAmplSqr);     //>>GAIN_REDUC;
+                  //}
 
-                // bruit rose 1-pôle branchless
-                pink_state=(alpha * pink_state + (32768 - alpha) * (white)) >> 15;    
-                pre += (pink_state * *waveAmplPnk);  //>>GAIN_REDUC;
+                  pre *= sign;
+  
+                  // noises
 
-                pre *= *waveAmplGen;
+                  nPhase += nStep;
+                  uint32_t tmp = nPhase - limit;
+                  nPhase = tmp + ((tmp >> 31) & limit);
+                  int32_t white = noise_table[nPhase>>16];
+                  pre += (white * *waveAmplWhi);     //>>GAIN_REDUC;
 
-                *vBuffer+=pre;
-                vBuffer++;
-                *vBuffer+=pre;
-                vBuffer++;
-          }
-          sinAmpl = sinTarget;                            // exact landing on the target
-          triAmpl = triTarget;                            // exact landing on the target
-          sawAmpl = sawTarget;                            // exact landing on the target          
+                  // bruit rose 1-pôle branchless
+                  pink_state=(alpha * pink_state + (32768 - alpha) * (white)) >> 15;    
+                  pre += (pink_state * *waveAmplPnk);  //>>GAIN_REDUC;
+  
+                  //*/
+                  pre *= *waveAmplGen;
+
+                  *vb+=pre;
+                  vb++;
+                  *vb+=pre;
+                  vb++;
+            }
+            sinAmpl = sinTarget;                            // exact landing on the target
+            triAmpl = triTarget;                            // exact landing on the target
+            sawAmpl = sawTarget;                            // exact landing on the target          
+        }
+        
+        *waveAmplSin = sinAmpl;
+        *waveAmplTri = triAmpl;
+        *waveAmplSaw = sawAmpl;           
+
+        v->currEch    = currEch;
+        v->currEchFra = currEchFra;
+
       }
-      *waveAmplSin = sinAmpl;
-      *waveAmplTri = triAmpl;
-      *waveAmplSaw = sawAmpl;           
 
-      v->currEch    = currEch;
-      v->currEchFra = currEchFra;
-      v->noisePhase = nPhase;
+      /*// noises
+      {
+        volatile int32_t* vb=vBuffer;
+        for (uint32_t s = 0; s < SAMPLES_PER_BUFFER; s++)    // NEW: noise isolation
+        {
+            int32_t pre=0;          
+
+            nPhase += nStep;
+            uint32_t tmp = nPhase - limit;
+            nPhase = tmp + ((tmp >> 31) & limit);
+            int32_t white = noise_table[nPhase>>16];
+            pre += (white * *waveAmplWhi);     //>>GAIN_REDUC;
+
+            // bruit rose 1-pôle branchless
+            pink_state=(alpha * pink_state + (32768 - alpha) * (white)) >> 15;    
+            pre += (pink_state * *waveAmplPnk);  //>>GAIN_REDUC;
+
+            pre *= *waveAmplGen;
+            
+            *vb+=pre;
+            vb++;
+            *vb+=pre;
+            vb++; 
+        }
+
+        v->noisePhase = nPhase;
+      } //*/
+gpio_put(TST_PIN,0); 
+      restore_interrupts(ints);
 }
 
 void __not_in_flash_func(fillVoiceBuffer)(int32_t* vBuffer, Voice* voices, uint8_t bufNum)
@@ -601,11 +655,11 @@ void __not_in_flash_func(fillVoiceBuffer)(int32_t* vBuffer, Voice* voices, uint8
     blank_(vBuffer,SAMPLES_PER_BUFFER*2*4,0x00);   // env 12uS
 
     for(uint8_t v=0;v<MAX_VOICES;v++){   //MAX_VOICES;v++){
-gpio_put(TST_PIN,1);      
+//gpio_put(TST_PIN,1);      
       fillVoiceBuffer_mono(vBuffer, &voices[v],v);
       
       //printf("v:%u\n",v);for(uint16_t b=0;b<1024;b++){printf("%u %i %X ; ",b,vBuffer[b],(uint32_t)vBuffer[b]);}printf("\n");
-gpio_put(TST_PIN,0);      
+//gpio_put(TST_PIN,0);      
     }
     i2s_buf_free[bufNum] = false;
 }
