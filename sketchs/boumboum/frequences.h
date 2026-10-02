@@ -69,12 +69,11 @@ struct Voice {
     volatile float       filterFrequency;       // current frequency
     volatile int16_t     coderFilterFreq;       // filterFrequency coder value
     volatile int16_t     coderFilterFreqAtt;    // frequency input attenuator value (0-7fff)
-    volatile uint8_t     coderFilterLev;
     volatile uint8_t     coderFilterLevAtt;
 
     // --- filtre : fonctionnement réel, lu/écrit par fillVoiceBuffer_mono ---
-    int32_t     newFilterG;          // Q15, target coefficient — written by setFilter(), never read by the render loop
-    int32_t     filterG;             // Q15, current (ramped) coefficient — read live in fillVoiceBuffer_mono
+    int32_t     newFilterG;           // Q15, target coefficient — written by setFilter(), never read by the render loop
+    int32_t     filterG;              // Q15, current (ramped) coefficient — read live in fillVoiceBuffer_mono
     VoiceFilter filter;               // per-stage state (z[]), persists across buffers
     uint8_t     filterStages;         // active stage count: 2 (12 dB/oct) or 4 (24 dB/oct)
 
@@ -97,7 +96,11 @@ void fillVoices();
 void setVoiceFrequency(float freq,Voice* v,int8_t rc);
 float calcFreq(uint16_t val);
 uint16_t calcCoderFreq(float freq);
-;
+void setVoiceFilter(Voice* v, int16_t coderFilterF, int16_t coderFilterFAtt, int16_t coderFilterLevAtt);
+float calcFilterG(uint16_t val);
+void setVoiceFilter(Voice* v, int16_t coderFilterF, int16_t coderFilterFAtt, int16_t coderFilterLevAtt);
+void filtersInit(uint8_t v);
+
 void setLfosFrequency(float freq,uint8_t l,int8_t rc);
 void lfosHandler();
 void lfosInit();

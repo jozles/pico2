@@ -9,3 +9,4 @@
     X(VWPW,"SWPW")
     X(VKPW,"SKPW")
     X(VGPW,"GPOW")
+    X(VFIL,"FILT")

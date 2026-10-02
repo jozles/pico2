@@ -426,6 +426,7 @@ bool init_objects_inputs(void)
                 case VWPW:ctl_input_update_type[curr_input]=VCE_WHIT;break;
                 case VKPW:ctl_input_update_type[curr_input]=VCE_WPNK;break;
                 case VGPW:ctl_input_update_type[curr_input]=VCE_GENA;break;
+                case VFIL:ctl_input_update_type[curr_input]=VCE_FILT;break;
                 default:break;
             }
             if(ins<VOICES_INPUTS_NB){
@@ -608,6 +609,11 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
                 case VCE_WHIT:  setVoicesAmpl(object,WHIT,valeur);break;
                 case VCE_WPNK:  setVoicesAmpl(object,PONK,valeur);break;                                                                                                                
                 case VCE_GENA:  setVoicesAmpl(object,BASIC_WAVES_NB,valeur);break;
+                case VCE_FILT:  val=(valeur>>6)*voices[object].coderFilterFreqAtt>>MAX_CTL_ATT_SHIFT;
+                                printf("VCE_FILT obj:%u val:%ld coderFilterFreq:%d\n", object, val, voices[object].coderFilterFreq);
+                                voices[object].newFilterG = (int32_t)(calcFilterG(val+voices[object].coderFilterFreq) * 32768.0f);
+                                printf("  -> newFilterG:%ld\n", voices[object].newFilterG);
+                                break;
                 case LFO_FREQ:  val=(valeur>>3)*lfosCodersFreqAtt[object]>>MAX_CTL_ATT_SHIFT;           // 8k max VCES_MAX_FREQ_CODERS ; att 0-255 
                                 fr=calcFreq(val+lfosCodersFreq[object])/VOICE_FREQ_DIVIDER;
                                 setLfosFrequency(fr,object,lfosCoderCycleR[object]);                    // ajouter un ctl d'overflow

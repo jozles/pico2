@@ -75,7 +75,6 @@ extern volatile int16_t menuVcesCodersT[];
 extern uint16_t* vcesVarFi[];
 uint16_t tempVceCoderFiFreq[MAX_VOICES];
 uint16_t tempVceCoderFiFreqAtt[MAX_VOICES];
-uint16_t tempVceCoderFiLev[MAX_VOICES];
 uint16_t tempVceCoderFiLevAtt[MAX_VOICES];
 extern volatile int16_t menuVcesCodersFi[];
 
@@ -159,7 +158,6 @@ enum FiltersCoders {
     FILTMENU,
     FILTCODERFREQ,
     FILTCODERFREQATT,
-    FILTCODERLEVEL,
     FILTCODERLEVELATT
 };
 
@@ -207,7 +205,6 @@ void menus_init(){
         
         tempVceCoderFiFreq[v]=voices[v].coderFilterFreq;
         tempVceCoderFiFreqAtt[v]=voices[v].coderFilterFreqAtt;
-        tempVceCoderFiLev[v]=voices[v].coderFilterLev;
         tempVceCoderFiLevAtt[v]=voices[v].coderFilterLevAtt;        
     }
     // *** switchs ***
@@ -277,12 +274,10 @@ void menus_init(){
         // *** voices Filters ***
     vcesVarFi[FILTCODERFREQ-1]=tempVceCoderFiFreq;
     vcesVarFi[FILTCODERFREQATT-1]=tempVceCoderFiFreqAtt;
-    vcesVarFi[FILTCODERLEVEL-1]=tempVceCoderFiLev; 
     vcesVarFi[FILTCODERLEVELATT-1]=tempVceCoderFiLevAtt;            
     menuVcesCodersFi[FILTMENU]=0;                  // line 0 du menu 
     menuVcesCodersFi[FILTCODERFREQ]=voices[0].coderFilterFreq;
-    menuVcesCodersFi[FILTCODERFREQATT]=voices[0].coderFilterFreqAtt;    // (atténuateur de la valeur de l'input) 
-    menuVcesCodersFi[FILTCODERLEVEL]=voices[0].coderFilterLev;         
+    menuVcesCodersFi[FILTCODERFREQATT]=voices[0].coderFilterFreqAtt;    // (atténuateur de la valeur de l'input)      
     menuVcesCodersFi[FILTCODERLEVELATT]=voices[0].coderFilterLevAtt;
         // ***  Adsr  ****
     adsrVar[ADSRATT-1]=adsrCoderAtt;            // adsrVar[0]
@@ -673,9 +668,6 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                         //setVoiceFrequency(voices[line].frequency,&voices[line],cc);
                         voices[line].coderFilterFreqAtt=cc;}
                         break;
-                    case FILTCODERLEVEL:if(varChge){
-                        voices[line].coderFilterLev=cc;}
-                        break;                                    
                     case FILTCODERLEVELATT:if(varChge){
                         voices[line].coderFilterLevAtt=cc;}
                         break;
@@ -727,10 +719,10 @@ void fullMenuDsp(const char* title,const char* menu,uint8_t linesNb,uint8_t line
 
     first_row=begline;
     if(type==MENU0____){first_row=begline_menu0;}
-    tft_fill_rect_blank(0,0,TFT_H-first_row,TFT_W);
+    tft_fill_rect_blank(0,0,TFT_H,TFT_W);   // clear screen
     title_dsp(title,0,type);
-    uint8_t bgl=0;          // first line to display
-    if(type==0){bgl=1;}     // skip unused MENU0___ entry
+    uint8_t bgl=0;                          // first line to display
+    if(type==0){bgl=1;}                     // skip unused MENU0___ entry
 
     for(uint8_t l=bgl;l<linesNb;l++){
         fillVoices();

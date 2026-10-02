@@ -9,6 +9,7 @@
     X(VCE_WHIT,"VWHI")
     X(VCE_WPNK,"VPNK")
     X(VCE_GENA,"VGEN")
+    X(VCE_FILT,"VFIL")
     X(LFO_FREQ,"LFRQ")
     X(LFO_CRA ,"LCRA")
     X(A_ATTACK,"AATA")
