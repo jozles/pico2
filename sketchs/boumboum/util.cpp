@@ -564,7 +564,7 @@ void testSetup()
     #define VOICE0 0x80
     #define VOICE1 0x40
     #define VOICE2 0x20
-    uint8_t action=VOICE0|VOICE1|VOICE2;
+    uint8_t action=VOICE1|VOICE2; //VOICE0|VOICE1|VOICE2;
 
     printf("\n========== test-setup 0x%02X ==========\n",action);    
 

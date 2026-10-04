@@ -78,11 +78,11 @@ bool __not_in_flash_func(coderTimerHandler)(){
             }
             
             // traitement touch buttons (avant les coders pour ne pas être zappé par les "continue")  
-            if(__builtin_expect((ct->touchButton!=gpio_get(TOUCH_PIN) && (currTime-ct->touchButtonTime >CODER_SW_STROBE_MS)),false)){
+            if(__builtin_expect((ct->touchButton!=gpio_get(TOUCH_PIN) && (currTime-ct->touchButtonTime >CODER_SW_STROBE_MS)),false)){   // si la valeur "mémoire" est != de la valeur lue et time-out de debounce ok...
 
-                ct->touchButtonTime=currTime;
+                ct->touchButtonTime=currTime;                                       // re-arm time_out
                 //printf("c:%u:%u\n",cod,ct->touchButton);
-                touch_button_handler(touch,&(ct->touchButton),coderTouchB);
+                touch_button_handler(touch,&(ct->touchButton),coderTouchB);         // n° coder physique, valeur "mémoire", le buffer des valeurs courantes lues
             }
         
         

@@ -29,7 +29,7 @@ extern int16_t  ctl_output_id_chain[MAX_OUTPUTS];
 
 extern volatile uint32_t millisCounter;
 
-
+bool tb7=false;
 
 // mapping
 
@@ -106,6 +106,8 @@ extern bool     lfmScopeDisp[];
 
 volatile bool codersSw[CODER_NB];                           // coder it handler scans all physical coders
 volatile bool codersTB[CODER_NB];                           // coder it handler scans all touchButtons
+extern volatile bool* coderTouchB;
+static bool oldCTB[CODER_NB];
 
 //extern uint16_t amplLevel[];                        // table des amplitudes
 
@@ -318,17 +320,17 @@ void title_dsp(const char* title,uint8_t item,uint8_t type,float v0, int32_t v1,
         //case WAVES_AMP:sprintf(buf,"v:%d %4.3f amp",item,voices[item].frequency);break;
 
         //case VOICES_FR:sprintf(buf,"%s:%u %1.3f%+i %c",title,item,voices[item].basicFrequency,voices[item].coderCycleR-MAXCODER_RC/2,onoff[i2s_running]);break;
-        case VOICES_FR:sprintf(buf,"%s:%u %+i %u %c",title,item,voices[item].coderCycleR-MAXCODER_RC/2,onoff[i2s_running]);break;
-        case VOICES_AM:sprintf(buf,"%s:%u %c",title,item,onoff[i2s_running]);break;
-        case VOICES_AT:sprintf(buf,"%s:%u %c",title,item,onoff[i2s_running]);break;
-        case LFOS_____:sprintf(buf,"%s:%u %1.3f%+i %c",title,item,lfosFrequency[item],lfosCoderCycleR[item]-MAXCODER_RC/2,onoff[i2s_running]);
+        case VOICES_FR:sprintf(buf,"%s:%u %+i %u %c%c",title,item,voices[item].coderCycleR-MAXCODER_RC/2,onoff[i2s_running],onoff[tb7]);break;
+        case VOICES_AM:sprintf(buf,"%s:%u %c%c",title,item,onoff[i2s_running],onoff[tb7]);break;
+        case VOICES_AT:sprintf(buf,"%s:%u %c%c",title,item,onoff[i2s_running],onoff[tb7]);break;
+        case LFOS_____:sprintf(buf,"%s:%u %1.3f%+i %c%c",title,item,lfosFrequency[item],lfosCoderCycleR[item]-MAXCODER_RC/2,onoff[i2s_running],onoff[tb7]);
                     sprintf(buf2,"crAt:%i frAt:%i",lfosCoderCycleRAtt[item],lfosCodersFreqAtt[item]);
                     break;        
-        case ADSRL____:sprintf(buf,"%s%u %c",title,item,onoff[i2s_running]);
+        case ADSRL____:sprintf(buf,"%s%u %c%c",title,item,onoff[i2s_running],onoff[tb7]);
                     sprintf(buf2,"%u %u %u %+u %u",adsrCoderAtt[item],adsrCoderDec[item],adsrCoderSus[item],adsrCoderRel[item],adsrCoderLev[item]);break;
         //case MENU0:sprintf(buf,"%s  ",title);break;
 
-        default:sprintf(buf,"%s %u %c    ",title,type,onoff[i2s_running]);break;
+        default:sprintf(buf,"%s %u %c%c   ",title,type,onoff[i2s_running],onoff[tb7]);break;
     }        
     tft_draw_text_12x12_dma_mult(0,0,buf,0x001f,0x0000,1);
     tft_draw_text_12x12_dma_mult(0,14,buf2,0x001f,0x0000,1);
@@ -785,7 +787,10 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
                 if((s-1)!=wave){type_scope=1;}
                 else type_scope^=1;
                 wave=s-1;
-            } 
+            }
+            
+            if(!oldCTB[7] && (coderTouchB[7]==1)){tb7=!tb7;oldCTB[7]=true;title_dsp(title,line,object_type);} // tb7 toogle sur les rising edges de coderTouchB
+            if(oldCTB[7] && (coderTouchB[7]==0)){oldCTB[7]=false;title_dsp(title,line,object_type);}
 
 //printf("0\n");            
 //if(object_type==VOICES_AM){printf("VOICES_AM\n");while(1){fillVoices();}}

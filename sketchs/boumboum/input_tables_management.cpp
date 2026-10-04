@@ -610,9 +610,8 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
                 case VCE_WPNK:  setVoicesAmpl(object,PONK,valeur);break;                                                                                                                
                 case VCE_GENA:  setVoicesAmpl(object,BASIC_WAVES_NB,valeur);break;
                 case VCE_FILT:  val=(valeur>>6)*voices[object].coderFilterFreqAtt>>MAX_CTL_ATT_SHIFT;
-                                printf("VCE_FILT obj:%u val:%ld coderFilterFreq:%d\n", object, val, voices[object].coderFilterFreq);
-                                voices[object].newFilterG = (int32_t)(calcFilterG(val+voices[object].coderFilterFreq) * 32768.0f);
-                                printf("  -> newFilterG:%ld\n", voices[object].newFilterG);
+                                fr=calcFilterG(val+voices[object].coderFilterFreq);                     // g = tan(pi*fc/fs)
+                                voices[object].newFilterG = (int32_t)(fr/(1.0f+fr)*32768.0f);           // gg, always < 1
                                 break;
                 case LFO_FREQ:  val=(valeur>>3)*lfosCodersFreqAtt[object]>>MAX_CTL_ATT_SHIFT;           // 8k max VCES_MAX_FREQ_CODERS ; att 0-255 
                                 fr=calcFreq(val+lfosCodersFreq[object])/VOICE_FREQ_DIVIDER;

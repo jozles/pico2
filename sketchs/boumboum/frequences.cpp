@@ -13,6 +13,7 @@
 #include "sound_level_management.h"
 #include "hardware/sync.h"
 
+extern bool tb7;
 static bool filterTraceDone = false;
 static bool stop=false;
 
@@ -272,6 +273,9 @@ void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)    // cga = genAmpl l
           w0[v][w]=-1;
         }
     }
+printf("amplLevel[0]=%u [1]=%u [31]=%u | v0: coderFilterFreq=%d newFilterG=%ld filterG=%ld\n",
+    amplLevel[0], amplLevel[1], amplLevel[31],
+    voices[0].coderFilterFreq, voices[0].newFilterG, voices[0].filterG);
 }
 
 void voicesInit(Voice* voices,float freq,uint8_t cga){
@@ -336,7 +340,7 @@ const float FILTER_MIN_FREQ = 20.0f;
 
 void filtersInit(uint8_t v)
 {
-    setVoiceFilter(&voices[v], (int16_t)(FILTER_MAX_OCT/2 * octIncrNb), 0, NO_ATTENUATION_VALUE);   // cutoff grand ouvert par défaut ; atten wide open
+    setVoiceFilter(&voices[v], (int16_t)(FILTER_MAX_OCT * octIncrNb), 0, NO_ATTENUATION_VALUE);   // cutoff grand ouvert par défaut ; atten wide open
     voices[v].filterG      = voices[v].newFilterG;
     voices[v].filterStages = 4;
     memset(voices[v].filter.z, 0, sizeof(voices[v].filter.z));
@@ -348,7 +352,9 @@ void setFilterFrequency(float freqHz, Voice* v)
     if (freqHz > FILTER_MAX_FREQ) freqHz = FILTER_MAX_FREQ;
 
     v->filterFrequency = freqHz;
-    v->newFilterG = (int32_t)(tanf(M_PI * freqHz / SAMPLE_RATE) * 32768.0f);   // setFilterG(tanf(M_PI * freqHz / SAMPLE_RATE), v);      
+
+    float g = tanf(M_PI * freqHz / SAMPLE_RATE);               // frequency warping, done once per call (not per sample)
+    v->newFilterG = (int32_t)(g / (1.0f + g) * 32768.0f);      // gg = g/(1+g), always < 1: the value filterProcess expects
 }
 
 float __not_in_flash_func(calcFilterG)(uint16_t val)
@@ -376,20 +382,20 @@ void __not_in_flash_func(setVoiceFilter)(Voice* v, int16_t coderFilterF, int16_t
     update_inputs(id, ctl_input_val[id]);
 }
 
-static inline int32_t filterProcess(int32_t* z, uint8_t stages, int32_t x, int32_t g)
+static inline int32_t filterProcess(int32_t* z, uint8_t stages, int32_t x, int32_t gg)   // gg = g/(1+g) in Q15
 {
-    if (stages == 0) return x;      // do/while exécute toujours au moins un tour ; sans cette garde, s-- déborde (0→255) et lit hors de z[]
+    if (stages == 0) return x;      // do/while runs at least once; without this guard s-- wraps 0->255
 
     int32_t* zp = z;
     uint8_t  s  = stages;
     do {
-        int32_t diff = (x - *zp) >> 8;
-        int32_t idx  = diff + FILTER_TANH_HALF;
+        int32_t idx = (((x - *zp) + 128) >> 8) + FILTER_TANH_HALF;   // rounded to nearest: no DC drift
         if (idx < 0) idx = 0;
         if (idx >= FILTER_TANH_LEN) idx = FILTER_TANH_LEN - 1;
 
-        *zp += (g * filterTanHTable[idx]) >> 15;
-        x = *zp;
+        int32_t v = (gg * filterTanHTable[idx] + 8192) >> 14;        // ~ gg*(x-z) while the signal is small
+        x   = *zp + v;                                               // stage output
+        *zp = x + v;                                                 // new state
 
         zp++;
         s--;
@@ -530,7 +536,9 @@ void __not_in_flash_func(lfosHandler)()
 void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* v,uint8_t voiceNum){   // 360uS ; >900uS avec rc_tables en flash pour les 6 sources @512 samples (23mS@44100Hz)
 
       //uint32_t ints = save_and_disable_interrupts();
-gpio_put(TST_PIN,1);  
+gpio_put(TST_PIN,1);
+
+static int32_t trc[5];
       
       i2s_buf_scope=vBuffer;
 
@@ -703,9 +711,9 @@ gpio_put(TST_PIN,1);
                   pre += (pink_state * *waveAmplPnk);  //>>GAIN_REDUC;
   
                   //*/
-                  /*// filter
-                  filterGAcc += filterGInc;
-                  pre = (pre * v->coderFilterLevAtt) >> MAX_CTL_ATT_SHIFT;     // attenuate before entering the filter, avoid saturation
+/*// filter
+filterGAcc += filterGInc;
+pre = (pre * v->coderFilterLevAtt) >> MAX_CTL_ATT_SHIFT;     // attenuate before entering the filter, avoid saturation
 
 int32_t filterOut = filterProcess(filterZ, filterStages, pre, filterGAcc >> RAMP_SHIFT);
 pre = filterOut;
@@ -717,13 +725,27 @@ if(voiceNum==0 && !filterTraceDone && (s % 32 == 0)){
 
                   //pre = filterProcess(filterZ, filterStages, pre, filterGAcc >> RAMP_SHIFT);
 
-/*#define FILTER_PRE_SHIFT 15
+///*
+if(tb7){
+#define FILTER_PRE_SHIFT 15
 
 int32_t preScaled = pre >> FILTER_PRE_SHIFT;
 filterGAcc += filterGInc;
 preScaled = (preScaled * v->coderFilterLevAtt) >> MAX_CTL_ATT_SHIFT;
 preScaled = filterProcess(filterZ, filterStages, preScaled, filterGAcc >> RAMP_SHIFT);
-pre = preScaled << FILTER_PRE_SHIFT;  */                
+pre = preScaled << FILTER_PRE_SHIFT;  
+
+if(voiceNum==0 && !filterTraceDone){            // record only, no printf in the audio loop
+    if     (s== 64) trc[0]=pre;
+    else if(s==128) trc[1]=pre;
+    else if(s==256) trc[2]=pre;
+    else if(s==384) trc[3]=pre;
+    else if(s==480) trc[4]=pre;
+}
+            }
+//*/ 
+
+
                   pre *= *waveAmplGen;
 
                   *vb+=pre;
@@ -738,6 +760,12 @@ pre = preScaled << FILTER_PRE_SHIFT;  */
             triAmpl = triTarget;
             sawAmpl = sawTarget;
         }
+
+if(voiceNum==0 && !filterTraceDone){
+    filterTraceDone = true;
+    printf("pre_final s64:%ld s128:%ld s256:%ld s384:%ld s480:%ld\n",
+           trc[0], trc[1], trc[2], trc[3], trc[4]);
+}
 
         v->filterG = filterG;
         memcpy(v->filter.z, filterZ, sizeof(filterZ));
