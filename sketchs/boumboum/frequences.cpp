@@ -33,9 +33,9 @@ float octIncr[octIncrNb];
 #define FILTER_KNEE       65536.0f      // raw units where the soft saturation starts (tanh argument = 1)
 #define FILTER_FRAC       8             // fractional bits kept inside the filter (Q8)
 #define FILTER_PRE_SHIFT  15            // shift between the voice signal and the filter input
+#define FILTER_BIAS (32768 + (FILTER_TANH_HALF << 16))   // rounding offset and table centre folded into one constant
 
 int32_t filterDTable[FILTER_TANH_LEN];  // Q8: deviation of tanh from a straight line
-int32_t filterSatMaxQ8;                 // fully saturated output in Q8
 
 float gTable[FILTER_TABLE_LEN];
 
@@ -134,7 +134,7 @@ void init_noise(){
     noise_table[i] =  (int16_t)(xrnd() >> 16);
 }
 
-static inline void get_noise(int16_t *white, int16_t *pink)
+/*static inline void get_noise(int16_t *white, int16_t *pink)
 {
     // --- Bruit blanc bande limitée ---
     nPhase += nStep;
@@ -148,7 +148,7 @@ static inline void get_noise(int16_t *white, int16_t *pink)
     pink_state=(alpha * pink_state + (32768 - alpha) * (*white)) >> 15;
     *pink = (int16_t)pink_state;
 
-}
+}*/
 
 // *************************** tables *******************************
 
@@ -212,10 +212,9 @@ void fillFilterTanH()
         } else {
             d = a - tanhf(a);
         }
-        float dq8 = d * (FILTER_KNEE * 256.0f);                 // knee units -> raw Q8
+        float dq8 = d * (FILTER_KNEE * 256.0f * 2.0f);          // knee units -> raw Q8, doubled (see filterStage)
         filterDTable[i] = (int32_t)lroundf(q < 0 ? -dq8 : dq8);
     }
-    filterSatMaxQ8 = (int32_t)lroundf(FILTER_KNEE * tanhf(4.0f)) * 256;
 }
 
 void fillFilterGTable()
@@ -366,7 +365,7 @@ float __not_in_flash_func(calcFilterFreq)(int32_t code)   // cutoff in Hz for a 
     return calcFreq((uint16_t)code);
 }
 
-void setFilterFrequency(float freqHz, Voice* v)
+void __not_in_flash_func(setFilterFrequency)(float freqHz, Voice* v)
 {
     if (freqHz < FILTER_MIN_FREQ) freqHz = FILTER_MIN_FREQ;
     if (freqHz > FILTER_MAX_FREQ) freqHz = FILTER_MAX_FREQ;
@@ -403,26 +402,17 @@ void __not_in_flash_func(setVoiceFilter)(Voice* v, int16_t coderFilterF, int16_t
     update_inputs(id, ctl_input_val[id]);
 }
 
-static inline int32_t filterProcess(int32_t* z, uint8_t stages, int32_t xq, int32_t gg)   // xq, z[] and result in Q8; gg = g/(1+g) in Q15
+static inline __attribute__((always_inline)) int32_t filterStage(int32_t& z, int32_t x, int32_t ggS)   // one pole; x, z and result in Q8; ggS = g/(1+g) in Q31
 {
-    if (stages == 0) return xq;      // do/while runs at least once; without this guard s-- wraps 0->255
-
-    int32_t* zp = z;
-    uint8_t  s  = stages;
-    do {
-        int32_t u   = xq - *zp;
-        int32_t idx = ((u + 32768) >> 16) + FILTER_TANH_HALF;     // nearest entry: one entry = 256 raw = 65536 in Q8
-        int32_t t;
-        if ((uint32_t)idx < FILTER_TANH_LEN) t = u - filterDTable[idx];                         // straight line minus the tanh deviation
-        else                                  t = (u < 0) ? -filterSatMaxQ8 : filterSatMaxQ8;   // beyond the table: fully saturated
-
-        int32_t v = (int32_t)(((int64_t)gg * t + 16384) >> 15);
-        xq  = *zp + v;               // stage output
-        *zp = xq + v;                // new state
-        zp++;
-        s--;
-    } while (s != 0);
-    return xq;
+    int32_t u = x - z;
+    if (u >  67108863) u =  67108863;                  // +-2^26 = +-4 knees: beyond that the output is fully saturated
+    if (u < -67108864) u = -67108864;                  // (the compiler merges these two lines into one ssat instruction)
+    int32_t t2 = 2 * u - filterDTable[(u + FILTER_BIAS) >> 16];   // 2 * (straight line minus the tanh deviation); the table is doubled
+    int32_t v;
+    asm("smmulr %0, %1, %2" : "=r"(v) : "r"(ggS), "r"(t2));      // v = gg * t in Q8: high word of the 64-bit product, rounded
+    x  = z + v;                                        // stage output
+    z  = x + v;                                        // new state
+    return x;
 }
 
 // *************************** lfos ****************************
@@ -557,7 +547,7 @@ void __not_in_flash_func(lfosHandler)()
 // 
 void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* v,uint8_t voiceNum){   // 360uS ; >900uS avec rc_tables en flash pour les 6 sources @512 samples (23mS@44100Hz)
 
-      //uint32_t ints = save_and_disable_interrupts();
+uint32_t ints = save_and_disable_interrupts();
 gpio_put(TST_PIN,1);
 
 static int32_t trc[5];
@@ -567,6 +557,7 @@ static int32_t trc[5];
 // init noise
       nPhase       = v->noisePhase;
       nStep        = v->noiseStep;
+      int32_t pink_state_loc = pink_state;
       uint32_t limit = (uint32_t)NOISE_TABLE_SIZE << 16;
 
 // init waves      
@@ -620,9 +611,8 @@ static int32_t trc[5];
   
   // filters
         int32_t filterG = v->filterG;
-        int32_t filterZ[FILTER_MAX_STAGES];
-        memcpy(filterZ, v->filter.z, sizeof(filterZ));
-        uint8_t filterStages = v->filterStages;
+        int32_t z0 = v->filter.z[0], z1 = v->filter.z[1], z2 = v->filter.z[2], z3 = v->filter.z[3];   // filter state in registers (Q8)
+        const int32_t attQ23 = (int32_t)v->coderFilterLevAtt << 23;      // input attenuator for the high-word multiply (255 << 23 < 2^31)
 
   // waves gen (filling i2s data)
         #define RAMP_SHIFT  7                                             // 32-sample sub-blocks = 0.73 ms at 44.1 kHz
@@ -632,7 +622,8 @@ static int32_t trc[5];
         int32_t sinAmpl = *waveAmplSin;
         int32_t triAmpl = *waveAmplTri;
         int32_t sawAmpl = *waveAmplSaw;
-     
+
+gpio_put(TST_PIN,0);        
         for (uint32_t sb = 0; sb < SAMPLES_PER_BUFFER; sb += RAMP_LEN)    // NEW: outer loop, one pass per sub-block
         {
             // filters
@@ -652,9 +643,11 @@ static int32_t trc[5];
             const int32_t sawTarget = *newWaveAmplSaw;                    // NEW: read the target once per sub-block
             const int32_t sawInc    = sawTarget - sawAmpl;                // NEW: gap between target and current amplitude
             int32_t       sawAcc    = sawAmpl << RAMP_SHIFT;              // NEW: current amplitude times 32          
-
+gpio_put(TST_PIN,1); 
             for(uint32_t s = sb; s < sb + RAMP_LEN; s++)
             {
+
+                  const bool noiseOn = (*waveAmplWhi != 0) || (*waveAmplPnk != 0);   // evaluated once per sub-block
 
                   // !!!!! pour le scope un buffer séparé serait utile : !!!!! 
                   // le scope affiche lentement et i2sbuf est modifié rapidement 
@@ -711,24 +704,31 @@ static int32_t trc[5];
   
                   // noises
 
-                  nPhase += nStep;
-                  if (nPhase >= limit) nPhase -= limit;      // wrap: nPhase + nStep is always below 2*limit
-                  int32_t white = noise_table[nPhase>>16];
-                  pre += (white * *waveAmplWhi);     //>>GAIN_REDUC;
+                  if (noiseOn) {
 
-                  // bruit rose 1-pôle branchless
-                  pink_state=(alpha * pink_state + (32768 - alpha) * (white)) >> 15;    
-                  pre += (pink_state * *waveAmplPnk);  //>>GAIN_REDUC;
+                    nPhase += nStep;
+                    if (nPhase >= limit) nPhase -= limit;      // wrap: nPhase + nStep is always below 2*limit
+                    int32_t white = noise_table[nPhase>>16];
+                    pre += (white * *waveAmplWhi);     //>>GAIN_REDUC;
+
+                    // bruit rose 1-pôle branchless
+                    pink_state_loc=(alpha * pink_state_loc + (32768 - alpha) * (white)) >> 15;    
+                    pre += (pink_state_loc * *waveAmplPnk);  //>>GAIN_REDUC;
   
- 
+                  }
 
 ///*
 if(tb7){
     filterGAcc += filterGInc;
-    int32_t xq = pre >> (FILTER_PRE_SHIFT - FILTER_FRAC);                         // keep 8 fractional bits
-    xq = (int32_t)(((int64_t)xq * v->coderFilterLevAtt) >> MAX_CTL_ATT_SHIFT);    // input attenuator (64-bit: xq*255 would overflow int32)
-    xq = filterProcess(filterZ, filterStages, xq, filterGAcc >> RAMP_SHIFT);
-    pre = xq << (FILTER_PRE_SHIFT - FILTER_FRAC);
+    int32_t ggS = (filterGAcc >> RAMP_SHIFT) << 16;                    // ramped gg in Q31
+    int32_t xq;
+    asm("smmulr %0, %1, %2" : "=r"(xq) : "r"(pre >> (FILTER_PRE_SHIFT - FILTER_FRAC)), "r"(attQ23));   // input attenuator
+    xq *= 2;                                                           // xq = input * att / 256
+    xq = filterStage(z0, xq, ggS);
+    xq = filterStage(z1, xq, ggS);
+    xq = filterStage(z2, xq, ggS);
+    xq = filterStage(z3, xq, ggS);
+    pre = xq * (1 << (FILTER_PRE_SHIFT - FILTER_FRAC));                // back to the voice scale
 }
 //*/ 
 
@@ -749,7 +749,7 @@ if(tb7){
         }
 
         v->filterG = filterG;
-        memcpy(v->filter.z, filterZ, sizeof(filterZ));
+        v->filter.z[0] = z0;  v->filter.z[1] = z1;  v->filter.z[2] = z2;  v->filter.z[3] = z3;
         
         *waveAmplSin = sinAmpl;
         *waveAmplTri = triAmpl;
@@ -759,11 +759,12 @@ if(tb7){
         v->currEchFra = currEchFra;
 
         v->noisePhase = nPhase;
+        pink_state    = pink_state_loc;
 
       }
 
 gpio_put(TST_PIN,0); 
-      //restore_interrupts(ints);
+restore_interrupts(ints);
 }
 
 void __not_in_flash_func(fillVoiceBuffer)(int32_t* vBuffer, Voice* voices, uint8_t bufNum)
