@@ -7,20 +7,24 @@
             "name": "Pico 2 Debug (J-Link)",
             "type": "cortex-debug",
             "request": "launch",
-            "servertype": "openocd",
-
-            "serverpath": "C:/Users/jozle/.pico-sdk/openocd/0.12.0+dev/openocd.exe",
-            "searchDir": [
+            //"servertype": "openocd",
+            "servertype": "jlink",
+            //"serverpath": "C:/Users/jozle/.pico-sdk/openocd/0.12.0+dev/openocd.exe",
+            "serverpath": "C:/Program Files/SEGGER/JLink_V926/JLinkGDBServerCL.exe",
+            /*"searchDir": [
                 "C:/Users/jozle/.pico-sdk/openocd/0.12.0+dev/scripts"
             ],
             "configFiles": [
                 "C:/Users/jozle/.pico-sdk/openocd/0.12.0+dev/scripts/interface/jlink.cfg",
                 "C:/Users/jozle/.pico-sdk/openocd/0.12.0+dev/scripts/target/rp2350.cfg"
-            ],
+            ],*/
+            "device": "RP2350_M33_0",
+            "interface": "swd",
 
             "executable": "${workspaceFolder}/build/${workspaceFolderBasename}.elf",
             "gdbPath": "C:/arm-gcc/bin/arm-none-eabi-gdb.exe",
-            "runToMain": true
+            //"runToMain": true
+            "runToEntryPoint": "main"
         }
     ]
 }
