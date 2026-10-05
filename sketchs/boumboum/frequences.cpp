@@ -218,14 +218,6 @@ void fillFilterTanH()
     filterSatMaxQ8 = (int32_t)lroundf(FILTER_KNEE * tanhf(4.0f)) * 256;
 }
 
-/*void fillFilterTanH()
-{
-    for (int i = 0; i < FILTER_TANH_LEN; i++) {
-        float x = (float)(i - FILTER_TANH_HALF) / 256.0f;     // Q8 → valeur réelle
-        filterTanHTable[i] = (int16_t)(tanhf(x) * 32767.0f);
-    }
-}*/
-
 void fillFilterGTable()
 {
     for (int i = 0; i < FILTER_TABLE_LEN; i++) {
@@ -367,6 +359,13 @@ void filtersInit(uint8_t v)
     memset(voices[v].filter.z, 0, sizeof(voices[v].filter.z));
 }
 
+float __not_in_flash_func(calcFilterFreq)(int32_t code)   // cutoff in Hz for a filter code, same domain and limits as calcFilterG
+{
+    if (code < 0) code = 0;
+    if (code > FILTER_MAX_OCT * octIncrNb) code = FILTER_MAX_OCT * octIncrNb;    // the filter stops at ~16.7 kHz
+    return calcFreq((uint16_t)code);
+}
+
 void setFilterFrequency(float freqHz, Voice* v)
 {
     if (freqHz < FILTER_MIN_FREQ) freqHz = FILTER_MIN_FREQ;
@@ -378,7 +377,7 @@ void setFilterFrequency(float freqHz, Voice* v)
     v->newFilterG = (int32_t)(g / (1.0f + g) * 32768.0f);      // gg = g/(1+g), always < 1: the value filterProcess expects
 }
 
-float __not_in_flash_func(calcFilterG)(uint16_t val)
+float __not_in_flash_func(calcFilterG)(int32_t val)
 {
     float octPos = (float)val / (float)octIncrNb;
     if (octPos < 0) octPos = 0;
@@ -398,7 +397,8 @@ void __not_in_flash_func(setVoiceFilter)(Voice* v, int16_t coderFilterF, int16_t
     v->coderFilterFreqAtt = coderFilterFAtt;
     v->coderFilterLevAtt  = coderFilterLevAtt;
 
-    //v->newFilterG = (int32_t)( calcFilterG((uint16_t)coderFilterF) * 32768.0f);   // setFilterG(g, v);
+    v->filterFrequency = calcFilterFreq(coderFilterF);     // display only: cutoff set by the coder (modulation not included)
+
     int16_t id = v->voice_ctl_input_id[VFIL];    
     update_inputs(id, ctl_input_val[id]);
 }

@@ -97,9 +97,11 @@ void setVoiceFrequency(float freq,Voice* v,int8_t rc);
 float calcFreq(uint16_t val);
 uint16_t calcCoderFreq(float freq);
 void setVoiceFilter(Voice* v, int16_t coderFilterF, int16_t coderFilterFAtt, int16_t coderFilterLevAtt);
-float calcFilterG(uint16_t val);
+float calcFilterG(int32_t val);
 void setVoiceFilter(Voice* v, int16_t coderFilterF, int16_t coderFilterFAtt, int16_t coderFilterLevAtt);
 void filtersInit(uint8_t v);
+float calcFilterFreq(int32_t code);
+void setFilterFrequency(float freqHz, Voice* v);
 
 void setLfosFrequency(float freq,uint8_t l,int8_t rc);
 void lfosHandler();

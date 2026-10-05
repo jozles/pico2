@@ -323,6 +323,7 @@ void title_dsp(const char* title,uint8_t item,uint8_t type,float v0, int32_t v1,
         case VOICES_FR:sprintf(buf,"%s:%u %+i %u %c%c",title,item,voices[item].coderCycleR-MAXCODER_RC/2,onoff[i2s_running],onoff[tb7]);break;
         case VOICES_AM:sprintf(buf,"%s:%u %c%c",title,item,onoff[i2s_running],onoff[tb7]);break;
         case VOICES_AT:sprintf(buf,"%s:%u %c%c",title,item,onoff[i2s_running],onoff[tb7]);break;
+        case VOICES_FI:sprintf(buf,"%s %u %4.3f %c%c",title,type,voices[item].filterFrequency,onoff[i2s_running],onoff[tb7]);break;
         case LFOS_____:sprintf(buf,"%s:%u %1.3f%+i %c%c",title,item,lfosFrequency[item],lfosCoderCycleR[item]-MAXCODER_RC/2,onoff[i2s_running],onoff[tb7]);
                     sprintf(buf2,"crAt:%i frAt:%i",lfosCoderCycleRAtt[item],lfosCodersFreqAtt[item]);
                     break;        
@@ -655,23 +656,16 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
             
             case VOICES_FI:
                 switch (coder){
-                    case FILTMENU:if(varChge){
-                        //float f=calcFreq(voices[line].coderFreq);
-                        //voices[line].basicFrequency=f;                
-                        //setVoiceFrequency(f,&voices[line],voices[line].coderCycleR);
-                        }break;
+                    case FILTMENU:
+                        break;
                     case FILTCODERFREQ:if(varChge){
-                        //float f=calcFreq(cc);
-                        //voices[line].basicFrequency=f;                        
-                        //setVoiceFrequency(f,&voices[line],voices[line].coderCycleR);
-                        voices[line].coderFilterFreq=cc;}
+                        setVoiceFilter(&voices[line],cc, voices[line].coderFilterFreqAtt, voices[line].coderFilterLevAtt);}
                         break;
                     case FILTCODERFREQATT:if(varChge){
-                        //setVoiceFrequency(voices[line].frequency,&voices[line],cc);
-                        voices[line].coderFilterFreqAtt=cc;}
+                        setVoiceFilter(&voices[line],voices[line].coderFilterFreq,cc, voices[line].coderFilterLevAtt);}
                         break;
                     case FILTCODERLEVELATT:if(varChge){
-                        voices[line].coderFilterLevAtt=cc;}
+                        setVoiceFilter(&voices[line],voices[line].coderFilterFreq,voices[line].coderFilterFreqAtt,cc);}
                         break;
                     default: break;
                 }               
