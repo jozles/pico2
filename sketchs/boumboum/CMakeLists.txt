@@ -77,7 +77,11 @@ add_executable(boumboum
 	miscControls.cpp
 	input_tables_management.cpp
 	rc_33tables.cpp
+	#filterDTable.cpp
 	)
+
+# le rp2350.ld permet de placer des variables en ram DTCM (voir filterDTable)
+#target_link_options(boumboum PRIVATE -T ${CMAKE_SOURCE_DIR}/rp2350.ld)
 
 # tout le code en ram
 #pico_set_binary_type(boumboum copy_to_ram)

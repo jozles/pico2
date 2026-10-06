@@ -35,7 +35,12 @@ float octIncr[octIncrNb];
 #define FILTER_PRE_SHIFT  15            // shift between the voice signal and the filter input
 #define FILTER_BIAS (32768 + (FILTER_TANH_HALF << 16))   // rounding offset and table centre folded into one constant
 
-int32_t filterDTable[FILTER_TANH_LEN];  // Q8: deviation of tanh from a straight line
+//extern const int32_t filterDTable[];
+
+//__attribute__((section(".ram_d1")))
+int32_t filterDTable[2049];
+//__attribute__((section(".ram_d1")))
+int32_t z0,z1,z2,z3;                    // filter state in registers (Q8)
 
 float gTable[FILTER_TABLE_LEN];
 
@@ -215,7 +220,7 @@ void fillFilterTanH()
         float dq8 = d * (FILTER_KNEE * 256.0f * 2.0f);          // knee units -> raw Q8, doubled (see filterStage)
         filterDTable[i] = (int32_t)lroundf(q < 0 ? -dq8 : dq8);
     }
-}
+}//*/
 
 void fillFilterGTable()
 {
@@ -239,7 +244,7 @@ void sound_tables_init()
   fillAmplIncr();
 
   fillFilterGTable();
-  fillFilterTanH();  
+  fillFilterTanH();  // la table est précalculée dans filterDTable.cpp
 }
 
 // **********************  voices ************************
@@ -549,8 +554,6 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
 
 uint32_t ints = save_and_disable_interrupts();
 gpio_put(TST_PIN,1);
-
-static int32_t trc[5];
       
       i2s_buf_scope=vBuffer;
 
@@ -573,8 +576,8 @@ static int32_t trc[5];
       bool     reverseCeIdx = (rc > 32);            // was tested every sample as "if (rc > 32)"
       int      sawRcSign    = (rc >= 32) ? -1 : 1;  // was tested every sample as "if(rc>=32){saw=-saw;}"
 
-      const int16_t* rcTableCurr = &rc_tables[rcTableNb][0][0];
-      const int16_t* rcTable32 = &rc_tables[32][0][0];                           // base table 32 pour saw      
+      int16_t* rcTableCurr = &rc_tables[rcTableNb][0][0];
+      int16_t* rcTable32 = &rc_tables[32][0][0];                           // base table 32 pour saw      
 
 // init waves ampl (pointers needed for real time changes)     
       volatile uint32_t* waveAmplSin    = &v->basicWaveAmpl[WSIN];
@@ -589,7 +592,7 @@ static int32_t trc[5];
       volatile uint32_t* waveAmplWhi    = &v->basicWaveAmpl[WHIT];
       volatile uint32_t* waveAmplPnk    = &v->basicWaveAmpl[PONK];
 
-      volatile uint16_t* waveAmplGen = &v->genAmpl;
+      volatile uint16_t* waveAmplGen    = &v->genAmpl;
 
       {
       volatile int32_t* vb=vBuffer;
@@ -611,8 +614,8 @@ static int32_t trc[5];
   
   // filters
         int32_t filterG = v->filterG;
-        int32_t z0 = v->filter.z[0], z1 = v->filter.z[1], z2 = v->filter.z[2], z3 = v->filter.z[3];   // filter state in registers (Q8)
-        const int32_t attQ23 = (int32_t)v->coderFilterLevAtt << 23;      // input attenuator for the high-word multiply (255 << 23 < 2^31)
+        z0 = v->filter.z[0];z1 = v->filter.z[1];z2 = v->filter.z[2];z3 = v->filter.z[3];
+        int32_t attQ23 = (int32_t)v->coderFilterLevAtt << 23;      // input attenuator for the high-word multiply (255 << 23 < 2^31)
 
   // waves gen (filling i2s data)
         #define RAMP_SHIFT  7                                             // 32-sample sub-blocks = 0.73 ms at 44.1 kHz
@@ -622,33 +625,37 @@ static int32_t trc[5];
         int32_t sinAmpl = *waveAmplSin;
         int32_t triAmpl = *waveAmplTri;
         int32_t sawAmpl = *waveAmplSaw;
-
-gpio_put(TST_PIN,0);        
+      
         for (uint32_t sb = 0; sb < SAMPLES_PER_BUFFER; sb += RAMP_LEN)    // NEW: outer loop, one pass per sub-block
         {
             // filters
-            const int32_t filterGTarget = v->newFilterG;
-            const int32_t filterGInc    = filterGTarget - filterG;
+            int32_t       filterGTarget = v->newFilterG;
+            int32_t       filterGInc    = filterGTarget - filterG;
             int32_t       filterGAcc    = filterG << RAMP_SHIFT;
 
             // anti-clic
-            const int32_t sinTarget = *newWaveAmplSin;                    // NEW: read the target once per sub-block
-            const int32_t sinInc    = sinTarget - sinAmpl;                // NEW: gap between target and current amplitude
+            int32_t       sinTarget = *newWaveAmplSin;                    // NEW: read the target once per sub-block
+            int32_t       sinInc    = sinTarget - sinAmpl;                // NEW: gap between target and current amplitude
             int32_t       sinAcc    = sinAmpl << RAMP_SHIFT;              // NEW: current amplitude times 32
 
-            const int32_t triTarget = *newWaveAmplTri;                    // NEW: read the target once per sub-block
-            const int32_t triInc    = triTarget - triAmpl;                // NEW: gap between target and current amplitude
+            int32_t       triTarget = *newWaveAmplTri;                    // NEW: read the target once per sub-block
+            int32_t       triInc    = triTarget - triAmpl;                // NEW: gap between target and current amplitude
             int32_t       triAcc    = triAmpl << RAMP_SHIFT;              // NEW: current amplitude times 32
 
-            const int32_t sawTarget = *newWaveAmplSaw;                    // NEW: read the target once per sub-block
-            const int32_t sawInc    = sawTarget - sawAmpl;                // NEW: gap between target and current amplitude
-            int32_t       sawAcc    = sawAmpl << RAMP_SHIFT;              // NEW: current amplitude times 32          
-gpio_put(TST_PIN,1); 
+            int32_t       sawTarget = *newWaveAmplSaw;                    // NEW: read the target once per sub-block
+            int32_t       sawInc    = sawTarget - sawAmpl;                // NEW: gap between target and current amplitude
+            int32_t       sawAcc    = sawAmpl << RAMP_SHIFT;              // NEW: current amplitude times 32   
+            
+            // muted sounds skip evaluated once per sub-block
+            bool noiseOn = (*waveAmplWhi != 0) || (*waveAmplPnk != 0);
+            
+            bool wsinOn  = (*waveAmplSin != 0);            
+            bool wtriOn  = (*waveAmplTri != 0);
+            bool wsawOn  = (*waveAmplSaw != 0);                        
+            bool wsqrOn  = (*waveAmplSqr != 0);             
+
             for(uint32_t s = sb; s < sb + RAMP_LEN; s++)
             {
-
-                  const bool noiseOn = (*waveAmplWhi != 0) || (*waveAmplPnk != 0);   // evaluated once per sub-block
-
                   // !!!!! pour le scope un buffer séparé serait utile : !!!!! 
                   // le scope affiche lentement et i2sbuf est modifié rapidement 
 
@@ -671,21 +678,21 @@ gpio_put(TST_PIN,1);
 
                   int16_t wwave;
                   
-                  //if (__builtin_expect((*waveAmplSin + *newWaveAmplSin),false)!=0){                
+                  if (__builtin_expect((wsinOn),false)){                
                     wwave=w[WSIN];
                     sinAcc += sinInc;                           // per sample: add + shift
                     pre = wwave * (sinAcc >> RAMP_SHIFT);       // replaces pre=(wwave * *waveAmplSin);     
-                  //}
+                  }
 
-                  //if (__builtin_expect((*waveAmplTri + *newWaveAmplTri),false)!=0){
+                  if (__builtin_expect((wtriOn),false)){
                     wwave=w[WTRI];
                     triAcc += triInc;                           
                     pre += wwave * (triAcc >> RAMP_SHIFT);     
-                  //}
+                  }
 
-          // saw et sqr semblent faire une fréquence double        
+          // saw et sqr semblent faire une fréquence double à vérifier       
 
-                  //if (__builtin_expect((*waveAmplSaw + *newWaveAmplSaw),false)!=0){
+                  if (__builtin_expect((wsawOn),false)){
                     int16_t tri=rcTable32[RC_N_WAVES*ce+WTRI];  // saw utilise la table 32 du triangle
                     int32_t saw;
                     if(ce<(RC_N_SAMPLES >> 1)){saw=(65536-tri)>>1;}
@@ -693,12 +700,12 @@ gpio_put(TST_PIN,1);
                     saw *= sawRcSign;                 // saw n'a pas de réglace de rc, juste une inversion de phase (montée ou descente verticale)
                     sawAcc += sawInc;                           
                     pre += saw * (sawAcc >> RAMP_SHIFT);        
-                  //}          
+                  }          
 
-                  //if (__builtin_expect(*newWaveAmplSqr!=0,false)){
-                    int16_t sqr=(ce & (BASIC_WAVE_TABLE_LEN>>1)) ? -0x7fff : 0x7fff;    // sqr cr not implemented
-                    pre += (sqr * *newWaveAmplSqr);     //>>GAIN_REDUC;
-                  //}
+                  if (__builtin_expect((wsqrOn),false)){
+                    int16_t sqr=(ce & (BASIC_WAVE_TABLE_LEN>>1)) ? -0x7fff : 0x7fff;    // sqr cr to be implemented
+                    pre += (sqr * *newWaveAmplSqr); 
+                  }
 
                   pre *= sign;
   
@@ -709,16 +716,18 @@ gpio_put(TST_PIN,1);
                     nPhase += nStep;
                     if (nPhase >= limit) nPhase -= limit;      // wrap: nPhase + nStep is always below 2*limit
                     int32_t white = noise_table[nPhase>>16];
-                    pre += (white * *waveAmplWhi);     //>>GAIN_REDUC;
+                    pre += (white * *waveAmplWhi);
 
                     // bruit rose 1-pôle branchless
                     pink_state_loc=(alpha * pink_state_loc + (32768 - alpha) * (white)) >> 15;    
-                    pre += (pink_state_loc * *waveAmplPnk);  //>>GAIN_REDUC;
-  
+                    pre += (pink_state_loc * *waveAmplPnk);
                   }
 
 ///*
+gpio_put(TST_PIN,0);
 if(tb7){
+
+  /*
     filterGAcc += filterGInc;
     int32_t ggS = (filterGAcc >> RAMP_SHIFT) << 16;                    // ramped gg in Q31
     int32_t xq;
@@ -729,7 +738,126 @@ if(tb7){
     xq = filterStage(z2, xq, ggS);
     xq = filterStage(z3, xq, ggS);
     pre = xq * (1 << (FILTER_PRE_SHIFT - FILTER_FRAC));                // back to the voice scale
+  //*/
+  // 500nS
+        filterGAcc += filterGInc;
+        int32_t ggS = (filterGAcc >> RAMP_SHIFT) << 16;
+
+        int32_t xq;
+        asm("smmulr %0, %1, %2"
+            : "=r"(xq)
+            : "r"(pre >> (FILTER_PRE_SHIFT - FILTER_FRAC)), "r"(attQ23));
+        xq <<= 1;
+
+        // ---- stage 0 ----
+        {
+            int32_t u = xq - z0;
+            asm("ssat %0, #27, %0" : "+r"(u));   // saturation ±2^26
+            int32_t t2 = (u << 1) - filterDTable[(u + FILTER_BIAS) >> 16];
+            int32_t v;
+            asm("smmulr %0, %1, %2" : "=r"(v) : "r"(ggS), "r"(t2));
+            xq = z0 + v;
+            z0 = xq + v;
+        }
+
+        // ---- stage 1 ----
+        {
+            int32_t u = xq - z1;
+            asm("ssat %0, #27, %0" : "+r"(u));
+            int32_t t2 = (u << 1) - filterDTable[(u + FILTER_BIAS) >> 16];
+            int32_t v;
+            asm("smmulr %0, %1, %2" : "=r"(v) : "r"(ggS), "r"(t2));
+            xq = z1 + v;
+            z1 = xq + v;
+        }
+
+        // ---- stage 2 ----
+        {
+            int32_t u = xq - z2;
+            asm("ssat %0, #27, %0" : "+r"(u));
+            int32_t t2 = (u << 1) - filterDTable[(u + FILTER_BIAS) >> 16];
+            int32_t v;
+            asm("smmulr %0, %1, %2" : "=r"(v) : "r"(ggS), "r"(t2));
+            xq = z2 + v;
+            z2 = xq + v;
+        }
+
+        // ---- stage 3 ----
+        {
+            int32_t u = xq - z3;
+            asm("ssat %0, #27, %0" : "+r"(u));
+            int32_t t2 = (u << 1) - filterDTable[(u + FILTER_BIAS) >> 16];
+            int32_t v;
+            asm("smmulr %0, %1, %2" : "=r"(v) : "r"(ggS), "r"(t2));
+            xq = z3 + v;
+            z3 = xq + v;
+        }
+
+        pre = xq << (FILTER_PRE_SHIFT - FILTER_FRAC);
+  //*/
+/*// 
+filterGAcc += filterGInc;
+int32_t ggS = (filterGAcc >> RAMP_SHIFT) << 16;
+
+int32_t xq;
+asm("smmulr %0, %1, %2"
+    : "=r"(xq)
+    : "r"(pre >> (FILTER_PRE_SHIFT - FILTER_FRAC)), "r"(attQ23));
+xq <<= 1;
+
+// ---- stage 0 ----
+{
+    int32_t u = xq - z0;
+    asm("ssat %0, #27, %0" : "+r"(u));   // saturation ±2^26
+    int32_t t2 = (u << 1) - filterDTable[(u + FILTER_BIAS) >> 16];
+    int32_t v;
+    asm("smmulr %0, %1, %2" : "=r"(v) : "r"(ggS), "r"(t2));
+    int32_t tmp = z0 + v;
+    z0 = tmp + v;
+    xq = tmp;
 }
+
+// ---- stage 1 ----
+{
+    int32_t u = xq - z1;
+    asm("ssat %0, #27, %0" : "+r"(u));
+    int32_t t2 = (u << 1) - filterDTable[(u + FILTER_BIAS) >> 16];
+    int32_t v;
+    asm("smmulr %0, %1, %2" : "=r"(v) : "r"(ggS), "r"(t2));
+    int32_t tmp = z1 + v;
+    z1 = tmp + v;
+    xq = tmp;
+}
+
+// ---- stage 2 ----
+{
+    int32_t u = xq - z2;
+    asm("ssat %0, #27, %0" : "+r"(u));
+    int32_t t2 = (u << 1) - filterDTable[(u + FILTER_BIAS) >> 16];
+    int32_t v;
+    asm("smmulr %0, %1, %2" : "=r"(v) : "r"(ggS), "r"(t2));
+    int32_t tmp = z2 + v;
+    z2 = tmp + v;
+    xq = tmp;
+}
+
+// ---- stage 3 ----
+{
+    int32_t u = xq - z3;
+    asm("ssat %0, #27, %0" : "+r"(u));
+    int32_t t2 = (u << 1) - filterDTable[(u + FILTER_BIAS) >> 16];
+    int32_t v;
+    asm("smmulr %0, %1, %2" : "=r"(v) : "r"(ggS), "r"(t2));
+    int32_t tmp = z3 + v;
+    z3 = tmp + v;
+    xq = tmp;
+}
+
+pre = xq << (FILTER_PRE_SHIFT - FILTER_FRAC);
+*/
+
+    }
+gpio_put(TST_PIN,1);
 //*/ 
 
 

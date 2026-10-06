@@ -314,23 +314,18 @@ void menus_init(){
 void title_dsp(const char* title,uint8_t item,uint8_t type,float v0, int32_t v1, int32_t v2){
 
     char onoff[2]={'O','I'};
+
     memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
     memset(buf2,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
     switch(type){
-        //case WAVES_AMP:sprintf(buf,"v:%d %4.3f amp",item,voices[item].frequency);break;
-
-        //case VOICES_FR:sprintf(buf,"%s:%u %1.3f%+i %c",title,item,voices[item].basicFrequency,voices[item].coderCycleR-MAXCODER_RC/2,onoff[i2s_running]);break;
         case VOICES_FR:sprintf(buf,"%s:%u %+i %u %c%c",title,item,voices[item].coderCycleR-MAXCODER_RC/2,onoff[i2s_running],onoff[tb7]);break;
         case VOICES_AM:sprintf(buf,"%s:%u %c%c",title,item,onoff[i2s_running],onoff[tb7]);break;
         case VOICES_AT:sprintf(buf,"%s:%u %c%c",title,item,onoff[i2s_running],onoff[tb7]);break;
-        case VOICES_FI:sprintf(buf,"%s %u %4.3f %c%c",title,type,voices[item].filterFrequency,onoff[i2s_running],onoff[tb7]);break;
+        case VOICES_FI:sprintf(buf,"%s %u %c%c",title,item,onoff[i2s_running],onoff[tb7]);break;
         case LFOS_____:sprintf(buf,"%s:%u %1.3f%+i %c%c",title,item,lfosFrequency[item],lfosCoderCycleR[item]-MAXCODER_RC/2,onoff[i2s_running],onoff[tb7]);
-                    sprintf(buf2,"crAt:%i frAt:%i",lfosCoderCycleRAtt[item],lfosCodersFreqAtt[item]);
-                    break;        
+                       sprintf(buf2,"crAt:%i frAt:%i",lfosCoderCycleRAtt[item],lfosCodersFreqAtt[item]);break;        
         case ADSRL____:sprintf(buf,"%s%u %c%c",title,item,onoff[i2s_running],onoff[tb7]);
-                    sprintf(buf2,"%u %u %u %+u %u",adsrCoderAtt[item],adsrCoderDec[item],adsrCoderSus[item],adsrCoderRel[item],adsrCoderLev[item]);break;
-        //case MENU0:sprintf(buf,"%s  ",title);break;
-
+                       sprintf(buf2,"%u %u %u %+u %u",adsrCoderAtt[item],adsrCoderDec[item],adsrCoderSus[item],adsrCoderRel[item],adsrCoderLev[item]);break;
         default:sprintf(buf,"%s %u %c%c   ",title,type,onoff[i2s_running],onoff[tb7]);break;
     }        
     tft_draw_text_12x12_dma_mult(0,0,buf,0x001f,0x0000,1);
@@ -569,6 +564,7 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
         buf[1]=' ';
         uint16_t cc16=(uint16_t)cc;
         char fl[]={'F','L'};
+        float f;
 
         switch(type){
             case MENU0____:sprintf(buf+2,"%s  ",menu+line*len);break; // général
@@ -668,7 +664,11 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                         setVoiceFilter(&voices[line],voices[line].coderFilterFreq,voices[line].coderFilterFreqAtt,cc);}
                         break;
                     default: break;
-                }               
+                }
+                f=voices[line].filterFrequency;
+                if(f>=1000){f/=1000;}
+                sprintf(buf+2,"%3.3f %i %i %u   ",f,voices[line].coderFilterFreq,voices[line].coderFilterFreqAtt,voices[line].coderFilterLevAtt);
+                break;               
 
             case ADSRL____:
                 if(varChge){

@@ -501,7 +501,10 @@ void asetup(uint8_t adsr,uint8_t att,uint8_t dec, uint8_t sus,uint8_t rel){
 
 void sound3(uint8_t voice,uint8_t vwave,uint16_t coderFreq,uint8_t coderAttF,uint8_t coderAmp,uint8_t coderAmpAtt,uint8_t coderCr,
         uint8_t adsr,uint8_t sourceAdsr,
-        uint8_t lfm,uint8_t lfm1,uint8_t voiceAmpLfoLfmInput,uint8_t voiceFreqLfoLfmInput,uint8_t voiceFreqAdsrLfmInput,uint8_t voiceAmpLfo,uint16_t ampLfoFreq)
+        uint8_t lfm,uint8_t lfm1,uint8_t voiceAmpLfoLfmInput,uint8_t voiceFreqLfoLfmInput,uint8_t voiceFreqAdsrLfmInput,
+        uint8_t voiceAmpLfo,uint16_t ampLfoFreq,
+        uint8_t voiceFreqLfo,uint16_t freqLfoFreq
+    )
 {
     // config voice
     vsetup(voice,coderFreq,coderAttF,coderAmp,coderAmpAtt,coderCr,vwave);                
@@ -515,33 +518,50 @@ void sound3(uint8_t voice,uint8_t vwave,uint16_t coderFreq,uint8_t coderAttF,uin
        waveF=WSIN; 
     }
     obj_connect(objects_first_input_id[ADSR_____]+adsr*MAX_INPUTS_PER_OBJ+STAR,objects_first_output_id[sourceType]+(sourceAdsr+srcAdsrOffset)*MAX_OUTPUTS_PER_OBJ+waveF);        
-    // connect adsr to lfm0:0 genAmp input
-    uint8_t adsrLfmInput=0;
-    setLfm(lfm,adsrLfmInput,lfmCoder[adsrLfmInput][lfm],70);   
-    obj_connect(objects_first_input_id[LF_MUX___]+adsrLfmInput*MAX_LFM+lfm,objects_first_output_id[ADSR_____]+adsr*MAX_OUTPUTS_PER_OBJ+ADSR_SHAPE);         
-    // connect lfm0 to voice:wave amp input
-    obj_connect(objects_first_input_id[VOICE____]+voice*MAX_INPUTS_PER_OBJ+VSPW+vwave,objects_first_output_id[LF_MUX___]+LMUXO*MAX_LFM+lfm);
-    // config lfo amp
-    setLfosFreq(voiceAmpLfo,ampLfoFreq);
-    // connect lfo amp to lfm0:1
-    obj_connect(objects_first_input_id[LF_MUX___]+voiceAmpLfoLfmInput*MAX_LFM+lfm,objects_first_output_id[LFO______]+voiceAmpLfo*MAX_OUTPUTS_PER_OBJ+LSIN);
-    // config lfo modulation
-    setLfm(lfm,voiceAmpLfoLfmInput,255,120);                           
-    // connect lfo to voice2 freq
-    //obj_connect(objects_first_input_id[VOICE____]+voice*MAX_INPUTS_PER_OBJ+VFRQ,objects_first_output_id[LFO______]+voice2ampLfo*MAX_OUTPUTS_PER_OBJ+LSIN);
 
-    // connect lfo to lfm1:1
-    obj_connect(objects_first_input_id[LF_MUX___]+voiceFreqLfoLfmInput*MAX_LFM+lfm1,objects_first_output_id[LFO______]+voiceAmpLfo*MAX_OUTPUTS_PER_OBJ+LSIN);
-    // connect lfm1 to voice2 freq
-    obj_connect(objects_first_input_id[VOICE____]+voice*MAX_INPUTS_PER_OBJ+VFRQ,objects_first_output_id[LF_MUX___]+LMUXO*MAX_LFM+lfm1);
-    // lfm1 in0 base wide open ; no input   
-    setLfm(lfm1,0,MAX_CTL_ATT-1,0);
-    // lfm1 in1 att wide open
-    setLfm(lfm1,voiceFreqLfoLfmInput,0,MAX_CTL_ATT/2-1);
-    // connect adsr to lfm1:2
-    obj_connect(objects_first_input_id[LF_MUX___]+voiceFreqAdsrLfmInput*MAX_LFM+lfm1,objects_first_output_id[ADSR_____]+adsr*MAX_OUTPUTS_PER_OBJ+ADSR_SHAPE);         
-    // lfm1 in2 att wide open
-    setLfm(lfm1,voiceFreqAdsrLfmInput,0,MAX_CTL_ATT/2-1);
+    // config lfo amp
+    if(voiceAmpLfo>=0){setLfosFreq(voiceAmpLfo,ampLfoFreq);}
+    
+    if(lfm>=0){   
+        // connect lfm0 to voice:wave amp input
+        obj_connect(objects_first_input_id[VOICE____]+voice*MAX_INPUTS_PER_OBJ+VSPW+vwave,objects_first_output_id[LF_MUX___]+LMUXO*MAX_LFM+lfm);
+        // connect adsr to lfm0:0 genAmp input
+        uint8_t adsrLfmInput=0;
+        setLfm(lfm,adsrLfmInput,lfmCoder[adsrLfmInput][lfm],70);   
+        obj_connect(objects_first_input_id[LF_MUX___]+adsrLfmInput*MAX_LFM+lfm,objects_first_output_id[ADSR_____]+adsr*MAX_OUTPUTS_PER_OBJ+ADSR_SHAPE);
+        if(voiceAmpLfo>=0){
+            // connect lfo amp to lfm0:1
+            obj_connect(objects_first_input_id[LF_MUX___]+voiceAmpLfoLfmInput*MAX_LFM+lfm,objects_first_output_id[LFO______]+voiceAmpLfo*MAX_OUTPUTS_PER_OBJ+LSIN);
+            // config lfo modulation
+            setLfm(lfm,voiceAmpLfoLfmInput,255,120);
+        }                           
+        // connect lfo to voice2 freq
+        //obj_connect(objects_first_input_id[VOICE____]+voice*MAX_INPUTS_PER_OBJ+VFRQ,objects_first_output_id[LFO______]+voice2ampLfo*MAX_OUTPUTS_PER_OBJ+LSIN);
+
+        // connect lfo to lfm1:1
+        obj_connect(objects_first_input_id[LF_MUX___]+voiceFreqLfoLfmInput*MAX_LFM+lfm1,objects_first_output_id[LFO______]+voiceAmpLfo*MAX_OUTPUTS_PER_OBJ+LSIN);
+        // connect lfm1 to voice2 freq
+        obj_connect(objects_first_input_id[VOICE____]+voice*MAX_INPUTS_PER_OBJ+VFRQ,objects_first_output_id[LF_MUX___]+LMUXO*MAX_LFM+lfm1);
+        // lfm1 in0 base wide open ; no input   
+        setLfm(lfm1,0,MAX_CTL_ATT-1,0);
+        // lfm1 in1 att wide open
+        setLfm(lfm1,voiceFreqLfoLfmInput,0,MAX_CTL_ATT/2-1);
+        // connect adsr to lfm1:2
+        obj_connect(objects_first_input_id[LF_MUX___]+voiceFreqAdsrLfmInput*MAX_LFM+lfm1,objects_first_output_id[ADSR_____]+adsr*MAX_OUTPUTS_PER_OBJ+ADSR_SHAPE);         
+        // lfm1 in2 att wide open
+        setLfm(lfm1,voiceFreqAdsrLfmInput,0,MAX_CTL_ATT/2-1);
+    }
+    else{           
+        if(voiceFreqLfo>=0){setLfosFreq(voiceFreqLfo,freqLfoFreq);}
+        obj_connect(objects_first_input_id[VOICE____]+voice*MAX_INPUTS_PER_OBJ+VFRQ,objects_first_output_id[LFO______]+voiceFreqLfo*MAX_OUTPUTS_PER_OBJ+LTRI);
+
+        // CX (voice)SIP (adsr)
+        printf("Amp ctl adsr:%u ",adsr);
+        obj_connect(objects_first_input_id[VOICE____]+voice*MAX_INPUTS_PER_OBJ+VSPW+vwave,objects_first_output_id[ADSR_____]+adsr*MAX_OUTPUTS_PER_OBJ+ADSR_SHAPE);
+        
+        printf("voice:%u coderFreq:%i frAtt:%i wave:%u Ampl:%u amplAtt:%i\n\n",
+            voice,voices[voice].coderFreq,voices[voice].coderFreqAtt,vwave,voices[voice].coderWaveAmpl[vwave],voices[voice].coderWaveAmplAtt[vwave]);
+    }
     //*/
 
     /*// lfm1 mux adsr + lfo to voice2 fr
@@ -601,9 +621,15 @@ void testSetup()
     // config voice 1
     if((action&VOICE1) != 0){
         
+        uint8_t filtLfo=6;
         uint8_t  adsr=1;
+        //sound3(1,WSIN,1740,12,8,60,1,adsr,-3,0,0,0,0,0,-1,3499,1,3499);
         voiceConfig(1,WSIN,1740,12,1,3499,8,60,adsr,3,1790,1);
         asetup(adsr,40,28,12,96);
+
+        setVoiceFilter(&voices[1],2000,100,255);
+        setLfosFreq(filtLfo,1790);
+        obj_connect(objects_first_input_id[VOICE____]+1*MAX_INPUTS_PER_OBJ+VFIL,objects_first_output_id[LFO______]+filtLfo*MAX_OUTPUTS_PER_OBJ+LTRI);
     }
 
     //  config voice2 (touch button 0)
@@ -612,7 +638,7 @@ void testSetup()
         //      lfo5->mux1inp1 coder[1][1]=32563
         //      mux1->mux0inp1
         uint8_t adsr=2;
-        sound3(2,WSIN,2300,70,4,30,1,adsr,0,0,1,1,1,2,5,3499);
+        sound3(2,WSIN,2300,70,4,30,1,adsr,0,0,1,1,1,2,5,3499,5,3499);
         asetup(adsr,127,32,16,127);
     }
 
