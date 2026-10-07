@@ -35,10 +35,12 @@ float octIncr[octIncrNb];
 #define FILTER_PRE_SHIFT  15            // shift between the voice signal and the filter input
 #define FILTER_BIAS (32768 + (FILTER_TANH_HALF << 16))   // rounding offset and table centre folded into one constant
 
+#define FILTER_POLE_FACTOR 0.43498f      // sqrt(2^(1/4) - 1): -3 dB of 4 identical poles in cascade, in the tan domain (2 stages : 0,6436)
+
 //extern const int32_t filterDTable[];
 
 //__attribute__((section(".ram_d1")))
-int32_t filterDTable[2049];
+int32_t filterDTable[FILTER_TANH_LEN];
 //__attribute__((section(".ram_d1")))
 int32_t z0,z1,z2,z3;                    // filter state in registers (Q8)
 
@@ -227,7 +229,7 @@ void fillFilterGTable()
     for (int i = 0; i < FILTER_TABLE_LEN; i++) {
         float oct  = (float)i / FILTER_STEPS_PER_OCT;
         float freq = FREQ0 * powf(2.0f, oct);
-        gTable[i]  = tanf(M_PI * freq / SAMPLE_RATE);
+        gTable[i]  = tanf(M_PI * freq / SAMPLE_RATE) / FILTER_POLE_FACTOR;
     }
 }
 
@@ -244,7 +246,7 @@ void sound_tables_init()
   fillAmplIncr();
 
   fillFilterGTable();
-  fillFilterTanH();  // la table est précalculée dans filterDTable.cpp
+  fillFilterTanH();
 }
 
 // **********************  voices ************************
@@ -363,10 +365,10 @@ void filtersInit(uint8_t v)
     memset(voices[v].filter.z, 0, sizeof(voices[v].filter.z));
 }
 
-float __not_in_flash_func(calcFilterFreq)(int32_t code)   // cutoff in Hz for a filter code, same domain and limits as calcFilterG
+float __not_in_flash_func(calcFilterFreq)(int32_t code)                         // cutoff in Hz for a filter code, same domain and limits as calcFilterG
 {
     if (code < 0) code = 0;
-    if (code > FILTER_MAX_OCT * octIncrNb) code = FILTER_MAX_OCT * octIncrNb;    // the filter stops at ~16.7 kHz
+    if (code > FILTER_MAX_OCT * octIncrNb) code = FILTER_MAX_OCT * octIncrNb;   // the filter stops at ~16.7 kHz
     return calcFreq((uint16_t)code);
 }
 
@@ -377,8 +379,8 @@ void __not_in_flash_func(setFilterFrequency)(float freqHz, Voice* v)
 
     v->filterFrequency = freqHz;
 
-    float g = tanf(M_PI * freqHz / SAMPLE_RATE);               // frequency warping, done once per call (not per sample)
-    v->newFilterG = (int32_t)(g / (1.0f + g) * 32768.0f);      // gg = g/(1+g), always < 1: the value filterProcess expects
+    float g = tanf(M_PI * freqHz / SAMPLE_RATE) / FILTER_POLE_FACTOR;           // frequency warping, done once per call (not per sample)
+    v->newFilterG = (int32_t)(g / (1.0f + g) * 32768.0f);                       // gg = g/(1+g), always < 1: the value filterProcess expects
 }
 
 float __not_in_flash_func(calcFilterG)(int32_t val)
@@ -407,7 +409,7 @@ void __not_in_flash_func(setVoiceFilter)(Voice* v, int16_t coderFilterF, int16_t
     update_inputs(id, ctl_input_val[id]);
 }
 
-static inline __attribute__((always_inline)) int32_t filterStage(int32_t& z, int32_t x, int32_t ggS)   // one pole; x, z and result in Q8; ggS = g/(1+g) in Q31
+/*static inline __attribute__((always_inline)) int32_t filterStage(int32_t& z, int32_t x, int32_t ggS)   // one pole; x, z and result in Q8; ggS = g/(1+g) in Q31
 {
     int32_t u = x - z;
     if (u >  67108863) u =  67108863;                  // +-2^26 = +-4 knees: beyond that the output is fully saturated
@@ -417,6 +419,31 @@ static inline __attribute__((always_inline)) int32_t filterStage(int32_t& z, int
     asm("smmulr %0, %1, %2" : "=r"(v) : "r"(ggS), "r"(t2));      // v = gg * t in Q8: high word of the 64-bit product, rounded
     x  = z + v;                                        // stage output
     z  = x + v;                                        // new state
+    return x;
+}*/
+
+static inline __attribute__((always_inline)) int32_t smmulr(int32_t a, int32_t b)   // high word of a*b, rounded: one instruction on the Cortex-M33
+{
+    int32_t r;
+    asm("smmulr %0, %1, %2" : "=r"(r) : "r"(a), "r"(b));
+    return r;
+}
+
+static inline __attribute__((always_inline)) int32_t filterStage(int32_t& z, int32_t x, int32_t ggS)   // saturating pole; x, z, result in Q8; ggS = g/(1+g) in Q31
+{
+    int32_t u = x - z;
+    asm("ssat %0, #27, %0" : "+r"(u));                 // saturation to [-2^26, 2^26-1] in one instruction (the compiler does not merge two ifs into it)
+    int32_t v = smmulr(ggS, 2 * u - filterDTable[(u + FILTER_BIAS) >> 16]);   // the table is doubled
+    x = z + v;                                         // stage output
+    z = x + v;                                         // new state
+    return x;
+}
+
+static inline __attribute__((always_inline)) int32_t filterStageLin(int32_t& z, int32_t x, int32_t ggS)   // linear pole (no saturation); x, z, result in Q8
+{
+    int32_t v = smmulr(ggS, 2 * (x - z));
+    x = z + v;
+    z = x + v;
     return x;
 }
 
@@ -678,11 +705,11 @@ gpio_put(TST_PIN,1);
 
                   int16_t wwave;
                   
-                  if (__builtin_expect((wsinOn),false)){                
+                  //if (__builtin_expect((wsinOn),false)){                
                     wwave=w[WSIN];
                     sinAcc += sinInc;                           // per sample: add + shift
                     pre = wwave * (sinAcc >> RAMP_SHIFT);       // replaces pre=(wwave * *waveAmplSin);     
-                  }
+                  //}
 
                   if (__builtin_expect((wtriOn),false)){
                     wwave=w[WTRI];
@@ -727,19 +754,19 @@ gpio_put(TST_PIN,1);
 gpio_put(TST_PIN,0);
 if(tb7){
 
-  /*
+  
     filterGAcc += filterGInc;
     int32_t ggS = (filterGAcc >> RAMP_SHIFT) << 16;                    // ramped gg in Q31
     int32_t xq;
     asm("smmulr %0, %1, %2" : "=r"(xq) : "r"(pre >> (FILTER_PRE_SHIFT - FILTER_FRAC)), "r"(attQ23));   // input attenuator
     xq *= 2;                                                           // xq = input * att / 256
     xq = filterStage(z0, xq, ggS);
-    xq = filterStage(z1, xq, ggS);
-    xq = filterStage(z2, xq, ggS);
-    xq = filterStage(z3, xq, ggS);
+    xq = filterStageLin(z1, xq, ggS);
+    xq = filterStageLin(z2, xq, ggS);
+    xq = filterStageLin(z3, xq, ggS);
     pre = xq * (1 << (FILTER_PRE_SHIFT - FILTER_FRAC));                // back to the voice scale
-  //*/
-  // 500nS
+  //
+  /*// 
         filterGAcc += filterGInc;
         int32_t ggS = (filterGAcc >> RAMP_SHIFT) << 16;
 
@@ -795,66 +822,7 @@ if(tb7){
 
         pre = xq << (FILTER_PRE_SHIFT - FILTER_FRAC);
   //*/
-/*// 
-filterGAcc += filterGInc;
-int32_t ggS = (filterGAcc >> RAMP_SHIFT) << 16;
 
-int32_t xq;
-asm("smmulr %0, %1, %2"
-    : "=r"(xq)
-    : "r"(pre >> (FILTER_PRE_SHIFT - FILTER_FRAC)), "r"(attQ23));
-xq <<= 1;
-
-// ---- stage 0 ----
-{
-    int32_t u = xq - z0;
-    asm("ssat %0, #27, %0" : "+r"(u));   // saturation ±2^26
-    int32_t t2 = (u << 1) - filterDTable[(u + FILTER_BIAS) >> 16];
-    int32_t v;
-    asm("smmulr %0, %1, %2" : "=r"(v) : "r"(ggS), "r"(t2));
-    int32_t tmp = z0 + v;
-    z0 = tmp + v;
-    xq = tmp;
-}
-
-// ---- stage 1 ----
-{
-    int32_t u = xq - z1;
-    asm("ssat %0, #27, %0" : "+r"(u));
-    int32_t t2 = (u << 1) - filterDTable[(u + FILTER_BIAS) >> 16];
-    int32_t v;
-    asm("smmulr %0, %1, %2" : "=r"(v) : "r"(ggS), "r"(t2));
-    int32_t tmp = z1 + v;
-    z1 = tmp + v;
-    xq = tmp;
-}
-
-// ---- stage 2 ----
-{
-    int32_t u = xq - z2;
-    asm("ssat %0, #27, %0" : "+r"(u));
-    int32_t t2 = (u << 1) - filterDTable[(u + FILTER_BIAS) >> 16];
-    int32_t v;
-    asm("smmulr %0, %1, %2" : "=r"(v) : "r"(ggS), "r"(t2));
-    int32_t tmp = z2 + v;
-    z2 = tmp + v;
-    xq = tmp;
-}
-
-// ---- stage 3 ----
-{
-    int32_t u = xq - z3;
-    asm("ssat %0, #27, %0" : "+r"(u));
-    int32_t t2 = (u << 1) - filterDTable[(u + FILTER_BIAS) >> 16];
-    int32_t v;
-    asm("smmulr %0, %1, %2" : "=r"(v) : "r"(ggS), "r"(t2));
-    int32_t tmp = z3 + v;
-    z3 = tmp + v;
-    xq = tmp;
-}
-
-pre = xq << (FILTER_PRE_SHIFT - FILTER_FRAC);
-*/
 
     }
 gpio_put(TST_PIN,1);
