@@ -584,7 +584,7 @@ void testSetup()
     #define VOICE0 0x80
     #define VOICE1 0x40
     #define VOICE2 0x20
-    uint8_t action=VOICE0|VOICE1|VOICE2;
+    uint8_t action=0;   //VOICE0|VOICE1|VOICE2;
 
     printf("\n========== test-setup 0x%02X ==========\n",action);    
 
@@ -608,13 +608,19 @@ void testSetup()
         uint8_t  lfm=0;
         uint8_t  lfmInp0=0;
         uint8_t  lfmInp1=1;
-        uint8_t  lfmInp2=2; 
+        uint8_t  lfmInp2=2;
+        uint8_t filtLfo=7; 
 
         voiceConfig(voice,vwave,coderFreq,coderAttF,freqLfo,freqLfoCoder,coderA,coderAttA,adsr,adsrLfo,adsrLfoCoder,cr);
         asetup(adsr,6,28,12,96);
 
         voices[voice].coderCycleRAtt=60;                            // input atten
         sub_lfo(VOICE____,0,VCR_,4,1700,WTRI);                      // 1700=3.5s 
+
+        setVoiceFilter(&voices[0],800,100,255);
+        setLfosFreq(filtLfo,1790);
+        obj_connect(objects_first_input_id[VOICE____]+1*MAX_INPUTS_PER_OBJ+VFIL,objects_first_output_id[LFO______]+filtLfo*MAX_OUTPUTS_PER_OBJ+LTRI);        
+        
         printf("\n");
     }
 
@@ -644,7 +650,7 @@ void testSetup()
 
     if(action==0){
         uint8_t     voice=0;
-        uint8_t     vwave=WSIN;
+        uint8_t     vwave=WSAW;
         int8_t      rc=0;
         uint16_t    coderF=1700;
         uint8_t     coderAttF=70;
@@ -657,7 +663,10 @@ void testSetup()
 
         vsetup(voice,coderF,coderAttF,coderA,coderAttA,rc,vwave);
 
-        obj_connect(objects_first_input_id[VOICE____]+voice*MAX_INPUTS_PER_OBJ+VFRQ,objects_first_output_id[LFO______]+lfo*MAX_OUTPUTS_PER_OBJ+lwave);        
+        setVoiceFilter(&voices[voice],1700,100,255);
+        obj_connect(objects_first_input_id[VOICE____]+voice*MAX_INPUTS_PER_OBJ+VFIL,objects_first_output_id[LFO______]+lfo*MAX_OUTPUTS_PER_OBJ+lwave);
+
+        //obj_connect(objects_first_input_id[VOICE____]+voice*MAX_INPUTS_PER_OBJ+VFRQ,objects_first_output_id[LFO______]+lfo*MAX_OUTPUTS_PER_OBJ+lwave);        
     }
 
     printf("========================================\n");

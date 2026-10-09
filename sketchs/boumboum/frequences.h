@@ -45,31 +45,31 @@ struct Voice {
     uint32_t    noisePhase;                     // Q16.16
     uint32_t    noiseStep;                      // Q16.16
 
-    volatile uint16_t    genAmpl;               // genAmpl value
-    volatile int16_t     coderGenAmpl;          // genAmpl coder value
-    volatile uint16_t    coderGenAmplAtt;       // genAmpl input attenuator value    
+    volatile int16_t    genAmpl;               // genAmpl value
+    volatile int16_t    coderGenAmpl;          // genAmpl coder value
+    volatile uint16_t   coderGenAmplAtt;       // genAmpl input attenuator value    
     
-    volatile uint32_t    basicWaveAmpl[BASIC_WAVES_NB];     // wave ampl value
-    volatile uint32_t    newBasicWaveAmpl[BASIC_WAVES_NB];
-    volatile bool        waveAmplChge[BASIC_WAVES_NB];
-    volatile int32_t     diffWaveAmpl[BASIC_WAVES_NB];
-    volatile uint16_t    coderWaveAmpl[BASIC_WAVES_NB];     // wave ampl coder value
+    volatile int16_t    basicWaveAmpl[BASIC_WAVES_NB];     // wave ampl value
+    volatile int16_t    newBasicWaveAmpl[BASIC_WAVES_NB];
+    volatile bool       waveAmplChge[BASIC_WAVES_NB];
+    volatile int32_t    diffWaveAmpl[BASIC_WAVES_NB];
+    volatile uint16_t   coderWaveAmpl[BASIC_WAVES_NB];     // wave ampl coder value
     //uint16_t    maxCoderWaveAmpl[BASIC_WAVES_NB];           // wave ampl max coder value    
-    volatile uint16_t    coderWaveAmplAtt[BASIC_WAVES_NB];           // wave ampl input attenuator value
+    volatile uint16_t   coderWaveAmplAtt[BASIC_WAVES_NB];           // wave ampl input attenuator value
     
     //bool        coderSw[CODER_NB];              // last Switch
     uint16_t    soundsCc[CODER_BANK_NB];
     uint16_t    adsrlCc[CODER_BANK_NB];
     
-    volatile float       frequency;             // current frequency
-    volatile int16_t     coderFreq;             // frequency coder value
+    volatile float      frequency;             // current frequency
+    volatile int16_t    coderFreq;             // frequency coder value
     //volatile float       basicFrequency;    
-    volatile int16_t     coderFreqAtt;          // frequency input attenuator value (0-7fff)
+    volatile int16_t    coderFreqAtt;          // frequency input attenuator value (0-7fff)
 
-    volatile float       filterFrequency;       // current frequency
-    volatile int16_t     coderFilterFreq;       // filterFrequency coder value
-    volatile int16_t     coderFilterFreqAtt;    // frequency input attenuator value (0-7fff)
-    volatile uint8_t     coderFilterLevAtt;
+    volatile float      filterFrequency;       // current frequency
+    volatile int16_t    coderFilterFreq;       // filterFrequency coder value
+    volatile int16_t    coderFilterFreqAtt;    // frequency input attenuator value (0-7fff)
+    volatile uint8_t    coderFilterLevAtt;
 
     // --- filtre : fonctionnement réel, lu/écrit par fillVoiceBuffer_mono ---
     int32_t     newFilterG;           // Q15, target coefficient — written by setFilter(), never read by the render loop
@@ -77,8 +77,8 @@ struct Voice {
     VoiceFilter filter;               // per-stage state (z[]), persists across buffers
     uint8_t     filterStages;         // active stage count: 2 (12 dB/oct) or 4 (24 dB/oct)
 
-    volatile uint8_t     cycleR;                // cyclic ratio value (somme coderCycleR et ctl_input_val)
-    volatile uint8_t     coderCycleR;           // cyclic ratio -64/+64 coder value
+    volatile uint8_t    cycleR;                // cyclic ratio value (somme coderCycleR et ctl_input_val)
+    volatile uint8_t    coderCycleR;           // cyclic ratio -64/+64 coder value
     //uint8_t     maxCoderCycleR;                 // cyclic ratio max coder value
     int16_t     coderCycleRAtt;                 // cyclic ratio input attenuator value (0-7fff)
 

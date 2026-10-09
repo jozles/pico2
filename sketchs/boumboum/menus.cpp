@@ -191,7 +191,20 @@ enum AdsrCoders {        // coders pour menu adsr
 };
 
 // ****** inits ******
-void menus_init(){    
+
+// xxxVar est la liste des pointeurs sur les variables d'une ligne de menu 
+// *xxxVar[1] 1ère variable ; *xxxVar[2] seconde etc
+// à l'init xxxVar doit être chargée avec l'adresse des tables qui contiennent les variables de chaque ligne
+// les tables de ceretaines variables sont organisées différemment et il faut utiliser un tableau local 
+// préchargé dans l'init
+// par exemple les variables de voices sont dans voices[v].variable([type]) : on n'a pas de liste devariable homogène sur quoi pointer
+// on crée donc tempVceCoder{var}[voice]([type]) et xxxVar peut pointer sur tempVceCoder{var}[voice] qui est la table des variables du genre var pour chaque voice
+// 
+// la table mémoire des coders correspond à une ligne de variable ; il y en a une par genre : menu{nom}Coders[coder]
+// la ligne 0 de tous les menus est préchargée dans l'init ; c'est ensuite géré dans coders_for_menu
+//
+void menus_init(){ 
+    printf("====== menu_init ======\n");   
     for(uint8_t v=0;v<MAX_VOICES;v++){
         
         for(uint8_t a=0;a<VCES_OUTPUTS_NB;a++){
@@ -199,6 +212,7 @@ void menus_init(){
             tempVcesCoderAmp[a][v]=voices[v].coderWaveAmpl[a];
             tempVcesCoderAtt[a][v]=voices[v].coderWaveAmplAtt[a];
         }
+        //for(uint8_t i=0;i<VCES_OUTPUTS_NB;i++){printf("+++++v:%u w:%u =%i \n",v,i,tempVcesCoderAmp[i][v]);}
         tempVceCoderFreq[v]=voices[v].coderFreq;
         tempVceCoderCycleR[v]=voices[v].coderCycleR;
         tempVceCoderCycleRAtt[v]=voices[v].coderCycleRAtt;
@@ -218,10 +232,14 @@ void menus_init(){
     for(uint8_t c=0;c<CODER_NB;c++){
         lfosVar[c]=nullptr;
         vcesVarF[c]=nullptr;
+        vcesVarM[c]=nullptr;
+        vcesVarT[c]=nullptr;
+        vcesVarFi[c]=nullptr;
         adsrVar[c]=nullptr;
         lfmVar[c]=nullptr;
     }
     
+    // pour chaque menu : setup des xxxVar  et  pré-chargement des variables de la ligne 0
 
     // ***   lfos  ***
     lfosVar[OSCCODERFREQ-1]=lfosCodersFreq;     // lfosVar[0]
@@ -252,13 +270,14 @@ void menus_init(){
     vcesVarM[WSQR]=tempVcesCoderAmp[WSQR];
     vcesVarM[WHIT]=tempVcesCoderAmp[WHIT];
     vcesVarM[PONK]=tempVcesCoderAmp[PONK];
+    //for(uint8_t i=0;i<VCES_OUTPUTS_NB;i++){printf("=====v:%u w:%u =%i\n",0,i,vcesVarM[i][0]);}
     menuVcesCodersM[OSCMENU]=0;                  // line 0 du menu
-    menuVcesCodersM[WSIN+1]=voices[0].basicWaveAmpl[WSIN];
-    menuVcesCodersM[WTRI+1]=voices[0].basicWaveAmpl[WTRI];
-    menuVcesCodersM[WSAW+1]=voices[0].basicWaveAmpl[WSAW];     
-    menuVcesCodersM[WSQR+1]=voices[0].basicWaveAmpl[WSQR];
-    menuVcesCodersM[WHIT+1]=voices[0].basicWaveAmpl[WHIT];
-    menuVcesCodersM[PONK+1]=voices[0].basicWaveAmpl[PONK];
+    menuVcesCodersM[WSIN+1]=voices[0].coderWaveAmpl[WSIN];
+    menuVcesCodersM[WTRI+1]=voices[0].coderWaveAmpl[WTRI];
+    menuVcesCodersM[WSAW+1]=voices[0].coderWaveAmpl[WSAW];     
+    menuVcesCodersM[WSQR+1]=voices[0].coderWaveAmpl[WSQR];
+    menuVcesCodersM[WHIT+1]=voices[0].coderWaveAmpl[WHIT];
+    menuVcesCodersM[PONK+1]=voices[0].coderWaveAmpl[PONK];
         // ***  voices Att ***
     vcesVarT[WSIN]=tempVcesCoderAtt[WSIN];   
     vcesVarT[WTRI]=tempVcesCoderAtt[WTRI];
@@ -305,9 +324,10 @@ void menus_init(){
         menuLfmCoders[in+1]=tempLfmCoders[in][0];    // préchargt inputs data values mux 0
     }                         
 
-    disp_lfm(255,(char*)"menu_Init");
+    //disp_lfm(255,(char*)"menu_Init");
     
-    mappingCoders[0]=0; // ligne 0 
+    mappingCoders[0]=0; // ligne 0
+    printf("menu_init end\n"); 
 }
 
 // ****** display title ******

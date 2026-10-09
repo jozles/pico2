@@ -259,7 +259,7 @@ void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)    // cga = genAmpl l
         voices[v].cycleR=voices[v].coderCycleR;
         voices[v].coderCycleRAtt=FULL_ATTENUATION_VALUE;
 
-        voices[v].genAmpl=amplLevel[cga];
+        voices[v].genAmpl=(int16_t)amplLevel[cga];
         voices[v].coderGenAmpl=cga;
         //voices[v].maxCoderGenAmpl=MAX_16B_LINEAR_VALUE;
 
@@ -607,19 +607,18 @@ gpio_put(TST_PIN,1);
       int16_t* rcTable32 = &rc_tables[32][0][0];                           // base table 32 pour saw      
 
 // init waves ampl (pointers needed for real time changes)     
-      volatile uint32_t* waveAmplSin    = &v->basicWaveAmpl[WSIN];
-      volatile uint32_t* newWaveAmplSin = &v->newBasicWaveAmpl[WSIN];
-      volatile int32_t*  diffSin        = &v->diffWaveAmpl[WSIN];
-      volatile uint32_t* waveAmplTri    = &v->basicWaveAmpl[WTRI];
-      volatile uint32_t* newWaveAmplTri = &v->newBasicWaveAmpl[WTRI];      
-      volatile uint32_t* waveAmplSaw    = &v->basicWaveAmpl[WSAW];
-      volatile uint32_t* newWaveAmplSaw = &v->newBasicWaveAmpl[WSAW];          
-      volatile uint32_t* waveAmplSqr    = &v->basicWaveAmpl[WSQR]; 
-      volatile uint32_t* newWaveAmplSqr = &v->newBasicWaveAmpl[WSQR];
-      volatile uint32_t* waveAmplWhi    = &v->basicWaveAmpl[WHIT];
-      volatile uint32_t* waveAmplPnk    = &v->basicWaveAmpl[PONK];
+      volatile int16_t* waveAmplSin    = &v->basicWaveAmpl[WSIN];
+      volatile int16_t* newWaveAmplSin = &v->newBasicWaveAmpl[WSIN];
+      volatile int16_t* waveAmplTri    = &v->basicWaveAmpl[WTRI];
+      volatile int16_t* newWaveAmplTri = &v->newBasicWaveAmpl[WTRI];      
+      volatile int16_t* waveAmplSaw    = &v->basicWaveAmpl[WSAW];
+      volatile int16_t* newWaveAmplSaw = &v->newBasicWaveAmpl[WSAW];          
+      volatile int16_t* waveAmplSqr    = &v->basicWaveAmpl[WSQR]; 
+      volatile int16_t* newWaveAmplSqr = &v->newBasicWaveAmpl[WSQR];
+      volatile int16_t* waveAmplWhi    = &v->basicWaveAmpl[WHIT];
+      volatile int16_t* waveAmplPnk    = &v->basicWaveAmpl[PONK];
 
-      volatile uint16_t* waveAmplGen    = &v->genAmpl;
+      volatile int16_t* waveAmplGen    = &v->genAmpl;
 
       {
       volatile int32_t* vb=vBuffer;
@@ -676,10 +675,10 @@ gpio_put(TST_PIN,1);
             // muted sounds skip evaluated once per sub-block
             bool noiseOn = (*waveAmplWhi != 0) || (*waveAmplPnk != 0);
             
-            bool wsinOn  = (*waveAmplSin != 0);            
-            bool wtriOn  = (*waveAmplTri != 0);
-            bool wsawOn  = (*waveAmplSaw != 0);                        
-            bool wsqrOn  = (*waveAmplSqr != 0);             
+            bool wsinOn  = ((sinAmpl | sinTarget) != 0);     // running amplitude or target: the ramp must be able to start and to finish
+            bool wtriOn  = ((triAmpl | triTarget) != 0);
+            bool wsawOn  = ((sawAmpl | sawTarget) != 0);
+            bool wsqrOn  = (*newWaveAmplSqr != 0);           // the square has no ramp: test the value that is used
 
             for(uint32_t s = sb; s < sb + RAMP_LEN; s++)
             {

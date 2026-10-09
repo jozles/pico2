@@ -34,50 +34,47 @@ void showAmplIncr(){
 
 void fillAmplIncr(){          // fonctionne avec stepAmpl mini 2 !!!
 
-  amplLevel[0]=0;
+    amplLevel[0]=0;
 
-  uint8_t j=1;
-  uint8_t i=1;
-  while(i<MAX_16B_LINEAR_VALUE){
-    amplLevel[i]=(uint16_t)roundf(pow(2,((float)((int)(i/stepAmpl))+((float)j/stepAmpl))));
-    j++;if(j>=stepAmpl){j=0;}
-    i++;     
-  }
+    uint8_t j=1;
+    uint8_t i=1;
+    while(i<MAX_16B_LINEAR_VALUE){
+        //amplLevel[i]=(uint16_t)roundf(pow(2,((float)((int)(i/stepAmpl))+((float)j/stepAmpl))));
+        amplLevel[i]=(uint16_t)roundf(32767.0f*powf(2.0f,(float)(i-(MAX_16B_LINEAR_VALUE-1))/stepAmpl));   // top step = 0x7fff, 3 dB steps below
+        j++;if(j>=stepAmpl){j=0;}
+        i++;     
+    }
+
+    assert(amplLevel[MAX_16B_LINEAR_VALUE-1] <= 32767);
   //showAmplIncr();
 }
 
-int32_t vx=0;
-void __not_in_flash_func(setVoicesAmpl)(uint8_t v,uint8_t item,int32_t valeur){         // basicWaveAmpl est calculé avec {coderWaveAmpl , coderWaveAmplAtt , ctl_input_val et amplLevel}
+void __not_in_flash_func(setVoicesAmpl)(uint8_t v,uint8_t item,int16_t valeur){         // basicWaveAmpl est calculé avec {coderWaveAmpl , coderWaveAmplAtt , ctl_input_val et amplLevel}
 
-    uint32_t s16=(1<<16)-1;
-    uint8_t shift=MAX_CTL_ATT_SHIFT;
-    
+    const int32_t amplMax=32767;                                                        // waves and genAmpl are both int16_t (0..0x7fff)
+    const uint8_t shift=MAX_CTL_ATT_SHIFT;
+
+    if(valeur>32767){valeur=32767;} else if(valeur<-32768){valeur=-32768;}              // control values are int16: stored copy and used value stay identical
+
     ctl_input_val[voices[v].voice_ctl_input_id[item]]=valeur;
 
     if(item==BASIC_WAVES_NB){                                                           // gestion de genAmpl
-        int32_t v0=(int16_t)(valeur*voices[v].coderGenAmplAtt)>>shift;
-        int32_t v1=amplLevel[voices[v].coderGenAmpl]+v0;
+        int32_t v0=(valeur*voices[v].coderGenAmplAtt)>>shift;                           // multiply, then shift: the old cast to int16_t truncated the product before the shift
+        int32_t v1=(int32_t)amplLevel[voices[v].coderGenAmpl]+v0;
         if(v1<0){v1=0;}
-        if(v1>s16){v1=s16;}
-        voices[v].genAmpl=v1;        
+        if(v1>amplMax){v1=amplMax;}
+        voices[v].genAmpl=(int16_t)v1;                                                  // clamped above
     }
     else                                                                                // gestion des waves
     {
-        uint32_t vat=voices[v].coderWaveAmplAtt[item];
-        int32_t v0=(int16_t)((valeur*vat)>>shift);           
-        int32_t v1=(int32_t)amplLevel[voices[v].coderWaveAmpl[item]]+v0;                // amplLevel uint16_t ; v1 = 2*int16_t 
+        int32_t vat=voices[v].coderWaveAmplAtt[item];
+        int32_t v0=(valeur*vat)>>shift;                                                 // signed multiply and arithmetic shift, no overflow while vat <= MAX_CTL_ATT
+        int32_t v1=(int32_t)amplLevel[voices[v].coderWaveAmpl[item]]+v0;                // amplLevel uint16_t
         if(v1<0){v1=0;}                                                                 // écrêtage
-        if(v1>s16){v1=s16;} 
-    //#define TRESH 256 
-        //int32_t delta=v1-voices[v].basicWaveAmpl[item];                                                             // écrêtage
-        voices[v].waveAmplChge[item]=true;  //(delta>TRESH) || (delta<-TRESH) ;
-        voices[v].newBasicWaveAmpl[item]=v1;                                            // 0 -> (0x7fff)
-
-/*if(voices[v].newBasicWaveAmpl[item]!=vx){
-    //printf("%u %u %i x:%u vat:%u v:%i v0:%i val:%i\n",v,item,voices[v].basicWaveAmpl[item],voices[v].voice_ctl_input_id[item],voices[v].coderWaveAmplAtt,ctl_input_val[voices[v].voice_ctl_input_id[item]],v0,vat);
-    printf("%u %u %i %u %i %i\n",v,item,valeur,vat,v0,v1);
-    vx=voices[v].newBasicWaveAmpl[item];
-}//*/
+        if(v1>amplMax){v1=amplMax;}
+                                            
+        voices[v].waveAmplChge[item]=true; 
+        voices[v].newBasicWaveAmpl[item]=(int16_t)v1;                                   // 0 -> (0x7fff), already clamped above
     }
 }
 
