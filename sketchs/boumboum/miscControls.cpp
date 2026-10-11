@@ -26,7 +26,7 @@ uint32_t adsrDurSus[MAX_ADSR];
 uint32_t adsrDurRel[MAX_ADSR];
 uint32_t adsrCurrEch[MAX_ADSR];
 uint16_t adsrOutputsValues[MAX_ADSR][MAX_OUTPUTS_PER_OBJ];  // inutilisé ??
-int16_t  adsr_ctl_input_id[MAX_ADSR];
+int16_t  adsr_ctl_input_id[MAX_ADSR][MAX_INPUTS_PER_OBJ];
 int16_t  adsr_ctl_output_id[MAX_ADSR][MAX_OUTPUTS_PER_OBJ];
 int32_t  adsrScopeBufReal[MAX_ADSR*ADSR_SCOPE_BUFFER_LEN];  // real values
 uint16_t adsrScopeBufPtr[MAX_ADSR];

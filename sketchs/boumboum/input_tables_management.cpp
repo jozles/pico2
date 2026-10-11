@@ -595,12 +595,8 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
             uint8_t object=ctl_input_object[id];
 
             switch(ctl_input_update_type[id]){
-                case VCE_FREQ:  val=(valeur>>6)*voices[object].coderFreqAtt>>MAX_CTL_ATT_SHIFT;         // 8k max VCES_MAX_FREQ_CODERS ; att 0-255
-                                fr=calcFreq(val+voices[object].coderFreq);
-                                setVoiceFrequency(fr,&voices[object],voices[object].coderCycleR);       // ajouter un ctl d'overflow
-                                break;
-                case VCE_CRA :  val=voices[object].coderCycleR+(valeur>>10)*voices[object].coderCycleRAtt>>MAX_CTL_ATT_SHIFT; // 0-62 ; att 0-255                
-                                setVoiceFrequency(voices[object].frequency,&voices[object],val);        // ajouter un ctl d'overflow
+                case VCE_FREQ:  setVoiceFrequency(&voices[object]);break;                               // 8k max VCES_MAX_FREQ_CODERS ; att 0-255                            
+                case VCE_CRA :  voices[object].cycleR=(uint8_t)(voices[object].coderCycleR+(((valeur>>10)*voices[object].coderCycleRAtt)>>MAX_CTL_ATT_SHIFT));   // base + attenuated input; fillVoiceBuffer_mono masks it with &63
                                 break;
                 case VCE_WSIN:  setVoicesAmpl(object,WSIN,valeur);break;
                 case VCE_WTRI:  setVoicesAmpl(object,WTRI,valeur);break;
@@ -613,12 +609,8 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
                                 fr=calcFilterG(val+voices[object].coderFilterFreq);                     // g = tan(pi*fc/fs)
                                 voices[object].newFilterG = (int32_t)(fr/(1.0f+fr)*32768.0f);           // gg, always < 1
                                 break;
-                case LFO_FREQ:  val=(valeur>>3)*lfosCodersFreqAtt[object]>>MAX_CTL_ATT_SHIFT;           // 8k max VCES_MAX_FREQ_CODERS ; att 0-255 
-                                fr=calcFreq(val+lfosCodersFreq[object])/VOICE_FREQ_DIVIDER;
-                                setLfosFrequency(fr,object,lfosCoderCycleR[object]);                    // ajouter un ctl d'overflow
-                                break;
-                case LFO_CRA :  val=lfosCoderCycleR[object]+(valeur>>10)*lfosCoderCycleRAtt[object]>>MAX_CTL_ATT_SHIFT; // 0-62 ; att 0-255
-                                setLfosFrequency(lfosFrequency[object],object,val);                     // ajouter un ctl d'overflow
+                case LFO_FREQ:  setLfosFrequency(object);break;                                         // 8k max VCES_MAX_FREQ_CODERS ; att 0-255 
+                case LFO_CRA :  lfosCycleR[object]=(uint16_t)(lfosCoderCycleR[object]+(((valeur>>10)*lfosCoderCycleRAtt[object])>>MAX_CTL_ATT_SHIFT));   // base + attenuated input ; read as &63 by lfosHandler                  
                                 break;
                 case A_ATTACK:  val=(valeur>>9)*adsrCoderAttAtt[object]>>MAX_CTL_ATT_SHIFT;             // durée 0-127
                                 setAdsrDur(object,ADSR_ATT,val);

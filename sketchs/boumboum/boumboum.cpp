@@ -52,7 +52,7 @@ uint16_t* vcesVarT[CODER_NB];                         // inits dans menu.cpp ; l
 
 #define VCE_VAR_FI_NB 4                                // voices attenuators menu
 volatile int16_t menuVcesCodersFi[VCE_VAR_FI_NB+1];    // [0] curr input nb ; [1] curr coder value for freq ; [2] curr coder value for freq att ; [3] inp att
-uint16_t menuMaxVcesCodersFi[]={MAX_VOICES-1,VCES_MAX_FREQ_CODERS,MAX_CTL_ATT,MAX_CTL_ATT};
+uint16_t menuMaxVcesCodersFi[]={MAX_VOICES-1,VCES_MAX_FREQ_CODERS,MAX_CTL_ATT-1,MAX_CTL_ATT-1};
 uint16_t* vcesVarFi[CODER_NB];                         // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
 
 #define LFO_VAR_NB 5

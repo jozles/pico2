@@ -18,9 +18,9 @@
 extern int16_t  ctl_input_id[MAX_INPUTS];
 extern int16_t  ctl_input_val[MAX_INPUTS];
 extern char     ctl_input_name[MAX_INPUTS][IN_OUT_NAME_LEN];
-extern uint16_t ctl_input_srce[MAX_INPUTS];
+extern int16_t  ctl_input_srce[MAX_INPUTS];
 //extern uint16_t ctl_input_norm[MAX_INPUTS];
-extern uint8_t  ctl_input_shft[MAX_INPUTS];                      // all inputs values shift type (0 no shift ; 1 +0x8000)
+extern uint16_t ctl_input_shft[MAX_INPUTS];                      // all inputs values shift type (0 no shift ; 1 +0x8000)
 extern uint8_t  ctl_input_trig[MAX_INPUTS];                      // all inputs trig type (0 no trig ; 1 up ; 2 down ; 3 both)
 extern int16_t  ctl_input_tlev[MAX_INPUTS];                      // all inputs trig level
 
@@ -48,12 +48,13 @@ extern uint16_t lfosCodersFreq[];
 extern uint16_t lfosCodersFreqAtt[];
 extern uint16_t lfosCoderCycleR[];
 extern uint16_t lfosCoderCycleRAtt[];
+extern uint16_t lfosCycleR[MAX_LFO];
 extern uint16_t* lfosVar[];
 extern int32_t lfoScopeBuffer[];
 extern int32_t lfoScopeBufReal[];
 extern int32_t* waveformTable[];
 extern volatile int16_t menuLfosCoders[];
-extern int16_t lfo_ctl_input_id[][MAX_OUTPUTS_PER_OBJ];
+extern int16_t lfo_ctl_input_id[][MAX_INPUTS_PER_OBJ];
 
 extern uint16_t* vcesVarF[];
 uint16_t tempVceCoderFreq[MAX_VOICES];                      // pour accéder d'un ptr aux coders de freq
@@ -90,7 +91,7 @@ extern volatile int16_t menuAdsrCoders[];
 extern uint16_t* adsrVar[];
 extern int32_t  adsrScopeBufReal[MAX_ADSR*ADSR_SCOPE_BUFFER_LEN];
 extern bool     adsrScopeDisp[];
-extern int16_t  adsr_ctl_input_id[MAX_ADSR];
+extern int16_t  adsr_ctl_input_id[MAX_ADSR][MAX_INPUTS_PER_OBJ];
 
 extern uint16_t lfmCoder[MAX_INPUTS_PER_OBJ][MAX_LFM];
 extern uint16_t lfmCoderAtt[MAX_INPUTS_PER_OBJ][MAX_LFM];
@@ -338,7 +339,7 @@ void title_dsp(const char* title,uint8_t item,uint8_t type,float v0, int32_t v1,
     memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
     memset(buf2,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
     switch(type){
-        case VOICES_FR:sprintf(buf,"%s:%u %+i %u %c%c",title,item,voices[item].coderCycleR-MAXCODER_RC/2,onoff[i2s_running],onoff[tb7]);break;
+        case VOICES_FR:sprintf(buf,"%s:%u %+i %c%c",title,item,voices[item].coderCycleR-MAXCODER_RC/2,onoff[i2s_running],onoff[tb7]);break;
         case VOICES_AM:sprintf(buf,"%s:%u %c%c",title,item,onoff[i2s_running],onoff[tb7]);break;
         case VOICES_AT:sprintf(buf,"%s:%u %c%c",title,item,onoff[i2s_running],onoff[tb7]);break;
         case VOICES_FI:sprintf(buf,"%s %u %c%c",title,item,onoff[i2s_running],onoff[tb7]);break;
@@ -590,58 +591,43 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
             case MENU0____:sprintf(buf+2,"%s  ",menu+line*len);break; // général
             case LFOS_____:
                 switch(coder){
-                    case OSCMENU:
-                        setLfosFrequency(calcFreq(lfosCodersFreq[line])/VOICE_FREQ_DIVIDER,line,lfosCoderCycleR[line]);
-                        break;
                     case OSCCODERFREQ:if(varChge){                                          // cc=coder freq
-                        setLfosFreq(line,cc);
-                        }break;
-                    case OSCCODERCRA:if(varChge){                                           // cc=coder cra
-                        int16_t cra = ctl_input_val[lfo_ctl_input_id[line][LCR_]]>>10;      // normalisation ctl_input_cra 
-                        int16_t cr = lfosCoderCycleR[line]+cra*cc/MAX_CTL_ATT;              // cr=coderCra+ctl_input_cra atténué 
-                        setLfosFrequency(lfosFrequency[line],line,cr);
+                        setLfosFrCoders(line,(uint16_t)cc,lfosCodersFreqAtt[line]);
+                        setLfosFrequency(line);
                         }break;
                     case OSCCODERFREQATT:if(varChge){                                       // cc=coder attenuator input freq 
-                        setLfosFreqAtt(line,cc);
+                        setLfosFrCoders(line,lfosCodersFreq[line],(uint16_t)cc);
+                        setLfosFrequency(line);
+                        }break;                        
+                    case OSCCODERCRA:if(varChge){                                           // cc=coder cra (base value)
+                        setLfosCycleR(line,cc,lfosCoderCycleRAtt[line]);                  // stores the coders, then recomputes lfosCycleR
+                        signal_overflow("lfo_cra:",line,(int16_t)lfosCycleR[line],MINCODER_RC,MAXCODER_RC);
                         }break;
                     case OSCCODERCRAATT:if(varChge){                                        // cc=coder attenuator input cra
-                        lfosCoderCycleRAtt[line]=cc;                                      
-                        int16_t cra = ctl_input_val[lfo_ctl_input_id[line][LCR_]]>>10;      // normalisation ctl_input_cra
-                        int16_t cr = lfosCoderCycleR[line]+cra*cc/MAX_CTL_ATT;              // cr=coderCra+ctl_input_cra atténué
-                        printf("lfo#:%d cc(att):%d crinp:%i codCr:%i f_id:%d \n",line,cc,cra,cr,lfo_ctl_input_id[line][LCR_]);
-                        signal_overflow("vce_cra:",line,cr,MINCODER_RC,MAXCODER_RC);
-                        setLfosFrequency(lfosFrequency[line],line,cr);
-                        }break;
+                        setLfosCycleR(line,lfosCoderCycleR[line],cc);
+                        printf("lfo#:%d cc(att):%d crinp:%i cr:%i f_id:%d \n",line,cc,ctl_input_val[lfo_ctl_input_id[line][LCR_]]>>10,(int16_t)lfosCycleR[line],lfo_ctl_input_id[line][LCR_]);
+                        signal_overflow("lfo_cra:",line,(int16_t)lfosCycleR[line],MINCODER_RC,MAXCODER_RC);
+                        }break;                        
                     default:break;
                 }
                 sprintf(buf+2,"%1.3f %1.3f %d   ",lfosFrequency[line],1/lfosFrequency[line],lfosCoderCycleR[line]-MAXCODER_RC/2);
                 break;  
             case VOICES_FR:
                 switch (coder){
-                    case OSCMENU:if(varChge){
-                        float f=calcFreq(voices[line].coderFreq);
-                        //voices[line].basicFrequency=f;                
-                        setVoiceFrequency(f,&voices[line],voices[line].coderCycleR);
-                        }break;
                     case OSCCODERFREQ:if(varChge){
-                        float f=calcFreq(cc);
-                        //voices[line].basicFrequency=f;                        
-                        setVoiceFrequency(f,&voices[line],voices[line].coderCycleR);
-                        voices[line].coderFreq=cc;}
-                        break;
-                    case OSCCODERCRA:if(varChge){
-                        setVoiceFrequency(voices[line].frequency,&voices[line],cc);
-                        voices[line].coderCycleR=cc;}
+                        setVoiceFrCoders(&voices[line], cc, voices[line].coderFreqAtt);
+                        setVoiceFrequency(&voices[line]);}
                         break;
                     case OSCCODERFREQATT:if(varChge){
-                        setVoicesFreqAtt(line,cc);
-                        }break;                                    
+                        setVoiceFrCoders(&voices[line], voices[line].coderFreq, cc);
+                        setVoiceFrequency(&voices[line]);}
+                        break;
+                    case OSCCODERCRA:if(varChge){
+                        setVoiceCycleR(&voices[line],cc,voices[line].coderCycleRAtt);
+                        printf("v:%u coderCr:%i coderCrAtt:%i input:%i cycleR:%i \n",line,voices[line].coderCycleR,voices[line].coderCycleRAtt,ctl_input_val[voices[line].voice_ctl_input_id[VCR_]],voices[line].cycleR);}
+                        break;                                    
                     case OSCCODERCRAATT:if(varChge){
-                        voices[line].coderCycleRAtt=cc;                                             // atténuateur pour ctl_input_cra
-                        int16_t cra = ctl_input_val[voices[line].voice_ctl_input_id[LCR_]]>>10;     // normalisation ctl_input_cra
-                        int16_t cr = voices[line].coderCycleR+cra*cc/MAX_CTL_ATT;                   // cr=coderCra+ctl_input_cra atténué 
-                        signal_overflow("lfo_cra:",line,cr,MINCODER_RC,MAXCODER_RC);
-                        setVoiceFrequency(voices[line].frequency,&voices[line],cr);}
+                        setVoiceCycleR(&voices[line],voices[line].coderCycleR,cc);}
                         break;
                     default: break;
                 }
@@ -694,11 +680,11 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                 if(varChge){
                     switch (coder){
                         case ADSRMENU: break;
-                        case ADSRATT:adsrCoderAtt[line]=cc;setAdsrDur(line,ADSR_ATT,ctl_input_val[adsr_ctl_input_id[line]]);break;
-                        case ADSRDEC:adsrCoderDec[line]=cc;setAdsrDur(line,ADSR_DEC,ctl_input_val[adsr_ctl_input_id[line]]);break;
-                        case ADSRSUS:adsrCoderSus[line]=cc;setAdsrDur(line,ADSR_SUS,ctl_input_val[adsr_ctl_input_id[line]]);break;
-                        case ADSRREL:adsrCoderRel[line]=cc;setAdsrDur(line,ADSR_REL,ctl_input_val[adsr_ctl_input_id[line]]);break;
-                        case ADSRLEV:adsrCoderLev[line]=cc;setAdsrLev(line,cc+ctl_input_val[adsr_ctl_input_id[line]]);break;
+                        case ADSRATT:adsrCoderAtt[line]=cc;setAdsrDur(line,ADSR_ATT,ctl_input_val[adsr_ctl_input_id[line][ATTK]]);break;
+                        case ADSRDEC:adsrCoderDec[line]=cc;setAdsrDur(line,ADSR_DEC,ctl_input_val[adsr_ctl_input_id[line][DECA]]);break;
+                        case ADSRSUS:adsrCoderSus[line]=cc;setAdsrDur(line,ADSR_SUS,ctl_input_val[adsr_ctl_input_id[line][SUST]]);break;
+                        case ADSRREL:adsrCoderRel[line]=cc;setAdsrDur(line,ADSR_REL,ctl_input_val[adsr_ctl_input_id[line][RELE]]);break;
+                        case ADSRLEV:adsrCoderLev[line]=cc;setAdsrLev(line,cc+ctl_input_val[adsr_ctl_input_id[line][LEVE]]);break;
                         default: break;
                     }
                 }

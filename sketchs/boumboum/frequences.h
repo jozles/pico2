@@ -27,6 +27,10 @@
 #define INCRNB 409    // int(4096/10)=409
 #define FREQ0 16.345  // pour avoir un LA à 440Hz avecc 409 incréments par octave 
 
+//pour ctlCombine
+#define FREQ_CODE_MAX (OCTNB*INCRNB-1)                // 4498: calcFreq() reads octFreq[oct+1], oct <= 10
+#define FILTER_CODE_MAX  (FILTER_MAX_OCT*INCRNB)      // 4090
+
 // --- Filtre, prototype v1 — voir /areas/synthe-rp2350.md pour l'architecture complète ---
 
 #define FILTER_MAX_STAGES 4          // allocated size; filterStages chooses how many are actually used (2 or 4)
@@ -35,11 +39,15 @@ struct VoiceFilter {
     int32_t z[FILTER_MAX_STAGES];    // per-stage state, evolves sample by sample — same role as currEch, but one value per stage
 };
 
+#define PHASE_MASK ((BASIC_WAVE_TABLE_LEN << 16) - 1)       // 11 bits of table index + 16 fractional bits
+static_assert(MAX_STEP_FRA == 65536, "phaseStep assumes 16 fractional bits");
+
 struct Voice {
     uint16_t    sampleNbToFill;                 // sample Nb for 1 period    
     uint32_t    currentSample;                  // last value pushed in i2s buffer                  
-    uint16_t    stepInt;                        // partie entière du step montant
-    uint32_t    stepFra;                        // partie fractionnaire du step montant  
+    //uint16_t    stepInt;                        // partie entière du step montant
+    //uint32_t    stepFra;                        // partie fractionnaire du step montant 
+    volatile uint32_t phaseStep;                    // Q16.16 table steps per sample, written and read as one word remplace stepInt et stepFra 
     uint16_t    currEch;                        // dernier N° d'ech utilisé
     uint32_t    currEchFra;                     // dernière valeur fractionnaire de n° d'ech calculée  
     uint32_t    noisePhase;                     // Q16.16
@@ -93,7 +101,10 @@ void voicesInit(Voice* v,uint16_t coderF,uint8_t cga);
 void dumpVoices(Voice* v);
 void fillVoiceBuffer(int32_t* sampleBuffer,Voice* v,uint8_t bufNum);
 void fillVoices();
-void setVoiceFrequency(float freq,Voice* v,int8_t rc);
+void setVoiceFrCoders(Voice* v, uint16_t coderFreq, uint16_t coderAtt);
+void setVoiceSteps(float freq,Voice* v);
+void setVoiceFrequency(Voice* v);
+void setVoiceCycleR(Voice* v, uint8_t coderCycleR, int16_t coderCycleRAtt);
 float calcFreq(uint16_t val);
 uint16_t calcCoderFreq(float freq);
 void setVoiceFilter(Voice* v, int16_t coderFilterF, int16_t coderFilterFAtt, int16_t coderFilterLevAtt);
@@ -103,7 +114,10 @@ void filtersInit(uint8_t v);
 float calcFilterFreq(int32_t code);
 void setFilterFrequency(float freqHz, Voice* v);
 
-void setLfosFrequency(float freq,uint8_t l,int8_t rc);
+void setLfosSteps(float freq,uint8_t l);
+void setLfosFrCoders(uint8_t lfo, uint16_t coderFreq, uint16_t coderAtt);
+void setLfosFrequency(uint8_t lfo);
+void setLfosCycleR(uint8_t lfo, uint16_t coderCycleR, uint16_t coderCycleRAtt);
 void lfosHandler();
 void lfosInit();
 

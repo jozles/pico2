@@ -54,7 +54,7 @@ void __not_in_flash_func(setVoicesAmpl)(uint8_t v,uint8_t item,int16_t valeur){ 
     const int32_t amplMax=32767;                                                        // waves and genAmpl are both int16_t (0..0x7fff)
     const uint8_t shift=MAX_CTL_ATT_SHIFT;
 
-    if(valeur>32767){valeur=32767;} else if(valeur<-32768){valeur=-32768;}              // control values are int16: stored copy and used value stay identical
+    //if(valeur>32767){valeur=32767;} else if(valeur<-32768){valeur=-32768;}              // control values are int16: stored copy and used value stay identical
 
     ctl_input_val[voices[v].voice_ctl_input_id[item]]=valeur;
 
@@ -82,35 +82,3 @@ void __not_in_flash_func(setVoicesAmpl)(uint8_t v,uint8_t item){
                         setVoicesAmpl(v,item,ctl_input_val[voices[v].voice_ctl_input_id[item]]);
 }
 
-void __not_in_flash_func(setVoicesFreqAtt)(uint8_t v,uint32_t coderF)
-{
-                        voices[v].coderFreqAtt=coderF;                                           // atténuateur pour ctl_input_freq 
-                        int16_t fi = ctl_input_val[voices[0].voice_ctl_input_id[VFRQ]]>>3;       // normalisation ctl_input_freq
-                        uint32_t fc = voices[v].coderFreq+fi*coderF/MAX_CTL_ATT;                 // fc=coderFreq+ctl_input_freq atténué 
-                        signal_overflow("vce_freq:",v,fc,VCES_MIN_FREQ_CODERS,VCES_MAX_FREQ_CODERS);
-                        setVoiceFrequency(calcFreq(fc),&voices[v],voices[v].coderCycleR);   
-}
-
-void __not_in_flash_func(setLfosFrParams)(uint8_t l)
-{
-                        int16_t fi = ctl_input_val[lfo_ctl_input_id[l][VFRQ]]>>3;                 // normalisation ctl_input_freq
-                        int16_t fc = lfosCodersFreq[l]+fi*lfosCodersFreqAtt[l]/MAX_CTL_ATT;       // fc=coderFreq+ctl_input_freq atténué
-
-                        signal_overflow("lfo_freq:",l,fc,LFOS_MIN_FREQ_CODERS,LFOS_MAX_FREQ_CODERS);
-                        float fr=calcFreq(fc)/VOICE_FREQ_DIVIDER;
-                        setLfosFrequency(fr,l,lfosCoderCycleR[l]);
-                        printf("lfo#:%d cfr:%u cFrAtt:%u fi:%i fc:%i fr:%f f_id:%d \n",l,lfosCodersFreq[l],lfosCodersFreqAtt[l],fi,fc,fr,lfo_ctl_input_id[l][VFRQ]);                        
-}
-
-
-void __not_in_flash_func(setLfosFreqAtt)(uint8_t l,uint32_t coderF)
-{
-                        lfosCodersFreqAtt[l]=coderF;
-                        setLfosFrParams(l);
-}
-
-void __not_in_flash_func(setLfosFreq)(uint8_t l,uint32_t coderF)
-{
-                        lfosCodersFreq[l]=coderF;
-                        setLfosFrParams(l);
-}
