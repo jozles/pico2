@@ -26,10 +26,6 @@ float octIncr[octIncrNb];
 #define FILTER_TANH_LEN  2049              // one entry per Q8 unit, covering -4..+4 directly, no interpolation needed
 #define FILTER_TANH_HALF (FILTER_TANH_LEN / 2)
 
-#define FILTER_STEPS_PER_OCT 32
-#define FILTER_MAX_OCT       10
-#define FILTER_TABLE_LEN     (FILTER_MAX_OCT*FILTER_STEPS_PER_OCT + 1)
-
 #define FILTER_KNEE       65536.0f      // raw units where the soft saturation starts (tanh argument = 1)
 #define FILTER_FRAC       8             // fractional bits kept inside the filter (Q8)
 #define FILTER_PRE_SHIFT  15            // shift between the voice signal and the filter input
@@ -269,8 +265,8 @@ void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)    // cga = genAmpl l
 
         voices[v].sampleNbToFill=SAMPLES_PER_BUFFER;    
         voices[v].currentSample=0;
-        voices[v].currEch=0;
-        voices[v].currEchFra=0;
+        //voices[v].currEch=0;
+        //voices[v].currEchFra=0;
 
         voices[v].noisePhase = 0;           // Q16.16
         voices[v].noiseStep  = 60817408;    // Q16.16
@@ -301,10 +297,11 @@ void voicesInit(Voice* voices,float freq,uint8_t cga){
 
 void dumpVoices(Voice* v)
 {
-  printf("   frequency(c/M/f)   sampleNb currSample stepInt stepFra currEch currEchFra noisePhase noiseStep                                    WaveAmpl(c-M-b)                                             genAmpl(c=M=g)     switchs     \n");
+  printf("   frequency(c/M/f)   sampleNb currSample stepInt stepFra noisePhase noiseStep                                    WaveAmpl(c-M-b)                                             genAmpl(c=M=g)     switchs     \n");
   for(uint8_t n=0;n<MAX_VOICES;n++){  
     //printf("%d %d-%d-%4.3f    %d       %d        %d      %d      %d       %d           %d        %d  ",n,v[n].coderFreq,MAXCODER_RC,v[n].frequency,v[n].sampleNbToFill,v[n].currentSample,v[n].stepInt,v[n].stepFra,v[n].currEch,v[n].currEchFra,v[n].noisePhase,v[n].noiseStep);
-    printf("%d %d-%d-%4.3f    %d       %d        %d      %d      %d       %d           %d        %d  ",n,v[n].coderFreq,MAXCODER_RC,v[n].frequency,v[n].sampleNbToFill,v[n].currentSample,v[n].phaseStep>>16,v[n].phaseStep&0xFFFF,v[n].currEch,v[n].currEchFra,v[n].noisePhase,v[n].noiseStep);
+    //printf("%d %d-%d-%4.3f    %d       %d        %d      %d      %d       %d           %d        %d  ",n,v[n].coderFreq,MAXCODER_RC,v[n].frequency,v[n].sampleNbToFill,v[n].currentSample,v[n].phaseStep>>16,v[n].phaseStep&0xFFFF,v[n].currEch,v[n].currEchFra,v[n].noisePhase,v[n].noiseStep);
+    printf("%d %d-%d-%4.3f    %d       %d        %d      %d      %d        %d  ",n,v[n].coderFreq,MAXCODER_RC,v[n].frequency,v[n].sampleNbToFill,v[n].currentSample,v[n].phaseStep>>PHASE_SHIFT,v[n].phaseStep&((1u<<PHASE_SHIFT)-1),v[n].noisePhase,v[n].noiseStep);
     for(uint8_t wa=0;wa<BASIC_WAVES_NB;wa++){printf("%d-%d-%d ",v[n].coderWaveAmpl[wa],VCES_MAX_FREQ_CODERS,v[n].basicWaveAmpl[wa]);}
     printf("%d=%d=%d ",v[n].coderGenAmpl,VCES_MAX_AMPL_CODERS,v[n].genAmpl);
     //for(uint8_t sw=0;sw<CODER_NB;sw++){printf("%d ",v[n].coderSw[sw]);}
@@ -361,7 +358,8 @@ void __not_in_flash_func(setVoiceSteps)(float freq,Voice* v){
     v->frequency=freq;                                              // display only
 
     float k=(float)BASIC_WAVE_TABLE_LEN*freq/SAMPLE_RATE;           // table steps per sample
-    v->phaseStep=(uint32_t)(k*(float)MAX_STEP_FRA+0.5f);            // one 32-bit store: the audio loop cannot see half of it
+    if (k > 2047.0f) { k = 2047.0f; }                               // 2047 * 2^21 is the largest step a 32-bit phase can hold
+    v->phaseStep=(uint32_t)(k*(float)(1UL<<PHASE_SHIFT)+0.5f);      // k * 2^21 < 2^32, one 32-bit store 
 }
 
 void __not_in_flash_func(setVoiceFrCoders)(Voice* v, uint16_t coderFreq, uint16_t coderAtt)  // coders storage
@@ -580,7 +578,7 @@ void __not_in_flash_func(lfosHandler)()
         ce += lfosStepInt[l] + carry;
         ce &= BASIC_WAVE_TABLE_LEN-1;*/
 
-        uint32_t ph = (lfoPhase[l] + lfosPhaseStep[l]) & PHASE_MASK;
+        uint32_t ph = (lfoPhase[l] + lfosPhaseStep[l]) & LFO_PHASE_MASK;
         lfoPhase[l] = ph;
         uint32_t ce = ph >> 16;                         // table index before the half-wave mirroring below
         currLfoEch[l]=ce;                               // long term value (the square wave reads it)
@@ -691,8 +689,7 @@ gpio_put(TST_PIN,1);
         
         uint32_t s = SAMPLES_PER_BUFFER;
         int32_t* vsBuffer=voicesScopeDataBuffer+voiceNum*SAMPLES_PER_BUFFER; // temporary buffer for fast currech computation       
-        do {
-          
+        do {         
           currEchFra += stepFra;
           uint32_t carry = (currEchFra >= MAX_STEP_FRA);
           currEchFra -= carry * MAX_STEP_FRA;
@@ -702,17 +699,18 @@ gpio_put(TST_PIN,1);
           vsBuffer[SAMPLES_PER_BUFFER-s]=currEch; 
           s--;
         }
-        while (s!=0);*/
-        uint32_t       phase     = ((uint32_t)v->currEch << 16) | v->currEchFra;
-        const uint32_t phaseStep = v->phaseStep;                            // read once for the whole buffer
+        while (s!=0);*/ 
 
-        uint32_t s = SAMPLES_PER_BUFFER;
-        int32_t* vsBuffer=voicesScopeDataBuffer+voiceNum*SAMPLES_PER_BUFFER;
-        do {
-            phase = (phase + phaseStep) & PHASE_MASK;
-            vsBuffer[SAMPLES_PER_BUFFER-s] = phase >> 16;                   // table index 0-2047
-            s--;
-        } while (s!=0);        
+        uint32_t       phase     = v->phase;                    // replaces currEch/currEchFra
+        const uint32_t phaseStep = v->phaseStep;
+        int32_t* vsBuffer = voicesScopeDataBuffer + voiceNum*SAMPLES_PER_BUFFER;
+        for (uint32_t i = 0; i < SAMPLES_PER_BUFFER; i += 4) {          // unrolled x4: the loop overhead is paid once per 4 samples
+            phase += phaseStep; vsBuffer[i]   = phase >> PHASE_SHIFT;
+            phase += phaseStep; vsBuffer[i+1] = phase >> PHASE_SHIFT;
+            phase += phaseStep; vsBuffer[i+2] = phase >> PHASE_SHIFT;
+            phase += phaseStep; vsBuffer[i+3] = phase >> PHASE_SHIFT;
+        }
+        v->phase = phase;      
   
   // filters
         int32_t filterG = v->filterG;
@@ -763,7 +761,7 @@ gpio_put(TST_PIN,1);
 
                   // waves
 
-                  uint32_t ce=vsBuffer[s];          
+                  uint32_t ce=vsBuffer[s]; 
 
                   bool vv=(ce<RC_TABLES_LEN);
                   int sign=(vv*2-1);                                // invert 180-360°
@@ -827,10 +825,8 @@ gpio_put(TST_PIN,1);
 
 
 ///*
-gpio_put(TST_PIN,0);
+//gpio_put(TST_PIN,0);
 if(tb7){
-
-  
     filterGAcc += filterGInc;
     int32_t ggS = (filterGAcc >> RAMP_SHIFT) << 16;                    // ramped gg in Q31
     int32_t xq;
@@ -841,10 +837,8 @@ if(tb7){
     xq = filterStageLin(z2, xq, ggS);
     xq = filterStageLin(z3, xq, ggS);
     pre = xq * (1 << (FILTER_PRE_SHIFT - FILTER_FRAC));                // back to the voice scale
-
   }
-gpio_put(TST_PIN,1);
-
+//gpio_put(TST_PIN,1);
 
                   pre *= *waveAmplGen;
 
@@ -870,8 +864,8 @@ gpio_put(TST_PIN,1);
 
         //v->currEch    = currEch;
         //v->currEchFra = currEchFra;
-        v->currEch    = phase >> 16;
-        v->currEchFra = phase & (MAX_STEP_FRA - 1);
+        //v->currEch    = phase >> 16;
+        //v->currEchFra = phase & (MAX_STEP_FRA - 1);
 
         v->noisePhase = nPhase;
         pink_state    = pink_state_loc;

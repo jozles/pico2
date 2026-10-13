@@ -7,7 +7,7 @@
 
 #include "rc_33tables.h"
 
-#define VERSION "v1.44"
+#define VERSION "v1.45"
 
 #define PI 3.141592636
 
@@ -116,7 +116,6 @@ typedef enum {
 #define ADSR_SAMPLE_RATE 500
 #define DUR_ECH_NB 128                  // puissance de 2 !!! définit le pas dans les tables d'échantillons 
 #define ADSR_MAX_TIME_CODERS DUR_ECH_NB-1       // valeur maxi saisie par les coders      
-// multiplié par BASIC_WAVES_TABLE_LEN/ADSR_MAX_TIME_CODERS/2 : on utilise la table de cra 32 0-90° pour former les valeurs 
 #define ADSR_MAX_LEVEL_CODERS MAX_16B_LINEAR_VALUE-1
 #define ADSR_SCOPE_BUFFER_LEN TFT_W
 
@@ -170,17 +169,19 @@ typedef enum {
 
 #define NUMBER_OF_OCTAVES 10
 #define OCTAVE0_FREQ SAMPLE_F/SAMPLE_BUFFER_SIZE
-#define SAMPLES_PER_BUFFER 512                          // nombre d'échantillons (L+R) par buffer (1024 trop lent)  
+#define SAMPLES_PER_BUFFER 512                          // nombre d'échantillons (L+R) par buffer (1024 trop lent) 
+static_assert((SAMPLES_PER_BUFFER % 4) == 0, "the unrolled index loop writes 4 samples per pass"); 
 //#define SAMPLE_BUFFER_SIZE SAMPLES_PER_BUFFER           // taille du buffer (doit être multiple de 4 pour le dma i2s)
 
 #define RC_TABLES_LEN RC_N_SAMPLES                      // ***** POWER OF 2 *****  nombre d'échantillons dans les 1/2 tables d'ondes
 #define RC_TABLES_NB RC_N_TABLES                        // nombre de tables RC (MAXCODER_RC possible values)
 #define CODER_CR_OFFSET RC_TABLES_NB
-#define MAXCODER_RC ((RC_TABLES_NB-1)*2)                  // DOIT ETRE PAIR (-31 0 +31 : 63 values 0-62 ) le nombre total de tables doit être impair pour le mirroring
+#define MAXCODER_RC ((RC_TABLES_NB-1)*2)                // DOIT ETRE PAIR (-31 0 +31 : 63 values 0-62 ) le nombre total de tables doit être impair pour le mirroring
 #define MINCODER_RC 0
 
+#define BASIC_WAVE_TABLE_LEN (RC_TABLES_LEN*2)          // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
 #define BASIC_WAVE_TABLE_POW 11                         // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
-#define BASIC_WAVE_TABLE_LEN RC_TABLES_LEN*2            // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
+static_assert((1u << BASIC_WAVE_TABLE_POW) == BASIC_WAVE_TABLE_LEN, "BASIC_WAVE_TABLE_POW and BASIC_WAVE_TABLE_LEN are inconsistent");
 
 /* inputs/outputs */
 
