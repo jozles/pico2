@@ -39,7 +39,6 @@ void fillAmplIncr(){          // fonctionne avec stepAmpl mini 2 !!!
     uint8_t j=1;
     uint8_t i=1;
     while(i<MAX_16B_LINEAR_VALUE){
-        //amplLevel[i]=(uint16_t)roundf(pow(2,((float)((int)(i/stepAmpl))+((float)j/stepAmpl))));
         amplLevel[i]=(uint16_t)roundf(32767.0f*powf(2.0f,(float)(i-(MAX_16B_LINEAR_VALUE-1))/stepAmpl));   // top step = 0x7fff, 3 dB steps below
         j++;if(j>=stepAmpl){j=0;}
         i++;     

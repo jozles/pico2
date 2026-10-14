@@ -38,10 +38,10 @@ float octIncr[octIncrNb];
 //__attribute__((section(".ram_d1")))
 int32_t filterDTable[FILTER_TANH_LEN];
 //__attribute__((section(".ram_d1")))
-int32_t z0,z1,z2,z3;                    // filter state in registers (Q8)
 
 float gTable[FILTER_TABLE_LEN];
 
+// -----
 
 extern uint32_t millisCounter;
 
@@ -59,7 +59,7 @@ volatile uint32_t lfosPhaseStep[MAX_LFO];       // Q16.16
 uint32_t          lfoPhase[MAX_LFO];            // Q16.16, replaces currLfoEch's fraction
 
 uint16_t    currLfoEch[MAX_LFO];
-uint32_t    currLfoEchFra[MAX_LFO];
+//uint32_t    currLfoEchFra[MAX_LFO];
 int16_t     lfosOutputsValues[MAX_LFO][MAX_OUTPUTS_PER_OBJ];  // inutilisé ??
 uint32_t    lfoTime=1;                                // synchrone avec le handler adsr 
 uint32_t    lfoTimingInterval=1000/LFOS_SAMPLE_RATE;  
@@ -81,7 +81,7 @@ extern int16_t ctl_input_val[MAX_INPUTS];
 extern int16_t ctl_output_id_chain[MAX_OUTPUTS];
 extern uint8_t ctl_input_update_type[MAX_INPUTS];
 
-int32_t     voicesScopeDataBuffer[MAX_VOICES*SAMPLES_PER_BUFFER];  // all voices data buffer : 16bits low currech nb, 16 bits high rc table nb 
+int32_t     voicesScopeDataBuffer[MAX_VOICES*SAMPLES_PER_BUFFER];  // all voices data buffer 
 
 // i2s
 
@@ -117,9 +117,6 @@ void init_basic_sine_table(void)
 #define NOISE_TABLE_SIZE 4093
 int16_t noise_table[NOISE_TABLE_SIZE];
 
-uint32_t nPhase = 0;           // Q16.16
-uint32_t nStep  = 60817408;    // Q16.16
-
 const int32_t alpha = 32113;  // 0.98 en Q15
 
 volatile int32_t pink_state = 0;       // Q15 interne
@@ -137,22 +134,6 @@ void init_noise(){
   for (int i = 0; i < NOISE_TABLE_SIZE; i++)
     noise_table[i] =  (int16_t)(xrnd() >> 16);
 }
-
-/*static inline void get_noise(int16_t *white, int16_t *pink)
-{
-    // --- Bruit blanc bande limitée ---
-    nPhase += nStep;
-    uint32_t limit = (uint32_t)NOISE_TABLE_SIZE << 16;
-
-    if (nPhase >= limit) nPhase -= limit;      // wrap: nPhase + nStep is always below 2*limit
-
-    *white = noise_table[nPhase>>16];
-
-    // bruit rose 1-pôle branchless
-    pink_state=(alpha * pink_state + (32768 - alpha) * (*white)) >> 15;
-    *pink = (int16_t)pink_state;
-
-}*/
 
 // *************************** tables *******************************
 
@@ -267,6 +248,7 @@ void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)    // cga = genAmpl l
         voices[v].currentSample=0;
         //voices[v].currEch=0;
         //voices[v].currEchFra=0;
+        voices[v].phase=0;
 
         voices[v].noisePhase = 0;           // Q16.16
         voices[v].noiseStep  = 60817408;    // Q16.16
@@ -299,12 +281,11 @@ void dumpVoices(Voice* v)
 {
   printf("   frequency(c/M/f)   sampleNb currSample stepInt stepFra noisePhase noiseStep                                    WaveAmpl(c-M-b)                                             genAmpl(c=M=g)     switchs     \n");
   for(uint8_t n=0;n<MAX_VOICES;n++){  
-    //printf("%d %d-%d-%4.3f    %d       %d        %d      %d      %d       %d           %d        %d  ",n,v[n].coderFreq,MAXCODER_RC,v[n].frequency,v[n].sampleNbToFill,v[n].currentSample,v[n].stepInt,v[n].stepFra,v[n].currEch,v[n].currEchFra,v[n].noisePhase,v[n].noiseStep);
-    //printf("%d %d-%d-%4.3f    %d       %d        %d      %d      %d       %d           %d        %d  ",n,v[n].coderFreq,MAXCODER_RC,v[n].frequency,v[n].sampleNbToFill,v[n].currentSample,v[n].phaseStep>>16,v[n].phaseStep&0xFFFF,v[n].currEch,v[n].currEchFra,v[n].noisePhase,v[n].noiseStep);
-    printf("%d %d-%d-%4.3f    %d       %d        %d      %d      %d        %d  ",n,v[n].coderFreq,MAXCODER_RC,v[n].frequency,v[n].sampleNbToFill,v[n].currentSample,v[n].phaseStep>>PHASE_SHIFT,v[n].phaseStep&((1u<<PHASE_SHIFT)-1),v[n].noisePhase,v[n].noiseStep);
-    for(uint8_t wa=0;wa<BASIC_WAVES_NB;wa++){printf("%d-%d-%d ",v[n].coderWaveAmpl[wa],VCES_MAX_FREQ_CODERS,v[n].basicWaveAmpl[wa]);}
+ 
+    printf("%d %d-%d-%4.3f    %d       %d        %d      %d      %d        %d  ",n,v[n].coderFreq,VCES_MAX_FREQ_CODERS,v[n].frequency,v[n].sampleNbToFill,v[n].currentSample,v[n].phaseStep>>PHASE_SHIFT,v[n].phaseStep&((1u<<PHASE_SHIFT)-1),v[n].noisePhase,v[n].noiseStep);
+    for(uint8_t wa=0;wa<BASIC_WAVES_NB;wa++){printf("%d-%d-%d ",v[n].coderWaveAmpl[wa],VCES_MAX_AMPL_CODERS,v[n].basicWaveAmpl[wa]);}
     printf("%d=%d=%d ",v[n].coderGenAmpl,VCES_MAX_AMPL_CODERS,v[n].genAmpl);
-    //for(uint8_t sw=0;sw<CODER_NB;sw++){printf("%d ",v[n].coderSw[sw]);}
+
     printf("\n");
   }
 }
@@ -391,7 +372,7 @@ const float FILTER_MIN_FREQ = 20.0f;
 
 void filtersInit(uint8_t v)
 {
-    setVoiceFilter(&voices[v], (int16_t)(FILTER_MAX_OCT * octIncrNb), 0, NO_ATTENUATION_VALUE);   // cutoff grand ouvert par défaut ; atten wide open
+    setVoiceFilter(&voices[v], (int16_t)(FILTER_MAX_OCT * octIncrNb), 0, MAX_CTL_ATT);   // cutoff grand ouvert par défaut ; atten wide open
     voices[v].filterG      = voices[v].newFilterG;
     voices[v].filterStages = 4;
     memset(voices[v].filter.z, 0, sizeof(voices[v].filter.z));
@@ -529,9 +510,6 @@ void lfosInit(){
         lfosMaxCoderFreq[l]=LFOS_MAX_FREQ_CODERS;
         lfosCodersFreqAtt[l]=FULL_ATTENUATION_VALUE;
         currLfoEch[l]=0;
-        currLfoEchFra[l]=0;
-        //lfosStepInt[l]=0;
-        //lfosStepFra[l]=0;
         lfosPhaseStep[l]=0; 
         lfoPhase[l]=0;
         
@@ -542,7 +520,7 @@ void lfosInit(){
 
         lfoTime=0;
     }
-    memset(lfoScopeBuffer,0x0000,MAX_LFO*OSC_SCOPE_BUFFER_LEN);
+    memset(lfoScopeBuffer,0x0000,sizeof(lfoScopeBuffer));
 
 }
 
@@ -564,11 +542,6 @@ void __not_in_flash_func(lfosHandler)()
     
     for(uint8_t l=0;l<MAX_LFO;l++){
 
-        //src+=l;
-
-        //uint32_t ce=currLfoEch[l];                      
-        //uint32_t cf=currLfoEchFra[l];
-
         uint32_t rc = lfosCycleR[l]&63;                 // rc=0-63
         uint32_t rcTableNb = (rc <= 32) ? rc : (64 - rc);
 
@@ -580,11 +553,8 @@ void __not_in_flash_func(lfosHandler)()
 
         uint32_t ph = (lfoPhase[l] + lfosPhaseStep[l]) & LFO_PHASE_MASK;
         lfoPhase[l] = ph;
-        uint32_t ce = ph >> 16;                         // table index before the half-wave mirroring below
+        uint32_t ce = ph >> LFO_PHASE_SHIFT;            // table index before the half-wave mirroring below
         currLfoEch[l]=ce;                               // long term value (the square wave reads it)
-
-        currLfoEch[l]=ce;                               // long term value
-        //lfoScopeBuffer[l*OSC_SCOPE_BUFFER_LEN+lfoScopeBufPtr]=ce+rc<<16;
 
         bool vv=(ce<RC_TABLES_LEN);
         int sign=(vv*2-1);                              // invert 180-360°
@@ -598,7 +568,7 @@ void __not_in_flash_func(lfosHandler)()
         const int16_t *w = &rc_tables[rcTableNb][0][0]+RC_N_WAVES*ce_idx;    // rc_table values ptr 
         
         int16_t c0=sign*w[LSIN];
-        uint16_t out_id;
+        int16_t out_id;
         out_id=ctl_output_id_chain[lfo_ctl_output_id[l][LSIN]];
         lfosOutputsValues[l][LSIN]=c0;
         if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,c0);}
@@ -647,15 +617,14 @@ gpio_put(TST_PIN,1);
       i2s_buf_scope=vBuffer;
 
 // init noise
-      nPhase       = v->noisePhase;
-      nStep        = v->noiseStep;
+      uint32_t nPhase        = v->noisePhase;
+      const uint32_t nStep   = v->noiseStep;
       int32_t pink_state_loc = pink_state;
       uint32_t limit = (uint32_t)NOISE_TABLE_SIZE << 16;
 
 // init rc
       uint32_t rc = v->cycleR&63;                   // rc=0-63
       uint32_t rcTableNb = (rc <= 32) ? rc : (64 - rc);
-      uint32_t rcnb16=rc<<16;
       bool     reverseCeIdx = (rc > 32);            // was tested every sample as "if (rc > 32)"
       int      sawRcSign    = (rc >= 32) ? -1 : 1;  // was tested every sample as "if(rc>=32){saw=-saw;}"
 
@@ -679,29 +648,9 @@ gpio_put(TST_PIN,1);
       {
       volatile int32_t* vb=vBuffer;
 
-  // fast loop computing samples index
+  // fast loop computing the sample indices
 
-        /*// init waves      
-        uint32_t currEch      = v->currEch;
-        uint32_t currEchFra   = v->currEchFra;
-        uint32_t stepInt      = v->stepInt;
-        uint32_t stepFra      = v->stepFra;
-        
-        uint32_t s = SAMPLES_PER_BUFFER;
-        int32_t* vsBuffer=voicesScopeDataBuffer+voiceNum*SAMPLES_PER_BUFFER; // temporary buffer for fast currech computation       
-        do {         
-          currEchFra += stepFra;
-          uint32_t carry = (currEchFra >= MAX_STEP_FRA);
-          currEchFra -= carry * MAX_STEP_FRA;
-          currEch += stepInt + carry;
-          currEch &= BASIC_WAVE_TABLE_LEN-1;        // currEch 0-2047
-
-          vsBuffer[SAMPLES_PER_BUFFER-s]=currEch; 
-          s--;
-        }
-        while (s!=0);*/ 
-
-        uint32_t       phase     = v->phase;                    // replaces currEch/currEchFra
+        uint32_t       phase     = v->phase;                            // replaces currEch/currEchFra
         const uint32_t phaseStep = v->phaseStep;
         int32_t* vsBuffer = voicesScopeDataBuffer + voiceNum*SAMPLES_PER_BUFFER;
         for (uint32_t i = 0; i < SAMPLES_PER_BUFFER; i += 4) {          // unrolled x4: the loop overhead is paid once per 4 samples
@@ -714,12 +663,19 @@ gpio_put(TST_PIN,1);
   
   // filters
         int32_t filterG = v->filterG;
-        z0 = v->filter.z[0];z1 = v->filter.z[1];z2 = v->filter.z[2];z3 = v->filter.z[3];
-        int32_t attQ23 = (int32_t)v->coderFilterLevAtt << 23;      // input attenuator for the high-word multiply (255 << 23 < 2^31)
+        int32_t z0 = v->filter.z[0];
+        int32_t z1 = v->filter.z[1];
+        int32_t z2 = v->filter.z[2];
+        int32_t z3 = v->filter.z[3];
+        int32_t levAtt = v->coderFilterLevAtt;
+        if (levAtt > MAX_CTL_ATT) levAtt = MAX_CTL_ATT;
+        if (levAtt < 0)           levAtt = 0;
+        int32_t attQ22 = levAtt << 22;                 // 256 << 22 = 2^30: unity gain fits in a signed 32-bit word
+        //int32_t attQ23 = (int32_t)v->coderFilterLevAtt << 23;      // input attenuator for the high-word multiply (255 << 23 < 2^31)
 
   // waves gen (filling i2s data)
-        #define RAMP_SHIFT  7                                             // 32-sample sub-blocks = 0.73 ms at 44.1 kHz
-        #define RAMP_LEN   (1u << RAMP_SHIFT)
+        #define RAMP_SHIFT  7                                             // 128-sample sub-blocks = 2.9 ms at 44.1 kHz
+        #define RAMP_LEN   (1u << RAMP_SHIFT)                             
         static_assert((SAMPLES_PER_BUFFER % RAMP_LEN) == 0, "SAMPLES_PER_BUFFER must be a multiple of RAMP_LEN");
 
         int32_t sinAmpl = *waveAmplSin;
@@ -736,17 +692,17 @@ gpio_put(TST_PIN,1);
             // anti-clic
             int32_t       sinTarget = *newWaveAmplSin;                    // NEW: read the target once per sub-block
             int32_t       sinInc    = sinTarget - sinAmpl;                // NEW: gap between target and current amplitude
-            int32_t       sinAcc    = sinAmpl << RAMP_SHIFT;              // NEW: current amplitude times 32
+            int32_t       sinAcc    = sinAmpl << RAMP_SHIFT;              // NEW: current amplitude times 128
 
             int32_t       triTarget = *newWaveAmplTri;                    // NEW: read the target once per sub-block
             int32_t       triInc    = triTarget - triAmpl;                // NEW: gap between target and current amplitude
-            int32_t       triAcc    = triAmpl << RAMP_SHIFT;              // NEW: current amplitude times 32
+            int32_t       triAcc    = triAmpl << RAMP_SHIFT;              // NEW: current amplitude times 128
 
             int32_t       sawTarget = *newWaveAmplSaw;                    // NEW: read the target once per sub-block
             int32_t       sawInc    = sawTarget - sawAmpl;                // NEW: gap between target and current amplitude
-            int32_t       sawAcc    = sawAmpl << RAMP_SHIFT;              // NEW: current amplitude times 32   
+            int32_t       sawAcc    = sawAmpl << RAMP_SHIFT;              // NEW: current amplitude times 128   
             
-            // muted sounds skip evaluated once per sub-block
+            // muted-wave flags, evaluated once per sub-block
             bool noiseOn = (*waveAmplWhi != 0) || (*waveAmplPnk != 0);
             
             bool wsinOn  = ((sinAmpl | sinTarget) != 0);     // running amplitude or target: the ramp must be able to start and to finish
@@ -797,7 +753,7 @@ gpio_put(TST_PIN,1);
                     int32_t saw;
                     if(ce<(RC_N_SAMPLES >> 1)){saw=(65536-tri)>>1;}
                     else saw=tri>>1;
-                    saw *= sawRcSign;                 // saw n'a pas de réglace de rc, juste une inversion de phase (montée ou descente verticale)
+                    saw *= sawRcSign;                 // saw n'a pas de réglage de rc, juste une inversion de phase (montée ou descente verticale)
                     sawAcc += sawInc;                           
                     pre += saw * (sawAcc >> RAMP_SHIFT);        
                   }          
@@ -830,8 +786,8 @@ if(tb7){
     filterGAcc += filterGInc;
     int32_t ggS = (filterGAcc >> RAMP_SHIFT) << 16;                    // ramped gg in Q31
     int32_t xq;
-    asm("smmulr %0, %1, %2" : "=r"(xq) : "r"(pre >> (FILTER_PRE_SHIFT - FILTER_FRAC)), "r"(attQ23));   // input attenuator
-    xq *= 2;                                                           // xq = input * att / 256
+    asm("smmulr %0, %1, %2" : "=r"(xq) : "r"(pre >> (FILTER_PRE_SHIFT - FILTER_FRAC)), "r"(attQ22));   // input attenuator
+    xq *= 4;                                                           // xq = input * att / 256
     xq = filterStage(z0, xq, ggS);
     xq = filterStageLin(z1, xq, ggS);
     xq = filterStageLin(z2, xq, ggS);

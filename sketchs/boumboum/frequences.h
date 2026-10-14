@@ -34,7 +34,6 @@ static_assert(MAX_STEP_FRA == (1u << LFO_PHASE_SHIFT), "lfosPhaseStep is built w
 
 // voices: table index in the top 11 bits of a 32-bit word, so the overflow of the word acts as the mask
 #define PHASE_SHIFT (32 - BASIC_WAVE_TABLE_POW)
-static_assert((1u << BASIC_WAVE_TABLE_POW) == BASIC_WAVE_TABLE_LEN, "BASIC_WAVE_TABLE_POW and BASIC_WAVE_TABLE_LEN are inconsistent");
 
 #define FILTER_STEPS_PER_OCT 32
 #define FILTER_MAX_OCT       10
@@ -43,6 +42,7 @@ static_assert((1u << BASIC_WAVE_TABLE_POW) == BASIC_WAVE_TABLE_LEN, "BASIC_WAVE_
 //pour ctlCombine
 #define FREQ_CODE_MAX (OCTNB*INCRNB-1)                // 4498: calcFreq() reads octFreq[oct+1], oct <= 10
 #define FILTER_CODE_MAX  (FILTER_MAX_OCT*INCRNB)      // 4090
+static_assert(VCES_MAX_FREQ_CODERS == FREQ_CODE_MAX, "voice frequency coder maximum and FREQ_CODE_MAX must match");
 
 #define FILTER_MAX_STAGES 4          // allocated size of the state array; the render loop currently always uses 4 stages
 
@@ -82,12 +82,12 @@ struct Voice {
     volatile float      frequency;             // current frequency
     volatile int16_t    coderFreq;             // frequency coder value
     //volatile float       basicFrequency;    
-    volatile int16_t    coderFreqAtt;          // frequency input attenuator value (0-7fff)
+    volatile int16_t    coderFreqAtt;          // frequency input attenuator value (0-MAX_CTL_ATT)
 
     volatile float      filterFrequency;       // current frequency
     volatile int16_t    coderFilterFreq;       // filterFrequency coder value
-    volatile int16_t    coderFilterFreqAtt;    // frequency input attenuator value (0-7fff)
-    volatile uint8_t    coderFilterLevAtt;
+    volatile int16_t    coderFilterFreqAtt;    // frequency input attenuator value (0-MAX_CTL_ATT)
+    volatile int16_t    coderFilterLevAtt;     // filter input level attenuator, (0-MAX_CTL_ATT ; MAX_CTL_ATT = unity gain).
 
     // --- filtre : fonctionnement réel, lu/écrit par fillVoiceBuffer_mono ---
     int32_t     newFilterG;           // target coefficient (Q15), written by update_inputs(), read once per sub-block by fillVoiceBuffer_mono
@@ -95,10 +95,9 @@ struct Voice {
     VoiceFilter filter;               // per-stage state (z[]), persists across buffers
     uint8_t     filterStages;         // not read by the render loop at the moment (always 4 stages)
 
-    volatile uint8_t    cycleR;                // cyclic ratio value (somme coderCycleR et ctl_input_val)
-    volatile uint8_t    coderCycleR;           // cyclic ratio -64/+64 coder value
-    //uint8_t     maxCoderCycleR;                 // cyclic ratio max coder value
-    int16_t     coderCycleRAtt;                 // cyclic ratio input attenuator value (0-7fff)
+    volatile uint8_t    cycleR;       // cyclic ratio value (somme coderCycleR et ctl_input_val)
+    volatile uint8_t    coderCycleR;  // cyclic ratio -64/+64 coder value
+    int16_t     coderCycleRAtt;       // cyclic ratio input attenuator value (0-MAX_CTL_ATT)
 
     int16_t     voice_ctl_input_id[MAX_INPUTS_PER_OBJ];
 

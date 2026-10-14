@@ -55,17 +55,17 @@
 #define HIGH 1
 #define ON 1
 
-// these 2 parameters are working together ; their product is the minimum time where no change should occur 
+// these 2 parameters are working together ; their product is the minimum time during which no change should occur.
 // on the clock line after a change in mS
-// the pooling interval duration is the time between 2 calls to the coder timer handler
+// the polling interval duration is the time between 2 calls to the coder timer handler
 // it's also the delay where no change should occur on the clock line after a change to validate it
-// shortly there's 2 strobes : no change after change and no change before next change
+// in short there are 2 strobes : no change after change and no change before next change
 // It's possible to reach 2mS between 2 changes but who cares
 
-#define CODER_TIMER_POOLING_INTERVAL_MS 4  // timer pooling interval in milliseconds            
-#define CODER_STROBE_NUMBER 3              // minimal timer intervals for a valid new change
+#define CODER_TIMER_POLLING_INTERVAL_MS 4  // timer polling interval in milliseconds            
+#define CODER_STROBE_NUMBER 3              // minimum timer intervals for a valid new change
 
-#define CODER_SW_STROBE_MS 50              // minimal delay for switch valid change (debouncer);
+#define CODER_SW_STROBE_MS 50              // minimum delay for switch valid change (debouncer);
 
 /* Menus */
 
@@ -79,7 +79,7 @@ typedef enum {
 
 #define MAX_STEP_FRA 65536  // décimales ratio sampleFreq/currFreq/adsr
 
-#define MAX_16B_LINEAR_VALUE 32     // 0 to 31 => 0,1,1.414,2,2.828,4,5.656,8,11.312,16,22.624 ... 8192,11583,16384,23167,32768,46334
+#define MAX_16B_LINEAR_VALUE 32     // 0 to 31 => 0,1,1.414,2,2.828,4,5.656,8,11.312,16,22.624 ... 8192,11583,16384,23167,32767
 #define MIN_16B_LINEAR_VALUE 0
 
 /* Objects */
@@ -115,8 +115,8 @@ typedef enum {
 #define MAX_ADSR 4
 #define ADSR_SAMPLE_RATE 500
 #define DUR_ECH_NB 128                  // puissance de 2 !!! définit le pas dans les tables d'échantillons 
-#define ADSR_MAX_TIME_CODERS DUR_ECH_NB-1       // valeur maxi saisie par les coders      
-#define ADSR_MAX_LEVEL_CODERS MAX_16B_LINEAR_VALUE-1
+#define ADSR_MAX_TIME_CODERS (DUR_ECH_NB-1)       // valeur maxi saisie par les coders      
+#define ADSR_MAX_LEVEL_CODERS (MAX_16B_LINEAR_VALUE-1)
 #define ADSR_SCOPE_BUFFER_LEN TFT_W
 
 /* touch buttons */
@@ -138,7 +138,7 @@ typedef enum {
 #define LEDONDUR 60
 #define LEDOFFDUR 1000
 
-#define LED 25              // pico2 built_int le pas dans la table 
+#define LED 25              // pico2 built_int led
 #define LED_PIN LED
 
 /* dma */
@@ -165,7 +165,7 @@ typedef enum {
 /* frequencies/voices */
 
 #define SAMPLE_F SAMPLE_RATE                            // fréquence d'échantillonnage audio   
-#define SAMPLE_PER (float)1/SAMPLE_F
+#define SAMPLE_PER ((float)1/SAMPLE_F)
 
 #define NUMBER_OF_OCTAVES 10
 #define OCTAVE0_FREQ SAMPLE_F/SAMPLE_BUFFER_SIZE
@@ -185,12 +185,12 @@ static_assert((1u << BASIC_WAVE_TABLE_POW) == BASIC_WAVE_TABLE_LEN, "BASIC_WAVE_
 
 /* inputs/outputs */
 
-#define MAX_OUTPUT_OBJ          MAX_VOICES+MAX_LFO+MAX_ADSR+MAX_TBUT+MAX_LFM
+#define MAX_OUTPUT_OBJ          (MAX_VOICES+MAX_LFO+MAX_ADSR+MAX_TBUT+MAX_LFM)
 #define MAX_OUTPUTS_PER_OBJ     8
-#define MAX_OUTPUTS             (MAX_OUTPUT_OBJ)*MAX_OUTPUTS_PER_OBJ
+#define MAX_OUTPUTS             (MAX_OUTPUT_OBJ*MAX_OUTPUTS_PER_OBJ)
 #define MAX_INPUT_OBJ           100
 #define MAX_INPUTS_PER_OBJ      16      // MUST be a power of 2
-#define MAX_INPUTS              MAX_INPUT_OBJ*MAX_INPUTS_PER_OBJ
+#define MAX_INPUTS              (MAX_INPUT_OBJ*MAX_INPUTS_PER_OBJ)
 #define NO_LINK                 (-1)
 #define OBJ_IO_NAME_LEN         5
 #define IN_OUT_NAME_LEN         10
@@ -202,7 +202,7 @@ static_assert(MAX_CTL_ATT == (1 << MAX_CTL_ATT_SHIFT), "MAX_CTL_ATT and MAX_CTL_
 static_assert(CODER_BASE_SHIFT > 0 && CODER_BASE_SHIFT < 15, "MAX_CTL_ATT_SHIFT out of the range CODER_BASE_SHIFT can handle");
 
 #define NO_ATTENUATION_SHIFT    15
-#define NO_ATTENUATION_VALUE    0x7fff
+//#define NO_ATTENUATION_VALUE    0x7fff
 #define FULL_ATTENUATION_VALUE  0x0000
 
 #define BASIC_WAVES_NB 6
