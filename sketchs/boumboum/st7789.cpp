@@ -56,7 +56,7 @@ static volatile uint16_t sched_h;
 // (mini scheduler)
 // --------------------------------------------------------
 
-#define FRAME_SIZE TFT_W * TFT_H * 2
+#define FRAME_SIZE (TFT_W * TFT_H * 2)
 static uint8_t tft_frame[FRAME_SIZE] __attribute__((aligned(4)));    // 2bytes/pixel
 
 static uint32_t points[TFT_W];
@@ -630,6 +630,9 @@ void tft_draw_text_11x12_dma_mult(uint16_t x,uint16_t y,const char *s,uint16_t f
     while (s[len]) len++;if(len>31){printf("tft_draw_text_11x12_dma_mult ovf\n");while(1){sleep_ms(250);gpio_put(LED,0);sleep_ms(250);gpio_put(LED,1);}};
 
     uint8_t st=0;if(mult>1){st=2;}  // rétrécit la largeur/hauteur des caractères en mode mult
+    int maxLen = (TFT_W - x) / ((11-st) * mult);     // the text must stay inside the screen width (11 instead of 12 in the 11x12 copy)
+    if (len > maxLen) len = maxLen;
+    
     int idx = 0;
 
     int w = len * (11-st);
@@ -684,6 +687,9 @@ void tft_draw_text_12x12_dma_mult(uint16_t x,uint16_t y,const char *s,uint16_t f
     while (s[len]) len++;if(len>31){printf("tft_draw_text_12x12_dma_mult ovf\n");while(1){sleep_ms(250);gpio_put(LED,0);sleep_ms(250);gpio_put(LED,1);}};
 
     uint8_t st=0;if(mult>1){st=2;}  // rétrécit la largeur/hauteur des caractères en mode mult
+    int maxLen = (TFT_W - x) / ((12-st) * mult);     // the text must stay inside the screen width (11 instead of 12 in the 11x12 copy)
+    if (len > maxLen) len = maxLen;
+    
     int idx = 0;
 
     int w = len * (12-st);
@@ -751,9 +757,10 @@ uint16_t tft_draw_float_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_
 uint16_t tft_draw_float_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_t bg,int8_t mult,float num){
     return tft_draw_float_12x12_dma_mult(x,y,fg,bg,mult,num,0);
 }
-// display scope lookout of buf values ; len =buf size ; f freq ; begline first available line ; 
-// fd freq display ; wf required waveform ; mode calcul (0=i2s true data ; 1=computed with ce & cr ; 2 =lfo_mode one waveform output)
-// begine first line after title ; zline 0 line position =0 middle, =1 bottom
+// display the scope from the values in buf ; len = buf size ; f = frequency ; begline first available line ; 
+// fd freq display ; wf required waveform ; mode_calcul: 0 = i2s true data ; 1 = computed from ce and cr  ; 2 =lfo_mode one waveform output)
+// begline first line after title ;
+// zline: position of the zero line (0 = middle, 1 = bottom)
 void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bool blk,uint8_t refr,uint8_t wf,uint8_t mode_calcul,uint8_t object,int16_t zline){
         
     if(refrCnt>=refr){
@@ -791,7 +798,7 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
             rcTable32 = &rc_tables[32][0][0]; 
         }
 
-        for(uint32_t i=0;i<TFT_W;i++){                          // read buf and generate waveform (if comput mode = 0 : 1 column for 1 sample)
+        for(uint32_t i=0;i<TFT_W;i++){                          // read buf and generate the waveform (compute mode 0: one column per sample)
             
             switch(mode_calcul){                                // b value computation (y=(float) 0-1)
                 
@@ -805,7 +812,7 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
                     uint32_t ce=buf[i];                         // ce : 16 bits gauche = rc, 16 bits droite num ech
                     uint32_t rc=ce>>16;  
             
-                    ce &= (BASIC_WAVE_TABLE_LEN-1);             // local currEch (cyclic ratio managment)
+                    ce &= (BASIC_WAVE_TABLE_LEN-1);             // local currEch (cyclic ratio management)
 
                     bool vv=(ce<RC_TABLES_LEN);
                     sign=(vv*2-1);                              // invert 180-360°
@@ -833,12 +840,13 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
                     }
                     }break;
 
-                case 2:{                                                // lfo real wave view 
-                    int32_t t=buf[object*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB + i*BASIC_WAVES_NB+wf];     
-                    b=(float)t/(float)0x7fff;     
+                case 2:{                                                // lfo real wave view
+                    uint32_t src=(i*OSC_SCOPE_BUFFER_LEN)/TFT_W;        // sample shown in column i: the stored samples are stretched over the screen width
+                    int32_t t=buf[object*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB + src*BASIC_WAVES_NB + wf];
+                    b=(float)t/(float)0x7fff;
                     }break;
 
-                case 3:{                                                // adsr real wave view (ampl 16bits)
+                case 3:{                                                // adsr real wave view (16bits amplitude)
                     uint32_t t=buf[object*ADSR_SCOPE_BUFFER_LEN+i];     
                     b=(float)t/(float)0x0000ffff;     
                     }break;
@@ -856,7 +864,7 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
             //printf("%u %u %i %f\n",object,i,yy,v);
         }
 
-        for(uint8_t i=0;i<TFT_W;i+=3){tft_frame[2*(((TFT_H-begline-1)/zz)*TFT_W+i)]=fgcolor;}        // 0 line
+        for(uint16_t i=0;i<TFT_W;i+=3){tft_frame[2*(((TFT_H-begline-1)/zz)*TFT_W+i)]=fgcolor;}        // 0 line
 
         st_dma_launch(tft_frame,0,begline,TFT_W,TFT_H-begline);         // display
 

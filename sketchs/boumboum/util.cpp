@@ -584,13 +584,14 @@ void testSetup()
         
         // config voice 0    
         uint8_t  voice=0;
-        uint8_t  vwave=WSIN;
-        uint16_t coderFreq=800;            
-        uint8_t  coderAttF=12;
-        uint8_t  coderAmp=8;
+        uint8_t  vwave=WTRI;
+        uint16_t coderFreq=800; 
+        uint16_t coderFil=1500;           
+        uint8_t  coderAttF=125;
+        uint8_t  coderAmp=67;
         uint8_t  coderAttAmp=90;         
-        int8_t   cr=1;
-        uint8_t  crAtt=0;
+        int8_t   cr=10;
+        uint8_t  crAtt=64;
         uint8_t  freqLfo=0;
         uint16_t freqLfoCoder=3392;         // 5Hz  
         uint8_t  adsr=0;
@@ -608,10 +609,10 @@ void testSetup()
         
         asetup(adsr,6,28,12,96);
 
-        voices[voice].coderCycleRAtt=60;                            // input atten
+        voices[voice].coderCycleRAtt=200;                            // input atten
         sub_lfo(VOICE____,0,VCR_,4,1700,WTRI);                      // 1700=3.5s 
 
-        setVoiceFilter(&voices[0],coderFreq,100,255);
+        setVoiceFilter(&voices[0],coderFil,100,255,0,255);
         //setLfosFreq(filtLfo,1790);
         //setLfosCycleR(filtLfo,0,0);
 
@@ -629,7 +630,7 @@ void testSetup()
         voiceConfig(1,WSIN,1740,12,1,3499,8,60,adsr,3,1790,1,0);
         asetup(adsr,40,28,12,96);
 
-        setVoiceFilter(&voices[1],2000,100,255);
+        setVoiceFilter(&voices[1],2000,100,255,0,255);
         
         setLfosFrCoders(filtLfo,1790,0);
         setLfosFrequency(filtLfo);
@@ -666,7 +667,7 @@ void testSetup()
 
         vsetup(voice,coderF,coderAttF,coderA,coderAttA,cr,crAtt,vwave);
 
-        setVoiceFilter(&voices[voice],coderF,100,255);
+        setVoiceFilter(&voices[voice],coderF,100,255,0,255);
         //obj_connect(objects_first_input_id[VOICE____]+voice*MAX_INPUTS_PER_OBJ+VFIL,objects_first_output_id[LFO______]+lfo*MAX_OUTPUTS_PER_OBJ+lwave);
 
         //obj_connect(objects_first_input_id[VOICE____]+voice*MAX_INPUTS_PER_OBJ+VFRQ,objects_first_output_id[LFO______]+lfo*MAX_OUTPUTS_PER_OBJ+lwave);        

@@ -86,8 +86,10 @@ struct Voice {
 
     volatile float      filterFrequency;       // current frequency
     volatile int16_t    coderFilterFreq;       // filterFrequency coder value
-    volatile int16_t    coderFilterFreqAtt;    // frequency input attenuator value (0-MAX_CTL_ATT)
-    volatile int16_t    coderFilterLevAtt;     // filter input level attenuator, (0-MAX_CTL_ATT ; MAX_CTL_ATT = unity gain).
+    volatile int16_t    coderFilterFreqAtt;    // frequency input attenuator value (0->MAX_CTL_ATT)
+    volatile int16_t    coderFilterLevAtt;     // filter input level attenuator, (0->MAX_CTL_ATT ; MAX_CTL_ATT = unity gain).
+    volatile int16_t    coderFilterRes;        // filter manual res adjust (0->MAX_CTL_ATT)
+    volatile int16_t    coderFilterResAtt;     // filter manual res input attenuator value (0->MAX_CTL_ATT)
 
     // --- filtre : fonctionnement réel, lu/écrit par fillVoiceBuffer_mono ---
     int32_t     newFilterG;           // target coefficient (Q15), written by update_inputs(), read once per sub-block by fillVoiceBuffer_mono
@@ -116,7 +118,7 @@ void setVoiceFrequency(Voice* v);
 void setVoiceCycleR(Voice* v, uint8_t coderCycleR, int16_t coderCycleRAtt);
 float calcFreq(uint16_t val);
 uint16_t calcCoderFreq(float freq);
-void setVoiceFilter(Voice* v, int16_t coderFilterF, int16_t coderFilterFAtt, int16_t coderFilterLevAtt);
+void setVoiceFilter(Voice* v, int16_t coderFilterF, int16_t coderFilterFAtt, int16_t coderFilterLevAtt, int16_t coderFilterRes,int16_t coderFilterResAtt);
 float calcFilterG(int32_t val);
 void filtersInit(uint8_t v);
 float calcFilterFreq(int32_t code);

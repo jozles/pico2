@@ -50,15 +50,15 @@ volatile int16_t menuVcesCodersT[VCE_VAR_T_NB+1];     // [0] curr input nb ; [1]
 uint16_t menuMaxVcesCodersT[]={MAX_VOICES-1,MAX_CTL_ATT,MAX_CTL_ATT,MAX_CTL_ATT,MAX_CTL_ATT,MAX_CTL_ATT,MAX_CTL_ATT,MAX_CTL_ATT};
 uint16_t* vcesVarT[CODER_NB];                         // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
 
-#define VCE_VAR_FI_NB 4                                // voices attenuators menu
-volatile int16_t menuVcesCodersFi[VCE_VAR_FI_NB+1];    // [0] curr input nb ; [1] curr coder value for freq ; [2] curr coder value for freq att ; [3] inp att
-uint16_t menuMaxVcesCodersFi[]={MAX_VOICES-1,VCES_MAX_FREQ_CODERS,MAX_CTL_ATT-1,MAX_CTL_ATT-1};
+#define VCE_VAR_FI_NB 5                                // voices filter menu
+volatile int16_t menuVcesCodersFi[VCE_VAR_FI_NB+1];    // [0] curr input nb ; [1] curr coder value for freq ; [2] curr coder value for freq att ; [3] inp att ; [4] coder for res ; [5] coder for res att
+uint16_t menuMaxVcesCodersFi[]={MAX_VOICES-1,VCES_MAX_FREQ_CODERS,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1};
 uint16_t* vcesVarFi[CODER_NB];                         // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
 
 #define LFO_VAR_NB 5
-volatile int16_t menuLfosCoders[LFO_VAR_NB+1];      // [0] curr input nb ; [1] curr coder value freq ; [2] curr coder value cr ; [3] att value freq ; [4] att value cr
+volatile int16_t menuLfosCoders[LFO_VAR_NB+1];         // [0] curr input nb ; [1] curr coder value freq ; [2] curr coder value cr ; [3] att value freq ; [4] att value cr
 uint16_t menuMaxLfosCoders[]={MAX_LFO-1,LFOS_MAX_FREQ_CODERS,MAXCODER_RC,MAX_CTL_ATT,MAX_CTL_ATT};
-uint16_t* lfosVar[CODER_NB];                        // inits dans menu.cpp ; les éléments inutilisés sont nullptr                
+uint16_t* lfosVar[CODER_NB];                           // inits dans menu.cpp ; les éléments inutilisés sont nullptr                
 
 #define ADSR_VAR_NB 6
 volatile int16_t menuAdsrCoders[ADSR_VAR_NB+1];     // [0] curr input nb ; [1] curr coder value for Att ; [2] curr coder value for Dec ; [3] curr coder value for Sus ; [4] curr coder value for Rel ; [5] curr coder value for Lev

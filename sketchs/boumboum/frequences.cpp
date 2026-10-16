@@ -41,6 +41,10 @@ int32_t filterDTable[FILTER_TANH_LEN];
 
 float gTable[FILTER_TABLE_LEN];
 
+#define FILTER_RAMP_SHIFT 9                                    // log2(SAMPLES_PER_BUFFER): one coefficient ramp over the whole buffer
+static_assert((1u << FILTER_RAMP_SHIFT) == SAMPLES_PER_BUFFER, "FILTER_RAMP_SHIFT must be log2(SAMPLES_PER_BUFFER)");
+static int32_t voiceTmp[SAMPLES_PER_BUFFER];                   // mono signal of the voice being rendered, before the filter (voices run one after the other)
+
 // -----
 
 extern uint32_t millisCounter;
@@ -372,7 +376,7 @@ const float FILTER_MIN_FREQ = 20.0f;
 
 void filtersInit(uint8_t v)
 {
-    setVoiceFilter(&voices[v], (int16_t)(FILTER_MAX_OCT * octIncrNb), 0, MAX_CTL_ATT);   // cutoff grand ouvert par défaut ; atten wide open
+    setVoiceFilter(&voices[v], (int16_t)(FILTER_MAX_OCT * octIncrNb), 0, MAX_CTL_ATT, 0, MAX_CTL_ATT);   // cutoff grand ouvert par défaut ; atten wide open
     voices[v].filterG      = voices[v].newFilterG;
     voices[v].filterStages = 4;
     memset(voices[v].filter.z, 0, sizeof(voices[v].filter.z));
@@ -410,11 +414,13 @@ float __not_in_flash_func(calcFilterG)(int32_t val)
     return gTable[idx] + frac * (gTable[idx+1] - gTable[idx]);
 }
 
-void __not_in_flash_func(setVoiceFilter)(Voice* v, int16_t coderFilterF, int16_t coderFilterFAtt, int16_t coderFilterLevAtt)
+void __not_in_flash_func(setVoiceFilter)(Voice* v, int16_t coderFilterF, int16_t coderFilterFAtt, int16_t coderFilterLevAtt, int16_t coderFilterRes, int16_t coderFilterResAtt)
 {
     v->coderFilterFreq    = coderFilterF;
     v->coderFilterFreqAtt = coderFilterFAtt;
     v->coderFilterLevAtt  = coderFilterLevAtt;
+    v->coderFilterRes     = coderFilterRes;
+    v->coderFilterResAtt  = coderFilterResAtt;
 
     v->filterFrequency = calcFilterFreq(coderFilterF);     // display only: cutoff set by the coder (modulation not included)
 
@@ -609,44 +615,45 @@ void __not_in_flash_func(lfosHandler)()
 // ***************************  voices producer  ******************************
 
 // 
-void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* v,uint8_t voiceNum){   // 360uS ; >900uS avec rc_tables en flash pour les 6 sources @512 samples (23mS@44100Hz)
+void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* v,uint8_t voiceNum)
+{   
 
 uint32_t ints = save_and_disable_interrupts();
 gpio_put(TST_PIN,1);
       
-      i2s_buf_scope=vBuffer;
+    i2s_buf_scope=vBuffer;
 
 // init noise
-      uint32_t nPhase        = v->noisePhase;
-      const uint32_t nStep   = v->noiseStep;
-      int32_t pink_state_loc = pink_state;
-      uint32_t limit = (uint32_t)NOISE_TABLE_SIZE << 16;
+    uint32_t nPhase        = v->noisePhase;
+    const uint32_t nStep   = v->noiseStep;
+    int32_t pink_state_loc = pink_state;
+    uint32_t limit = (uint32_t)NOISE_TABLE_SIZE << 16;
 
 // init rc
-      uint32_t rc = v->cycleR&63;                   // rc=0-63
-      uint32_t rcTableNb = (rc <= 32) ? rc : (64 - rc);
-      bool     reverseCeIdx = (rc > 32);            // was tested every sample as "if (rc > 32)"
-      int      sawRcSign    = (rc >= 32) ? -1 : 1;  // was tested every sample as "if(rc>=32){saw=-saw;}"
+    uint32_t rc = v->cycleR&63;                   // rc=0-63
+    uint32_t rcTableNb = (rc <= 32) ? rc : (64 - rc);
+    bool     reverseCeIdx = (rc > 32);            // was tested every sample as "if (rc > 32)"
+    int      sawRcSign    = (rc >= 32) ? -1 : 1;  // was tested every sample as "if(rc>=32){saw=-saw;}"
 
-      int16_t* rcTableCurr = &rc_tables[rcTableNb][0][0];
-      int16_t* rcTable32 = &rc_tables[32][0][0];                           // base table 32 pour saw      
+    int16_t* rcTableCurr = &rc_tables[rcTableNb][0][0];
+    int16_t* rcTable32 = &rc_tables[32][0][0];                           // base table 32 pour saw      
 
 // init waves ampl (pointers needed for real time changes)     
-      volatile int16_t* waveAmplSin    = &v->basicWaveAmpl[WSIN];
-      volatile int16_t* newWaveAmplSin = &v->newBasicWaveAmpl[WSIN];
-      volatile int16_t* waveAmplTri    = &v->basicWaveAmpl[WTRI];
-      volatile int16_t* newWaveAmplTri = &v->newBasicWaveAmpl[WTRI];      
-      volatile int16_t* waveAmplSaw    = &v->basicWaveAmpl[WSAW];
-      volatile int16_t* newWaveAmplSaw = &v->newBasicWaveAmpl[WSAW];          
-      volatile int16_t* waveAmplSqr    = &v->basicWaveAmpl[WSQR]; 
-      volatile int16_t* newWaveAmplSqr = &v->newBasicWaveAmpl[WSQR];
-      volatile int16_t* waveAmplWhi    = &v->basicWaveAmpl[WHIT];
-      volatile int16_t* waveAmplPnk    = &v->basicWaveAmpl[PONK];
+    volatile int16_t* waveAmplSin    = &v->basicWaveAmpl[WSIN];
+    volatile int16_t* newWaveAmplSin = &v->newBasicWaveAmpl[WSIN];
+    volatile int16_t* waveAmplTri    = &v->basicWaveAmpl[WTRI];
+    volatile int16_t* newWaveAmplTri = &v->newBasicWaveAmpl[WTRI];      
+    volatile int16_t* waveAmplSaw    = &v->basicWaveAmpl[WSAW];
+    volatile int16_t* newWaveAmplSaw = &v->newBasicWaveAmpl[WSAW];          
+    volatile int16_t* waveAmplSqr    = &v->basicWaveAmpl[WSQR]; 
+    volatile int16_t* newWaveAmplSqr = &v->newBasicWaveAmpl[WSQR];
+    volatile int16_t* waveAmplWhi    = &v->basicWaveAmpl[WHIT];
+    volatile int16_t* waveAmplPnk    = &v->basicWaveAmpl[PONK];
 
-      volatile int16_t* waveAmplGen    = &v->genAmpl;
+    volatile int16_t* waveAmplGen    = &v->genAmpl;
 
-      {
-      volatile int32_t* vb=vBuffer;
+    {
+        //volatile int32_t* vb=vBuffer;
 
   // fast loop computing the sample indices
 
@@ -661,7 +668,7 @@ gpio_put(TST_PIN,1);
         }
         v->phase = phase;      
   
-  // filters
+  /*// filters
         int32_t filterG = v->filterG;
         int32_t z0 = v->filter.z[0];
         int32_t z1 = v->filter.z[1];
@@ -671,7 +678,7 @@ gpio_put(TST_PIN,1);
         if (levAtt > MAX_CTL_ATT) levAtt = MAX_CTL_ATT;
         if (levAtt < 0)           levAtt = 0;
         int32_t attQ22 = levAtt << 22;                 // 256 << 22 = 2^30: unity gain fits in a signed 32-bit word
-        //int32_t attQ23 = (int32_t)v->coderFilterLevAtt << 23;      // input attenuator for the high-word multiply (255 << 23 < 2^31)
+        //int32_t attQ23 = (int32_t)v->coderFilterLevAtt << 23;      // input attenuator for the high-word multiply (255 << 23 < 2^31)*/
 
   // waves gen (filling i2s data)
         #define RAMP_SHIFT  7                                             // 128-sample sub-blocks = 2.9 ms at 44.1 kHz
@@ -684,10 +691,10 @@ gpio_put(TST_PIN,1);
       
         for (uint32_t sb = 0; sb < SAMPLES_PER_BUFFER; sb += RAMP_LEN)    // NEW: outer loop, one pass per sub-block
         {
-            // filters
+            /*// filters
             int32_t       filterGTarget = v->newFilterG;
             int32_t       filterGInc    = filterGTarget - filterG;
-            int32_t       filterGAcc    = filterG << RAMP_SHIFT;
+            int32_t       filterGAcc    = filterG << RAMP_SHIFT;*/
 
             // anti-clic
             int32_t       sinTarget = *newWaveAmplSin;                    // NEW: read the target once per sub-block
@@ -722,7 +729,6 @@ gpio_put(TST_PIN,1);
                   bool vv=(ce<RC_TABLES_LEN);
                   int sign=(vv*2-1);                                // invert 180-360°
 
-                  // if ce<RC_TABLES_LEN ce=ce else ce=(RC_TABLES_LEN - 1) - (ce - RC_TABLE_LEN) ... 2*RC_TABLE_LEN - ce - 1
                   ce ^= (!vv) * (BASIC_WAVE_TABLE_LEN - 1);         // ce = vv*ce+!vv*((BASIC_WAVE_TABLE_LEN-1) - ce);  // invert 180-360°           
                   ce &= RC_TABLES_LEN-1;
 
@@ -780,9 +786,8 @@ gpio_put(TST_PIN,1);
                   }
 
 
-///*
 //gpio_put(TST_PIN,0);
-if(tb7){
+/*if(tb7){
     filterGAcc += filterGInc;
     int32_t ggS = (filterGAcc >> RAMP_SHIFT) << 16;                    // ramped gg in Q31
     int32_t xq;
@@ -793,25 +798,56 @@ if(tb7){
     xq = filterStageLin(z2, xq, ggS);
     xq = filterStageLin(z3, xq, ggS);
     pre = xq * (1 << (FILTER_PRE_SHIFT - FILTER_FRAC));                // back to the voice scale
-  }
+  }*/
 //gpio_put(TST_PIN,1);
 
-                  pre *= *waveAmplGen;
+                  /*pre *= *waveAmplGen;
 
                   *vb+=pre;
                   vb++;
                   *vb+=pre;
-                  vb++;
+                  vb++;*/
+                voiceTmp[s] = pre;                            // filter, gain and mix are done after this loop
             }
-
-            filterG = filterGTarget;
 
             sinAmpl = sinTarget;                            // exact landing on the target
             triAmpl = triTarget;
             sawAmpl = sawTarget;
         }
 
-        v->filterG = filterG;
+        // filter: gg ramps linearly from filterG to its target over the whole buffer
+        const int32_t filterG       = v->filterG;
+        const int32_t filterGTarget = v->newFilterG;
+        const int32_t filterGInc    = filterGTarget - filterG;
+        int32_t       filterGAcc    = filterG << FILTER_RAMP_SHIFT;
+
+        int32_t z0 = v->filter.z[0];
+        int32_t z1 = v->filter.z[1];
+        int32_t z2 = v->filter.z[2];
+        int32_t z3 = v->filter.z[3];
+        int32_t levAtt = v->coderFilterLevAtt;
+        if (levAtt > MAX_CTL_ATT) levAtt = MAX_CTL_ATT;
+        if (levAtt < 0)           levAtt = 0;
+        const int32_t attQ22 = levAtt << 22;           // 256 << 22 = 2^30: unity gain fits in a signed 32-bit word
+
+        volatile int32_t* vb = vBuffer;
+        for (uint32_t i = 0; i < SAMPLES_PER_BUFFER; i++) {
+            filterGAcc += filterGInc;
+            const int32_t ggS = (filterGAcc >> FILTER_RAMP_SHIFT) << 16;       // ramped gg in Q31
+            int32_t xq;
+            asm("smmulr %0, %1, %2" : "=r"(xq) : "r"(voiceTmp[i] >> (FILTER_PRE_SHIFT - FILTER_FRAC)), "r"(attQ22));   // input attenuator
+            xq *= 4;                                                           // xq = input * att / 256
+            xq = filterStage(z0, xq, ggS);
+            xq = filterStageLin(z1, xq, ggS);
+            xq = filterStageLin(z2, xq, ggS);
+            xq = filterStageLin(z3, xq, ggS);
+            const int32_t out = (xq * (1 << (FILTER_PRE_SHIFT - FILTER_FRAC))) * (int32_t)*waveAmplGen;   // voice gain read at every sample, as before
+            vb[0] += out;                                                      // left and right: same signal
+            vb[1] += out;
+            vb += 2;
+        }
+
+        v->filterG = filterGTarget;
         v->filter.z[0] = z0;  v->filter.z[1] = z1;  v->filter.z[2] = z2;  v->filter.z[3] = z3;
         
         *waveAmplSin = sinAmpl;
@@ -826,7 +862,7 @@ if(tb7){
         v->noisePhase = nPhase;
         pink_state    = pink_state_loc;
 
-      }
+    }
 
 gpio_put(TST_PIN,0); 
 restore_interrupts(ints);

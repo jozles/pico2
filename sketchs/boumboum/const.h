@@ -7,7 +7,7 @@
 
 #include "rc_33tables.h"
 
-#define VERSION "v1.45"
+#define VERSION "v1.46"
 
 #define PI 3.141592636
 
@@ -290,7 +290,7 @@ typedef enum {
 
 /* st7789 */
 
-#define TFT_W 240
+#define TFT_W 320
 #define TFT_H 240
 
 // le dma utilise l'irq1 ; l'irq 0 est utilisée par le dma de l'i2s
