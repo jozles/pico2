@@ -795,7 +795,7 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
             rc=buf[0]>>16;
             if(rc>32){rc=64-rc;}
             rcTableCurr = &rc_tables[rc][0][0];
-            rcTable32 = &rc_tables[32][0][0]; 
+            //rcTable32 = &rc_tables[32][0][0]; 
         }
 
         for(uint32_t i=0;i<TFT_W;i++){                          // read buf and generate the waveform (compute mode 0: one column per sample)
@@ -826,14 +826,15 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
                     const int16_t* w=rcTableCurr+RC_N_WAVES*ce_idx; // rc_table values ptr
             
                     if(wf==WSIN || wf==WTRI){b=(float)w[wf]/(float)0x7fff;}       // sample full scale ratio
-                    else if(wf==WSAW){
+                    /*else if(wf==WSAW){
                         int16_t tri=rcTable32[RC_N_WAVES*ce+WTRI];      // saw utilise la table 32 du triangle
                         int32_t saw;
                         if(ce<(RC_N_SAMPLES >> 1)){saw=(65536-tri)>>1;}
                         else saw=tri>>1;
                         if(rc>=32){saw=-saw;}
                         b=(float)saw/(float)0x7fff;
-                    }
+                    }*/
+                    else if(wf==WSAW){b=(float)rc_tables[0][ce][WTRI]/(float)0x7fff;}      // sawtooth = triangle of table 0
                     else if(wf==WSQR){
                         int16_t sqr=(ce & (BASIC_WAVE_TABLE_LEN>>1)) ? -0x7fff : 0x7fff;
                         b=(float)sqr/(float)0x7fff;

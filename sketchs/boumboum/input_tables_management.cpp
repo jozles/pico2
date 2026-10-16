@@ -427,6 +427,7 @@ bool init_objects_inputs(void)
                 case VKPW:ctl_input_update_type[curr_input]=VCE_WPNK;break;
                 case VGPW:ctl_input_update_type[curr_input]=VCE_GENA;break;
                 case VFIL:ctl_input_update_type[curr_input]=VCE_FILT;break;
+                case VRES:ctl_input_update_type[curr_input]=VCE_RES;break;
                 default:break;
             }
             if(ins<VOICES_INPUTS_NB){
@@ -605,10 +606,9 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
                 case VCE_WHIT:  setVoicesAmpl(object,WHIT,valeur);break;
                 case VCE_WPNK:  setVoicesAmpl(object,PONK,valeur);break;                                                                                                                
                 case VCE_GENA:  setVoicesAmpl(object,BASIC_WAVES_NB,valeur);break;
-                case VCE_FILT:  val=(valeur>>6)*voices[object].coderFilterFreqAtt>>MAX_CTL_ATT_SHIFT;
-                                fr=calcFilterG(val+voices[object].coderFilterFreq);                     // g = tan(pi*fc/fs)
-                                voices[object].newFilterG = (int32_t)(fr/(1.0f+fr)*32768.0f);           // gg, always < 1
+                case VCE_FILT:  setVoiceFilterFrequency(&voices[object]);      // cutoff code = coder + attenuated input (same shift of 6 as before)
                                 break;
+                case VCE_RES :  setVoiceFilterRes(&voices[object]);break;
                 case LFO_FREQ:  setLfosFrequency(object);break;                                         // 8k max VCES_MAX_FREQ_CODERS ; att 0-255 
                 case LFO_CRA :  lfosCycleR[object]=(uint16_t)(lfosCoderCycleR[object]+(((valeur>>10)*lfosCoderCycleRAtt[object])>>MAX_CTL_ATT_SHIFT));   // base + attenuated input ; read as &63 by lfosHandler                  
                                 break;

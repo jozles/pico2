@@ -92,15 +92,19 @@ struct Voice {
     volatile int16_t    coderFilterResAtt;     // filter manual res input attenuator value (0->MAX_CTL_ATT)
 
     // --- filtre : fonctionnement réel, lu/écrit par fillVoiceBuffer_mono ---
-    int32_t     newFilterG;           // target coefficient (Q15), written by update_inputs(), read once per sub-block by fillVoiceBuffer_mono
-    int32_t     filterG;              // current (ramped) coefficient (Q15), read and written by fillVoiceBuffer_mono
     VoiceFilter filter;               // per-stage state (z[]), persists across buffers
-    uint8_t     filterStages;         // not read by the render loop at the moment (always 4 stages)
+    volatile int16_t    filterCode;           // final cutoff code 0..FILTER_CODE_MAX (coder + modulation), read once per sub-block by fillVoiceBuffer_mono
+    volatile uint8_t    filterRes;            // final resonance command 0..FILTER_RES_MAX
+    /*int32_t     newFilterG;           // target coefficient (Q15), written by update_inputs(), read once per sub-block by fillVoiceBuffer_mono
+    int32_t     filterG;              // current (ramped) coefficient (Q15), read and written by fillVoiceBuffer_mono
+    uint8_t     filterStages;         // not read by the render loop at the moment (always 4 stages)*/
 
     volatile uint8_t    cycleR;       // cyclic ratio value (somme coderCycleR et ctl_input_val)
     volatile uint8_t    coderCycleR;  // cyclic ratio -64/+64 coder value
     int16_t     coderCycleRAtt;       // cyclic ratio input attenuator value (0-MAX_CTL_ATT)
 
+    int32_t     sqrTh;
+    
     int16_t     voice_ctl_input_id[MAX_INPUTS_PER_OBJ];
 
 };
@@ -119,10 +123,12 @@ void setVoiceCycleR(Voice* v, uint8_t coderCycleR, int16_t coderCycleRAtt);
 float calcFreq(uint16_t val);
 uint16_t calcCoderFreq(float freq);
 void setVoiceFilter(Voice* v, int16_t coderFilterF, int16_t coderFilterFAtt, int16_t coderFilterLevAtt, int16_t coderFilterRes,int16_t coderFilterResAtt);
-float calcFilterG(int32_t val);
+//float calcFilterG(int32_t val);
 void filtersInit(uint8_t v);
 float calcFilterFreq(int32_t code);
-void setFilterFrequency(float freqHz, Voice* v);
+//void setFilterFrequency(float freqHz, Voice* v);
+void setVoiceFilterFrequency(Voice* v);
+void setVoiceFilterRes(Voice* v);
 
 void setLfosSteps(float freq,uint8_t l);
 void setLfosFrCoders(uint8_t lfo, uint16_t coderFreq, uint16_t coderAtt);

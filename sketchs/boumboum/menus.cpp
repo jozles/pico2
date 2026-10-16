@@ -81,6 +81,13 @@ uint16_t tempVceCoderFiRes[MAX_VOICES];
 uint16_t tempVceCoderFiResAtt[MAX_VOICES];
 extern volatile int16_t menuVcesCodersFi[];
 
+extern uint16_t* vcesVarNs[];
+uint16_t tempVceCoderNsW[MAX_VOICES];
+uint16_t tempVceCoderNsWAtt[MAX_VOICES];
+uint16_t tempVceCoderNsP[MAX_VOICES];
+uint16_t tempVceCoderNsPAtt[MAX_VOICES];
+extern volatile int16_t menuVcesCodersNs[];
+
 extern uint16_t adsrCoderAtt[MAX_ADSR];                      // current lfo freq
 extern uint16_t adsrCoderDec[MAX_ADSR];
 extern uint16_t adsrCoderSus[MAX_ADSR];
@@ -195,6 +202,14 @@ enum AdsrCoders {        // coders pour menu adsr
      ADSRLEV
 };
 
+enum NoisesCoders {
+     NOISEMENU,
+     NOISEWHCODERAMP,
+     NOISEWHCODERAMPATT,
+     NOISEPKCODERAMP,
+     NOISEPKCODERAMPATT
+};
+
 // ****** inits ******
 
 // xxxVar est la liste des pointeurs sur les variables d'une ligne de menu 
@@ -228,7 +243,8 @@ void menus_init(){
         tempVceCoderFiFreqAtt[v]=voices[v].coderFilterFreqAtt;
         tempVceCoderFiLevAtt[v]=voices[v].coderFilterLevAtt;  
         tempVceCoderFiRes[v]=voices[v].coderFilterRes;
-        tempVceCoderFiResAtt[v]=voices[v].coderFilterResAtt;               
+        tempVceCoderFiResAtt[v]=voices[v].coderFilterResAtt;
+          
     }
     // *** switchs ***
     for(uint8_t c=0;c<CODER_NB;c++){
@@ -412,13 +428,6 @@ int8_t tst_switchs_(uint8_t max_sw){      // return -1 if nothing, 0-n coder num
             gpio_irq_set=false;
             return BUTTON_CODE;
         }
-        /*for(uint8_t c=0;c<max_sw;c++){
-            if(codersTB[c][RISE]){      // touchB[coder] on
-                tbIgnore=millisCounter;
-                codersTB[c][RISE]=false;                     
-                return -99+c;           // coder number
-            }                       
-        }*/
     }                
     return -1;                          // nothing
 }
