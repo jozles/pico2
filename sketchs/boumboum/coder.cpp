@@ -10,12 +10,12 @@
 #include "miscControls.h"
 
 
-uint16_t coderTimerPoolingInterval=1;       // delay betxeen Its (mS) changed by init
-uint8_t coderStrobeNumber=3;                // 1st strobe delay (2nd strobe delay is 1)
-volatile int16_t* coderTimerCount=nullptr;  // ptr to current value to be inc or dec
-volatile bool* coderTimerSwitch=nullptr;    // switchs values
-volatile bool* coderTouchB=nullptr;         // touchButtons actual values (on/off)
-volatile uint16_t* coderCountMaxi=nullptr;  // max value for cTc
+uint16_t coderTimerPollingInterval=1;       // delay between interrupts (ms), set by coderInit
+uint8_t coderStrobeNumber=3;                // first strobe delay, in polls (the second strobe delay is 1)
+volatile int16_t* coderTimerCount=nullptr;  // pointer to the values to increment or decrement
+volatile bool* coderTimerSwitch=nullptr;    // switchs states
+volatile bool* coderTouchB=nullptr;         // current touch button states (on/off)
+volatile uint16_t* coderCountMaxi=nullptr;  // maximum value for coderTimerCount
 
 uint8_t cOC[CODER_NB]={6,7,0,1,2,5,4,3};    // CODER ORDER TABLE ordre physique
 uint8_t cOB[CODER_NB]={0,1,2,3,4,5,6,7};    // TOUCH ORDER TABLE ordre physique
@@ -44,7 +44,7 @@ volatile bool one_time;
 bool __not_in_flash_func(coderTimerHandler)(){
     
     int_counter++;
-    if(int_counter>=coderTimerPoolingInterval){
+    if(int_counter>=coderTimerPollingInterval){
         int_counter=0;
 
         Coders* cp;
@@ -97,7 +97,7 @@ bool __not_in_flash_func(coderTimerHandler)(){
             }
             else{                                                 // clock change detected 
                 cp->coderData=gpio_get(gpio_data_pin);            // latch data
-                if(cp->coderItStatus<coderStrobeNumber){          // change too close to previous valid one : ignore it
+                if(cp->coderItStatus<coderStrobeNumber){          // change too close to the previous valid one : ignore it
                     cp->coderItStatus=0;continue;}                                                         
                 if(cp->coderItStatus==coderStrobeNumber){     
                     cp->coderItStatus++;continue;}                // 1st strobe passed wait next Int
@@ -142,7 +142,7 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_
     coder_sel_nb=sel_nb;
     coder_nb=nb;
 
-    coderTimerPoolingInterval=ctpi;
+    coderTimerPollingInterval=ctpi;
     coderStrobeNumber=cstn;
 
     gpio_init(gpio_data_pin);gpio_set_dir(gpio_data_pin,GPIO_IN);gpio_pull_up(gpio_data_pin);

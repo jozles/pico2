@@ -94,6 +94,8 @@ if (watchdog_caused_reboot()) {
     menus_init();
     uint8_t menu=1;
 
+    testVoiceInit(3,0);
+
     while(1){
 
         menu=coders_for_menu("boumboum ",(const char*)menu0_names,MENU0_NB,MENU_NAME_LEN,MENU0____,menu0Coders,codersSw,codersTB,menu0MaxCoders,nullptr,0,MENU0_CODER_NB,menu);

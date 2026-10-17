@@ -113,7 +113,7 @@ struct Voice {
 void sound_tables_init();
 void voicesInit(Voice* v,float freq,uint8_t cga);
 void voicesInit(Voice* v,uint16_t coderF,uint8_t cga);
-void dumpVoices(Voice* v);
+void dumpVoices(Voice* v,uint8_t n);
 void fillVoiceBuffer(int32_t* sampleBuffer,Voice* v,uint8_t bufNum);
 void fillVoices();
 void setVoiceFrCoders(Voice* v, uint16_t coderFreq, uint16_t coderAtt);
@@ -122,11 +122,10 @@ void setVoiceFrequency(Voice* v);
 void setVoiceCycleR(Voice* v, uint8_t coderCycleR, int16_t coderCycleRAtt);
 float calcFreq(uint16_t val);
 uint16_t calcCoderFreq(float freq);
-void setVoiceFilter(Voice* v, int16_t coderFilterF, int16_t coderFilterFAtt, int16_t coderFilterLevAtt, int16_t coderFilterRes,int16_t coderFilterResAtt);
-//float calcFilterG(int32_t val);
+
 void filtersInit(uint8_t v);
 float calcFilterFreq(int32_t code);
-//void setFilterFrequency(float freqHz, Voice* v);
+void setVoiceFilter(Voice* v, int16_t coderFilterF, int16_t coderFilterFAtt, int16_t coderFilterLevAtt, int16_t coderFilterRes,int16_t coderFilterResAtt);
 void setVoiceFilterFrequency(Voice* v);
 void setVoiceFilterRes(Voice* v);
 

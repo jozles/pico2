@@ -14,6 +14,7 @@
 #include "bb_i2s.h"
 #include "input_tables_management.h"
 #include "sound_level_management.h"
+#include "hardware/sync.h"
 
 extern int16_t  ctl_input_id[MAX_INPUTS];
 extern int16_t  ctl_input_val[MAX_INPUTS];
@@ -28,6 +29,8 @@ extern char     ctl_output_name[MAX_OUTPUTS][IN_OUT_NAME_LEN];
 extern int16_t  ctl_output_id_chain[MAX_OUTPUTS];
 
 extern volatile uint32_t millisCounter;
+
+extern volatile uint32_t i2sUnderruns;
 
 bool tb7=false;
 
@@ -600,6 +603,8 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
         uint16_t bgc=0x0000;
         uint16_t buc=fgc;
         if(rev){fgc=bgc;bgc=buc;}
+        memset(buf,0x20,LINE_LEN-1);
+        buf[LINE_LEN-1]=0x00;
         buf[0]=line+48;
         buf[1]=' ';
         uint16_t cc16=(uint16_t)cc;
@@ -657,18 +662,23 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
 
             case VOICES_AM:          
                 if(varChge){
+                    uint32_t irq=save_and_disable_interrupts();                // the ADSR interrupt also calls setVoicesAmpl: no interleaving
                     voices[line].coderWaveAmpl[coder-1]=cc;
-                    setVoicesAmpl(line,coder-1);              // !!! coders 0-6 (6=genAmpl)
+                    setVoicesAmpl(line,coder-1);                               // !!! coders 0-6 (6=genAmpl)
+                    restore_interrupts(irq);
+                    dumpVoices(voices,line);
                 }
                               
-                sprintf(buf+2,"%u %u %u %u %u %u %u",voices[line].coderWaveAmpl[WSIN],voices[line].coderWaveAmpl[WTRI],voices[line].coderWaveAmpl[WSAW],
+                sprintf(buf+2,"%u %u %u %u %u %u %u ",voices[line].coderWaveAmpl[WSIN],voices[line].coderWaveAmpl[WTRI],voices[line].coderWaveAmpl[WSAW],
                     voices[line].coderWaveAmpl[WSQR],voices[line].coderWaveAmpl[WHIT],voices[line].coderWaveAmpl[PONK],voices[line].coderGenAmpl);               
                 break;
 
             case VOICES_AT:      
                 if(varChge){
+                    uint32_t irq=save_and_disable_interrupts();                // same protection
                     voices[line].coderWaveAmplAtt[coder-1]=cc;
-                    setVoicesAmpl(line,coder-1);                  // !!! coders 0-6 (6=genAmpl)
+                    setVoicesAmpl(line,coder-1);                               // !!! coders 0-6 (6=genAmpl)
+                    restore_interrupts(irq);
                 }
            
                 sprintf(buf+2,"%u %u %u %u %u %u %u",voices[line].coderWaveAmplAtt[WSIN],voices[line].coderWaveAmplAtt[WTRI],voices[line].coderWaveAmplAtt[WSAW],
@@ -699,7 +709,7 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                 f=voices[line].filterFrequency;
                 if(f>=1000){f/=1000;}
                 sprintf(buf+2,"%.1f %i %i %i %i %i",f,voices[line].coderFilterFreq,voices[line].coderFilterFreqAtt,voices[line].coderFilterLevAtt,voices[line].coderFilterRes,voices[line].coderFilterResAtt);
-                printf("filter line %u: %u chars\n",line,(unsigned)strlen(buf));
+
                 break;               
 
             case ADSRL____:
@@ -794,6 +804,8 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
     //adsrStatus[0]=ADSR_ATT
 
     while(1){
+
+            testVoice();
             
             fillVoices();        
             //ws_show_3(30);
@@ -803,12 +815,8 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
                 //if(adsrStatus[0]==ADSR_OFF){adsrStatus[0]=ADSR_ATT;adsrCurrEch[0]=0;}
             }
             
-            //if((millisCounter&0x000001ff)==0){
-            //    printf("%u %i %u %u\n",adsrOutputsValues[2][ADSR_SHAPE],lfmOutputValues[0],voices[2].newBasicWaveAmpl[WSIN],voices[2].genAmpl);
-            //}
-
             int s=tst_switchs_(switchsNb);
-            //if(s<=(-99+CODER_NB)){i2s_start(!i2s_running);title_dsp(title,line,object_type);}           
+
             if(s==BUTTON_CODE){i2s_start(!i2s_running);title_dsp(title,line,object_type);}           
             if(s==0){return line;}    // switch du coder 0 ou capaTouch
             if(s>0){                            // switch coders 1 à n
@@ -821,8 +829,6 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
             if(!oldCTB[7] && (coderTouchB[7]==1)){tb7=!tb7;oldCTB[7]=true;title_dsp(title,line,object_type);} // tb7 toogle sur les rising edges de coderTouchB
             if(oldCTB[7] && (coderTouchB[7]==0)){oldCTB[7]=false;title_dsp(title,line,object_type);}
 
-//printf("0\n");            
-//if(object_type==VOICES_AM){printf("VOICES_AM\n");while(1){fillVoices();}}
 
             for(uint8_t coder=0;coder<varNb+1;coder++){     // varNb nbre d'items dans la ligne + 1 = nbre coders utilisés + coder de scroll
 

@@ -476,17 +476,25 @@ void voiceConfig(uint8_t voice,uint8_t wave,uint16_t coderFreq,uint8_t attenFreq
         voice,voices[voice].coderFreq,voices[voice].coderFreqAtt,wave,voices[voice].coderWaveAmpl[wave],voices[voice].coderWaveAmplAtt[wave]);    
 }
 
-void vsetup(uint8_t v,uint16_t coderFreq,uint8_t attenFreqLevel,uint8_t manualAmpLevel,uint8_t attenAmpLevel,int8_t cr,int16_t crAtt,uint8_t wave)
+void vsetup(uint8_t v,uint16_t coderFreq,uint16_t coderFreqAtt,uint16_t coderAmp,uint16_t coderAmpAtt,int8_t cr,int16_t crAtt,uint8_t wave,int16_t filterFr,int16_t filterFrAtt,int16_t filterLevAtt,int16_t filterRes,int16_t filterResAtt,uint8_t cga,uint16_t cgaa)
 {
-    setVoiceFrCoders(&voices[v],coderFreq,attenFreqLevel);
+    setVoiceFrCoders(&voices[v],coderFreq,coderFreqAtt);
     setVoiceFrequency(&voices[v]);
 
     setVoiceCycleR(&voices[v],cr+RC_TABLES_NB-1,crAtt);
+
+    setVoiceFilter(&voices[v],filterFr,filterFrAtt,filterLevAtt,filterRes,filterResAtt);
   
-    voices[v].coderWaveAmpl[wave]=manualAmpLevel;          // manual level
-    voices[v].coderWaveAmplAtt[wave]=attenAmpLevel;        // input level
+    voices[v].coderWaveAmpl[wave]=coderAmp;          // manual level
+    voices[v].coderWaveAmplAtt[wave]=coderAmpAtt;    // input level
     setVoicesAmpl(v,wave);
+
+    dumpVoices(voices,v);
    
+}
+
+void vsetup(uint8_t v,uint16_t coderFreq,uint16_t coderFreqAtt,uint8_t coderAmp,uint8_t  coderAmpAtt,int8_t cr,int16_t crAtt,uint8_t wave){
+    vsetup(v,coderFreq,coderFreqAtt,coderAmp, coderAmpAtt,cr,crAtt,wave,coderFreq+409,0,MAX_CTL_ATT,0,0,1,0);   
 }
 
 void asetup(uint8_t adsr,uint8_t att,uint8_t dec, uint8_t sus,uint8_t rel){
@@ -576,6 +584,7 @@ void testSetup()
     #define VOICE0 0x80
     #define VOICE1 0x40
     #define VOICE2 0x20
+    #define VOICE3 0x10
     uint8_t action=VOICE0|VOICE1|VOICE2;
 
     printf("\n========== test-setup 0x%02X ==========\n",action);    
@@ -588,8 +597,8 @@ void testSetup()
         uint16_t coderFreq=800; 
         uint16_t coderFil=1500;           
         uint8_t  coderAttF=125;
-        uint8_t  coderAmp=67;
-        uint8_t  coderAttAmp=90;         
+        uint8_t  coderAmp=7;
+        uint8_t  coderAttAmp=60;         
         int8_t   cr=10;
         uint8_t  crAtt=64;
         uint8_t  freqLfo=0;
@@ -673,11 +682,115 @@ void testSetup()
         //obj_connect(objects_first_input_id[VOICE____]+voice*MAX_INPUTS_PER_OBJ+VFRQ,objects_first_output_id[LFO______]+lfo*MAX_OUTPUTS_PER_OBJ+lwave);        
     }
 
+    if(action==VOICE3){
+    }        
     printf("========================================\n");
 
 //pwm_timer_1khz_enable(false);while(1){}
 //disp_lfm(255,"testSetup");
 }
+
+
+// **** test voice ****
+
+        Voice*      testV;
+        uint8_t     voice=0;
+        uint8_t     wave=WSIN;
+        
+        uint16_t    coderF=calcCoderFreq(440);
+        uint16_t    coderFAtt=0;        
+        int8_t      cr=0;
+        uint8_t     crAtt=0;
+
+        int16_t     coderFilterF=coderF+409;
+        int16_t     coderFilterFAtt=0;
+        int16_t     coderFilterLevAtt=0;
+        int16_t     coderFilterRes=0;
+        int16_t     coderFilterResAtt=0;
+
+        uint16_t    coderWA[BASIC_WAVES_NB];
+        uint16_t    coderWAA[BASIC_WAVES_NB];
+
+        uint16_t    coderGA=1;
+        uint16_t    coderGAA=0;
+
+void testVoiceInit(uint8_t vv,uint8_t w)
+{
+        voice=vv;
+        testV=&voices[voice];                           
+        wave=w;
+        coderF=calcCoderFreq(440);
+        coderFAtt=0;        
+        cr=0;
+        crAtt=0;
+
+        coderFilterF=coderF+409;
+        coderFilterFAtt=0;
+        coderFilterLevAtt=MAX_CTL_ATT-1;
+        coderFilterRes=252;
+        coderFilterResAtt=0;
+
+        for(uint8_t w=0;w<BASIC_WAVES_NB;w++){coderWA[w]=0;}
+        coderWA[wave]=2;
+
+        for(uint8_t w=0;w<BASIC_WAVES_NB;w++){coderWAA[w]=0;}
+        coderWAA[wave]=0;
+
+        coderGA=30;
+        coderGAA=0;
+        
+        vsetup(voice,coderF,coderFAtt,coderWA[wave],coderWAA[wave],cr,crAtt,wave,coderFilterF,coderFilterFAtt,coderFilterLevAtt,coderFilterRes,coderFilterResAtt,coderGA,coderGAA); 
+}
+
+void testVoice()
+{ 
+            Voice* v=testV;
+
+            fillVoices();
+
+            if( 
+                   v->coderFreq             != coderF
+                || v->coderFreqAtt          != coderFAtt
+                || v->coderCycleR           != cr
+                || v->coderCycleRAtt        != crAtt
+                || v->coderFilterFreq       !=coderFilterF
+                || v->coderFilterFreqAtt    != coderFilterFAtt
+                || v->coderFilterLevAtt     != coderFilterLevAtt
+                || v->coderFilterRes        != coderFilterRes
+                || v->coderFilterResAtt     != coderFilterResAtt
+                || v->coderWaveAmpl[0]      != coderWA[0]
+                || v->coderWaveAmpl[1]      != coderWA[1]
+                || v->coderWaveAmpl[2]      != coderWA[2]
+                || v->coderWaveAmpl[3]      != coderWA[3]
+                || v->coderWaveAmpl[4]      != coderWA[4]
+                || v->coderWaveAmpl[5]      != coderWA[5]
+                || v->coderGenAmpl          != coderGA
+                || v->coderGenAmplAtt       != coderGAA
+            )
+            {
+                dumpVoices(v,voice);
+
+                coderF                  = v->coderFreq;         
+                coderFAtt               = v->coderFreqAtt;      
+                cr                      = v->coderCycleR;
+                crAtt                   = v->coderCycleRAtt;
+                coderFilterF            = v->coderFilterFreq;
+                coderFilterFAtt         = v->coderFilterFreqAtt;
+                coderFilterLevAtt       = v->coderFilterLevAtt;
+                coderFilterRes          = v->coderFilterRes;
+                coderFilterResAtt       = v->coderFilterResAtt;
+                coderWA[0]              = v->coderWaveAmpl[0];
+                coderWA[1]              = v->coderWaveAmpl[1];
+                coderWA[2]              = v->coderWaveAmpl[2];
+                coderWA[3]              = v->coderWaveAmpl[3];
+                coderWA[4]              = v->coderWaveAmpl[4];
+                coderWA[5]              = v->coderWaveAmpl[5];
+                coderGA                 = v->coderGenAmpl;
+                coderGAA                = v->coderGenAmplAtt;
+            }
+}
+
+
 
 // ******** diags/debug ********
 
