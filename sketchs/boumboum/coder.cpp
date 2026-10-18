@@ -9,13 +9,11 @@
 #include "st7789.h"
 #include "miscControls.h"
 
-void ampGlideTick();                        // sound_level_management.cpp: glide of the coder levels, called every ms
-
 
 uint16_t coderTimerPollingInterval=1;       // delay between interrupts (ms), set by coderInit
 uint8_t coderStrobeNumber=3;                // first strobe delay, in polls (the second strobe delay is 1)
 volatile int16_t* coderTimerCount=nullptr;  // pointer to the values to increment or decrement
-volatile bool* coderTimerSwitch=nullptr;    // switchs states
+volatile bool* coderTimerSwitch=nullptr;    // switch states
 volatile bool* coderTouchB=nullptr;         // current touch button states (on/off)
 volatile uint16_t* coderCountMaxi=nullptr;  // maximum value for coderTimerCount
 
@@ -44,8 +42,6 @@ volatile bool one_time;
 
 
 bool __not_in_flash_func(coderTimerHandler)(){
-    
-    ampGlideTick();                         // every timer tick, whatever the polling interval
     
     int_counter++;
     if(int_counter>=coderTimerPollingInterval){

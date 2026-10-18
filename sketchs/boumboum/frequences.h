@@ -35,9 +35,9 @@ static_assert(MAX_STEP_FRA == (1u << LFO_PHASE_SHIFT), "lfosPhaseStep is built w
 // voices: table index in the top 11 bits of a 32-bit word, so the overflow of the word acts as the mask
 #define PHASE_SHIFT (32 - BASIC_WAVE_TABLE_POW)
 
-#define FILTER_STEPS_PER_OCT 32
+//#define FILTER_STEPS_PER_OCT 32
 #define FILTER_MAX_OCT       10
-#define FILTER_TABLE_LEN     (FILTER_MAX_OCT*FILTER_STEPS_PER_OCT + 1)
+//#define FILTER_TABLE_LEN     (FILTER_MAX_OCT*FILTER_STEPS_PER_OCT + 1)
 
 //pour ctlCombine
 #define FREQ_CODE_MAX (OCTNB*INCRNB-1)                // 4498: calcFreq() reads octFreq[oct+1], oct <= 10
@@ -52,16 +52,12 @@ struct VoiceFilter {
 
 
 struct Voice {
-    uint16_t    sampleNbToFill;                 // sample Nb for 1 period    
-    uint32_t    currentSample;                  // last value pushed in i2s buffer                  
-    //uint16_t    stepInt;                        // partie entière du step montant
-    //uint32_t    stepFra;                        // partie fractionnaire du step montant 
+    //uint16_t    sampleNbToFill;                 // sample Nb for 1 period    
+    //uint32_t    currentSample;                  // last value pushed in i2s buffer                  
     volatile uint32_t phaseStep;        // table steps per sample, 11.21 fixed point, written and read as one word
-    uint32_t          phase;            // current phase, same format: the table index is phase >> PHASE_SHIFT
-    //uint16_t    currEch;                        // dernier N° d'ech utilisé
-    //uint32_t    currEchFra;                     // dernière valeur fractionnaire de n° d'ech calculée  
-    uint32_t    noisePhase;                     // Q16.16
-    uint32_t    noiseStep;                      // Q16.16
+    uint32_t          phase;            // current phase, same format: the table index is phase >> PHASE_SHIFT 
+    uint32_t    noiseSeed;                     // Q16.16
+    //uint32_t    noiseStep;                      // Q16.16
 
     volatile int16_t    genAmpl;               // genAmpl value
     volatile int16_t    coderGenAmpl;          // genAmpl coder value
@@ -69,19 +65,16 @@ struct Voice {
     
     volatile int16_t    basicWaveAmpl[BASIC_WAVES_NB];     // wave ampl value
     volatile int16_t    newBasicWaveAmpl[BASIC_WAVES_NB];
-    volatile bool       waveAmplChge[BASIC_WAVES_NB];
-    volatile int32_t    diffWaveAmpl[BASIC_WAVES_NB];
+    //volatile bool       waveAmplChge[BASIC_WAVES_NB];
+    //volatile int32_t    diffWaveAmpl[BASIC_WAVES_NB];
     volatile uint16_t   coderWaveAmpl[BASIC_WAVES_NB];     // wave ampl coder value
-    //uint16_t    maxCoderWaveAmpl[BASIC_WAVES_NB];           // wave ampl max coder value    
     volatile uint16_t   coderWaveAmplAtt[BASIC_WAVES_NB];           // wave ampl input attenuator value
     
-    //bool        coderSw[CODER_NB];              // last Switch
-    uint16_t    soundsCc[CODER_BANK_NB];
-    uint16_t    adsrlCc[CODER_BANK_NB];
+    //uint16_t    soundsCc[CODER_BANK_NB];
+    //uint16_t    adsrlCc[CODER_BANK_NB];
     
     volatile float      frequency;             // current frequency
     volatile int16_t    coderFreq;             // frequency coder value
-    //volatile float       basicFrequency;    
     volatile int16_t    coderFreqAtt;          // frequency input attenuator value (0-MAX_CTL_ATT)
 
     volatile float      filterFrequency;       // current frequency
@@ -95,9 +88,6 @@ struct Voice {
     VoiceFilter filter;               // per-stage state (z[]), persists across buffers
     volatile int16_t    filterCode;           // final cutoff code 0..FILTER_CODE_MAX (coder + modulation), read once per sub-block by fillVoiceBuffer_mono
     volatile uint8_t    filterRes;            // final resonance command 0..FILTER_RES_MAX
-    /*int32_t     newFilterG;           // target coefficient (Q15), written by update_inputs(), read once per sub-block by fillVoiceBuffer_mono
-    int32_t     filterG;              // current (ramped) coefficient (Q15), read and written by fillVoiceBuffer_mono
-    uint8_t     filterStages;         // not read by the render loop at the moment (always 4 stages)*/
 
     volatile uint8_t    cycleR;       // cyclic ratio value (somme coderCycleR et ctl_input_val)
     volatile uint8_t    coderCycleR;  // cyclic ratio -64/+64 coder value
@@ -116,10 +106,13 @@ void voicesInit(Voice* v,uint16_t coderF,uint8_t cga);
 void dumpVoices(Voice* v,uint8_t n);
 void fillVoiceBuffer(int32_t* sampleBuffer,Voice* v,uint8_t bufNum);
 void fillVoices();
-void setVoiceFrCoders(Voice* v, uint16_t coderFreq, uint16_t coderAtt);
-void setVoiceSteps(float freq,Voice* v);
+// setVoiceXxxCoders(Voice*, coders...) loads the coders then computes the internal values (same model as setVoiceFilter)
+// setVoiceXxx(Voice*)                  computes only, from the stored coders and the stored value of the input
+void setVoiceFreqCoders(Voice* v, uint16_t coderFreq, uint16_t coderFreqAtt);
 void setVoiceFrequency(Voice* v);
-void setVoiceCycleR(Voice* v, uint8_t coderCycleR, int16_t coderCycleRAtt);
+void setVoiceCycleRCoders(Voice* v, uint8_t coderCycleR, int16_t coderCycleRAtt);
+void setVoiceCycleR(Voice* v);
+void setVoiceSteps(float freq,Voice* v);
 float calcFreq(uint16_t val);
 uint16_t calcCoderFreq(float freq);
 

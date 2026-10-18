@@ -7,9 +7,9 @@
 
 #include "rc_33tables.h"
 
-#define VERSION "v1.46"
+#define VERSION "v1.47"
 
-#define PI 3.141592636
+#define PI 3.14159265359
 
 #define BB_TEST_MODE
 
@@ -82,6 +82,8 @@ typedef enum {
 #define MAX_16B_LINEAR_VALUE 32     // 0 to 31 => 0,1,1.414,2,2.828,4,5.656,8,11.312,16,22.624 ... 8192,11583,16384,23167,32767
 #define MIN_16B_LINEAR_VALUE 0
 
+#define WAVE_LEVEL_STEPS 64                         // number of steps of the wave amplitude coders (0 = off)
+
 /* Objects */
 
 typedef enum {
@@ -149,7 +151,7 @@ typedef enum {
 
 #define PICO_WS2812_PIO 1
 #define ws2812_pio __CONCAT(pio, PICO_WS2812_PIO)
-#define WS2812_LED_PIN 1    // until 4 wS2812 ledschains on pico2 with the same pio 
+#define WS2812_LED_PIN 1    // up to 4 wS2812 led chains on pico2 with the same pio 
                             // each one using a different state machine (return from ledsWs2812Setup())
                             // voir commentaire dans main
 #define WS2812_DREQ_PIO __CONCAT(DREQ_PIO,PICO_WS2812_PIO)
@@ -167,8 +169,8 @@ typedef enum {
 #define SAMPLE_F SAMPLE_RATE                            // fréquence d'échantillonnage audio   
 #define SAMPLE_PER ((float)1/SAMPLE_F)
 
-#define NUMBER_OF_OCTAVES 10
-#define OCTAVE0_FREQ SAMPLE_F/SAMPLE_BUFFER_SIZE
+//#define NUMBER_OF_OCTAVES 10
+//#define OCTAVE0_FREQ SAMPLE_F/SAMPLE_BUFFER_SIZE
 #define SAMPLES_PER_BUFFER 512                          // nombre d'échantillons (L+R) par buffer (1024 trop lent) 
 static_assert((SAMPLES_PER_BUFFER % 4) == 0, "the unrolled index loop writes 4 samples per pass"); 
 //#define SAMPLE_BUFFER_SIZE SAMPLES_PER_BUFFER           // taille du buffer (doit être multiple de 4 pour le dma i2s)

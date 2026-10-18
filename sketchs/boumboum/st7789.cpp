@@ -26,6 +26,8 @@ uint32_t ticker10=0;
 extern uint32_t millisCounter;
 extern uint32_t st_dma_tfr_count;
 
+extern Voice voices[MAX_VOICES];
+
 static int st_dma_chan=-1;
 static dma_channel_config dma_cfg;
 static dma_channel_config dma_cfg_single;
@@ -686,8 +688,8 @@ void tft_draw_text_12x12_dma_mult(uint16_t x,uint16_t y,const char *s,uint16_t f
     int len = 0;
     while (s[len]) len++;if(len>31){printf("tft_draw_text_12x12_dma_mult ovf\n");while(1){sleep_ms(250);gpio_put(LED,0);sleep_ms(250);gpio_put(LED,1);}};
 
-    uint8_t st=0;if(mult>1){st=2;}  // rétrécit la largeur/hauteur des caractères en mode mult
-    int maxLen = (TFT_W - x) / ((12-st) * mult);     // the text must stay inside the screen width (11 instead of 12 in the 11x12 copy)
+    uint8_t st=0;if(mult>1){st=2;}                  // rétrécit la largeur/hauteur des caractères en mode mult
+    int maxLen = (TFT_W - x) / ((12-st) * mult);    // the text must stay inside the screen width 
     if (len > maxLen) len = maxLen;
     
     int idx = 0;
@@ -785,17 +787,15 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
         } while (len > 0);*/
         blank(tftf,len);
 
-        int8_t sign=1;
+                int8_t sign=1;
         float b;
-        int32_t rc;
-        const int16_t *rcTableCurr;
-        const int16_t *rcTable32;
+        const int16_t *rcTableCurr=nullptr;
+        bool rcReverse=false;
 
-        if(mode_calcul==1){                                     // one time init
-            rc=buf[0]>>16;
-            if(rc>32){rc=64-rc;}
-            rcTableCurr = &rc_tables[rc][0][0];
-            //rcTable32 = &rc_tables[32][0][0]; 
+        if(mode_calcul==1){                                     // one time init: the cycle ratio is the one of the voice (the index buffer only holds the table index)
+            const uint32_t rcv=voices[object].cycleR&63;
+            rcReverse=(rcv>32);
+            rcTableCurr=&rc_tables[rcReverse?(64-rcv):rcv][0][0];
         }
 
         for(uint32_t i=0;i<TFT_W;i++){                          // read buf and generate the waveform (compute mode 0: one column per sample)
@@ -805,35 +805,23 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
                 case 0:{                                        // i2s true data range (+/-)0-7fffffff
                     int32_t t=buf[i*2];            
                     b=(float)t/(float)0x7fffffff;
-                    //b*=256;                                     // i2s sur 24 bits
                     }break;
 
-                case 1:{                                        // computed view with ce&cr
-                    uint32_t ce=buf[i];                         // ce : 16 bits gauche = rc, 16 bits droite num ech
-                    uint32_t rc=ce>>16;  
-            
-                    ce &= (BASIC_WAVE_TABLE_LEN-1);             // local currEch (cyclic ratio management)
+                case 1:{                                        // computed view from the table index of the voice
+                    uint32_t ce=buf[i]&(BASIC_WAVE_TABLE_LEN-1);
 
                     bool vv=(ce<RC_TABLES_LEN);
                     sign=(vv*2-1);                              // invert 180-360°
     
-                    ce ^= (!vv) * (BASIC_WAVE_TABLE_LEN - 1);   // ce = vv*ce+!vv*((BASIC_WAVE_TABLE_LEN-1) - ce);  // invert 180-360°           
+                    ce ^= (!vv) * (BASIC_WAVE_TABLE_LEN - 1);
                     ce &= RC_TABLES_LEN-1;
 
                     uint32_t ce_idx = ce;
-                    if (rc > 32){ce_idx = (RC_TABLES_LEN - 1) - ce_idx;}
+                    if (rcReverse){ce_idx = (RC_TABLES_LEN - 1) - ce_idx;}
 
                     const int16_t* w=rcTableCurr+RC_N_WAVES*ce_idx; // rc_table values ptr
             
                     if(wf==WSIN || wf==WTRI){b=(float)w[wf]/(float)0x7fff;}       // sample full scale ratio
-                    /*else if(wf==WSAW){
-                        int16_t tri=rcTable32[RC_N_WAVES*ce+WTRI];      // saw utilise la table 32 du triangle
-                        int32_t saw;
-                        if(ce<(RC_N_SAMPLES >> 1)){saw=(65536-tri)>>1;}
-                        else saw=tri>>1;
-                        if(rc>=32){saw=-saw;}
-                        b=(float)saw/(float)0x7fff;
-                    }*/
                     else if(wf==WSAW){b=(float)rc_tables[0][ce][WTRI]/(float)0x7fff;}      // sawtooth = triangle of table 0
                     else if(wf==WSQR){
                         int16_t sqr=(ce & (BASIC_WAVE_TABLE_LEN>>1)) ? -0x7fff : 0x7fff;
@@ -875,7 +863,7 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
 }
 
 void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bool blk,uint8_t refr,uint8_t wf,uint8_t mode_calcul,uint8_t object){
-    scope(buf,f,begline,fd,blk,refr,wf,mode_calcul,0,0);
+    scope(buf,f,begline,fd,blk,refr,wf,mode_calcul,object,0);
 }
 
 void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bool blk,uint8_t refr,uint8_t wf,uint8_t mode_calcul){

@@ -25,7 +25,7 @@ uint32_t adsrDurDec[MAX_ADSR];
 uint32_t adsrDurSus[MAX_ADSR];
 uint32_t adsrDurRel[MAX_ADSR];
 uint32_t adsrCurrEch[MAX_ADSR];
-uint16_t adsrOutputsValues[MAX_ADSR][MAX_OUTPUTS_PER_OBJ];  // inutilisé ??
+//uint16_t adsrOutputsValues[MAX_ADSR][MAX_OUTPUTS_PER_OBJ];  // inutilisé ??
 int16_t  adsr_ctl_input_id[MAX_ADSR][MAX_INPUTS_PER_OBJ];
 int16_t  adsr_ctl_output_id[MAX_ADSR][MAX_OUTPUTS_PER_OBJ];
 int32_t  adsrScopeBufReal[MAX_ADSR*ADSR_SCOPE_BUFFER_LEN];  // real values
@@ -65,7 +65,7 @@ static_assert(sizeof(lfmCoder[0][0]) == 2, "CODER_BASE_SHIFT assumes lfmCoder is
 
 /* *******  extern  ******** */
 
-extern uint32_t millisCounter;
+extern volatile uint32_t millisCounter;
 extern bool     setupComplete;
 extern uint16_t amplLevel[];
 extern int16_t  ctl_input_val[MAX_INPUTS];
@@ -100,9 +100,7 @@ void adsrInit()                     // (id ptrs dans inits_objects_inputs/output
         adsrCoderRelAtt[a]=FULL_ATTENUATION_VALUE;
         adsrCoderLevAtt[a]=FULL_ATTENUATION_VALUE;
 
-        for(uint8_t v=0;v<MAX_OUTPUTS_PER_OBJ;v++){
-            adsrOutputsValues[a][v]=0;
-        }
+        //for(uint8_t v=0;v<MAX_OUTPUTS_PER_OBJ;v++){adsrOutputsValues[a][v]=0;}
     }
 }
 
@@ -290,7 +288,7 @@ void __not_in_flash_func(adsrHandler)()
                 int16_t in_lev_id=ctl_output_id_chain[adsr_ctl_output_id[a][ADSR_SHAPE]];
                 if (__builtin_expect(in_lev_id != NO_LINK, 0)){
                     ov_ &= 0x7fff; // écrêtage
-                    adsrOutputsValues[a][ADSR_SHAPE]=ov_;
+                    //adsrOutputsValues[a][ADSR_SHAPE]=ov_;
                     update_inputs(in_lev_id,ov_);
                 }
 
@@ -309,7 +307,7 @@ void __not_in_flash_func(adsrHandler)()
             // update connected bool inputs
             int16_t in_bool_id=ctl_output_id_chain[adsr_ctl_output_id[a][ADSR_GATE]];
             if (__builtin_expect(in_bool_id != NO_LINK, 0)){
-                adsrOutputsValues[a][ADSR_GATE]=bol;                
+                //adsrOutputsValues[a][ADSR_GATE]=bol;                
                 update_inputs(in_bool_id,bol);
             }
         }

@@ -19,9 +19,6 @@ void pwm_timer_1khz_enable(bool start_stop);
 
 void gpio_irq_init(uint pin);
 
-void adsr(int32_t* ccb,int32_t ccb0);
-void autoMixer(int32_t* ccb,int32_t ccb0);
-
 void quick_delay(uint32_t us);
 void delay_ms(uint32_t ms);
 void delayBlk(uint8_t sec);

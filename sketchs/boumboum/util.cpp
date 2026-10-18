@@ -166,6 +166,8 @@ void __not_in_flash_func(pwm_irq_handler)() {
     adsrHandler();
 
     lfmScopeHandler();
+
+    ampGlideTick();                         // every timer tick, whatever the polling interval
 }
 
 void init_pwm_timer_1khz() {
@@ -201,17 +203,6 @@ void pwm_timer_1khz_enable(bool start_stop)
     else printf("1KHz PWM timer started\n");        
 
 }
-
-/*
-static bool __not_in_flash_func(millisTimerHandler)(repeating_timer *t){
-    millisCounter++;
-    //coderTimerHandler();
-//    if(millisCounter%1000==0){
-//        tft_draw_int_12x12_dma_mult(165,12,0xffff,0x0000,1,millisCounter/1000);}
-//        tft_draw_int_12x12_dma_mult(180,12,0xffff,0x0000,1,dma_tfr_count);}
-    return true;
-}
-*/
 
 void init_out_anal()
 {
@@ -335,7 +326,7 @@ void setup(){
 
     float fr0=440;                  // initial frequency every voices
     uint8_t cga=1;                  // initial gain for genAmpl
-    voicesInit(voices,fr0,cga);     // every waveAmpl = 0 ; every voices genAmpl = cga
+    voicesInit(voices,fr0,cga);     // every waveAmpl = 0 ; every voice's genAmpl = cga
 
     // ****** lfos ******
     lfosInit();
@@ -348,37 +339,29 @@ void setup(){
     lf_mixer_init();
 
     // ****** 1kHZ irq ******
-    init_pwm_timer_1khz();      // init engine for millitimers+coders+lfos+adsr
+    init_pwm_timer_1khz();          // init engine for millitimers+coders+lfos+adsr
 
     // ****** i2s ******
     i2s_dma_buffers[0]=i2s_buf0;
     i2s_dma_buffers[1]=i2s_buf1;
     i2sSetup(_i2s_pio,PICO_AUDIO_I2S_DATA_PIN,i2s_dma_buffers);     // start i2s engine
 
-    voices[0].coderWaveAmpl[WSIN]=31;
-    voices[0].coderWaveAmplAtt[WSIN]=0;
-    setVoicesAmpl(0,WSIN);
+    setVoiceAmplCoders(&voices[0],WSIN,WAVE_LEVEL_STEPS-1,0);
     printf("demo sinus f:%f rc:%i ampl:%d\n",fr0,cga,voices[0].basicWaveAmpl[WSIN]);delay_ms(100);      
     
     // tous les genAmpl sont à cga ; toutes les wavesAmpl à 0 sauf voices[0] sinus
-    fillVoices();               // après i2sSetup avant scope de démo ; i2S non démarré 
-
-    //for(uint16_t b=0;b<1024;b++){printf("%u %i %X\n",b,i2s_buf0[b],(uint32_t)i2s_buf0[b]);}
+    fillVoices();                   // après i2sSetup avant scope de démo ; i2S non démarré 
 
     pwm_timer_1khz_enable(true);    // start millicounter, coders, buttons, lfos, adsr 
 
-//dumpVoices(voices);
-//dumpStr(voiceScopeBuffer,256);
-//dumpStr(i2s_buf0,256);
     // ****** scope check ******
     //scope(voicesScopeDataBuffer,voices[0].frequency,14,true,true,0,0,true);    // scope mode_calcul
     scope(i2s_buf0,voices[0].frequency,14,true,true,0,0,0);     // scope mode_data
 
     // après démo mute voices[0] sinus
-    voices[0].coderWaveAmpl[WSIN]=cga;
-    setVoicesAmpl(0,WSIN);
+    setVoiceAmplCoders(&voices[0],WSIN,cga,0);
 
-    gpio_irq_set = false;               // wait touch button to start
+    gpio_irq_set = false;            // wait for the touch button to start
     while(!gpio_irq_set){
         debug_ticker();
         ledblinkn(3);
@@ -456,13 +439,9 @@ void sub_lfo(uint8_t object_type,uint8_t object_nb,uint8_t vInpNb,int8_t lfo,uin
 void voiceConfig(uint8_t voice,uint8_t wave,uint16_t coderFreq,uint8_t attenFreqLevel,uint8_t freqLfo,uint16_t freqLfoCoder,
     uint8_t manualAmpLevel,uint8_t attenAmpLevel,uint8_t adsr,int8_t adsrLfo,uint16_t adsrLfoFreqCoder,int8_t cr,uint8_t crAtt)       // adsrLfo >=0 lfo ; <0 touch
 {
-    setVoiceCycleR(&voices[voice],cr+RC_TABLES_NB-1,crAtt);
-  
-    voices[voice].coderWaveAmpl[wave]=manualAmpLevel;          // manual level
-    voices[voice].coderWaveAmplAtt[wave]=attenAmpLevel;        // input level
-    setVoicesAmpl(voice,wave);
-    setVoiceFrCoders(&voices[voice],coderFreq,attenFreqLevel);
-    setVoiceFrequency(&voices[voice]);
+    setVoiceCycleRCoders(&voices[voice],cr+RC_TABLES_NB-1,crAtt);
+    setVoiceAmplCoders(&voices[voice],wave,manualAmpLevel,attenAmpLevel);        // manual level, input level attenuator
+    setVoiceFreqCoders(&voices[voice],coderFreq,attenFreqLevel);
 
     if(freqLfo!=0){sub_lfo(VOICE____,voice,VFRQ,freqLfo,freqLfoCoder,WTRI);}    // modulation freq de la voix
 
@@ -478,19 +457,13 @@ void voiceConfig(uint8_t voice,uint8_t wave,uint16_t coderFreq,uint8_t attenFreq
 
 void vsetup(uint8_t v,uint16_t coderFreq,uint16_t coderFreqAtt,uint16_t coderAmp,uint16_t coderAmpAtt,int8_t cr,int16_t crAtt,uint8_t wave,int16_t filterFr,int16_t filterFrAtt,int16_t filterLevAtt,int16_t filterRes,int16_t filterResAtt,uint8_t cga,uint16_t cgaa)
 {
-    setVoiceFrCoders(&voices[v],coderFreq,coderFreqAtt);
-    setVoiceFrequency(&voices[v]);
-
-    setVoiceCycleR(&voices[v],cr+RC_TABLES_NB-1,crAtt);
-
+    setVoiceFreqCoders(&voices[v],coderFreq,coderFreqAtt);
+    setVoiceCycleRCoders(&voices[v],cr+RC_TABLES_NB-1,crAtt);
     setVoiceFilter(&voices[v],filterFr,filterFrAtt,filterLevAtt,filterRes,filterResAtt);
-  
-    voices[v].coderWaveAmpl[wave]=coderAmp;          // manual level
-    voices[v].coderWaveAmplAtt[wave]=coderAmpAtt;    // input level
-    setVoicesAmpl(v,wave);
+    setVoiceAmplCoders(&voices[v],wave,coderAmp,coderAmpAtt);                   // manual level, input level attenuator
+    setVoiceAmplCoders(&voices[v],BASIC_WAVES_NB,cga,cgaa);                     // voice gain (these two parameters were ignored)
 
     dumpVoices(voices,v);
-   
 }
 
 void vsetup(uint8_t v,uint16_t coderFreq,uint16_t coderFreqAtt,uint8_t coderAmp,uint8_t  coderAmpAtt,int8_t cr,int16_t crAtt,uint8_t wave){
@@ -585,7 +558,7 @@ void testSetup()
     #define VOICE1 0x40
     #define VOICE2 0x20
     #define VOICE3 0x10
-    uint8_t action=VOICE2;  //VOICE0|VOICE1|VOICE2;
+    uint8_t action=VOICE0|VOICE1|VOICE2;
 
     printf("\n========== test-setup 0x%02X ==========\n",action);    
 
@@ -597,7 +570,7 @@ void testSetup()
         uint16_t coderFreq=800; 
         uint16_t coderFil=1500;           
         uint8_t  coderAttF=125;
-        uint8_t  coderAmp=7;
+        uint8_t  coderAmp=15;
         uint8_t  coderAttAmp=60;         
         int8_t   cr=10;
         uint8_t  crAtt=64;
@@ -636,7 +609,7 @@ void testSetup()
         uint8_t filtLfo=6;
         uint8_t  adsr=1;
         //sound3(1,WSIN,1740,12,8,60,1,adsr,-3,0,0,0,0,0,-1,3499,1,3499);
-        voiceConfig(1,WSIN,1740,12,1,3499,8,60,adsr,3,1790,1,0);
+        voiceConfig(1,WSIN,1740,12,1,3499,0,60,adsr,3,1790,1,0);
         asetup(adsr,40,28,12,96);
 
         setVoiceFilter(&voices[1],2000,100,255,0,255);
@@ -654,7 +627,7 @@ void testSetup()
         //      lfo5->mux1inp1 coder[1][1]=32563
         //      mux1->mux0inp1
         uint8_t adsr=2;
-        sound3(2,WSIN,2300,70,4,30,1,0,adsr,0,0,1,1,1,2,5,3499,5,3499);
+        sound3(2,WSIN,2300,70,7,30,1,0,adsr,0,0,1,1,1,2,5,3499,5,3499);
         asetup(adsr,127,32,16,127);
     }
 
@@ -665,7 +638,7 @@ void testSetup()
         uint8_t     crAtt=0;
         uint16_t    coderF=1943;
         uint8_t     coderAttF=70;
-        uint8_t     coderA=20;
+        uint8_t     coderA=40;
         uint8_t     coderAttA=0;
         uint8_t     lfo=0;
         uint8_t     lwave=WSIN;
@@ -731,12 +704,12 @@ void testVoiceInit(uint8_t vv,uint8_t w)
         coderFilterResAtt=0;
 
         for(uint8_t w=0;w<BASIC_WAVES_NB;w++){coderWA[w]=0;}
-        coderWA[wave]=2;
+        coderWA[wave]=WAVE_LEVEL_STEPS/3;
 
         for(uint8_t w=0;w<BASIC_WAVES_NB;w++){coderWAA[w]=0;}
         coderWAA[wave]=0;
 
-        coderGA=30;
+        coderGA=1;
         coderGAA=0;
         
         vsetup(voice,coderF,coderFAtt,coderWA[wave],coderWAA[wave],cr,crAtt,wave,coderFilterF,coderFilterFAtt,coderFilterLevAtt,coderFilterRes,coderFilterResAtt,coderGA,coderGAA); 

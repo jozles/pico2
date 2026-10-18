@@ -336,11 +336,11 @@ bool init_objects_inputs(void)
     uint8_t objOutType=3;
     uint8_t lenInpName=objName+objNum+objOutType;
 
-    memset(ctl_input_name,0x00,MAX_INPUTS*IN_OUT_NAME_LEN);
-    memset(ctl_input_srce,0x00,MAX_INPUTS);
-    memset(ctl_input_shft,0x00,MAX_INPUTS);
-    memset(ctl_input_trig,0x00,MAX_INPUTS);
-    memset(ctl_input_tlev,0x00,MAX_INPUTS);
+    memset(ctl_input_name,0x00,sizeof(ctl_input_name));
+    memset(ctl_input_srce,0x00,sizeof(ctl_input_srce));
+    memset(ctl_input_shft,0x00,sizeof(ctl_input_shft));
+    memset(ctl_input_trig,0x00,sizeof(ctl_input_trig));
+    memset(ctl_input_tlev,0x00,sizeof(ctl_input_tlev));
     
     for (uint16_t i=0;i<MAX_INPUTS;i++){
         ctl_input_id_chain[i]=NO_LINK;
@@ -492,15 +492,15 @@ void __not_in_flash_func(connect_input)(uint16_t input_id, uint16_t output_id)  
 
     // link init only (norm/shft/trig/tlev update by menu_mapping)
     // make sure chain ends here
+    printf("\nctl_output_id_chain[%u]=%i ",output_id,ctl_output_id_chain[output_id]);
     ctl_input_id_chain[input_id] = NO_LINK;
 
     int16_t next_id = ctl_output_id_chain[output_id];
-    printf("\nctl_output_id_chain[%u]=%i ",output_id,ctl_output_id_chain[output_id]);
 
     if(next_id==NO_LINK)
         {ctl_output_id_chain[output_id]=input_id;
         ctl_input_srce[input_id]=output_id;
-        printf("->%u\n",input_id);
+        //printf("->%u\n",input_id);
         } // end of update
 
     else {
@@ -509,14 +509,14 @@ void __not_in_flash_func(connect_input)(uint16_t input_id, uint16_t output_id)  
         while (next_id != NO_LINK) {            // end of chain ? 
             prev=next_id;
             next_id=ctl_input_id_chain[prev];
-            printf(" ciic[%i]=%i ",prev,next_id);
+            //printf(" ciic[%i]=%i ",prev,next_id);
             if(next_id>MAX_INPUTS || next_id<NO_LINK){
                 spin_unlock(inputs_id__lock, f);
                 system_error("input_id overflow c",next_id);}
         }        
         ctl_input_id_chain[prev]=input_id;      // update end of chain
         ctl_input_srce[input_id]=output_id;     // update output_id of the last input of the chain
-        printf(" ciic[%i]->%i \n",prev,ctl_input_id_chain[prev]);
+        //printf(" ciic[%i]->%i \n",prev,ctl_input_id_chain[prev]);
     }        
 
     spin_unlock(inputs_id__lock, f);
@@ -587,7 +587,6 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
 
         int16_t tlev;
         int32_t val=0;
-        float fr;
 
         while(id!=NO_LINK){
 
@@ -596,16 +595,15 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
             uint8_t object=ctl_input_object[id];
 
             switch(ctl_input_update_type[id]){
-                case VCE_FREQ:  setVoiceFrequency(&voices[object]);break;                               // 8k max VCES_MAX_FREQ_CODERS ; att 0-255                            
-                case VCE_CRA :  voices[object].cycleR=(uint8_t)(voices[object].coderCycleR+(((valeur>>10)*voices[object].coderCycleRAtt)>>MAX_CTL_ATT_SHIFT));   // base + attenuated input; fillVoiceBuffer_mono masks it with &63
-                                break;
-                case VCE_WSIN:  setVoicesAmpl(object,WSIN,valeur);break;
-                case VCE_WTRI:  setVoicesAmpl(object,WTRI,valeur);break;
-                case VCE_WSAW:  setVoicesAmpl(object,WSAW,valeur);break;
-                case VCE_WSQR:  setVoicesAmpl(object,WSQR,valeur);break;
-                case VCE_WHIT:  setVoicesAmpl(object,WHIT,valeur);break;
-                case VCE_WPNK:  setVoicesAmpl(object,PONK,valeur);break;                                                                                                                
-                case VCE_GENA:  setVoicesAmpl(object,BASIC_WAVES_NB,valeur);break;
+                case VCE_FREQ:  setVoiceFrequency(&voices[object]);break;
+                case VCE_CRA :  setVoiceCycleR(&voices[object]);break;
+                case VCE_WSIN:  setVoiceAmpl(&voices[object],WSIN);break;
+                case VCE_WTRI:  setVoiceAmpl(&voices[object],WTRI);break;
+                case VCE_WSAW:  setVoiceAmpl(&voices[object],WSAW);break;
+                case VCE_WSQR:  setVoiceAmpl(&voices[object],WSQR);break;
+                case VCE_WHIT:  setVoiceAmpl(&voices[object],WHIT);break;
+                case VCE_WPNK:  setVoiceAmpl(&voices[object],PONK);break;
+                case VCE_GENA:  setVoiceAmpl(&voices[object],BASIC_WAVES_NB);break;
                 case VCE_FILT:  setVoiceFilterFrequency(&voices[object]);      // cutoff code = coder + attenuated input (same shift of 6 as before)
                                 break;
                 case VCE_RES :  setVoiceFilterRes(&voices[object]);break;

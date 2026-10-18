@@ -14,7 +14,7 @@
 #include "sound_level_management.h"
 #include "hardware/sync.h"
 
-extern bool tb7;
+//extern bool tb7;
 //static bool filterTraceDone = false;
 volatile bool dumpRequest=false; 
 volatile uint8_t dumpLine=0;
@@ -34,34 +34,33 @@ float octIncr[octIncrNb];
 static_assert((1u << FILTER_RAMP_SHIFT) == SAMPLES_PER_BUFFER, "FILTER_RAMP_SHIFT must be log2(SAMPLES_PER_BUFFER)");
 static int32_t voiceTmp[SAMPLES_PER_BUFFER];                   // mono signal of the voice being rendered, before the filter (voices run one after the other)
 
-#define FILTER_RES_MAX 255                    // maximum resonance command: no damping in the second section
+#define FILTER_RES_MAX 255                      // maximum resonance command: no damping in the second section
 
 
 // -----
 
-extern uint32_t millisCounter;
+extern volatile uint32_t millisCounter;
 
 extern uint16_t amplLevel[];
+extern uint16_t waveLevel[WAVE_LEVEL_STEPS];    // wave amplitude of each step (0..0x7fff), defined in sound_level_management.cpp
 
-volatile uint32_t i2sUnderruns=0;                       // number of times both i2s buffers were free at once: the DMA ran out of data (audible glitch)
+volatile uint32_t i2sUnderruns=0;               // number of times both i2s buffers were free at once: the DMA ran out of data (audible glitch)
 
 // current lfo values (lfoHandler triger'd by pwmIrqHandler)
-float       lfosFrequency[MAX_LFO];                   // frequency
-uint16_t    lfosCodersFreq[MAX_LFO];                  // frequency coder value
-uint16_t    lfosMaxCoderFreq[MAX_LFO];                // frequency coder max value
-uint16_t    lfosCodersFreqAtt[MAX_LFO];               // frequency input attenuator value
+float       lfosFrequency[MAX_LFO];             // frequency
+uint16_t    lfosCodersFreq[MAX_LFO];            // frequency coder value
+uint16_t    lfosMaxCoderFreq[MAX_LFO];          // frequency coder max value
+uint16_t    lfosCodersFreqAtt[MAX_LFO];         // frequency input attenuator value
 
-//uint16_t    lfosStepInt[MAX_LFO];                     // partie entière du step lfo
-//uint32_t    lfosStepFra[MAX_LFO];                     // partie fractionnaire du step lfo
 volatile uint32_t lfosPhaseStep[MAX_LFO];       // Q16.16
 uint32_t          lfoPhase[MAX_LFO];            // Q16.16, replaces currLfoEch's fraction
 
 uint16_t    currLfoEch[MAX_LFO];
 //uint32_t    currLfoEchFra[MAX_LFO];
-int16_t     lfosOutputsValues[MAX_LFO][MAX_OUTPUTS_PER_OBJ];  // inutilisé ??
-uint32_t    lfoTime=1;                                // synchrone avec le handler adsr 
+//int16_t     lfosOutputsValues[MAX_LFO][MAX_OUTPUTS_PER_OBJ];    // inutilisé ??
+uint32_t    lfoTime=1;                                          // synchrone avec le handler adsr 
 uint32_t    lfoTimingInterval=1000/LFOS_SAMPLE_RATE;  
-int32_t     lfoScopeBuffer[MAX_LFO*OSC_SCOPE_BUFFER_LEN];   // n° echantillons+rc_table 
+//int32_t     lfoScopeBuffer[MAX_LFO*OSC_SCOPE_BUFFER_LEN];       // n° echantillons+rc_table 
 int32_t     lfoScopeBufReal[MAX_LFO*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB];  // real values
 uint16_t    lfoScopeBufPtr=0;
 
@@ -84,7 +83,7 @@ int32_t     voicesScopeDataBuffer[MAX_VOICES*SAMPLES_PER_BUFFER];  // all voices
 // i2s
 
 Voice voices[MAX_VOICES];
-int32_t w0[MAX_VOICES][BASIC_WAVES_NB];
+//int32_t w0[MAX_VOICES][BASIC_WAVES_NB];
 
 extern int i2s_dma_chan0;
 extern int i2s_dma_chan1;
@@ -197,43 +196,24 @@ void sound_tables_init()
 
 // **********************  voices ************************
 
-void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)    // cga = genAmpl level
+void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)    // cga = genAmpl coder
 {
     printf("%u voices init\n",MAX_VOICES);
     for(uint8_t v=0;v<MAX_VOICES;v++){
-        voices[v].coderCycleR=MAXCODER_RC/2;
-        voices[v].cycleR=voices[v].coderCycleR;
-        voices[v].coderCycleRAtt=FULL_ATTENUATION_VALUE;
+        setVoiceCycleRCoders(&voices[v],MAXCODER_RC/2,FULL_ATTENUATION_VALUE);
+        setVoiceFreqCoders(&voices[v],coderF,FULL_ATTENUATION_VALUE);
+        setVoiceAmplCoders(&voices[v],BASIC_WAVES_NB,cga,FULL_ATTENUATION_VALUE);       // voice gain
 
-        voices[v].genAmpl=(int16_t)amplLevel[cga];
-        voices[v].coderGenAmpl=cga;
+        for(uint8_t w=0;w<BASIC_WAVES_NB;w++){
+            setVoiceAmplCoders(&voices[v],w,0,FULL_ATTENUATION_VALUE);                  // every wave off
+        }
 
-        setVoiceFrCoders(&voices[v],coderF,FULL_ATTENUATION_VALUE);
-        setVoiceFrequency(&voices[v]);
-
-        voices[v].sampleNbToFill=SAMPLES_PER_BUFFER;    
-        voices[v].currentSample=0;
         voices[v].phase=0;
-
-        voices[v].noisePhase = 0;           // Q16.16
-        voices[v].noiseStep  = 60817408;    // Q16.16
+        voices[v].noiseSeed=0;             // seed of the noise generator: 0 = initialised by the first buffer
+        voices[v].sqrTh=1024;
 
         printf("voice %u: id=%d type=%d\n", v, voices[v].voice_ctl_input_id[VFIL], ctl_input_update_type[voices[v].voice_ctl_input_id[VFIL]]);
         filtersInit(v);
-
-        for(uint8_t i=0;i<VCES_OUTPUTS_NB;i++){
-            voices[v].coderWaveAmpl[i]=0;
-            voices[v].coderWaveAmplAtt[i]=0;
-            voices[v].basicWaveAmpl[i]=0;
-            voices[v].waveAmplChge[i]=false;
-            //voices[v].coderSw[i]=0;
-        }
-
-        for(uint8_t w=0;w<BASIC_WAVES_NB;w++){  // init previous values for every waves
-          w0[v][w]=-1;
-        }
-
-        voices[v].sqrTh = 1024;
     }
 }
 
@@ -260,8 +240,8 @@ void dumpVoices(Voice* v, uint8_t line)                      // one voice on 3 l
 
   // amplitude path of every wave: coder/max, base level of the coder, attenuator, value of its amplitude input (slot VSPW + wave), current>target
   for(uint8_t wa=0;wa<BASIC_WAVES_NB;wa++){
-      const uint16_t cc=(p->coderWaveAmpl[wa]<32)?p->coderWaveAmpl[wa]:31;
-      printf(" %s:%d/%d base%u att%d in%d %d>%d\n",waveNames[wa],p->coderWaveAmpl[wa],VCES_MAX_AMPL_CODERS,amplLevel[cc],p->coderWaveAmplAtt[wa],
+      const uint16_t cc=(p->coderWaveAmpl[wa]<WAVE_LEVEL_STEPS)?p->coderWaveAmpl[wa]:(WAVE_LEVEL_STEPS-1);
+      printf(" %s:%d/%d base%u att%d in%d %d>%d\n",waveNames[wa],p->coderWaveAmpl[wa],WAVE_LEVEL_STEPS,waveLevel[cc],p->coderWaveAmplAtt[wa],
           ctl_input_val[p->voice_ctl_input_id[VSPW+wa]],p->basicWaveAmpl[wa],p->newBasicWaveAmpl[wa]);
       fillVoices();
   }
@@ -318,27 +298,40 @@ void __not_in_flash_func(setVoiceSteps)(float freq,Voice* v){
     v->phaseStep=(uint32_t)(k*(float)(1UL<<PHASE_SHIFT)+0.5f);      // k * 2^21 < 2^32, one 32-bit store 
 }
 
-void __not_in_flash_func(setVoiceFrCoders)(Voice* v, uint16_t coderFreq, uint16_t coderAtt)  // coders storage
-{
-    v->coderFreq = coderFreq;
-    v->coderFreqAtt = coderAtt;
-}    
+// ---- setVoiceXxxCoders(Voice*, coders...): load the coders, then compute the internal values (same model as setVoiceFilter)
+// ---- setVoiceXxx(Voice*)                 : compute only, from the stored coders and the stored value of the input (called by apply_input)
 
-void __not_in_flash_func(setVoiceFrequency)(Voice* v)  // recompute the frequency with the stored input value
+void __not_in_flash_func(setVoiceFrequency)(Voice* v)                                    // frequency -> phase step
 {
     int16_t id = v->voice_ctl_input_id[VFRQ];
-    float f=calcFreq((uint16_t)ctlCombine(v->coderFreq,v->coderFreqAtt,ctl_input_val[id],6,0,FREQ_CODE_MAX));
-    setVoiceSteps(f,v);                
+    float f = calcFreq((uint16_t)ctlCombine(v->coderFreq, v->coderFreqAtt, ctl_input_val[id], 6, 0, FREQ_CODE_MAX));
+    setVoiceSteps(f, v);
 }
 
-void __not_in_flash_func(setVoiceCycleR)(Voice* v, uint8_t coderCycleR, int16_t coderCycleRAtt)
+void __not_in_flash_func(setVoiceFreqCoders)(Voice* v, uint16_t coderFreq, uint16_t coderFreqAtt)
 {
+    const uint32_t irq = save_and_disable_interrupts();                                   // the interrupt that updates the inputs computes the same values: no interleaving
+    v->coderFreq    = coderFreq;
+    v->coderFreqAtt = coderFreqAtt;
+    setVoiceFrequency(v);
+    restore_interrupts(irq);
+}
+
+void __not_in_flash_func(setVoiceCycleR)(Voice* v)                                       // cycle ratio -> table number
+{
+    int16_t id = v->voice_ctl_input_id[VCR_];
+    v->cycleR = (uint8_t)ctlCombine(v->coderCycleR, v->coderCycleRAtt, ctl_input_val[id], 10, INT32_MIN, INT32_MAX);   // periodic table: fillVoiceBuffer_mono reads cycleR&63, and 256 is a multiple of 64
+}
+
+void __not_in_flash_func(setVoiceCycleRCoders)(Voice* v, uint8_t coderCycleR, int16_t coderCycleRAtt)
+{
+    const uint32_t irq = save_and_disable_interrupts();
     v->coderCycleR    = coderCycleR;
     v->coderCycleRAtt = coderCycleRAtt;
-
-    int16_t id = v->voice_ctl_input_id[VCR_];
-    update_inputs(id, ctl_input_val[id]);                // recompute cycleR from the stored input value
+    setVoiceCycleR(v);
+    restore_interrupts(irq);
 }
+
 
 // *************************** filters ****************************
 
@@ -504,14 +497,14 @@ void lfosInit(){
         lfosPhaseStep[l]=0; 
         lfoPhase[l]=0;
         
-        for(uint8_t v=0;v<MAX_OUTPUTS_PER_OBJ;v++){lfosOutputsValues[l][v]=0;}
+        //for(uint8_t v=0;v<MAX_OUTPUTS_PER_OBJ;v++){lfosOutputsValues[l][v]=0;}
 
         setLfosSteps(lfosFrequency[l],l);
         setLfosCycleR(l, MAXCODER_RC/2, FULL_ATTENUATION_VALUE);        
 
         lfoTime=0;
     }
-    memset(lfoScopeBuffer,0x0000,sizeof(lfoScopeBuffer));
+    //memset(lfoScopeBuffer,0x0000,sizeof(lfoScopeBuffer));
 
 }
 
@@ -555,12 +548,12 @@ void __not_in_flash_func(lfosHandler)()
         int16_t c0=sign*w[LSIN];
         int16_t out_id;
         out_id=ctl_output_id_chain[lfo_ctl_output_id[l][LSIN]];
-        lfosOutputsValues[l][LSIN]=c0;
+        //lfosOutputsValues[l][LSIN]=c0;
         if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,c0);}
 
         int16_t c1=sign*w[LTRI];
         out_id=ctl_output_id_chain[lfo_ctl_output_id[l][LTRI]];
-        lfosOutputsValues[l][LTRI]=c1;
+        //lfosOutputsValues[l][LTRI]=c1;
         if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,c1);}
 
         int16_t tri=base32[RC_N_WAVES*ce+LTRI];
@@ -570,12 +563,12 @@ void __not_in_flash_func(lfosHandler)()
         c2=sign*c2;
         if(rc>=32){c2=-c2;}
         out_id=ctl_output_id_chain[lfo_ctl_output_id[l][LSAW]];
-        lfosOutputsValues[l][LSAW]=c2;
+        //lfosOutputsValues[l][LSAW]=c2;
         if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,c2);}
 
         int16_t c3=(currLfoEch[l] & (BASIC_WAVE_TABLE_LEN>>1)) ? -0x7fff : 0x7fff;
         out_id=ctl_output_id_chain[lfo_ctl_output_id[l][LSQR]];
-        lfosOutputsValues[l][LSQR]=c3;
+        //lfosOutputsValues[l][LSQR]=c3;
         if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,c3);}
         
         uint32_t bufScopeOffset=l*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB + lfoScopeBufPtr*BASIC_WAVES_NB;
@@ -604,7 +597,7 @@ struct OscBlock {
     int32_t*       out;                 // voiceTmp + sb
     const int16_t* rcCurr;              // rc table of the voice
     bool           reverse;             // rc > 32
-    int32_t        sinAcc, sinInc;      // amplitude ramps: current value << RAMP_SHIFT, and step per sample
+    int32_t        sinAcc, sinInc;      // amplitude ramps: current value Q16, and step per sample
     int32_t        triAcc, triInc;
     int32_t        sawAcc, sawInc;
     uint32_t       sqrTh;               // width of the square pulse, in table units (0..2048)
@@ -720,7 +713,7 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
     const uint32_t phaseStep = v->phaseStep;                              // read once for the whole buffer
 
 // init noise: one xorshift32 generator per voice (its state must never be 0); v->noisePhase holds the state
-    uint32_t nSeed = v->noisePhase;
+    uint32_t nSeed = v->noiseSeed;
     if (nSeed == 0) { nSeed = 0x9E3779B9u + 0x7F4A7C15u * (uint32_t)(voiceNum + 1); }
     int32_t  pink_state_loc = pink_state;
 
@@ -741,7 +734,7 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
     }
     int32_t sqrTh = v->sqrTh;                                             // current width: it glides towards sqrThTarget
 
-// waves amplitudes: the current values are stored in basicWaveAmpl[], the targets are written in newBasicWaveAmpl[] by setVoicesAmpl()
+// waves amplitudes: the current values are stored in basicWaveAmpl[], the targets are written in newBasicWaveAmpl[] by setVoiceAmpl()
     volatile int16_t* waveAmplSin    = &v->basicWaveAmpl[WSIN];
     volatile int16_t* newWaveAmplSin = &v->newBasicWaveAmpl[WSIN];
     volatile int16_t* waveAmplTri    = &v->basicWaveAmpl[WTRI];
@@ -884,7 +877,7 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
     *waveAmplPnk = pnkEnd;
 
     v->sqrTh      = sqrTh;
-    v->noisePhase = nSeed;
+    v->noiseSeed  = nSeed;
     pink_state    = pink_state_loc;
 
     gpio_put(TST_PIN,0);
@@ -897,7 +890,7 @@ volatile uint32_t dbgClickRatio = 0;        // largest (|second difference| / pe
 volatile uint32_t dbgClickBufs  = 0;        // number of buffers examined since the last dump
 static int32_t    dbgPrev1 = 0, dbgPrev2 = 0;
 
-static void clickCheck(const int32_t* buf)  // left channel of an interleaved stereo buffer
+/*static void clickCheck(const int32_t* buf)  // left channel of an interleaved stereo buffer
 {
     int32_t  p1 = dbgPrev1, p2 = dbgPrev2;
     uint32_t maxD2 = 0, peak = 1;
@@ -914,7 +907,7 @@ static void clickCheck(const int32_t* buf)  // left channel of an interleaved st
     const uint32_t ratio = (uint32_t)(((uint64_t)maxD2 * 10000u) / peak);
     if (ratio > dbgClickRatio) dbgClickRatio = ratio;
     dbgClickBufs++;
-}
+}*/
 
 void __not_in_flash_func(fillVoiceBuffer)(int32_t* vBuffer, Voice* voices, uint8_t bufNum)
 {
@@ -923,7 +916,7 @@ void __not_in_flash_func(fillVoiceBuffer)(int32_t* vBuffer, Voice* voices, uint8
     for(uint8_t v=0;v<MAX_VOICES;v++){
       fillVoiceBuffer_mono(vBuffer, &voices[v],v);
     }
-    clickCheck(vBuffer);                           // debug: remove when done
+    //clickCheck(vBuffer);                           // debug: remove when done
     i2s_buf_free[bufNum] = false;
 }
 

@@ -2,19 +2,20 @@
 #include <string.h>
 #include <stdint.h>
 #include "pico/stdlib.h"
-#include "const.h"
-#include "coder.h"
-#include "util.h"
-#include "std_utils.h"
 #include "hardware/pio.h"
 #include "hardware/dma.h"
 #include "hardware/pwm.h"
 #include "hardware/watchdog.h"
+#include "const.h"
+#include "coder.h"
+#include "util.h"
+#include "std_utils.h"
 #include "bb_i2s.h"
 #include "frequences.h"
 #include "leds.h"
 #include "st7789.h"
 #include "menus.h"
+#include "sound_level_management.h"
 
 const char* version=VERSION;
 uint8_t currVoice=0;
@@ -22,9 +23,12 @@ uint8_t currVoice=0;
 extern volatile bool codersSw[];                   // coder it handler scans all physical coders
 extern volatile bool codersTB[CODER_NB];
 
+// RULE: the coder interrupt reads and writes the CODER_NB physical coders whatever the menu displayed:
+// every table given to coderSetup() (current values and maxima) must have CODER_NB elements ; the maximum of an unused coder is 0
+
 #define MENU0_CODER_NB 1
-volatile int16_t menu0Coders[]={0};                 // [0] curr input nb
-uint16_t menu0MaxCoders[]={MENU0_NB-1};
+volatile int16_t menu0Coders[CODER_NB]={0};         // [0] curr input nb
+uint16_t menu0MaxCoders[CODER_NB]={MENU0_NB-1};
 
 extern const char menu0_names[][MENU_NAME_LEN];
 
@@ -36,40 +40,39 @@ extern const char menu0_names[][MENU_NAME_LEN];
 // voir les commentaires de coders_for_menu
 
 #define VCE_VAR_F_NB 6                                // voices frequencies menu
-volatile int16_t menuVcesCodersF[VCE_VAR_F_NB+1];     // [0] curr input nb ; [1] curr coder value for freq ; [2] curr coder value for rc ; [3] curr coder value for genAmpl
-uint16_t menuMaxVcesCodersF[]={MAX_VOICES-1,VCES_MAX_FREQ_CODERS,MAXCODER_RC,MAX_CTL_ATT,MAX_CTL_ATT,MAX_16B_LINEAR_VALUE-1};
+volatile int16_t menuVcesCodersF[CODER_NB];           // [0] curr input nb ; [1] freq ; [2] rc ; [3] freq att ; [4] rc att ; [6] gain coder
+uint16_t menuMaxVcesCodersF[CODER_NB]={MAX_VOICES-1,VCES_MAX_FREQ_CODERS,MAXCODER_RC,MAX_CTL_ATT,MAX_CTL_ATT,0,MAX_16B_LINEAR_VALUE-1,0};
 uint16_t* vcesVarF[CODER_NB];                         // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
 
-#define VCE_VAR_M_NB 8                                // voices ampl menu
-volatile int16_t menuVcesCodersM[VCE_VAR_M_NB+1];     // [0] curr input nb ; [1] curr coder value for sin ; [2] curr coder value for tri etc (saw,sqr,wh,pnk)
-uint16_t menuMaxVcesCodersM[]={MAX_VOICES-1,MAX_16B_LINEAR_VALUE-1,MAX_16B_LINEAR_VALUE-1,MAX_16B_LINEAR_VALUE-1,MAX_16B_LINEAR_VALUE-1,MAX_16B_LINEAR_VALUE-1,MAX_16B_LINEAR_VALUE-1,MAX_16B_LINEAR_VALUE-1};
+#define VCE_VAR_M_NB 7                                // voices ampl menu : 6 waves + gain
+volatile int16_t menuVcesCodersM[CODER_NB];           // [0] curr input nb ; [1] sin ; [2] tri etc (saw,sqr,wh,pnk) ; [7] gen
+uint16_t menuMaxVcesCodersM[CODER_NB]={MAX_VOICES-1,WAVE_LEVEL_STEPS-1,WAVE_LEVEL_STEPS-1,WAVE_LEVEL_STEPS-1,WAVE_LEVEL_STEPS-1,WAVE_LEVEL_STEPS-1,WAVE_LEVEL_STEPS-1,MAX_16B_LINEAR_VALUE-1};
 uint16_t* vcesVarM[CODER_NB];                         // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
 
-#define VCE_VAR_T_NB 8                                // voices attenuators menu
-volatile int16_t menuVcesCodersT[VCE_VAR_T_NB+1];     // [0] curr input nb ; [1] curr coder value for sin att ; [2] curr coder value for tri att etc (saw,sqr,wh,pnk)
-uint16_t menuMaxVcesCodersT[]={MAX_VOICES-1,MAX_CTL_ATT,MAX_CTL_ATT,MAX_CTL_ATT,MAX_CTL_ATT,MAX_CTL_ATT,MAX_CTL_ATT,MAX_CTL_ATT};
+#define VCE_VAR_T_NB 7                                // voices attenuators menu
+volatile int16_t menuVcesCodersT[CODER_NB];           // [0] curr input nb ; [1] sin att ; [2] tri att etc (saw,sqr,wh,pnk)
+uint16_t menuMaxVcesCodersT[CODER_NB]={MAX_VOICES-1,MAX_CTL_ATT,MAX_CTL_ATT,MAX_CTL_ATT,MAX_CTL_ATT,MAX_CTL_ATT,MAX_CTL_ATT,MAX_CTL_ATT};
 uint16_t* vcesVarT[CODER_NB];                         // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
 
 #define VCE_VAR_FI_NB 5                                // voices filter menu
-volatile int16_t menuVcesCodersFi[VCE_VAR_FI_NB+1];    // [0] curr input nb ; [1] curr coder value for freq ; [2] curr coder value for freq att ; [3] inp att ; [4] coder for res ; [5] coder for res att
-uint16_t menuMaxVcesCodersFi[]={MAX_VOICES-1,VCES_MAX_FREQ_CODERS,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1};
+volatile int16_t menuVcesCodersFi[CODER_NB];           // [0] curr input nb ; [1] freq ; [2] freq att ; [3] inp att ; [4] res ; [5] res att
+uint16_t menuMaxVcesCodersFi[CODER_NB]={MAX_VOICES-1,VCES_MAX_FREQ_CODERS,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1,0,0};
 uint16_t* vcesVarFi[CODER_NB];                         // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
 
 #define LFO_VAR_NB 5
-volatile int16_t menuLfosCoders[LFO_VAR_NB+1];         // [0] curr input nb ; [1] curr coder value freq ; [2] curr coder value cr ; [3] att value freq ; [4] att value cr
-uint16_t menuMaxLfosCoders[]={MAX_LFO-1,LFOS_MAX_FREQ_CODERS,MAXCODER_RC,MAX_CTL_ATT,MAX_CTL_ATT};
+volatile int16_t menuLfosCoders[CODER_NB];             // [0] curr input nb ; [1] freq ; [2] cr ; [3] att freq ; [4] att cr
+uint16_t menuMaxLfosCoders[CODER_NB]={MAX_LFO-1,LFOS_MAX_FREQ_CODERS,MAXCODER_RC,MAX_CTL_ATT,MAX_CTL_ATT,0,0,0};
 uint16_t* lfosVar[CODER_NB];                           // inits dans menu.cpp ; les éléments inutilisés sont nullptr                
 
 #define ADSR_VAR_NB 6
-volatile int16_t menuAdsrCoders[ADSR_VAR_NB+1];     // [0] curr input nb ; [1] curr coder value for Att ; [2] curr coder value for Dec ; [3] curr coder value for Sus ; [4] curr coder value for Rel ; [5] curr coder value for Lev
-uint16_t menuMaxAdsrCoders[]={MAX_ADSR-1,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_LEVEL_CODERS};
+volatile int16_t menuAdsrCoders[CODER_NB];          // [0] curr input nb ; [1] Att ; [2] Dec ; [3] Sus ; [4] Rel ; [5] Lev
+uint16_t menuMaxAdsrCoders[CODER_NB]={MAX_ADSR-1,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_LEVEL_CODERS,0,0};
 uint16_t* adsrVar[CODER_NB];                        // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
 
 #define LFM_VAR_NB CODER_NB //(MAX_INPUTS_PER_OBJ)*2  !!!! le plus petit entre le nombre de coders et le nombre de variables             // 2 coders/input
-volatile int16_t menuLfmCoders[CODER_NB];       // [0] curr input nb ; [1] curr coder value for inp0 ; [2] curr coder value for inp0 att ; [3] curr coder value for inp1 ; [4] curr coder value for inp1 att
+volatile int16_t menuLfmCoders[CODER_NB];       // [0] curr input nb ; [1] inp0 ; [2] inp0 att ; [3] inp1 ; [4] inp1 att
 uint16_t menuMaxLfmCoders[]={MAX_LFM-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1};
 uint16_t* lfmVar[CODER_NB];                         // inits dans menu.cpp ; les éléments inutilisés sont nullptr
-
 
 int main() {
 
@@ -91,10 +94,12 @@ if (watchdog_caused_reboot()) {
 
     testSetup();
 
+    testVoiceInit(3,0);
+
     menus_init();
     uint8_t menu=1;
 
-    testVoiceInit(3,0);
+   
 
     while(1){
 

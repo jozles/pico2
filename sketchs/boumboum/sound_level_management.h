@@ -1,10 +1,15 @@
 #ifndef _SND_LEV_H_
 #define _SND_LEV_H_
 
-//uint16_t getAmpl(Voice* v,uint8_t wav);
+
+void ampGlideTick();                                // glide of the coder levels: call it from an interrupt running at 1 kHz or faster
+
 void fillAmplIncr();
-void setVoicesAmpl(uint8_t v,uint8_t item,int16_t valeur);
-void setVoicesAmpl(uint8_t v,uint8_t item);
+void setVoiceAmplCoders(Voice* v, uint8_t item, uint16_t coder, uint16_t coderAtt);   // load the coders of a wave (item 0..5) or of the voice gain (item 6), then compute the level
+void setVoiceAmpl(Voice* v, uint8_t item);                                            // compute only, from the stored coders and the stored value of the input
+uint16_t voiceAmplCoder(const Voice* v, uint8_t item);                                // coder of a wave or of the voice gain
+uint16_t voiceAmplAtt(const Voice* v, uint8_t item); 
+void ampGlideTick();                                                                  // glide of the coder levels: call it from an interrupt running at 1 kHz or faster
 
 
 
