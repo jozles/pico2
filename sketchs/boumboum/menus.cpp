@@ -32,6 +32,9 @@ extern volatile uint32_t millisCounter;
 
 extern volatile uint32_t i2sUnderruns;
 
+extern volatile bool dumpRequest; 
+extern volatile uint8_t dumpLine;
+
 bool tb7=false;
 
 // mapping
@@ -666,7 +669,7 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                     voices[line].coderWaveAmpl[coder-1]=cc;
                     setVoicesAmpl(line,coder-1);                               // !!! coders 0-6 (6=genAmpl)
                     restore_interrupts(irq);
-                    dumpVoices(voices,line);
+                    dumpLine=line; dumpRequest=true;
                 }
                               
                 sprintf(buf+2,"%u %u %u %u %u %u %u ",voices[line].coderWaveAmpl[WSIN],voices[line].coderWaveAmpl[WTRI],voices[line].coderWaveAmpl[WSAW],
@@ -805,7 +808,9 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
 
     while(1){
 
-            testVoice();
+            //testVoice();
+
+            if(dumpRequest){dumpRequest=false; dumpVoices(voices,dumpLine);}
             
             fillVoices();        
             //ws_show_3(30);

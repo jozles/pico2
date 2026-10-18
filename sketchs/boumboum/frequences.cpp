@@ -16,6 +16,8 @@
 
 extern bool tb7;
 //static bool filterTraceDone = false;
+volatile bool dumpRequest=false; 
+volatile uint8_t dumpLine=0;
 
 const uint8_t octNb = OCTNB;
 float baseFreq = FREQ0;
@@ -42,7 +44,6 @@ extern uint32_t millisCounter;
 extern uint16_t amplLevel[];
 
 volatile uint32_t i2sUnderruns=0;                       // number of times both i2s buffers were free at once: the DMA ran out of data (audible glitch)
-
 
 // current lfo values (lfoHandler triger'd by pwmIrqHandler)
 float       lfosFrequency[MAX_LFO];                   // frequency
@@ -238,29 +239,39 @@ void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)    // cga = genAmpl l
 
 void voicesInit(Voice* voices,float freq,uint8_t cga){
    voicesInit(voices,calcCoderFreq(freq),cga);
-} 
+}
 
-void dumpVoices(Voice* v,uint8_t n)
+void dumpVoices(Voice* v, uint8_t line)                      // one voice on 3 lines + 6 wave lines; fillVoices() is called after each line: a long printf must not starve the i2s buffers
 {
-  static const char* waveNames[BASIC_WAVES_NB]={"sin","tri","saw","sqr","whi","pnk"};      // same order as WSIN..PONK
-  //for(uint8_t n=0;n<MAX_VOICES;n++){
-    // line 1: oscillator, then every wave as  coder/max current>target
-    printf("V%d f:%d/%d %.3fHz step:%lu.%lu rc:%d(c%d a%d) sqrTh:%ld seed:%08lx |",n,
-        v[n].coderFreq,VCES_MAX_FREQ_CODERS,v[n].frequency,
-        (unsigned long)(v[n].phaseStep>>PHASE_SHIFT),(unsigned long)(v[n].phaseStep&((1u<<PHASE_SHIFT)-1)),
-        v[n].cycleR,v[n].coderCycleR,v[n].coderCycleRAtt,(long)v[n].sqrTh,(unsigned long)v[n].noisePhase);
-    for(uint8_t wa=0;wa<BASIC_WAVES_NB;wa++){
-        printf(" %s:%d/%d %d>%d",waveNames[wa],v[n].coderWaveAmpl[wa],VCES_MAX_AMPL_CODERS,v[n].basicWaveAmpl[wa],v[n].newBasicWaveAmpl[wa]);
-    }
-    printf("\n");
-    // line 2: voice gain and filter
-    printf("   gen:%d/%d=%d | filter code:%d (c%d a%d) %.3fHz lev:%d res:%d (c%d a%d) z:%ld %ld %ld %ld\n",
-        v[n].coderGenAmpl,VCES_MAX_AMPL_CODERS,v[n].genAmpl,
-        v[n].filterCode,v[n].coderFilterFreq,v[n].coderFilterFreqAtt,v[n].filterFrequency,
-        v[n].coderFilterLevAtt,v[n].filterRes,v[n].coderFilterRes,v[n].coderFilterResAtt,
-        (long)v[n].filter.z[0],(long)v[n].filter.z[1],(long)v[n].filter.z[2],(long)v[n].filter.z[3]);
-    if(!i2sUnderruns){printf("i2s underruns: %lu\n",(unsigned long)i2sUnderruns);}
-  //}
+  extern volatile uint32_t dbgClickRatio, dbgClickBufs, i2sUnderruns;
+  static const char*   waveNames[BASIC_WAVES_NB]={"sin","tri","saw","sqr","whi","pnk"};          // same order as WSIN..PONK
+  if(line>=MAX_VOICES){return;}
+  const Voice* p=&v[line];
+  const float  f=p->frequency, cf=p->filterFrequency;                                              // frequencies are printed without %f (no float printf: it needs a lot of stack)
+  const int    fi=(int)f,  ff=(int)((f-(float)fi)*1000.0f+0.5f);
+  const int    ci=(int)cf, cfr=(int)((cf-(float)ci)*1000.0f+0.5f);
+
+  printf("V%d VSPW=%d ids: [0]=%d [VSPW]=%d  f:%d/%d %d.%03dHz step:%lu.%lu rc:%d(c%d a%d) sqrTh:%ld gen:%d/%d=%d\n",line,
+      (int)VSPW,p->voice_ctl_input_id[0],p->voice_ctl_input_id[VSPW],
+      p->coderFreq,VCES_MAX_FREQ_CODERS,fi,ff,
+      (unsigned long)(p->phaseStep>>PHASE_SHIFT),(unsigned long)(p->phaseStep&((1u<<PHASE_SHIFT)-1)),
+      p->cycleR,p->coderCycleR,p->coderCycleRAtt,(long)p->sqrTh,p->coderGenAmpl,VCES_MAX_AMPL_CODERS,p->genAmpl);
+  fillVoices();
+
+  // amplitude path of every wave: coder/max, base level of the coder, attenuator, value of its amplitude input (slot VSPW + wave), current>target
+  for(uint8_t wa=0;wa<BASIC_WAVES_NB;wa++){
+      const uint16_t cc=(p->coderWaveAmpl[wa]<32)?p->coderWaveAmpl[wa]:31;
+      printf(" %s:%d/%d base%u att%d in%d %d>%d\n",waveNames[wa],p->coderWaveAmpl[wa],VCES_MAX_AMPL_CODERS,amplLevel[cc],p->coderWaveAmplAtt[wa],
+          ctl_input_val[p->voice_ctl_input_id[VSPW+wa]],p->basicWaveAmpl[wa],p->newBasicWaveAmpl[wa]);
+      fillVoices();
+  }
+
+  printf("   filter code:%d (c%d a%d) %d.%03dHz lev:%d res:%d (c%d a%d) z:%ld %ld %ld %ld\n",
+      p->filterCode,p->coderFilterFreq,p->coderFilterFreqAtt,ci,cfr,p->coderFilterLevAtt,p->filterRes,p->coderFilterRes,p->coderFilterResAtt,
+      (long)p->filter.z[0],(long)p->filter.z[1],(long)p->filter.z[2],(long)p->filter.z[3]);
+  fillVoices();
+  printf("click: ratio max %lu (x1e-4) over %lu buffers ; i2s underruns: %lu\n",(unsigned long)dbgClickRatio,(unsigned long)dbgClickBufs,(unsigned long)i2sUnderruns);
+  dbgClickRatio=0; dbgClickBufs=0;                                                                 // peak hold: restarts after each dump
 }
 
 uint16_t __not_in_flash_func(calcCoderFreq)(float freq) // from freq value to coder value
@@ -634,15 +645,15 @@ static inline __attribute__((always_inline)) void oscBlock(OscBlock& b)
         const int16_t* w = rcCurr + RC_N_WAVES * ce_idx;               // rc_table values ptr
 
         sinAcc += sinInc;
-        int32_t pre = w[WSIN] * (sinAcc >> RAMP_SHIFT);
+        int32_t pre = smmulr(w[WSIN] * 65536, sinAcc);                 // wave * amplitude; the ramped amplitude keeps 16 fractional bits
 
         if (kTri) {
             triAcc += triInc;
-            pre += w[WTRI] * (triAcc >> RAMP_SHIFT);
+            pre += smmulr(w[WTRI] * 65536, triAcc);
         }
         if (kSaw) {
             sawAcc += sawInc;
-            pre += rc_tables[0][ce][WTRI] * (sawAcc >> RAMP_SHIFT);    // sawtooth = triangle of table 0, the same for every rc
+            pre += smmulr(rc_tables[0][ce][WTRI] * 65536, sawAcc);     // sawtooth = triangle of table 0, the same for every rc
         }
 
         pre *= sign;
@@ -688,12 +699,14 @@ static inline __attribute__((always_inline)) void oscMask(OscBlock& b)
     }
 
 #define SUBBLOCKS       (SAMPLES_PER_BUFFER / RAMP_LEN)      // sub-blocks per buffer (4)
+#define SUBBLOCKS_SHIFT 2                                       // log2(SUBBLOCKS)
+static_assert((1 << SUBBLOCKS_SHIFT) == SUBBLOCKS, "SUBBLOCKS_SHIFT must be log2(SUBBLOCKS)");
 #define GEN_RAMP_SHIFT  9                                       // the voice gain ramps over the whole buffer: 2^9 = 512 samples
 static_assert((1u << GEN_RAMP_SHIFT) == SAMPLES_PER_BUFFER, "GEN_RAMP_SHIFT must be log2(SAMPLES_PER_BUFFER)");
 
 static int32_t genLast[MAX_VOICES];                             // voice gain reached at the end of the previous buffer
 static int32_t levLast[MAX_VOICES];                             // filter input attenuator reached at the end of the previous buffer
-static bool    voiceStarted[MAX_VOICES];                        // false until the first buffer of the voice: that buffer starts at the targets, without fade-in
+static bool    voiceStarted[MAX_VOICES];                        // false until the first buffer of the voice
 
 void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* v,uint8_t voiceNum)
 {
@@ -757,30 +770,31 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
 // oscillator: waves and noise into voiceTmp, one sub-block at a time
 // every amplitude moves from its value at the start of the buffer to its target during the buffer (11.6 ms, no sudden step):
 // sin, tri and saw by a per-sample ramp inside each sub-block, square and noises by 4 small steps
-    const bool    first    = !voiceStarted[voiceNum];                     // first buffer of this voice: gain and filter level start at their targets, waves rise during the first sub-block
+    const bool    first    = !voiceStarted[voiceNum];                                                  // first buffer of this voice: gain and filter level start at their targets, waves rise during the first sub-block
     const int32_t sinEnd   = *newWaveAmplSin, triEnd   = *newWaveAmplTri, sawEnd   = *newWaveAmplSaw;      // targets, read once per buffer
     const int32_t sqrEnd   = *newWaveAmplSqr, whiEnd   = *newWaveAmplWhi, pnkEnd   = *newWaveAmplPnk;
     const int32_t sinStart = first ? 0 : *waveAmplSin,  triStart = first ? 0 : *waveAmplTri,  sawStart = first ? 0 : *waveAmplSaw;   // first buffer: waves rise from 0 during the first sub-block
     const int32_t sqrStart = first ? sqrEnd : *waveAmplSqr,  whiStart = first ? whiEnd : *waveAmplWhi,  pnkStart = first ? pnkEnd : *waveAmplPnk;
-    int32_t sinAmpl = sinStart, triAmpl = triStart, sawAmpl = sawStart;                                    // running amplitudes of the ramped waves
+    int32_t sinAmpl = sinStart << 16, triAmpl = triStart << 16, sawAmpl = sawStart << 16;                  // running amplitudes of the ramped waves, Q16
 
     for (uint32_t sb = 0; sb < SAMPLES_PER_BUFFER; sb += RAMP_LEN)        // one pass per sub-block
     {
         const int32_t jb = (int32_t)(sb >> RAMP_SHIFT) + 1;               // sub-block number, 1..SUBBLOCKS
-        const int32_t sinNext = first ? sinEnd : sinStart + ((sinEnd - sinStart) * jb) / (int32_t)SUBBLOCKS;     // value reached at the end of this sub-block
-        const int32_t triNext = first ? triEnd : triStart + ((triEnd - triStart) * jb) / (int32_t)SUBBLOCKS;     // (first buffer: the target already at the end of sub-block 1)
-        const int32_t sawNext = first ? sawEnd : sawStart + ((sawEnd - sawStart) * jb) / (int32_t)SUBBLOCKS;
+        // the waves ramp in Q16 (16 fractional bits): even amplitudes of a few units ramp smoothly, evenly over the 4 sub-blocks
+        const int32_t sinNext = first ? (sinEnd << 16) : (sinStart << 16) + (((sinEnd - sinStart) * jb) << (16 - SUBBLOCKS_SHIFT));    // value reached at the end of this sub-block
+        const int32_t triNext = first ? (triEnd << 16) : (triStart << 16) + (((triEnd - triStart) * jb) << (16 - SUBBLOCKS_SHIFT));    // (first buffer: the target already at the end of sub-block 1)
+        const int32_t sawNext = first ? (sawEnd << 16) : (sawStart << 16) + (((sawEnd - sawStart) * jb) << (16 - SUBBLOCKS_SHIFT));
         const int32_t sqrNow  = sqrStart + ((sqrEnd - sqrStart) * jb) / (int32_t)SUBBLOCKS;     // value used during this sub-block
         const int32_t whiNow  = whiStart + ((whiEnd - whiStart) * jb) / (int32_t)SUBBLOCKS;
         const int32_t pnkNow  = pnkStart + ((pnkEnd - pnkStart) * jb) / (int32_t)SUBBLOCKS;
 
         // per-sample ramps
-        const int32_t sinInc = sinNext - sinAmpl;                         // gap between the end value and the running amplitude
-        const int32_t sinAcc = sinAmpl << RAMP_SHIFT;                     // running amplitude times 128
-        const int32_t triInc = triNext - triAmpl;
-        const int32_t triAcc = triAmpl << RAMP_SHIFT;
-        const int32_t sawInc = sawNext - sawAmpl;
-        const int32_t sawAcc = sawAmpl << RAMP_SHIFT;
+        const int32_t sinInc = (sinNext - sinAmpl) >> RAMP_SHIFT;         // step per sample, Q16
+        const int32_t sinAcc = sinAmpl;                                   // running amplitude, Q16
+        const int32_t triInc = (triNext - triAmpl) >> RAMP_SHIFT;
+        const int32_t triAcc = triAmpl;
+        const int32_t sawInc = (sawNext - sawAmpl) >> RAMP_SHIFT;
+        const int32_t sawAcc = sawAmpl;
 
         // muted-wave flags, evaluated once per sub-block
         const bool whiteOn = (whiNow != 0);
@@ -862,9 +876,9 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
     levLast[voiceNum] = levEnd;
     voiceStarted[voiceNum] = true;
 
-    *waveAmplSin = sinAmpl;                                               // = sinEnd, triEnd, sawEnd
-    *waveAmplTri = triAmpl;
-    *waveAmplSaw = sawAmpl;
+    *waveAmplSin = sinEnd;                                                // the ramps have reached their targets
+    *waveAmplTri = triEnd;
+    *waveAmplSaw = sawEnd;
     *waveAmplSqr = sqrEnd;
     *waveAmplWhi = whiEnd;
     *waveAmplPnk = pnkEnd;
@@ -877,15 +891,39 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
     restore_interrupts(ints);
 }
 
+// ---- click detector (debug): looks for sudden steps in the mixed output ----
+// the second difference x[n] - 2*x[n-1] + x[n-2] of a smooth tone stays close to w^2 * peak (w = 2*pi*f/fs); a step in the signal makes it much larger
+volatile uint32_t dbgClickRatio = 0;        // largest (|second difference| / peak) x 10000 over the buffers examined since the last dump
+volatile uint32_t dbgClickBufs  = 0;        // number of buffers examined since the last dump
+static int32_t    dbgPrev1 = 0, dbgPrev2 = 0;
+
+static void clickCheck(const int32_t* buf)  // left channel of an interleaved stereo buffer
+{
+    int32_t  p1 = dbgPrev1, p2 = dbgPrev2;
+    uint32_t maxD2 = 0, peak = 1;
+    for (uint32_t i = 0; i < SAMPLES_PER_BUFFER; i++) {
+        const int32_t x  = buf[2 * i];
+        int64_t d2 = (int64_t)x - 2 * (int64_t)p1 + (int64_t)p2;
+        if (d2 < 0) d2 = -d2;
+        if (d2 > (int64_t)maxD2) maxD2 = (uint32_t)((d2 > 0xffffffffLL) ? 0xffffffffu : d2);
+        const uint32_t ax = (uint32_t)((x < 0) ? -(int64_t)x : x);
+        if (ax > peak) peak = ax;
+        p2 = p1;  p1 = x;
+    }
+    dbgPrev1 = p1;  dbgPrev2 = p2;
+    const uint32_t ratio = (uint32_t)(((uint64_t)maxD2 * 10000u) / peak);
+    if (ratio > dbgClickRatio) dbgClickRatio = ratio;
+    dbgClickBufs++;
+}
+
 void __not_in_flash_func(fillVoiceBuffer)(int32_t* vBuffer, Voice* voices, uint8_t bufNum)
-{   
+{
     blank_(vBuffer,SAMPLES_PER_BUFFER*2*4,0x00);   // env 12uS
 
-    for(uint8_t v=0;v<MAX_VOICES;v++){   //MAX_VOICES;v++){
-//gpio_put(TST_PIN,1);      
+    for(uint8_t v=0;v<MAX_VOICES;v++){
       fillVoiceBuffer_mono(vBuffer, &voices[v],v);
-//gpio_put(TST_PIN,0);      
     }
+    clickCheck(vBuffer);                           // debug: remove when done
     i2s_buf_free[bufNum] = false;
 }
 
