@@ -50,18 +50,18 @@ endif()
 # Add executable. Default name is the project name, version 0.1
 
 add_executable(boumboum 
-	boumboum.cpp 
-	coder.cpp 
-	util.cpp
+	boumboum.cpp 					# main : inits hard et lancement du programme de démo et du menu
+	coder.cpp 						# encodeurs rotatifs
+	util.cpp						# interface des interruptions, dma et setup
 	std_utils.cpp 
-	frequences.cpp
-	sound_level_management.cpp 
-	bb_i2s.cpp
-	leds.cpp
-	st7789.cpp
+	frequences.cpp					# producer + ses utilitaires ; les lfos
+	sound_level_management.cpp 		# niveaux de son 
+	bb_i2s.cpp						# i2s
+	leds.cpp						# ws 2812
+	st7789.cpp						# afficheur
 	font12x12.c
 	font11x12.c
-	menus.cpp
+	menus.cpp						# interface encodeurs, switchs, touches, afficheur
 	def/menu.def
 	def/adsr_inputs_names.def
 	def/lfos_inputs_names.def
@@ -74,10 +74,10 @@ add_executable(boumboum
 	def/lfm_inputs_names.def
 	def/lfm_outputs_names.def
 	blank_.S
-	miscControls.cpp
-	input_tables_management.cpp
+	miscControls.cpp				# adsr, lfos
+	input_tables_management.cpp			
 	rc_33tables.cpp
-	#filterDTable.cpp
+	tests.cpp
 	)
 
 # le rp2350.ld permet de placer des variables en ram DTCM (voir filterDTable)

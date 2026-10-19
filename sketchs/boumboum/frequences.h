@@ -88,6 +88,7 @@ struct Voice {
     VoiceFilter filter;               // per-stage state (z[]), persists across buffers
     volatile int16_t    filterCode;           // final cutoff code 0..FILTER_CODE_MAX (coder + modulation), read once per sub-block by fillVoiceBuffer_mono
     volatile uint8_t    filterRes;            // final resonance command 0..FILTER_RES_MAX
+    volatile int16_t filterCodeTarget;        // cutoff asked by the coders and the modulation ; filterCode glides towards it
 
     volatile uint8_t    cycleR;       // cyclic ratio value (somme coderCycleR et ctl_input_val)
     volatile uint8_t    coderCycleR;  // cyclic ratio -64/+64 coder value
@@ -106,6 +107,7 @@ void voicesInit(Voice* v,uint16_t coderF,uint8_t cga);
 void dumpVoices(Voice* v,uint8_t n);
 void fillVoiceBuffer(int32_t* sampleBuffer,Voice* v,uint8_t bufNum);
 void fillVoices();
+void envLogDump();                                          // debug: prints the envelope log when an envelope has just ended
 // setVoiceXxxCoders(Voice*, coders...) loads the coders then computes the internal values (same model as setVoiceFilter)
 // setVoiceXxx(Voice*)                  computes only, from the stored coders and the stored value of the input
 void setVoiceFreqCoders(Voice* v, uint16_t coderFreq, uint16_t coderFreqAtt);
@@ -121,6 +123,8 @@ float calcFilterFreq(int32_t code);
 void setVoiceFilter(Voice* v, int16_t coderFilterF, int16_t coderFilterFAtt, int16_t coderFilterLevAtt, int16_t coderFilterRes,int16_t coderFilterResAtt);
 void setVoiceFilterFrequency(Voice* v);
 void setVoiceFilterRes(Voice* v);
+void filterGlideTick();                                     // every ms (interrupt): glide of the filter cutoff
+void filterGlideReport();                                   // main loop: prints the time constant when the scan changes it
 
 void setLfosSteps(float freq,uint8_t l);
 void setLfosFrCoders(uint8_t lfo, uint16_t coderFreq, uint16_t coderAtt);
@@ -128,5 +132,7 @@ void setLfosFrequency(uint8_t lfo);
 void setLfosCycleR(uint8_t lfo, uint16_t coderCycleR, uint16_t coderCycleRAtt);
 void lfosHandler();
 void lfosInit();
+
+int32_t ctlCombine(int32_t coder,int32_t att,int16_t input,uint8_t inShift,int32_t lo,int32_t hi);
 
 #endif  //_FREQUENCES_H_

@@ -5,9 +5,7 @@
 #include "hardware/pio.h"
 
 void setup();
-void testSetup();
-void testVoice();
-void testVoiceInit(uint8_t v,uint8_t w);
+
 void print_diag();
 void print_diag(char c);
 void print_diag(char c,uint32_t gdis);

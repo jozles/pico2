@@ -272,7 +272,7 @@ uint16_t __not_in_flash_func(calcCoderFreq)(float freq) // from freq value to co
 }
 
 // base coder + attenuated control input, clamped to [lo,hi]: the one formula for every control input
-static inline int32_t ctlCombine(int32_t coder,int32_t att,int16_t input,uint8_t inShift,int32_t lo,int32_t hi)
+int32_t __not_in_flash_func(ctlCombine)(int32_t coder,int32_t att,int16_t input,uint8_t inShift,int32_t lo,int32_t hi)
 {
     int32_t v = coder + (((int32_t)(input >> inShift) * att) >> MAX_CTL_ATT_SHIFT);
     return (v < lo) ? lo : ((v > hi) ? hi : v);
@@ -337,12 +337,46 @@ void __not_in_flash_func(setVoiceCycleRCoders)(Voice* v, uint8_t coderCycleR, in
 
 #define FILTER_INPUT_SHIFT 6        // use the value the old VFIL case of update_inputs had
 
-void __not_in_flash_func(setVoiceFilterFrequency)(Voice* v)     // recompute the cutoff code with the stored input value
+// ---- glide of the filter cutoff ----
+// the cutoff code (409 codes per octave, i.e. a logarithmic frequency) goes through a one-pole low-pass, one step per ms:
+// whatever the modulation does (sawtooth reset, steps of a coder), the render only sees a cutoff that moves smoothly
+// 160 ms: first value for which the toc of a sawtooth on the cutoff is no longer heard (listening test)
+#define FILTER_GLIDE_MS         160                     // time constant of the low-pass, ms (0 = no glide)
+#define FILTER_GLIDE_START_MS   1500                    // no glide during the start-up: the presets must sound at once
+
+static int32_t  filterCodeQ16[MAX_VOICES];              // smoothed cutoff code, Q16
+static bool     filterGlideOn=false;
+
+void __not_in_flash_func(filterGlideTick)()             // call it every ms (interrupt at 1 kHz)
+{
+    static uint16_t startTicks=0;
+    if(!filterGlideOn){
+        if(startTicks<FILTER_GLIDE_START_MS){startTicks++;return;}
+        for(uint8_t v=0;v<MAX_VOICES;v++){                                                                 // start from the code the render is using: no jump, and a voice never set stays as it is
+            voices[v].filterCodeTarget=voices[v].filterCode;
+            filterCodeQ16[v]=((int32_t)voices[v].filterCode)<<16;
+        }
+        filterGlideOn=true;
+    }
+    const int32_t k=65536/(FILTER_GLIDE_MS+1);
+    for(uint8_t v=0;v<MAX_VOICES;v++){
+        int32_t s=filterCodeQ16[v];
+        s+=(int32_t)(((int64_t)((((int32_t)voices[v].filterCodeTarget)<<16)-s)*k)>>16);
+        filterCodeQ16[v]=s;
+        voices[v].filterCode=(int16_t)((s+0x8000)>>16);                                                      // one 16-bit store, read once per sub-block by the render
+    }
+}
+
+void __not_in_flash_func(setVoiceFilterFrequency)(Voice* v)
 {
     int16_t id = v->voice_ctl_input_id[VFIL];
     int32_t code = ctlCombine(v->coderFilterFreq, v->coderFilterFreqAtt, ctl_input_val[id], FILTER_INPUT_SHIFT, 0, FILTER_CODE_MAX);
     v->filterFrequency = calcFilterFreq(code);                  // display: now includes the modulation
-    v->filterCode = (int16_t)code;                              // one 16-bit store, read once per sub-block
+    v->filterCodeTarget = (int16_t)code;                        // cutoff asked by the coders and the modulation
+    if(!filterGlideOn){                                         // start-up: the render sees the code at once
+        v->filterCode = (int16_t)code;                          // one 16-bit store, read once per sub-block
+        filterCodeQ16[v-voices] = code<<16;                     // the glide will start from here
+    }
 }
 
 void __not_in_flash_func(setVoiceFilterRes)(Voice* v)
@@ -518,11 +552,10 @@ void dumpLfos()
 void __not_in_flash_func(lfosHandler)()
 {
   if((millisCounter-lfoTime)>lfoTimingInterval){
+//gpio_put(TST_PIN,1);    
     lfoTime=millisCounter;
 
     const int16_t *base32 = &rc_tables[32][0][0];                           // base table 32 pour saw
-    //uint8_t src=LFOS_____;
-    //src=src*MAX_OBJECTS;
     
     for(uint8_t l=0;l<MAX_LFO;l++){
 
@@ -548,12 +581,10 @@ void __not_in_flash_func(lfosHandler)()
         int16_t c0=sign*w[LSIN];
         int16_t out_id;
         out_id=ctl_output_id_chain[lfo_ctl_output_id[l][LSIN]];
-        //lfosOutputsValues[l][LSIN]=c0;
         if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,c0);}
 
         int16_t c1=sign*w[LTRI];
         out_id=ctl_output_id_chain[lfo_ctl_output_id[l][LTRI]];
-        //lfosOutputsValues[l][LTRI]=c1;
         if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,c1);}
 
         int16_t tri=base32[RC_N_WAVES*ce+LTRI];
@@ -563,12 +594,10 @@ void __not_in_flash_func(lfosHandler)()
         c2=sign*c2;
         if(rc>=32){c2=-c2;}
         out_id=ctl_output_id_chain[lfo_ctl_output_id[l][LSAW]];
-        //lfosOutputsValues[l][LSAW]=c2;
         if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,c2);}
 
         int16_t c3=(currLfoEch[l] & (BASIC_WAVE_TABLE_LEN>>1)) ? -0x7fff : 0x7fff;
         out_id=ctl_output_id_chain[lfo_ctl_output_id[l][LSQR]];
-        //lfosOutputsValues[l][LSQR]=c3;
         if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,c3);}
         
         uint32_t bufScopeOffset=l*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB + lfoScopeBufPtr*BASIC_WAVES_NB;
@@ -580,6 +609,7 @@ void __not_in_flash_func(lfosHandler)()
 
     lfoScopeBufPtr++;
     lfoScopeBufPtr&=OSC_SCOPE_BUFFER_LEN-1;
+//gpio_put(TST_PIN,0);    
   }
 }
 
@@ -706,7 +736,7 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
     if (__builtin_expect(!rcPeakReady, 0)) { fillRcPeak(); }              // first buffer only, before the interrupts are masked
 
     uint32_t ints = save_and_disable_interrupts();
-    gpio_put(TST_PIN,1);
+gpio_put(TST_PIN,1);
 
     i2s_buf_scope=vBuffer;
 
@@ -880,7 +910,7 @@ void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* 
     v->noiseSeed  = nSeed;
     pink_state    = pink_state_loc;
 
-    gpio_put(TST_PIN,0);
+gpio_put(TST_PIN,0);
     restore_interrupts(ints);
 }
 
@@ -909,6 +939,58 @@ static int32_t    dbgPrev1 = 0, dbgPrev2 = 0;
     dbgClickBufs++;
 }*/
 
+// ---- envelope log (debug): while an envelope runs, the peak of every buffer is stored, to see the amplitude as it is really rendered ----
+// mute the other voices (testSetup: action=VOICE1): the log follows the mixed output ; envLogDump() prints it when the envelope is over
+// with the peak: the filter cutoff code and the frequency of the voice (to see whether a jump of the level comes from a jump of one of them)
+#define ENV_LOG_ADSR  1                                 // envelope to follow
+#define ENV_LOG_VOICE 1                                 // voice whose cutoff code and frequency are logged
+#define ENV_LOG_LEN   700                               // buffers (700 x 11.6 ms = 8 s)
+
+extern uint8_t adsrStatus[MAX_ADSR];                    // miscControls.cpp ; 0 = ADSR_OFF, 1 = att, 2 = dec, 3 = sus, 4 = rel
+
+static uint32_t envLogPeak[ENV_LOG_LEN];
+static uint32_t envLogFreq[ENV_LOG_LEN];
+static uint16_t envLogFilt[ENV_LOG_LEN];
+static uint8_t  envLogState[ENV_LOG_LEN];
+static uint16_t envLogN=0;
+static bool     envLogRun=false;
+static volatile bool envLogDone=false;
+
+static void envLogPush(const int32_t* buf,const Voice* vv)  // called after every buffer: left channel of the mixed buffer
+{
+    const uint8_t st=adsrStatus[ENV_LOG_ADSR];
+    if(!envLogRun){
+        if(st==0 || envLogDone){return;}                // wait for the envelope to start, and for the previous log to be printed
+        envLogRun=true;
+        envLogN=0;
+    }
+    uint32_t peak=0;
+    for(uint32_t i=0;i<SAMPLES_PER_BUFFER;i++){
+        const int32_t x=buf[2*i];
+        const uint32_t ax=(uint32_t)((x<0)?-(int64_t)x:x);
+        if(ax>peak){peak=ax;}
+    }
+    if(envLogN<ENV_LOG_LEN){
+        envLogPeak[envLogN]=peak>>8;                                                    // peak on 24 bits, like the dac
+        envLogFilt[envLogN]=(uint16_t)vv[ENV_LOG_VOICE].filterCode;
+        envLogFreq[envLogN]=(uint32_t)(vv[ENV_LOG_VOICE].frequency*100.0f);             // Hz x 100
+        envLogState[envLogN]=st;
+        envLogN++;
+    }
+    if(st==0 || envLogN>=ENV_LOG_LEN){envLogRun=false;envLogDone=true;}
+}
+
+void envLogDump()                                       // call it from the main loop: prints the log when an envelope has just ended
+{
+    if(!envLogDone){return;}
+    printf("env log: ADSR %d, voice %d, %u buffers of 11.6 ms ; columns: n state(1=att 2=dec 3=sus 4=rel 0=off) peak(24 bits) filterCode freq(Hz x100)\n",ENV_LOG_ADSR,ENV_LOG_VOICE,envLogN);
+    for(uint16_t i=0;i<envLogN;i++){
+        printf("%u %u %lu %u %lu\n",i,envLogState[i],(unsigned long)envLogPeak[i],envLogFilt[i],(unsigned long)envLogFreq[i]);
+        if((i&7)==7){fillVoices();}                     // keeps the audio running during the print
+    }
+    envLogDone=false;                                   // the next envelope can be logged
+}
+
 void __not_in_flash_func(fillVoiceBuffer)(int32_t* vBuffer, Voice* voices, uint8_t bufNum)
 {
     blank_(vBuffer,SAMPLES_PER_BUFFER*2*4,0x00);   // env 12uS
@@ -917,6 +999,7 @@ void __not_in_flash_func(fillVoiceBuffer)(int32_t* vBuffer, Voice* voices, uint8
       fillVoiceBuffer_mono(vBuffer, &voices[v],v);
     }
     //clickCheck(vBuffer);                           // debug: remove when done
+    envLogPush(vBuffer,voices);                    // debug: remove when done
     i2s_buf_free[bufNum] = false;
 }
 

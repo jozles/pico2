@@ -1,0 +1,163 @@
+un synthétiseur : 
+encodeurs rotatifs
+switchs intégrés
+boutons sensitifs
+st7789 320*240
+MAX98357A 44100hz
+ws2812
+
+VSC
+JLINK
+logic2 saleae 8 voies
+
+Projet : boumboum
+Plateforme : RP2350 / Pico2
+SDK : Pico SDK 2.2.0
+Build : RelWithDebInfo
+Langages : C11 / C++17
+
+Modules :
+- ondes, bruit, filtres, LFO : frequences.cpp
+- ADSR / LFM : miscControls.cpp
+- I2S : bb_i2s.cpp
+- WS2812 : leds.cpp
+- ST7789 : st7789.cpp
+- Menus : menus.cpp
+- dma/int : util.cpp
+- Tables RC : rc_33tables.cpp
+
+Dépendances :
+- pico-sdk
+- pico-extras
+
+Protection :
+- build interdit si PICO_USE_RAM_VECTOR_TABLE activé
+
+objectif (objets)
+24 voices :
+	32 boucles spécialisées par masque de 5 ondes. 
+	Bruit en xorshift32. 
+	Rampes en Q16 : par échantillon pour sinus, triangle et dent de scie ; 4 paliers par buffer pour carré et bruits ; 
+	gain de voix et atténuateur d’entrée du filtre sur le buffer entier.
+	fréquence, rapport cyclique, niveau final réglables
+	sinus,triangle,saw,sqr,white,pink niveau sortie réglable
+	filtre+résonance fréquence,résonnance,niveau entrée réglables (4 étages, 24 dB par octave)
+	écho+réverb niveau entrée, dosage réglables
+48 lfos (sin+tri+saw+sqr ; modes free-run,one-shoot,start-stop,ondes partielles)
+24 adsr (courbes configurables : rc, droite, log etc)
+24 lfm (low freq mux - 3 in+gain)
+8  sequencers 32 steps 
+x  encodeurs
+x  touch_buttons 
+y  leds
+
+chiffres :
+	2 buffers i2s de 512 échantillons = 11,6 ms sortis en dma flip/flop automatique 
+	Interruption à 1 kHz : polling des codeurs, LFO, ADSR, LFM, glissades.
+	Pas de l’ADSR : 2 ms (500 Hz). Les LFO tournent à 40 Hz.
+	Le rendu des voices tourne interruptions coupées : les cibles de modulation sont donc constantes pendant un buffer.
+ 	LFO handler 170nS (8)(+env 250nS/inputs maj)
+	coder handler 35uS (8)(inc sw&tb)
+	adsr handler 1.75uS (4)(+env 250nS/inputs maj)
+PS résolution logic 90nS
+
+entrées de réglages int16_t
+coder de niveau manuel
+	son 0-63 + table log waveLevel[64]
+	Gain de voix et niveau de l’ADSR : amplLevel[32], pas de 3 dB.
+	durées 0-127 + table	(2mS-13sec)
+	fréquences 409/octave 11 oct + table
+	rc 0-64 centre 32 (33 tables)
+coder d'atténuation 0-255 
+sorties int16_t (adsr >0 only)
+
+fonction setAAAAxxxxCoders 
+	charge les coders d'entrée de l'objet AAAA type d'entrée xxxx dans les variables internes, 
+	applique une éventuelle conversion
+	met les sorties à jours
+	propage les sorties modifiées sur les entrées connectées (update_inputs)
+
+fonction setAAAAxxxx 
+	charge la valeur de l'entrée dans les variables internes,
+	applique une éventuelle conversion 
+	met les sorties à jours
+	propage les sorties modifiées sur les entrées connectées
+
+Tools
+	clickCheck (frequences.cpp, appelé dans fillVoiceBuffer) : détecteur de sauts. Rapport = |différence seconde| / crête × 	10 000 ; environ 157 à 250 pour un sinus pur de 880 Hz, au-dessus de 1 000 = saut. Il coûte environ 25 µs par buffer : à 	retirer à la fin.
+	dumpVoices(Voice*, ligne) : affiche 3 lignes de réglages et 6 lignes d’ondes, avec fillVoices() entre chaque ligne pour 	éviter un trou audio. On l’appelle par requête : dumpRequest=true; dumpLine=ligne; dans le menu, traitée dans la boucle 	principale.
+	Journal d’enveloppe : envLogPush(vBuffer,voices) est appelé dans fillVoiceBuffer, et envLogDump() dans la boucle de 	coders_for_menu (menus.cpp). Paramètres : ENV_LOG_ADSR, ENV_LOG_VOICE, ENV_LOG_LEN (700 buffers, soit 8 s). Colonnes : 	n, état (1 = att, 2 = dec, 3 = sus, 4 = rel, 0 = off), crête sur 24 bits, code de coupure du filtre, fréquence en Hz × 	100. Utilisation : action=VOICE1 dans testSetup pour n’entendre qu’une voix, attendre la fin du cycle, copier la 	console. À retirer à la fin.
+	tests.cpp : testSetup (le masque action active VOICE0 à VOICE3), voiceConfig, sound3, sub_lfo, asetup, vsetup, 	testVoiceInit, testVoice.
+	Interruption 1 kHz (pwm_irq_handler) : appelle ampGlideTick() et filterGlideTick().
+
+Comment on travaille
+
+Les fichiers utiles sont collés
+Ne pas coder avant d'avoir fait valider la modif
+Compiler et simuler chaque algorithme sur PC avant de livrer, puis proposer des tests à lancer sur la carte, dont la console est renvoyée.
+Livraison du code : au-delà de 2 ou 3 morceaux, un seul bloc complet (fonction ou section entière). Le morceau modifié passe en tête, avec sa place dans le fichier. Ne pas redonner un morceau inchangé : le dire
+Organisation : les prototypes vont dans le .h du .cpp qui contient les fonctions ; les extern vont dans le .cpp qui les utilise, jamais dans un .h.
+Commentaires de code en anglais : vérifier l’orthographe et les tournures, et proposer des corrections.
+Vocabulaire : définir en une phrase tout terme technique pas encore employé.
+Mise en forme : fenêtre Chrome étroite, donc pas de tableaux larges, des listes avec une information par ligne.
+TDL : numérotée par item et chapitres ; quand un item est enlevé elle est complètement renumérotée
+si c'est négligeable en tokens, afficher une ligne à chaque réponse avec % de dispo dans les 5 heures et dans la semaine
+
+Glossaire
+
+Codeur (« coder ») : encodeur rotatif, ou la valeur de réglage manuelle qu’il donne ; l’atténuateur (0 à 255) règle l’effet d’une entrée de modulation sur ce réglage.
+Voice : une voix, avec ses six ondes, son filtre et son gain.
+LFO : oscillateur lent servant de modulation. ADSR : enveloppe en quatre étages (attaque, décroissance, maintien, relâchement). LFM : mélangeur de basses fréquences (trois entrées et un gain).
+Toc : clic ou saut audible, dans le niveau ou dans la hauteur.
+TDL : liste des tâches, numérotée par groupe.
+dBFS : décibels par rapport au niveau maximal que peut porter le signal numérique.
+Q16 : nombre à virgule fixe qui garde 16 bits de fraction (valeur × 65 536).
+Rampe : passage linéaire de l’ancienne valeur à la nouvelle, sur un sous-bloc ou sur le buffer.
+Glissade / lissage : filtre à un pôle qui adoucit les changements d’une valeur ; sa constante de temps est le temps pour parcourir 63 % d’un saut (environ 2,3 fois plus pour 90 %).
+Tick : pas de temps de l’ADSR (2 ms).
+Rapport cyclique (rc) : part de la période passée à monter. Au centre (table 32), l’onde est symétrique ; aux extrêmes, c’est une dent de scie : une rampe, puis un retour brutal. Le triangle d’un LFO réglé à l’extrême saute donc une fois par période.
+Underrun : tampon audio pas rempli à temps, qui fait un trou ou un clic.
+__not_in_flash_func : place la fonction en RAM, pour les routines appelées dans l’interruption.
+Harness : programme de test sur PC qui reproduit un morceau du code, pour le vérifier avant la carte.
+
+
+TDL
+
+1.LFM / chaîne de contrôle
+
+1.1 Amélioration future ADSR : option de relance « reprise au niveau » en plus de « reprise à 0 » (actuel) — mise de côté
+1.2 Risque de boucle sans fin dans update_inputs : une entrée dont la modification change la sortie de son objet rappelle update_inputs (cas LFM notamment) ; non traité
+
+2.ADSR
+
+2.1 ADSR_GATE est envoyée à chaque tick de 2 ms, même quand l’enveloppe est éteinte (à vérifier)
+2.2 Option « loop=autoretrig » pour les ADSR
+2.3 Possibilité de suspendre/reprendre les ADSR
+
+3.LFO
+
+3.1 Contrôle de mode par LFO : un coder de choix du mode + un coder de déclenchement + une entrée de déclenchement, combinée en « ou » avec le coder de déclenchement. Modes : 0 = free run ; 1 = de 0 au maximum puis stop ; 2 = de 0 à 0 puis stop ; 3 = une période puis stop ; 4 = stop forcé ; et des options de portions d'onde en déclenché/one-shoot
+3.2 ajouter une sortie non flottante qui évolue entre 0 et 0x7fff pour chaque sortie existante
+
+4.fillVoiceBuffer_mono / oscillateurs
+
+4.1 rc sur sqr lfos
+4.2 Regrouper sin+tri / saw+sqr avec vsBuffer élargi à 64 bits (ce + index précalculé), à mesurer
+4.3 quand toutes les sorties sont à 0 sauter tout et démarrer l'oscillateur de 0 quand ça reprend
+
+5.Filtre
+
+5.1 Choix configurable 12 dB / 24 dB (2 vs 4 étages)
+5.2 Lissage passe-bas de la coupure du filtre : constante fixée à 160 ms (seuil trouvé à l’écoute avec une dent de scie sur la coupure)
+
+6.Architecture générale
+
+6.1 Réverbération et écho par voice, en bus partagé (après le filtre)
+6.2 Nombre de voices alloué dynamiquement plutôt qu’un maximum fixe
+6.3 Passer le tampon du scope des LFO (lfoScopeBufReal, 49 Ko) en int16_t : adapter le mode 2 de scope()
+6.4 Réviser le tampon d’affichage (tft_frame, 153 Ko) : le couper en 2 bandes ? ; il disparaîtra quand l’afficheur sera remplacé par un afficheur SPI avec ESP32 recevant directement des caractères
+6.5 Vérifier ce que produit la chaîne i2s → MAX98357A (signal 24 bits attendu) avec le coder de volume à 30 : distorsion à l’oreille alors que le scope montre environ −9 dBFS
+6.6 genAmpl n’est pas traité à plusieurs endroits
+6.7 ctlCombine (actuellement dans frequences) devra passer dans un futur fichier dynamic_tools (nom à rediscuter quand on s’en occupera)
+
+

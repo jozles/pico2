@@ -16,6 +16,7 @@
 #include "st7789.h"
 #include "menus.h"
 #include "sound_level_management.h"
+#include "tests.h"
 
 const char* version=VERSION;
 uint8_t currVoice=0;
@@ -94,7 +95,7 @@ if (watchdog_caused_reboot()) {
 
     testSetup();
 
-    testVoiceInit(3,0);
+    //testVoiceInit(3,0);
 
     menus_init();
     uint8_t menu=1;

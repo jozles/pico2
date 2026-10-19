@@ -14,19 +14,8 @@
 extern int16_t   objects_first_output_id[];
 extern int16_t   objects_first_input_id[];
 
-extern uint16_t  adsrCoderAtt[MAX_ADSR];
-extern uint16_t  adsrCoderDec[MAX_ADSR];
-extern uint16_t  adsrCoderSus[MAX_ADSR];
-extern uint16_t  adsrCoderRel[MAX_ADSR];
-extern uint16_t  adsrCoderLev[MAX_ADSR];
-extern uint16_t  adsrCoderAttAtt[MAX_ADSR];
-extern uint16_t  adsrCoderDecAtt[MAX_ADSR];
-extern uint16_t  adsrCoderSusAtt[MAX_ADSR];
-extern uint16_t  adsrCoderRelAtt[MAX_ADSR];
-extern uint16_t  adsrCoderLevAtt[MAX_ADSR];
 extern uint8_t   adsrStatus[MAX_ADSR];
 extern uint32_t  adsrCurrEch[MAX_ADSR];
-extern uint32_t  adsrCurrEchFra[MAX_ADSR];
 extern int16_t   adsr_ctl_input_id[][MAX_INPUTS_PER_OBJ];
 extern int16_t   adsr_ctl_output_id[][MAX_OUTPUTS_PER_OBJ];
 //extern uint16_t  adsrOutputsValues[MAX_ADSR][MAX_OUTPUTS_PER_OBJ];
@@ -185,6 +174,14 @@ uint8_t norm_dividers[]={0,16-5,16-6,16-3};              // to add ; not used fo
 //int16_t*  ctl_output_val[MAX_OUTPUTS];        // see xxxOutputValues  // all objects ptrs to outputs values
 char      ctl_output_name[MAX_OUTPUTS][IN_OUT_NAME_LEN];                // all objects outputs names
 int16_t   ctl_output_id_chain[MAX_OUTPUTS];     // all objects outputs chain to input (first link)
+
+// ***** objets *****
+
+const char objects_names[][OBJECTS_NAME_LEN]={         
+    #define Z(name,text) text,
+    #include "objects.def"   
+    #undef Z   
+};
 
 // ***** noms des entrées/sorties des objets *****
 
@@ -574,8 +571,6 @@ void __not_in_flash_func(disconnect_input)(uint16_t input_id, uint16_t output_id
     spin_unlock(inputs_id__lock, f);
 }
 
-
-
 void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs update with valeur (any object output)
                                                                     // valeur est la valeur linéaire à atténuer sur 16 bits recadrée selon le type d'entrée
                                                                     // id numéro unique de l'input donne accès à toutes ses caractéristiques
@@ -584,9 +579,9 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
                                                                     //  le type d'entrée via ctl_input_update_type
                                                                     //  la valeur précédente de l'entrée via ctl_input_val
 {
+//uint32_t ints = save_and_disable_interrupts();gpio_put(TST_PIN,1);
 
         int16_t tlev;
-        int32_t val=0;
 
         while(id!=NO_LINK){
 
@@ -610,21 +605,11 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
                 case LFO_FREQ:  setLfosFrequency(object);break;                                         // 8k max VCES_MAX_FREQ_CODERS ; att 0-255 
                 case LFO_CRA :  lfosCycleR[object]=(uint16_t)(lfosCoderCycleR[object]+(((valeur>>10)*lfosCoderCycleRAtt[object])>>MAX_CTL_ATT_SHIFT));   // base + attenuated input ; read as &63 by lfosHandler                  
                                 break;
-                case A_ATTACK:  val=(valeur>>9)*adsrCoderAttAtt[object]>>MAX_CTL_ATT_SHIFT;             // durée 0-127
-                                setAdsrDur(object,ADSR_ATT,val);
-                                break;
-                case A_DECAY :  val=(valeur>>9)*adsrCoderDecAtt[object]>>MAX_CTL_ATT_SHIFT;             // durée 0-127
-                                setAdsrDur(object,ADSR_DEC,val);
-                                break;
-                case A_SUST  :  val=(valeur>>3)*adsrCoderSusAtt[object]>>MAX_CTL_ATT_SHIFT;             // durée 0-127
-                                setAdsrDur(object,ADSR_SUS,val);
-                                break;
-                case A_RELEAS:  val=(valeur>>3)*adsrCoderRelAtt[object]>>MAX_CTL_ATT_SHIFT;             // durée 0-127
-                                setAdsrDur(object,ADSR_REL,val);
-                                break;
-                case A_LEVEL :  val=(valeur>>3)*adsrCoderLevAtt[object]>>MAX_CTL_ATT_SHIFT;                    
-                                setAdsrLev(object,val);
-                                break;                        
+                case A_ATTACK:  setAdsrDur(object,ADSR_ATT);break;
+                case A_DECAY :  setAdsrDur(object,ADSR_DEC);break;
+                case A_SUST  :  setAdsrDur(object,ADSR_SUS);break;
+                case A_RELEAS:  setAdsrDur(object,ADSR_REL);break;
+                case A_LEVEL :  setAdsrLev(object);break;                       
                 case A_START :  ctl_input_prev_val[id]=prev;                                            // start adsr
                                 tlev=ctl_input_tlev[id];
                                 switch(ctl_input_trig[id]){
@@ -648,12 +633,11 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
                                 }break;
                 case LFM____ :  {
                                 uint8_t  lfm=lfmNb[id];                                 // lfm #
-                                int16_t  inp=id-lfm_ctl_input_id[0][lfm];               // lfm inp #
-                                if(inp==0){lfm_update_inputs_0(lfm,valeur);}            // Entrée 0 : contrôle du gain général                                
-                                else lfm_update_inputs(lfm);                            // les autres entrées                        
+                                setLfm(lfm);
                                 }break;
                 default: break;
             }
             id = ctl_input_id_chain[id];
         }
+//gpio_put(TST_PIN,0);restore_interrupts(ints);       
 }

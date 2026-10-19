@@ -6,6 +6,8 @@
 #include "util.h"
 #include "miscControls.h"
 #include "input_tables_management.h"
+#include "frequences.h"
+#include "hardware/sync.h"
 
 /* ****** adsr ****** */
 
@@ -19,13 +21,13 @@ uint16_t adsrCoderDecAtt[MAX_ADSR];
 uint16_t adsrCoderSusAtt[MAX_ADSR];
 uint16_t adsrCoderRelAtt[MAX_ADSR];
 uint16_t adsrCoderLevAtt[MAX_ADSR];
+uint8_t  adsrLev[MAX_ADSR];                                 // effective sustain level index (coder + modulation), 0..ADSR_MAX_LEVEL_CODERS
 uint8_t  adsrStatus[MAX_ADSR];
 uint32_t adsrDurAtt[MAX_ADSR];
 uint32_t adsrDurDec[MAX_ADSR];
 uint32_t adsrDurSus[MAX_ADSR];
 uint32_t adsrDurRel[MAX_ADSR];
 uint32_t adsrCurrEch[MAX_ADSR];
-//uint16_t adsrOutputsValues[MAX_ADSR][MAX_OUTPUTS_PER_OBJ];  // inutilisé ??
 int16_t  adsr_ctl_input_id[MAX_ADSR][MAX_INPUTS_PER_OBJ];
 int16_t  adsr_ctl_output_id[MAX_ADSR][MAX_OUTPUTS_PER_OBJ];
 int32_t  adsrScopeBufReal[MAX_ADSR*ADSR_SCOPE_BUFFER_LEN];  // real values
@@ -77,30 +79,16 @@ void adsrInit()                     // (id ptrs dans inits_objects_inputs/output
     printf("%u adsr init\n",MAX_ADSR);
     for(uint8_t a=0;a<MAX_ADSR;a++){
 
-        adsrDurAtt[a]=0;
-        adsrDurDec[a]=0;
-        adsrDurSus[a]=0;
-        adsrDurRel[a]=0;
+        setAdsrDurCoders(a,ADSR_ATT,6,FULL_ATTENUATION_VALUE);
+        setAdsrDurCoders(a,ADSR_DEC,28,FULL_ATTENUATION_VALUE);
+        setAdsrDurCoders(a,ADSR_SUS,12,FULL_ATTENUATION_VALUE);
+        setAdsrDurCoders(a,ADSR_REL,96,FULL_ATTENUATION_VALUE);
+        setAdsrLevCoders(a,ADSR_MAX_LEVEL_CODERS,FULL_ATTENUATION_VALUE);
 
-        adsrCoderAtt[a]=6;setAdsrDur(a,ADSR_ATT,adsrDurAtt[a]);
-        adsrCoderDec[a]=28;setAdsrDur(a,ADSR_DEC,adsrDurDec[a]);
-        adsrCoderSus[a]=12;setAdsrDur(a,ADSR_SUS,adsrDurSus[a]);
-        adsrCoderRel[a]=96;setAdsrDur(a,ADSR_REL,adsrDurRel[a]);
-
-        adsrCoderLev[a]=31;setAdsrLev(a,adsrCoderLev[a]);
         adsrStatus[a]=ADSR_OFF;
-
         adsrCurrEch[a]=0;
-
         adsrScopeBufPtr[a]=0;
-                        
-        adsrCoderAttAtt[a]=FULL_ATTENUATION_VALUE;
-        adsrCoderDecAtt[a]=FULL_ATTENUATION_VALUE;
-        adsrCoderSusAtt[a]=FULL_ATTENUATION_VALUE;
-        adsrCoderRelAtt[a]=FULL_ATTENUATION_VALUE;
-        adsrCoderLevAtt[a]=FULL_ATTENUATION_VALUE;
 
-        //for(uint8_t v=0;v<MAX_OUTPUTS_PER_OBJ;v++){adsrOutputsValues[a][v]=0;}
     }
 }
 
@@ -187,30 +175,60 @@ void fillDur(void)
     }
 }
 
-void __not_in_flash_func(setAdsrLev)(uint8_t adsr,int32_t val)
-{
-    adsrCoderLev[adsr]=val;
-}
+// shift applied to the 16-bit input value before it is added to the coder (the input is then attenuated by coderXxxAtt/256):
+// 15 - log2(number of steps of the target scale): 8 sweeps the whole range of the durations (128 steps) with a full-scale input and a full attenuator, 9 sweeps half of it
+#define ADSR_ATT_SHIFT  9       // same values as before the rewrite
+#define ADSR_DEC_SHIFT  9
+#define ADSR_SUS_SHIFT  3
+#define ADSR_REL_SHIFT  3
+#define ADSR_LEV_SHIFT  10      // level: 32 steps (the old shift of 3 was far too large for this scale)
 
-void __not_in_flash_func(setAdsrDur)(uint8_t adsr,uint8_t adsrStage,int32_t val)
+// compute: the duration of a stage (step of the reading of the rc curve), from the stored coders and the stored value of its input
+void __not_in_flash_func(setAdsrDur)(uint8_t adsr,uint8_t adsrStage)
 {
     uint32_t* vv;
-    int32_t v0;
+    int32_t   coder,att;
+    int16_t   id;
+    uint8_t   shift;
 
     switch(adsrStage){
-        case ADSR_ATT:vv=&adsrDurAtt[adsr];v0=adsrCoderAtt[adsr]+val;break;
-        case ADSR_DEC:vv=&adsrDurDec[adsr];v0=adsrCoderDec[adsr]+val;break;
-        case ADSR_SUS:vv=&adsrDurSus[adsr];v0=adsrCoderSus[adsr]+val;break;
-        case ADSR_REL:vv=&adsrDurRel[adsr];v0=adsrCoderRel[adsr]+val;break;
+        case ADSR_ATT:vv=&adsrDurAtt[adsr];id=adsr_ctl_input_id[adsr][ATTK];coder=adsrCoderAtt[adsr];att=adsrCoderAttAtt[adsr];shift=ADSR_ATT_SHIFT;break;
+        case ADSR_DEC:vv=&adsrDurDec[adsr];id=adsr_ctl_input_id[adsr][DECA];coder=adsrCoderDec[adsr];att=adsrCoderDecAtt[adsr];shift=ADSR_DEC_SHIFT;break;
+        case ADSR_SUS:vv=&adsrDurSus[adsr];id=adsr_ctl_input_id[adsr][SUST];coder=adsrCoderSus[adsr];att=adsrCoderSusAtt[adsr];shift=ADSR_SUS_SHIFT;break;
+        case ADSR_REL:vv=&adsrDurRel[adsr];id=adsr_ctl_input_id[adsr][RELE];coder=adsrCoderRel[adsr];att=adsrCoderRelAtt[adsr];shift=ADSR_REL_SHIFT;break;
         default:return;
     }
-    if(v0<0){v0=0;}
-    if (v0 >= DUR_ECH_NB){v0 = DUR_ECH_NB - 1;}
+    *vv=stepTableQ16[ctlCombine(coder,att,ctl_input_val[id],shift,0,DUR_ECH_NB-1)];
+}
 
+// load the coders of a stage, then compute its duration (same model as setVoiceFilter)
+void __not_in_flash_func(setAdsrDurCoders)(uint8_t adsr,uint8_t adsrStage,uint16_t coder,uint16_t coderAtt)
+{
+    const uint32_t irq=save_and_disable_interrupts();                       // the interrupt that updates the inputs computes the same value: no interleaving
+    switch(adsrStage){
+        case ADSR_ATT:adsrCoderAtt[adsr]=coder;adsrCoderAttAtt[adsr]=coderAtt;break;
+        case ADSR_DEC:adsrCoderDec[adsr]=coder;adsrCoderDecAtt[adsr]=coderAtt;break;
+        case ADSR_SUS:adsrCoderSus[adsr]=coder;adsrCoderSusAtt[adsr]=coderAtt;break;
+        case ADSR_REL:adsrCoderRel[adsr]=coder;adsrCoderRelAtt[adsr]=coderAtt;break;
+        default:restore_interrupts(irq);return;
+    }
+    setAdsrDur(adsr,adsrStage);
+    restore_interrupts(irq);
+}
 
-    *vv=stepTableQ16[v0];
+// compute: the sustain level index (0..ADSR_MAX_LEVEL_CODERS), from the stored coders and the stored value of the level input
+void __not_in_flash_func(setAdsrLev)(uint8_t adsr)
+{
+    adsrLev[adsr]=(uint8_t)ctlCombine(adsrCoderLev[adsr],adsrCoderLevAtt[adsr],ctl_input_val[adsr_ctl_input_id[adsr][LEVE]],ADSR_LEV_SHIFT,0,ADSR_MAX_LEVEL_CODERS);
+}
 
-    //printf("setAdsrDur %u:%u %i *vv:%u v0:%u ce:%u\n",adsr,adsrStatus,val,*vv,v0,adsrCurrEch[adsr]);
+void __not_in_flash_func(setAdsrLevCoders)(uint8_t adsr,uint16_t coder,uint16_t coderAtt)
+{
+    const uint32_t irq=save_and_disable_interrupts();
+    adsrCoderLev[adsr]=coder;
+    adsrCoderLevAtt[adsr]=coderAtt;
+    setAdsrLev(adsr);
+    restore_interrupts(irq);
 }
 
 uint16_t adsrNext(uint32_t* currEchQ16,uint32_t stepQ16)    // production indice suivant dans rcCurve selon dur
@@ -228,29 +246,36 @@ uint16_t adsrNext(uint32_t* currEchQ16,uint32_t stepQ16)    // production indice
     return (uint16_t)(next >> 16);
 }
 
+#define ADSR_RETRIGGER_FROM_LEVEL 1     // 1: a trigger that comes during a cycle starts the attack from the level reached (no sudden drop, no click) ; 0: always from 0
+static uint16_t adsrLastOut[MAX_ADSR];  // last output of every envelope, on the internal 0..65535 scale
+static uint32_t adsrAttStart[MAX_ADSR]; // level from which the current attack starts
+
 void __not_in_flash_func(adsrHandler)()
 {
     if((millisCounter-adsrTime)>=adsrTimingInterval){
         adsrTime=millisCounter;
-
+//uint32_t ints = save_and_disable_interrupts();gpio_put(TST_PIN,1);
         for(uint8_t a=0;a<MAX_ADSR;a++)
         {
             int16_t   bol=0;
             uint16_t  ov_=0;            // analog level output value
             uint32_t  ov0;
+            uint32_t  o32;
             uint8_t*  as=&adsrStatus[a];
             uint16_t* ap=&adsrScopeBufPtr[a];
             if (__builtin_expect(*as != ADSR_OFF, 0)) {
 
                 bol=0x7fff;
-                uint16_t  lev=amplLevel[adsrCoderLev[a]];
+                const uint32_t lev=(uint32_t)amplLevel[adsrLev[a]]<<1;   // the stages work on the 0..65535 scale (halved once, at the end of the stages): the level must be on this scale too
                 uint32_t* ce=&adsrCurrEch[a];            
                 uint32_t  cx=*ce>>16;   // prev currEch  
                 
                 switch(*as){
                     case ADSR_ATT:
+                        if(*ce==0){adsrAttStart[a]=ADSR_RETRIGGER_FROM_LEVEL?adsrLastOut[a]:0;}   // first tick of an attack (every trigger sets *ce to 0)
                         cx=adsrNext(ce,adsrDurAtt[a]);
-                        ov_=rcCurve[cx];
+                        o32=adsrAttStart[a]+(((uint32_t)P16-adsrAttStart[a])*rcCurve[cx])/(uint32_t)P16;
+                        ov_=(uint16_t)o32;
 
                         if (cx == RC_SAMPLES_NB-1) { *ce = 0; *as = ADSR_DEC;}
                         break;
@@ -259,14 +284,15 @@ void __not_in_flash_func(adsrHandler)()
                         // valeurs 1-x
                         cx=adsrNext(ce,adsrDurDec[a]);
                         ov0=rcCurve[cx];
-                        ov_  = (uint16_t)((uint32_t)P16 - ((uint32_t)(P16 - lev) * (uint32_t)ov0)/ (uint32_t)P16);
+                        o32=(uint32_t)P16-(((uint32_t)P16-lev)*ov0)/(uint32_t)P16;
+                        ov_=(uint16_t)((o32>65535u)?65535u:o32);            // with a level near the top the result can reach 65536: it must not wrap to 0
 
                         if (cx == RC_SAMPLES_NB-1) {*ce = 0; *as = ADSR_SUS;}                        
                         break;
 
                     case ADSR_SUS:
                         cx=adsrNext(ce,adsrDurSus[a]);  // timing management                    
-                        ov_=lev;
+                        ov_=(uint16_t)lev;
 
                         if (cx == RC_SAMPLES_NB-1) { *ce = 0; *as = ADSR_REL;}
                         break;
@@ -275,20 +301,20 @@ void __not_in_flash_func(adsrHandler)()
                         // valeurs 1-x
                         cx=adsrNext(ce,adsrDurRel[a]);
                         ov0=rcCurve[cx];
-                        ov_ = (uint16_t)((uint32_t)lev - (uint32_t)((uint32_t)lev * (uint32_t)ov0) / (uint32_t)P16);
+                        ov_=(uint16_t)(lev-(lev*ov0)/(uint32_t)P16);
 
                         if (cx == RC_SAMPLES_NB-1) { *ce = 0; *as = ADSR_OFF;ov_=0;} 
                         break;
 
                     default:break;
                 }
+                adsrLastOut[a]=ov_;     // kept for the next trigger
                 ov_ >>= 1;      // single conversion from the internal ~0-65536 scale to the int16 scale used by update_inputs, done once for all four stages
                 
                 // update connected level inputs
                 int16_t in_lev_id=ctl_output_id_chain[adsr_ctl_output_id[a][ADSR_SHAPE]];
                 if (__builtin_expect(in_lev_id != NO_LINK, 0)){
                     ov_ &= 0x7fff; // écrêtage
-                    //adsrOutputsValues[a][ADSR_SHAPE]=ov_;
                     update_inputs(in_lev_id,ov_);
                 }
 
@@ -307,10 +333,10 @@ void __not_in_flash_func(adsrHandler)()
             // update connected bool inputs
             int16_t in_bool_id=ctl_output_id_chain[adsr_ctl_output_id[a][ADSR_GATE]];
             if (__builtin_expect(in_bool_id != NO_LINK, 0)){
-                //adsrOutputsValues[a][ADSR_GATE]=bol;                
                 update_inputs(in_bool_id,bol);
             }
         }
+//gpio_put(TST_PIN,0);restore_interrupts(ints);        
     }
 }
 
@@ -344,7 +370,7 @@ void __not_in_flash_func(touch_button_handler)(uint8_t touchButtonNb,bool* touch
 
 /* ******  lf mixers  ****** */
 //
-// every change off a coder needs a call to setLfm ; change of the output go through lfm_udate_input(_0)
+// every change of a coder goes through setLfmCoders ; every change of an input value goes through setLfm (called by update_inputs)
 // 
 //
 // current features : input 0 gen level ; 1,2,3 mixed inputs 
@@ -373,44 +399,21 @@ void lf_mixer_init()
     }
 }
 
-void __not_in_flash_func(lfm_update_inputs_0)(uint8_t lfm,int16_t valeur)   // inp0 is the general gain control ; valeur is the new input value (any object output)
+// compute only: from the stored coders and the stored values of the inputs
+void __not_in_flash_func(setLfm)(uint8_t lfm)
 {
-    // ---- recalcul du gain général ----
-    lfmGenAttValue[lfm] =                                                   // lfmGen int32 ; lfmCoder uint16 ; valeur int16 ; lfmCoderAtt uint16
+    // ---- general gain: base coder + attenuated input 0 ----
+    lfmGenAttValue[lfm] =                                                   // lfmGen int32 ; lfmCoder uint16 ; input value int16 ; lfmCoderAtt uint16
         (lfmCoder[0][lfm]<<CODER_BASE_SHIFT) +
-        ((valeur * lfmCoderAtt[0][lfm]) >> MAX_CTL_ATT_SHIFT);              // new gen control
+        ((ctl_input_val[lfm_ctl_input_id[0][lfm]] * lfmCoderAtt[0][lfm]) >> MAX_CTL_ATT_SHIFT);
 
-    // ---- appliquer le gain général à la valeur intermédiaire ----
-    int32_t iv = (intermediateOutputValues[lfm] * lfmGenAttValue[lfm]) >> 15;
-
-    // ---- saturation haute (+32767) ----
-    uint32_t carry_hi = (iv <= 0x7FFF);
-    iv = (iv & -carry_hi) | (0x7FFF & ~(-carry_hi));
-
-    // ---- saturation basse (-32768) ----
-    uint32_t carry_lo = (iv >= -0x8000);
-    iv = (iv & -carry_lo) | (-0x8000 & ~(-carry_lo));
-
-    if(__builtin_expect(iv==1,0)){
-        lfmOutputValues[lfm] = 0;}
-    else
-        lfmOutputValues[lfm] = (int16_t)iv;
-/*if(lfmGenAttValue[lfm]!=0 && lfm==0){ 
-    printf("l_:%u c0:%3u a0:%3u c1:%3u a1:%3u c2:%3u a2:%3u ",lfm,lfmCoder[0][lfm],lfmCoderAtt[0][lfm],lfmCoder[1][lfm],lfmCoderAtt[1][lfm],lfmCoder[2][lfm],lfmCoderAtt[2][lfm]);
-    printf("v:%i iov:%i ga:%i ov:%i\n",valeur,intermediateOutputValues[lfm],lfmGenAttValue[lfm],iv);
-}*/
-    update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],lfmOutputValues[lfm]);
-}
-
-void __not_in_flash_func(lfm_update_inputs)(uint8_t lfm)     // inputs 1-3: recompute the intermediate value from scratch
-{
-    // ---- base coders sum ----
+    // ---- base coders sum of the inputs 1-3 ----
     // (worst case 3 * 0xff << 7 = 0x017f80)
     int32_t v0 = (lfmCoder[1][lfm] + lfmCoder[2][lfm] + lfmCoder[3][lfm])
                  << (CODER_BASE_SHIFT);
 
     // ---- attenuated inputs sum ----
-    int16_t id1 = lfm_ctl_input_id[1][lfm];                   // first id of inputs 1-3 (consecutive ids)
+    int16_t id1 = lfm_ctl_input_id[1][lfm];                   // first id of inputs 1-3 (ids spaced by MAX_LFM)
     // (worst case: 3 * 0x7fff * 0xff = 0x017ffffd, it fits in 32 bits)
     int32_t v1 = ((int32_t)ctl_input_val[id1] * lfmCoderAtt[1][lfm]
                 + (int32_t)ctl_input_val[id1+MAX_LFM] * lfmCoderAtt[2][lfm]
@@ -422,7 +425,7 @@ void __not_in_flash_func(lfm_update_inputs)(uint8_t lfm)     // inputs 1-3: reco
     if (iv < INT16_MIN) iv = INT16_MIN;
     intermediateOutputValues[lfm] = (int16_t)iv;
 
-    // ---- apply gen ----
+    // ---- apply the general gain ----
     iv = (iv * lfmGenAttValue[lfm]) >> 15;
 
     // ---- high ovf (+32767) ----
@@ -433,21 +436,19 @@ void __not_in_flash_func(lfm_update_inputs)(uint8_t lfm)     // inputs 1-3: reco
     uint32_t carry_lo = (iv >= -0x8000);
     iv = (iv & -carry_lo) | (-0x8000 & ~(-carry_lo));
 
-    if(__builtin_expect(iv==1,0)){
-        lfmOutputValues[lfm] = 0;}
-    else
-        lfmOutputValues[lfm] = (int16_t)iv;
+    lfmOutputValues[lfm] = (int16_t)iv;
 
     update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],lfmOutputValues[lfm]);
 }
 
-void __not_in_flash_func(setLfm)(uint8_t lfm,uint8_t inp,uint16_t lcoder,uint16_t acoder)       // update mixer when coders change
+// load the coders of an input (0 = general gain, 1-3 = mixed inputs), then compute the output
+void __not_in_flash_func(setLfmCoders)(uint8_t lfm,uint8_t inp,uint16_t coder,uint16_t coderAtt)
 {
-    lfmCoder[inp][lfm]    = lcoder;
-    lfmCoderAtt[inp][lfm] = acoder;
-
-    if(inp==0){lfm_update_inputs_0(lfm, ctl_input_val[lfm_ctl_input_id[0][lfm]]);}
-    else      {lfm_update_inputs(lfm);}
+    const uint32_t irq=save_and_disable_interrupts();                       // the interrupt that updates the inputs computes the same output: no interleaving
+    lfmCoder[inp][lfm]    = coder;
+    lfmCoderAtt[inp][lfm] = coderAtt;
+    setLfm(lfm);
+    restore_interrupts(irq);
 }
 
 void __not_in_flash_func(lfmScopeHandler)()

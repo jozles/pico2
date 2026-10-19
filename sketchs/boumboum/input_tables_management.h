@@ -11,6 +11,8 @@ void update_inputs(int16_t input_id,int16_t valeur);
 
 void objects_table_init();
 
+extern const char objects_names[][OBJECTS_NAME_LEN];
+
 
 // (0 no trig ; 1 up ; 2 down ; 3 both)
 enum Inputs_trig_modes {

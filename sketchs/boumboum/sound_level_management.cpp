@@ -23,7 +23,7 @@ uint8_t stepAmpl=MAX_16B_LINEAR_VALUE/16;     // nbre d'intervalles / 3db
 uint16_t amplLevel[MAX_16B_LINEAR_VALUE];     // old law, 3 dB steps: voice gain (an integer multiplier: 1 at step 1) and any other user of the table
 uint16_t waveLevel[WAVE_LEVEL_STEPS];         // new law of the wave amplitudes: WAVE_LEVEL_STEPS fine steps over AMPL_RANGE_DB
 
-#define AMPL_RANGE_DB   60.0f                 // range of the wave coders: step 1 is AMPL_RANGE_DB below the top step (0x7fff); lower it if step 1 is too quiet
+#define AMPL_RANGE_DB   69.0f                 // range of the wave coders: step 1 is AMPL_RANGE_DB below the top step (0x7fff); lower it if step 1 is too quiet
 
 
 // *************************** tables *******************************
@@ -54,9 +54,9 @@ void fillAmplIncr(){          // fonctionne avec stepAmpl mini 2 !!!
 
     assert(amplLevel[MAX_16B_LINEAR_VALUE-1] <= 32767);
 
-    waveLevel[0]=0;                                                                     // wave amplitudes: finer steps, and a range that stays audible down to step 1
+    waveLevel[0]=0;                                                                                 // wave amplitudes: finer steps, and a range that stays audible down to step 1
     for(uint8_t k=1;k<WAVE_LEVEL_STEPS;k++){
-        const float db=-AMPL_RANGE_DB*(float)(WAVE_LEVEL_STEPS-1-k)/(float)(WAVE_LEVEL_STEPS-2);   // 0 dB at the top step, -AMPL_RANGE_DB at step 1
+        const float db=-AMPL_RANGE_DB*(float)(WAVE_LEVEL_STEPS-1-k)/(float)(WAVE_LEVEL_STEPS-2);    // 0 dB at the top step, -AMPL_RANGE_DB at step 1
         waveLevel[k]=(uint16_t)roundf(32767.0f*powf(10.0f,db/20.0f));
     }
 

@@ -835,9 +835,9 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
                     b=(float)t/(float)0x7fff;
                     }break;
 
-                case 3:{                                                // adsr real wave view (16bits amplitude)
+                case 3:{                                                // adsr real wave view (15 bits amplitude), drawn at 94 % of the height to stay clear of the title
                     uint32_t t=buf[object*ADSR_SCOPE_BUFFER_LEN+i];     
-                    b=(float)t/(float)0x0000ffff;     
+                    b=(float)t*0.94f/(float)0x7fff;
                     }break;
 
                 default: break;
@@ -847,10 +847,11 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
 
 //printf("obj:%d i:%d wf:%d b:%f yy:%i\n",object,i,wf,b,yy);
 
-            if(abs(yy)>(TFT_H-begline)/zz){yy=sign*(TFT_H-begline)/zz;}
-            v=2*(((TFT_H-begline-1)/zz-yy)*TFT_W+i);                    // pixel location in tft_frame
+            int32_t row=(TFT_H-begline-1)/zz-yy;                        // pixel row in tft_frame, kept inside the frame: an out-of-range value used to write before the buffer
+            if(row<0){row=0;}
+            if(row>(int32_t)(TFT_H-begline-1)){row=TFT_H-begline-1;}
+            v=2*(row*TFT_W+i);                                          // pixel location in tft_frame
             tft_frame[v]=fgcolor;
-            //printf("%u %u %i %f\n",object,i,yy,v);
         }
 
         for(uint16_t i=0;i<TFT_W;i+=3){tft_frame[2*(((TFT_H-begline-1)/zz)*TFT_W+i)]=fgcolor;}        // 0 line

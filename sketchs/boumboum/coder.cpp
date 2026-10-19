@@ -9,6 +9,8 @@
 #include "st7789.h"
 #include "miscControls.h"
 
+#include "hardware/sync.h"
+
 
 uint16_t coderTimerPollingInterval=1;       // delay between interrupts (ms), set by coderInit
 uint8_t coderStrobeNumber=3;                // first strobe delay, in polls (the second strobe delay is 1)
@@ -46,7 +48,7 @@ bool __not_in_flash_func(coderTimerHandler)(){
     int_counter++;
     if(int_counter>=coderTimerPollingInterval){
         int_counter=0;
-
+//uint32_t ints = save_and_disable_interrupts();gpio_put(TST_PIN,1);
         Coders* cp;
         Coders* ct;
         uint32_t currTime=millisCounter;
@@ -123,6 +125,7 @@ bool __not_in_flash_func(coderTimerHandler)(){
                 }
             }        
         }
+//gpio_put(TST_PIN,0);restore_interrupts(ints);
     }
     return true;    // relancer le timer
 }
