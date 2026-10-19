@@ -25,9 +25,6 @@ extern int16_t   tbut_ctl_output_id[][MAX_OUTPUTS_PER_OBJ];
 extern Voice voices[MAX_VOICES];
 
 extern float     lfosFrequency[MAX_LFO]; 
-extern uint16_t  lfosCoderCycleR[MAX_LFO];
-extern uint16_t  lfosCycleR[MAX_LFO];
-extern uint16_t  lfosCoderCycleRAtt[MAX_LFO];
 extern uint16_t  lfosCodersFreq[MAX_LFO];
 extern uint16_t  lfosCodersFreqAtt[MAX_LFO];
 extern int16_t   lfo_ctl_input_id[][MAX_INPUTS_PER_OBJ];
@@ -599,18 +596,16 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
                 case VCE_WHIT:  setVoiceAmpl(&voices[object],WHIT);break;
                 case VCE_WPNK:  setVoiceAmpl(&voices[object],PONK);break;
                 case VCE_GENA:  setVoiceAmpl(&voices[object],BASIC_WAVES_NB);break;
-                case VCE_FILT:  setVoiceFilterFrequency(&voices[object]);      // cutoff code = coder + attenuated input (same shift of 6 as before)
-                                break;
+                case VCE_FILT:  setVoiceFilterFrequency(&voices[object]);break;         // cutoff code = coder + attenuated input (same shift of 6 as before)                         
                 case VCE_RES :  setVoiceFilterRes(&voices[object]);break;
-                case LFO_FREQ:  setLfosFrequency(object);break;                                         // 8k max VCES_MAX_FREQ_CODERS ; att 0-255 
-                case LFO_CRA :  lfosCycleR[object]=(uint16_t)(lfosCoderCycleR[object]+(((valeur>>10)*lfosCoderCycleRAtt[object])>>MAX_CTL_ATT_SHIFT));   // base + attenuated input ; read as &63 by lfosHandler                  
-                                break;
+                case LFO_FREQ:  setLfosFrequency(object);break;                         // 8k max VCES_MAX_FREQ_CODERS ; att 0-255 
+                case LFO_CRA :  setLfosCycleR(object); break;
                 case A_ATTACK:  setAdsrDur(object,ADSR_ATT);break;
                 case A_DECAY :  setAdsrDur(object,ADSR_DEC);break;
                 case A_SUST  :  setAdsrDur(object,ADSR_SUS);break;
                 case A_RELEAS:  setAdsrDur(object,ADSR_REL);break;
                 case A_LEVEL :  setAdsrLev(object);break;                       
-                case A_START :  ctl_input_prev_val[id]=prev;                                            // start adsr
+                case A_START :  ctl_input_prev_val[id]=prev;                            // start adsr
                                 tlev=ctl_input_tlev[id];
                                 switch(ctl_input_trig[id]){
                                     case INP_NO_TRIG:break;

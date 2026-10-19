@@ -46,7 +46,7 @@ extern uint16_t waveLevel[WAVE_LEVEL_STEPS];    // wave amplitude of each step (
 
 volatile uint32_t i2sUnderruns=0;               // number of times both i2s buffers were free at once: the DMA ran out of data (audible glitch)
 
-// current lfo values (lfoHandler triger'd by pwmIrqHandler)
+// current lfo values (lfosHandler is triggered by pwm_irq_handler)
 float       lfosFrequency[MAX_LFO];             // frequency
 uint16_t    lfosCodersFreq[MAX_LFO];            // frequency coder value
 uint16_t    lfosMaxCoderFreq[MAX_LFO];          // frequency coder max value
@@ -497,44 +497,60 @@ void __not_in_flash_func(setLfosSteps)(float freq,uint8_t lfo){
     lfosPhaseStep[lfo]=(uint32_t)(k*(float)MAX_STEP_FRA+0.5f);
 }
 
-void __not_in_flash_func(setLfosFrCoders)(uint8_t lfo, uint16_t coderFreq, uint16_t coderAtt)   // coders storage only
-{
-    lfosCodersFreq[lfo]    = coderFreq;
-    lfosCodersFreqAtt[lfo] = coderAtt;
-}
-
-void __not_in_flash_func(setLfosFrequency)(uint8_t lfo)  // recompute the frequency with the stored input value
+// compute only: the frequency from the stored coders and the stored value of the input
+void __not_in_flash_func(setLfosFrequency)(uint8_t lfo)
 {
     int16_t id = lfo_ctl_input_id[lfo][LFRQ];
     float f=calcFreq((uint16_t)ctlCombine(lfosCodersFreq[lfo],lfosCodersFreqAtt[lfo],ctl_input_val[id],3,0,FREQ_CODE_MAX))/VOICE_FREQ_DIVIDER;
-    setLfosSteps(f,lfo);                
+    setLfosSteps(f,lfo);
 }
 
-void __not_in_flash_func(setLfosCycleR)(uint8_t lfo, uint16_t coderCycleR, uint16_t coderCycleRAtt)
+// load the coders of the frequency, then compute it
+void __not_in_flash_func(setLfosFrCoders)(uint8_t lfo, uint16_t coderFreq, uint16_t coderAtt)
 {
+    const uint32_t irq=save_and_disable_interrupts();                       // the interrupt that updates the inputs computes the same value: no interleaving
+    lfosCodersFreq[lfo]    = coderFreq;
+    lfosCodersFreqAtt[lfo] = coderAtt;
+    setLfosFrequency(lfo);
+    restore_interrupts(irq);
+}
+
+// compute only: the cycle ratio from the stored coders and the stored value of the input
+void __not_in_flash_func(setLfosCycleR)(uint8_t lfo)
+{
+    const int16_t valeur = ctl_input_val[lfo_ctl_input_id[lfo][LCR_]];
+    lfosCycleR[lfo]=(uint16_t)(lfosCoderCycleR[lfo]+(((valeur>>10)*lfosCoderCycleRAtt[lfo])>>MAX_CTL_ATT_SHIFT));   // base + attenuated input ; read as &63 by lfosHandler
+}
+
+// load the coders of the cycle ratio, then compute it
+void __not_in_flash_func(setLfosCycleRCoders)(uint8_t lfo, uint16_t coderCycleR, uint16_t coderCycleRAtt)
+{
+    const uint32_t irq=save_and_disable_interrupts();
     lfosCoderCycleR[lfo]    = coderCycleR;
     lfosCoderCycleRAtt[lfo] = coderCycleRAtt;
+    setLfosCycleR(lfo);
+    restore_interrupts(irq);
+}
 
-    int16_t id = lfo_ctl_input_id[lfo][LCR_];
-    update_inputs(id, ctl_input_val[id]);                // recompute lfosCycleR from the stored input value
+// same as setLfosCycleRCoders: kept because tests.cpp still calls this name ; to remove when tests.cpp is rewritten
+void __not_in_flash_func(setLfosCycleR)(uint8_t lfo, uint16_t coderCycleR, uint16_t coderCycleRAtt)
+{
+    setLfosCycleRCoders(lfo,coderCycleR,coderCycleRAtt);
 }
 
 void lfosInit(){
     printf("%u lfos init\n",MAX_LFO);
     for(uint8_t l=0;l<MAX_LFO;l++){
 
-        lfosCodersFreq[l]=1768;    // 1.5s
-        lfosFrequency[l]=calcFreq(lfosCodersFreq[l])/VOICE_FREQ_DIVIDER;
         lfosMaxCoderFreq[l]=LFOS_MAX_FREQ_CODERS;
-        lfosCodersFreqAtt[l]=FULL_ATTENUATION_VALUE;
         currLfoEch[l]=0;
         lfosPhaseStep[l]=0; 
         lfoPhase[l]=0;
         
         //for(uint8_t v=0;v<MAX_OUTPUTS_PER_OBJ;v++){lfosOutputsValues[l][v]=0;}
 
-        setLfosSteps(lfosFrequency[l],l);
-        setLfosCycleR(l, MAXCODER_RC/2, FULL_ATTENUATION_VALUE);        
+        setLfosFrCoders(l, 1768, FULL_ATTENUATION_VALUE);               // 1.5 s
+        setLfosCycleRCoders(l, MAXCODER_RC/2, FULL_ATTENUATION_VALUE);
 
         lfoTime=0;
     }
@@ -637,18 +653,68 @@ struct OscBlock {
     int32_t        pink;
 };
 
+// ---- sawtooth without a table (experimental) ----
+// the sawtooth is the triangle of rc table 0. On the measure of the boot (first 0, last 32) that table is a ramp that starts at the peak
+// (position 1) and falls to about 0 at position 1023, with 0 at position 0: seen from j = (-position) & 1023 it is a straight line
+// through the origin: value = sawLineB + ((j * sawLineK) >> 16)
+// sawLineInit() fits that line on the table once, prints what it finds and, when SAW_FROM_TABLE is 0, stops the program if the table is not that line
+#define SAW_FROM_TABLE  1                               // 1: the sawtooth is read in rc table 0 (always right) ; 0: it is computed from the phase (after the boot message says "gap 0" or "gap 1")
+
+static int32_t sawLineB = 0;                            // offset of the line, chosen so that the gap to the table is the smallest
+static int32_t sawLineK = 0;                            // slope per step of j, Q16
+static bool    sawLineReady = false;
+
+static void sawLineInit()
+{
+    const int32_t y0 = rc_tables[0][0][WTRI];                           // j = 0
+    const int32_t y1 = rc_tables[0][1][WTRI];                           // j = 1023
+    int32_t k = 0;
+    if (y1 - y0 <= 32767 && y0 - y1 <= 32767) { k = (int32_t)(((int64_t)(y1 - y0) * 65536) / (RC_TABLES_LEN - 1)); }   // (j * K) must fit in 32 bits
+
+    int32_t lo = INT32_MAX, hi = INT32_MIN;
+    for (int32_t ce = 0; ce < RC_TABLES_LEN; ce++) {
+        const int32_t j = (-ce) & (RC_TABLES_LEN - 1);
+        const int32_t d = (int32_t)rc_tables[0][ce][WTRI] - (int32_t)(((int64_t)j * k) >> 16);
+        if (d < lo) lo = d;
+        if (d > hi) hi = d;
+    }
+    const int32_t b = (lo + hi) >> 1;                                   // centres the gap: at most about +-1 on a rounded straight line
+
+    int32_t maxDev = 0;
+    for (int32_t ce = 0; ce < RC_TABLES_LEN; ce++) {
+        const int32_t j = (-ce) & (RC_TABLES_LEN - 1);
+        int32_t d = (int32_t)rc_tables[0][ce][WTRI] - (b + (int32_t)(((int64_t)j * k) >> 16));
+        if (d < 0) d = -d;
+        if (d > maxDev) maxDev = d;
+    }
+    printf("saw table 0: [0]=%ld [1]=%ld [2]=%ld [3]=%ld [512]=%ld [1022]=%ld [1023]=%ld ; line offset %ld slope %ld ; gap %ld\n",
+           (long)rc_tables[0][0][WTRI], (long)rc_tables[0][1][WTRI], (long)rc_tables[0][2][WTRI], (long)rc_tables[0][3][WTRI],
+           (long)rc_tables[0][512][WTRI], (long)rc_tables[0][1022][WTRI], (long)rc_tables[0][1023][WTRI], (long)b, (long)k, (long)maxDev);
+#if !SAW_FROM_TABLE
+    if (maxDev > 2) { system_error("saw tbl0 not a line", maxDev); }    // short message: it is drawn on the display
+#endif
+    sawLineB = b;
+    sawLineK = k;
+    sawLineReady = true;
+}
+
 // one sub-block of the oscillator, specialised at compile time for the waves that are active:
 // no per-sample test, and the variables of the muted waves do not exist in the loop
+static_assert(BASIC_WAVE_TABLE_LEN == 2 * RC_TABLES_LEN, "the mirror below assumes a table of half a period");
+
 template<bool kTri, bool kSaw, bool kSqr, bool kWhite, bool kPink>
 static inline __attribute__((always_inline)) void oscBlock(OscBlock& b)
 {
     const int32_t* idx    = b.idx;
     int32_t*       out    = b.out;
     const int16_t* rcCurr = b.rcCurr;
-    const bool     rev    = b.reverse;
+    const uint32_t revMask = b.reverse ? (RC_TABLES_LEN - 1) : 0u;     // x ^ 1023 = 1023 - x for x in 0..1023: the reversed table read without a test
     int32_t sinAcc = b.sinAcc;  const int32_t sinInc = b.sinInc;
     int32_t triAcc = b.triAcc;  const int32_t triInc = b.triInc;
     int32_t sawAcc = b.sawAcc;  const int32_t sawInc = b.sawInc;
+#if !SAW_FROM_TABLE
+    const int32_t sawB = sawLineB, sawK = sawLineK;                    // the sawtooth line, copied into registers (the output pointer could alias a global)
+#endif
     const uint32_t sqrTh = b.sqrTh;  const int32_t sqrAHi = b.sqrAHi, sqrALo = b.sqrALo;
     const int32_t whiAmpl = b.whiAmpl, pnkAmpl = b.pnkAmpl;
     uint32_t seed = b.seed;
@@ -657,15 +723,12 @@ static inline __attribute__((always_inline)) void oscBlock(OscBlock& b)
     for (uint32_t s = 0; s < RAMP_LEN; s++) {
         const uint32_t t = idx[s];                                     // raw phase index 0..2047
 
-        uint32_t ce = t;
-        const bool vv = (ce < RC_TABLES_LEN);
-        const int  sign = (vv * 2 - 1);                                // invert 180-360°
-        ce ^= (!vv) * (BASIC_WAVE_TABLE_LEN - 1);
-        ce &= RC_TABLES_LEN - 1;
+        // first half period (t < 1024): the table is read forwards ; second half: backwards, and the sign is inverted
+        const uint32_t mask = 0u - (t >> 10);                          // 0 in the first half, 0xFFFFFFFF in the second
+        const uint32_t ce   = (t ^ mask) & (RC_TABLES_LEN - 1);        // mirrored position in the table, 0..1023
+        const int32_t  sign = (int32_t)(mask | 1u);                    // +1 or -1
 
-        uint32_t ce_idx = ce;
-        if (rev) ce_idx = (RC_TABLES_LEN - 1) - ce_idx;
-        const int16_t* w = rcCurr + RC_N_WAVES * ce_idx;               // rc_table values ptr
+        const int16_t* w = rcCurr + RC_N_WAVES * (ce ^ revMask);       // rc_table values ptr
 
         sinAcc += sinInc;
         int32_t pre = smmulr(w[WSIN] * 65536, sinAcc);                 // wave * amplitude; the ramped amplitude keeps 16 fractional bits
@@ -676,7 +739,13 @@ static inline __attribute__((always_inline)) void oscBlock(OscBlock& b)
         }
         if (kSaw) {
             sawAcc += sawInc;
+#if SAW_FROM_TABLE
             pre += smmulr(rc_tables[0][ce][WTRI] * 65536, sawAcc);     // sawtooth = triangle of table 0, the same for every rc
+#else
+            const int32_t sawj = (int32_t)((0u - ce) & (RC_TABLES_LEN - 1));      // table 0 seen from its end: a straight line through the origin
+            const int32_t sawv = sawB + ((sawj * sawK) >> 16);                     // no table read
+            pre += smmulr(sawv * 65536, sawAcc);
+#endif
         }
 
         pre *= sign;
@@ -734,6 +803,7 @@ static bool    voiceStarted[MAX_VOICES];                        // false until t
 void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* v,uint8_t voiceNum)
 {
     if (__builtin_expect(!rcPeakReady, 0)) { fillRcPeak(); }              // first buffer only, before the interrupts are masked
+    if (__builtin_expect(!sawLineReady, 0)) { sawLineInit(); }            // first buffer only, before the interrupts are masked
 
     uint32_t ints = save_and_disable_interrupts();
 gpio_put(TST_PIN,1);

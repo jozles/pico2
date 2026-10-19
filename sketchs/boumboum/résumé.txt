@@ -52,7 +52,8 @@ x  touch_buttons
 y  leds
 
 chiffres :
-	2 buffers i2s de 512 échantillons = 11,6 ms sortis en dma flip/flop automatique 
+	2 buffers i2s de 512 échantillons = 11,6 ms sortis en dma flip/flop automatique
+	fillVoices_mono sin+saw 318 ; sin+noise 312 ; sin seul 262 ; tout 370
 	Interruption à 1 kHz : polling des codeurs, LFO, ADSR, LFM, glissades.
 	Pas de l’ADSR : 2 ms (500 Hz). Les LFO tournent à 40 Hz.
 	Le rendu des voices tourne interruptions coupées : les cibles de modulation sont donc constantes pendant un buffer.
@@ -143,7 +144,11 @@ TDL
 
 4.1 rc sur sqr lfos
 4.2 Regrouper sin+tri / saw+sqr avec vsBuffer élargi à 64 bits (ce + index précalculé), à mesurer
-4.3 quand toutes les sorties sont à 0 sauter tout et démarrer l'oscillateur de 0 quand ça reprend
+4.3 quand toutes les sorties sont à 0 sauter tout et démarrer l'oscillateur et le filtre de 0 quand ça reprend
+4.4 Mixage : la sortie est écrite deux fois par échantillon (vb[0] et vb[1], pointeur volatile) alors que gauche = droite → accumuler en mono et recopier une seule fois en stéréo à la fin de fillVoiceBuffer.
+4.5 remettre le skip se sinus si inutilisé
+4.6 Dent de scie sans lecture de table : interrupteur SAW_FROM_TABLE (frequences.cpp), à 1 pour l’instant ; le passer à 0 quand le message de démarrage « saw table 0 … gap N » affiche N = 0 ou 1, puis chronométrer la dent de scie seule avant/après
+4.7 À retirer une fois les mesures finies : clickCheck, journal d’enveloppe (envLogPush, envLogDump).
 
 5.Filtre
 

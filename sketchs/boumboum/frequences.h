@@ -127,9 +127,11 @@ void filterGlideTick();                                     // every ms (interru
 void filterGlideReport();                                   // main loop: prints the time constant when the scan changes it
 
 void setLfosSteps(float freq,uint8_t l);
-void setLfosFrCoders(uint8_t lfo, uint16_t coderFreq, uint16_t coderAtt);
-void setLfosFrequency(uint8_t lfo);
-void setLfosCycleR(uint8_t lfo, uint16_t coderCycleR, uint16_t coderCycleRAtt);
+void setLfosFrCoders(uint8_t lfo, uint16_t coderFreq, uint16_t coderAtt);                   // load the coders of the frequency, then compute it
+void setLfosFrequency(uint8_t lfo);                                                         // compute only, from the stored coders and the stored value of the input
+void setLfosCycleRCoders(uint8_t lfo, uint16_t coderCycleR, uint16_t coderCycleRAtt);       // load the coders of the cycle ratio, then compute it
+void setLfosCycleR(uint8_t lfo);                                                            // compute only
+void setLfosCycleR(uint8_t lfo, uint16_t coderCycleR, uint16_t coderCycleRAtt);             // same as setLfosCycleRCoders: kept for tests.cpp
 void lfosHandler();
 void lfosInit();
 

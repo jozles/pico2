@@ -624,26 +624,24 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
             case LFOS_____:
                 switch(coder){
                     case OSCCODERFREQ:if(varChge){                                          // cc=coder freq
-                        setLfosFrCoders(line,(uint16_t)cc,lfosCodersFreqAtt[line]);
-                        setLfosFrequency(line);
+                        setLfosFrCoders(line,(uint16_t)cc,lfosCodersFreqAtt[line]);         // stores the coders, then computes the frequency
                         }break;
                     case OSCCODERFREQATT:if(varChge){                                       // cc = coder: attenuator of the frequency input 
                         setLfosFrCoders(line,lfosCodersFreq[line],(uint16_t)cc);
-                        setLfosFrequency(line);
                         }break;                        
                     case OSCCODERCRA:if(varChge){                                           // cc=coder cra (base value)
-                        setLfosCycleR(line,cc,lfosCoderCycleRAtt[line]);                    // stores the coders, then recomputes lfosCycleR
+                        setLfosCycleRCoders(line,cc,lfosCoderCycleRAtt[line]);              // stores the coders, then computes lfosCycleR
                         signal_overflow("lfo_cra:",line,(int16_t)lfosCycleR[line],MINCODER_RC,MAXCODER_RC);
                         }break;
                     case OSCCODERCRAATT:if(varChge){                                        // cc = coder: attenuator of the cra input
-                        setLfosCycleR(line,lfosCoderCycleR[line],cc);
+                        setLfosCycleRCoders(line,lfosCoderCycleR[line],cc);
                         printf("lfo#:%d cc(att):%d crinp:%i cr:%i f_id:%d \n",line,cc,ctl_input_val[lfo_ctl_input_id[line][LCR_]]>>10,(int16_t)lfosCycleR[line],lfo_ctl_input_id[line][LCR_]);
                         signal_overflow("lfo_cra:",line,(int16_t)lfosCycleR[line],MINCODER_RC,MAXCODER_RC);
                         }break;                        
                     default:break;
                 }
                 snprintf(buf+2,LINE_LEN-2,"%1.3f %1.3f %d   ",lfosFrequency[line],1/lfosFrequency[line],lfosCoderCycleR[line]-MAXCODER_RC/2);
-                break;  
+                break; 
             case VOICES_FR:
                 switch (coder){
                     case OSCCODERFREQ:if(varChge){
