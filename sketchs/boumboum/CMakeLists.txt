@@ -66,6 +66,8 @@ add_executable(boumboum
 	def/adsr_inputs_names.def
 	def/lfos_inputs_names.def
 	def/vces_inputs_names.def
+	def/rev_inputs_names.def
+	def/echo_inputs_names.def
 	def/adsr_outputs_names.def
 	def/lfos_outputs_names.def
 	def/vces_outputs_names.def
@@ -85,6 +87,8 @@ add_executable(boumboum
 
 # tout le code en ram
 #pico_set_binary_type(boumboum copy_to_ram)
+
+target_compile_definitions(boumboum PRIVATE PICO_STACK_SIZE=0x1000)
 
 pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/ws2812.pio)
 pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/i2s.pio)

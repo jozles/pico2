@@ -1,5 +1,6 @@
 /* types names for normalization scheme of control inputs values */
 
+    X(NOTHING_,"NTHG")
     X(VCE_FREQ,"OFRQ")
     X(VCE_CRA ,"OCRA")
     X(VCE_WSIN,"VSIN")   
@@ -20,3 +21,11 @@
     X(A_LEVEL ,"ALEV")
     X(A_START ,"ASTA")
     X(LFM____ ,"LFMX")
+    X(REV_D__ ,"REVD")
+    X(REV_S__ ,"REVS")
+    X(REV_R__ ,"REVR")
+    X(ECHO_D_ ,"ECHD")
+    X(ECHO_I_ ,"ECHI")
+    X(ECHO_R_ ,"ECHR")
+    X(REV_V__ ,"REVV")
+    X(ECHO_V_ ,"ECHV")

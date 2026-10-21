@@ -1,4 +1,4 @@
-/* inputs names for adsr */
+/* input names for adsr */
 
     X(ATTK,"ATTK")
     X(DECA,"DECA")

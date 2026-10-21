@@ -1,8 +1,8 @@
-/* inputs names for voices */
+/* input names for voices */
 
     X(VFRQ,"FREQ")
     X(VCR_,"CYCR")
-    X(VSPW,"SIPW")  // VSPW oit être en tête des 'PW' (utilisé comme base)
+    X(VSPW,"SIPW")  // VSPW doit être en tête des 'PW' (utilisé comme base)
     X(VTPW,"TRPW")
     X(VAPW,"SAPW")
     X(VQPW,"SQPW")
@@ -11,3 +11,6 @@
     X(VGPW,"GPOW")
     X(VFIL,"FILT")
     X(VRES,"RESO")
+    X(VREV,"SREV")
+    X(VECH,"SECH")
+

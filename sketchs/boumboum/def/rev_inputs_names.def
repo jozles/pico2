@@ -1,0 +1,5 @@
+/* input names for reverb */
+
+    X(REVD,"REVD")
+    X(REVS,"REVS")
+    X(REVR,"REVR")

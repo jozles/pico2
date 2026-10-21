@@ -69,14 +69,14 @@ uint16_t    lfosCoderCycleR[MAX_LFO];                 // cycle ratio coder value
 
 uint16_t    lfosCoderCycleRAtt[MAX_LFO];              // cycle ratio input attenuator value
 
-int16_t     lfo_ctl_input_id[MAX_LFO][MAX_INPUTS_PER_OBJ];    // id des inputs du lfo dans ctl_input_xxx[]
+int16_t     lfo_ctl_input_id[MAX_LFO][LFO_INPUTS_NB];    // id des inputs du lfo dans ctl_input_xxx[]
 int16_t     lfo_ctl_output_id[MAX_LFO][MAX_OUTPUTS_PER_OBJ];  // id des outputs du lfo dans ctl_output_xxx[]
 int16_t     lfo_first_output_id;
 int16_t     lfo_first_input_id;
 
-extern int16_t ctl_input_val[MAX_INPUTS];
+extern int16_t ctl_input_val[TOTAL_INPUTS_ID_REAL];
 extern int16_t ctl_output_id_chain[MAX_OUTPUTS];
-extern uint8_t ctl_input_update_type[MAX_INPUTS];
+extern uint8_t ctl_input_update_type[TOTAL_INPUTS_ID_REAL];
 
 int32_t     voicesScopeDataBuffer[MAX_VOICES*SAMPLES_PER_BUFFER];  // all voices data buffer 
 
@@ -211,6 +211,8 @@ void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)    // cga = genAmpl c
         voices[v].phase=0;
         voices[v].noiseSeed=0;             // seed of the noise generator: 0 = initialised by the first buffer
         voices[v].sqrTh=1024;
+        voices[v].coderReverb=0;
+        voices[v].coderEcho=0;
 
         printf("voice %u: id=%d type=%d\n", v, voices[v].voice_ctl_input_id[VFIL], ctl_input_update_type[voices[v].voice_ctl_input_id[VFIL]]);
         filtersInit(v);
@@ -592,7 +594,7 @@ void __not_in_flash_func(lfosHandler)()
         uint32_t ce_idx = ce;
         if (rc > (RC_N_TABLES-1)){ce_idx = (RC_TABLES_LEN - 1) - ce_idx;}
         
-        const int16_t *w = &rc_tables[rcTableNb][0][0]+RC_N_WAVES*ce_idx;    // rc_table values ptr 
+        const int16_t *w = &rc_tables[rcTableNb][0][0]+RC_N_WAVES*ce_idx;    // pointer into the rc table 
         
         int16_t c0=sign*w[LSIN];
         int16_t out_id;
@@ -654,7 +656,7 @@ struct OscBlock {
 };
 
 // ---- sawtooth without a table (experimental) ----
-// the sawtooth is the triangle of rc table 0. On the measure of the boot (first 0, last 32) that table is a ramp that starts at the peak
+// the sawtooth is the triangle of rc table 0. According to the measurement made at boot (first 0, last 32) that table is a ramp that starts at the peak
 // (position 1) and falls to about 0 at position 1023, with 0 at position 0: seen from j = (-position) & 1023 it is a straight line
 // through the origin: value = sawLineB + ((j * sawLineK) >> 16)
 // sawLineInit() fits that line on the table once, prints what it finds and, when SAW_FROM_TABLE is 0, stops the program if the table is not that line
@@ -728,7 +730,7 @@ static inline __attribute__((always_inline)) void oscBlock(OscBlock& b)
         const uint32_t ce   = (t ^ mask) & (RC_TABLES_LEN - 1);        // mirrored position in the table, 0..1023
         const int32_t  sign = (int32_t)(mask | 1u);                    // +1 or -1
 
-        const int16_t* w = rcCurr + RC_N_WAVES * (ce ^ revMask);       // rc_table values ptr
+        const int16_t* w = rcCurr + RC_N_WAVES * (ce ^ revMask);       // pointer into the rc table
 
         sinAcc += sinInc;
         int32_t pre = smmulr(w[WSIN] * 65536, sinAcc);                 // wave * amplitude; the ramped amplitude keeps 16 fractional bits
@@ -812,7 +814,7 @@ gpio_put(TST_PIN,1);
 
     const uint32_t phaseStep = v->phaseStep;                              // read once for the whole buffer
 
-// init noise: one xorshift32 generator per voice (its state must never be 0); v->noisePhase holds the state
+// init noise: one xorshift32 generator per voice (its state must never be 0); v->noiseSeed holds the state
     uint32_t nSeed = v->noiseSeed;
     if (nSeed == 0) { nSeed = 0x9E3779B9u + 0x7F4A7C15u * (uint32_t)(voiceNum + 1); }
     int32_t  pink_state_loc = pink_state;
@@ -834,7 +836,7 @@ gpio_put(TST_PIN,1);
     }
     int32_t sqrTh = v->sqrTh;                                             // current width: it glides towards sqrThTarget
 
-// waves amplitudes: the current values are stored in basicWaveAmpl[], the targets are written in newBasicWaveAmpl[] by setVoiceAmpl()
+// wave amplitudes: the current values are stored in basicWaveAmpl[], the targets are written in newBasicWaveAmpl[] by setVoiceAmpl()
     volatile int16_t* waveAmplSin    = &v->basicWaveAmpl[WSIN];
     volatile int16_t* newWaveAmplSin = &v->newBasicWaveAmpl[WSIN];
     volatile int16_t* waveAmplTri    = &v->basicWaveAmpl[WTRI];

@@ -48,7 +48,8 @@ static volatile uint16_t sched_y;
 static volatile uint16_t sched_w;
 static volatile uint16_t sched_h;
 
-
+extern uint16_t lfmCoder[LFM_INPUTS_NB][MAX_LFM];       
+extern uint16_t lfmCoderAtt[LFM_INPUTS_NB][MAX_LFM];
 
 // --------------------------------------------------------
 // accélérateur uc pendant effacement écran :
@@ -874,6 +875,12 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
 bool debug_ticker(){
     if(__builtin_expect((millisCounter-ticker10)>10000,0)){
         printf("10s_cnt:%d\n",millisCounter/10000);ticker10=millisCounter;
+        
+        printf("W v2 f:%u att:%u amp:%u | lfm0 c:%u %u %u %u | lfm1 c:%u %u %u %u\n",
+        voices[2].coderFreq, voices[2].coderFreqAtt, voices[2].coderWaveAmpl[0],
+        lfmCoder[0][0],lfmCoder[1][0],lfmCoder[2][0],lfmCoder[3][0],
+        lfmCoder[0][1],lfmCoder[1][1],lfmCoder[2][1],lfmCoder[3][1]);
+        
         tft_draw_int_12x12_dma_mult(TFT_W-4*12,0,0x001f,0x0000,1,millisCounter/10000); 
         return true;   
     }

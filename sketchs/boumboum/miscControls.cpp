@@ -28,7 +28,7 @@ uint32_t adsrDurDec[MAX_ADSR];
 uint32_t adsrDurSus[MAX_ADSR];
 uint32_t adsrDurRel[MAX_ADSR];
 uint32_t adsrCurrEch[MAX_ADSR];
-int16_t  adsr_ctl_input_id[MAX_ADSR][MAX_INPUTS_PER_OBJ];
+int16_t  adsr_ctl_input_id[MAX_ADSR][ADSR_INPUTS_NB];
 int16_t  adsr_ctl_output_id[MAX_ADSR][MAX_OUTPUTS_PER_OBJ];
 int32_t  adsrScopeBufReal[MAX_ADSR*ADSR_SCOPE_BUFFER_LEN];  // real values
 uint16_t adsrScopeBufPtr[MAX_ADSR];
@@ -44,15 +44,14 @@ int16_t  tbut_ctl_output_id[MAX_TBUT][MAX_OUTPUTS_PER_OBJ];
 
 /* *******  lf_mixers  ******** */
 
-uint16_t lfmCoder[MAX_INPUTS_PER_OBJ][MAX_LFM];                 // 8 bits basic coder value before 16 bits extension
-uint16_t lfmCoderAtt[MAX_INPUTS_PER_OBJ][MAX_LFM];              // 8 bits input attenuator value
+uint16_t lfmCoder[LFM_INPUTS_NB][MAX_LFM];                  // 8 bits basic coder value before 16 bits extension
+uint16_t lfmCoderAtt[LFM_INPUTS_NB][MAX_LFM];               // 8 bits input attenuator value
 int16_t  intermediateOutputValues[MAX_LFM];                 // outputValue before genAtt Attenuation
 int32_t  lfmGenAttValue[MAX_LFM];                           // outputValue Attenuation
 int16_t  lfmOutputValues[MAX_LFM];
-uint8_t  lfmInputType[MAX_INPUTS_PER_OBJ][MAX_LFM];
-int16_t  lfm_ctl_input_id[MAX_INPUTS_PER_OBJ][MAX_LFM];
+uint8_t  lfmInputType[LFM_INPUTS_NB][MAX_LFM];
+int16_t  lfm_ctl_input_id[LFM_INPUTS_NB][MAX_LFM];
 int16_t  lfm_ctl_output_id[MAX_OUTPUTS_PER_OBJ][MAX_LFM];
-uint8_t  lfmNb[MAX_INPUTS];                 // les n° de lfm par input id
 uint8_t  lfmCh[]={'_','\\','/'};
 int32_t  lfmScopeBufReal[MAX_LFM*LFM_SCOPE_BUFFER_LEN];
 uint16_t lfmScopeBufPtr[MAX_LFM];
@@ -65,14 +64,40 @@ extern uint16_t* lfmVar[];
 
 static_assert(sizeof(lfmCoder[0][0]) == 2, "CODER_BASE_SHIFT assumes lfmCoder is 16-bit; update the shift if the type changes or create a new parameter");
 
+/* ****** reverb/echo ****** */
+
+uint16_t revDurCoder[MAX_REV];
+uint16_t revShiCoder[MAX_REV];
+uint16_t revRetCoder[MAX_REV];
+uint16_t revDurCoderAtt[MAX_REV];
+uint16_t revShiCoderAtt[MAX_REV];
+uint16_t revRetCoderAtt[MAX_REV];
+
+int16_t bufReverb[MAX_REV][REV_BUF_LEN];
+
+int16_t rev_ctl_input_id[REV_INPUTS_NB][MAX_REV];
+int16_t rev_ctl_output_id[MAX_OUTPUTS_PER_OBJ][MAX_REV];
+
+uint16_t echoDurCoder[MAX_ECHO];
+uint16_t echoInjCoder[MAX_ECHO];
+uint16_t echoRetCoder[MAX_ECHO];
+uint16_t echoDurCoderAtt[MAX_ECHO];
+uint16_t echoInjCoderAtt[MAX_ECHO];
+uint16_t echoRetCoderAtt[MAX_ECHO];
+
+int16_t bufEcho[MAX_ECHO][ECHO_BUF_LEN];
+        
+int16_t echo_ctl_input_id[ECHO_INPUTS_NB][MAX_ECHO];
+int16_t echo_ctl_output_id[MAX_OUTPUTS_PER_OBJ][MAX_ECHO];
+
 /* *******  extern  ******** */
 
 extern volatile uint32_t millisCounter;
 extern bool     setupComplete;
 extern uint16_t amplLevel[];
-extern int16_t  ctl_input_val[MAX_INPUTS];
+extern int16_t  ctl_input_val[TOTAL_INPUTS_ID_REAL];
 extern int16_t  ctl_output_id_chain[];
-extern uint8_t  ctl_input_update_type[];
+//extern uint8_t  ctl_input_update_type[];
 
 void adsrInit()                     // (id ptrs dans inits_objects_inputs/outputs)
 {
@@ -387,7 +412,7 @@ void lf_mixer_init()
 {
     printf("%u lfm init\n",MAX_LFM);
     for(uint8_t lfm=0;lfm<MAX_LFM;lfm++){
-        for(uint8_t inp=0;inp<MAX_LFM_INPUTS;inp++){   
+        for(uint8_t inp=0;inp<LFM_INPUTS_NB;inp++){   
             lfmCoder[inp][lfm]=0;
             lfmCoderAtt[inp][lfm]=0;
             lfmInputType[inp][lfm]=0;
@@ -399,9 +424,14 @@ void lf_mixer_init()
     }
 }
 
+static_assert(LFM_INPUTS_NB>=4,"setLfm needs 4 inputs (0 to 3)");
+
+static volatile uint8_t lfmDepth=0;
 // compute only: from the stored coders and the stored values of the inputs
 void __not_in_flash_func(setLfm)(uint8_t lfm)
 {
+    if(++lfmDepth>4){lfmDepth=0;printf("setLfm recursion lfm:%u\n",lfm);return;}
+
     // ---- general gain: base coder + attenuated input 0 ----
     lfmGenAttValue[lfm] =                                                   // lfmGen int32 ; lfmCoder uint16 ; input value int16 ; lfmCoderAtt uint16
         (lfmCoder[0][lfm]<<CODER_BASE_SHIFT) +
@@ -413,11 +443,10 @@ void __not_in_flash_func(setLfm)(uint8_t lfm)
                  << (CODER_BASE_SHIFT);
 
     // ---- attenuated inputs sum ----
-    int16_t id1 = lfm_ctl_input_id[1][lfm];                   // first id of inputs 1-3 (ids spaced by MAX_LFM)
     // (worst case: 3 * 0x7fff * 0xff = 0x017ffffd, it fits in 32 bits)
-    int32_t v1 = ((int32_t)ctl_input_val[id1] * lfmCoderAtt[1][lfm]
-                + (int32_t)ctl_input_val[id1+MAX_LFM] * lfmCoderAtt[2][lfm]
-                + (int32_t)ctl_input_val[id1+(2*MAX_LFM)] * lfmCoderAtt[3][lfm]) >> MAX_CTL_ATT_SHIFT;
+    int32_t v1 = ((int32_t)ctl_input_val[lfm_ctl_input_id[1][lfm]] * lfmCoderAtt[1][lfm]
+                + (int32_t)ctl_input_val[lfm_ctl_input_id[2][lfm]] * lfmCoderAtt[2][lfm]
+                + (int32_t)ctl_input_val[lfm_ctl_input_id[3][lfm]] * lfmCoderAtt[3][lfm]) >> MAX_CTL_ATT_SHIFT;
 
     // ---- intermediate value, clipped to 16 bits ----
     int32_t iv = v0 + v1;
@@ -439,6 +468,8 @@ void __not_in_flash_func(setLfm)(uint8_t lfm)
     lfmOutputValues[lfm] = (int16_t)iv;
 
     update_inputs(ctl_output_id_chain[lfm_ctl_output_id[0][lfm]],lfmOutputValues[lfm]);
+    
+    lfmDepth--;
 }
 
 // load the coders of an input (0 = general gain, 1-3 = mixed inputs), then compute the output
@@ -480,7 +511,7 @@ void disp_lfm(uint8_t lfm,char* t)
     printf("\nlf_mux   c0   ca0  (id)    c1   ca1  (id)    c2   ca2  (id)   iov (id)\n");
     for(uint8_t i=minLfm;i<=maxLfm;i++){
         printf("m%i:  ",i);
-        for(uint8_t j=0;j<MAX_LFM_INPUTS;j++){
+        for(uint8_t j=0;j<LFM_INPUTS_NB;j++){
             printf(" %5i",lfmVar[j*2][i]);
             printf(" %5i(%4i)",lfmVar[j*2+1][i],lfm_ctl_input_id[j][i]);
         }
@@ -493,3 +524,38 @@ void disp_lfm(uint8_t lfm){
     disp_lfm(lfm,nullptr);
 }
 
+/* ****** reverb/echo ****** */
+
+void effects_init()
+{
+
+    for (uint8_t r=0;r=MAX_REV;r++){
+        revDurCoder[r]=0;
+        revShiCoder[r]=0;
+        revRetCoder[r]=0;
+        revDurCoderAtt[r]=0;
+        revShiCoderAtt[r]=0;
+        revRetCoderAtt[r]=0;        
+
+        for(uint8_t o=0;o<MAX_ECHO;o++){
+            rev_ctl_input_id[o][r]=0;
+            rev_ctl_output_id[o][r]=0;
+        }
+    }
+    memset(bufReverb,0x00,sizeof(bufReverb[0])*MAX_REV*REV_BUF_LEN);
+
+    for(uint8_t e=0;e<MAX_ECHO;e++){
+        echoDurCoder[e]=0;
+        echoInjCoder[e]=0;
+        echoRetCoder[e]=0;
+        echoDurCoderAtt[e]=0;
+        echoInjCoderAtt[e]=0;
+        echoRetCoderAtt[e]=0;        
+
+        for(uint8_t o=0;o<MAX_ECHO;o++){
+            echo_ctl_input_id[o][e]=0;
+            echo_ctl_output_id[o][e]=0;
+        }
+    }
+   memset(bufEcho,0x00,sizeof(bufEcho[0])*MAX_ECHO*ECHO_BUF_LEN);    
+}

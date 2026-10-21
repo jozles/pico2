@@ -17,13 +17,12 @@
 #include "hardware/sync.h"
 #include "tests.h"
 
-extern int16_t  ctl_input_val[MAX_INPUTS];
-extern char     ctl_input_name[MAX_INPUTS][IN_OUT_NAME_LEN];
-extern int16_t  ctl_input_srce[MAX_INPUTS];
-//extern uint16_t ctl_input_norm[MAX_INPUTS];
-extern int16_t  ctl_input_shft[MAX_INPUTS];                      // all inputs values shift type (0 no shift ; 1 +0x8000)
-extern uint8_t  ctl_input_trig[MAX_INPUTS];                      // all inputs trig type (0 no trig ; 1 up ; 2 down ; 3 both)
-extern int16_t  ctl_input_tlev[MAX_INPUTS];                      // all inputs trig level
+extern int16_t  ctl_input_val[TOTAL_INPUTS_ID_REAL];
+extern char     ctl_input_name[TOTAL_INPUTS_ID_REAL][IN_OUT_NAME_LEN];
+extern int16_t  ctl_input_srce[TOTAL_INPUTS_ID_REAL];
+extern int16_t  ctl_input_shft[TOTAL_INPUTS_ID_REAL];                      // all inputs values shift type (0 no shift ; 1 +0x8000)
+extern uint8_t  ctl_input_trig[TOTAL_INPUTS_ID_REAL];                      // all inputs trig type (0 no trig ; 1 up ; 2 down ; 3 both)
+extern int16_t  ctl_input_tlev[TOTAL_INPUTS_ID_REAL];                      // all inputs trig level
 
 extern char     ctl_output_name[MAX_OUTPUTS][IN_OUT_NAME_LEN];
 extern int16_t  ctl_output_id_chain[MAX_OUTPUTS];
@@ -60,7 +59,7 @@ extern int32_t lfoScopeBuffer[];
 extern int32_t lfoScopeBufReal[];
 extern int32_t* waveformTable[];
 extern volatile int16_t menuLfosCoders[];
-extern int16_t lfo_ctl_input_id[][MAX_INPUTS_PER_OBJ];
+extern int16_t lfo_ctl_input_id[][LFO_INPUTS_NB];
 
 extern uint16_t* vcesVarF[];
 uint16_t tempVceCoderFreq[MAX_VOICES];                      // pour accéder d'un ptr aux coders de freq
@@ -111,11 +110,11 @@ extern volatile int16_t menuAdsrCoders[];
 extern uint16_t* adsrVar[];
 extern int32_t  adsrScopeBufReal[MAX_ADSR*ADSR_SCOPE_BUFFER_LEN];
 extern bool     adsrScopeDisp[];
-extern int16_t  adsr_ctl_input_id[MAX_ADSR][MAX_INPUTS_PER_OBJ];
+extern int16_t  adsr_ctl_input_id[MAX_ADSR][ADSR_INPUTS_NB];
 
-extern uint16_t lfmCoder[MAX_INPUTS_PER_OBJ][MAX_LFM];
-extern uint16_t lfmCoderAtt[MAX_INPUTS_PER_OBJ][MAX_LFM];
-extern uint8_t  lfmInputType[MAX_INPUTS_PER_OBJ][MAX_LFM];
+extern uint16_t lfmCoder[LFM_INPUTS_NB][MAX_LFM];
+extern uint16_t lfmCoderAtt[LFM_INPUTS_NB][MAX_LFM];
+extern uint8_t  lfmInputType[LFM_INPUTS_NB][MAX_LFM];
 extern uint8_t  lfmCh[];
 extern int16_t  lfmOutputValues[MAX_LFM];
 extern int16_t  intermediateOutputValues[MAX_LFM];
@@ -136,7 +135,7 @@ static bool oldCTB[CODER_NB];
 
 #define MAPPING_CODER_NB 6
 volatile int16_t mappingCoders[CODER_NB];   // [0] curr input nb ; [1] curr_input value ; [2] norm ; [3] shift ; [4] trig ; [5] trig level
-uint16_t maxMappingCoders[]={MAX_INPUTS,MAX_OUTPUTS,3,2,4,0xffff,0,0};
+uint16_t maxMappingCoders[]={TOTAL_INPUTS_ID_REAL,MAX_OUTPUTS,3,2,4,0xffff,0,0};
 
 // i2s
 
@@ -470,7 +469,7 @@ void mappingLineDsp(uint16_t inp,uint16_t line,bool rev){
 void fullMappingDsp(uint16_t firstInput,uint16_t currDspInput){
     tft_fill_rect_blank(FIRSTLINEH,0,TFT_H,TFT_W);
     for(uint8_t l=0;l<NB_DSP_LINES;l++){
-        while(ctl_input_name[firstInput+l][0]==0 && firstInput+l<MAX_INPUTS){firstInput++;}
+        while(ctl_input_name[firstInput+l][0]==0 && (firstInput+l)<TOTAL_INPUTS_ID_REAL){firstInput++;}
         fillVoices();
         mappingLineDsp(firstInput+l,l,currDspInput==l);
     }
@@ -500,9 +499,6 @@ uint8_t coders_for_mapping(){
             //if(!mode_scope){test_st7789_2();}       // animation balayage de lignes
             //debug_ticker();
 
-            //if(currInput==45 && cnt<3){cnt++;ci=46;printf("menu_mapping id:%u %s %u m:%u \n",ci,ctl_input_name[ci],ctl_input_trig[ci],mappingCoders[4]);}
-            //if(currInput!=45){cnt=0;}
-
             for(uint8_t coder=0;coder<MAPPING_CODER_NB;coder++){        // coder 0 line ; coder 1 output ; coder 2 Shifted or not
 
                 fillVoices();
@@ -517,17 +513,17 @@ uint8_t coders_for_mapping(){
                 uint32_t cc=mappingCoders[cod];
                 if(coder==0){                                           // coder 0 vertical movements(scroll)
 
-                        if(currInput<MAX_INPUTS-1 && cc>currInput){             // cursor moves down
+                        if(currInput<TOTAL_INPUTS_ID_REAL-1 && cc>currInput){             // cursor moves down
                                               
                             if(currDsp<NB_DSP_LINES-1){                         // no scroll                                
                                 mappingLineDsp(currInput,currDsp,false);        // restore prev
                                 currDsp++;currInput++;
-                                while(ctl_input_name[currInput][0]==0 && currInput<MAX_INPUTS-1){currInput++;}
+                                while(ctl_input_name[currInput][0]==0 && currInput<TOTAL_INPUTS_ID_REAL){currInput++;}
                                 mappingLineDsp(currInput,currDsp,true);    
                             }
                             else {                                              // scroll down
                                 currInput++;                                    
-                                while(ctl_input_name[currInput][0]==0 && currInput<MAX_INPUTS-1){currInput++;} // get next Input to display
+                                while(ctl_input_name[currInput][0]==0 && currInput<TOTAL_INPUTS_ID_REAL){currInput++;} // get next Input to display
                                 uint16_t schdInput=currInput;
                                 for(uint8_t l=0;l<NB_DSP_LINES-1;l++){          // search first displayable input
                                     // INPUT 1 MUST BE DISPLAYABLE

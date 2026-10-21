@@ -7,7 +7,7 @@
 
 #include "rc_33tables.h"
 
-#define VERSION "v1.47"
+#define VERSION "v1.49"
 
 #define PI 3.14159265359
 
@@ -128,7 +128,7 @@ typedef enum {
 /* lf mixers */
 
 #define MAX_LFM 4
-#define MAX_LFM_INPUTS 3        // 0: gen ; 1,2 individual
+//#define MAX_LFM_INPUTS 3        // 0: gen ; 1,2 individual
 #define LFM_SCOPE_BUFFER_LEN TFT_W
 #define LFM_SAMPLE_RATE 25      // mS
 
@@ -142,6 +142,18 @@ typedef enum {
 
 #define LED 25              // pico2 built_int led
 #define LED_PIN LED
+
+/* REVERB/ECHO */
+
+#define MAX_REV 1
+#define REV_BUF_LEN 6300                      // 22050hz
+//#define MAX_REV_OUTPUTS 1
+//#define MAX_REV_INPUTS 3
+
+#define MAX_ECHO 1
+#define ECHO_BUF_LEN 22050
+//#define MAX_ECHO_OUTPUTS 1
+//#define MAX_ECHO_INPUTS 3
 
 /* dma */
 
@@ -190,9 +202,12 @@ static_assert((1u << BASIC_WAVE_TABLE_POW) == BASIC_WAVE_TABLE_LEN, "BASIC_WAVE_
 #define MAX_OUTPUT_OBJ          (MAX_VOICES+MAX_LFO+MAX_ADSR+MAX_TBUT+MAX_LFM)
 #define MAX_OUTPUTS_PER_OBJ     8
 #define MAX_OUTPUTS             (MAX_OUTPUT_OBJ*MAX_OUTPUTS_PER_OBJ)
-#define MAX_INPUT_OBJ           100
-#define MAX_INPUTS_PER_OBJ      16      // MUST be a power of 2
-#define MAX_INPUTS              (MAX_INPUT_OBJ*MAX_INPUTS_PER_OBJ)
+#define MAX_OUTPUTS_REAL        (TOTAL_VOICES_OUTPUTS_NB+TOTAL_LFO_OUTPUTS_NB+TOTAL_ADSR_OUTPUTS_NB+TOTAL_TBUT_OUTPUTS_NB+TOTAL_LFM_OUTPUTS_NB+TOTAL_REV__OUTPUTS_NB+TOTAL_ECHO_OUTPUTS_NB)
+#define MAX_INPUT_OBJ           (MAX_VOICES+MAX_LFO+MAX_ADSR+MAX_TBUT+MAX_LFM+MAX_REV+MAX_ECHO)
+//#define MAX_INPUTS_PER_OBJ      16      // MUST be a power of 2
+//#define MAX_INPUTS              (MAX_INPUT_OBJ*MAX_INPUTS_PER_OBJ)
+#define TOTAL_INPUTS_REAL       (TOTAL_VOICES_INPUTS_NB+TOTAL_LFO_INPUTS_NB+TOTAL_ADSR_INPUTS_NB+TOTAL_LFM_INPUTS_NB+TOTAL_REV_INPUTS_NB+TOTAL_ECHO_INPUTS_NB)
+#define TOTAL_INPUTS_ID_REAL    (TOTAL_INPUTS_REAL+1)
 #define NO_LINK                 (-1)
 #define OBJ_IO_NAME_LEN         5
 #define IN_OUT_NAME_LEN         10
@@ -214,74 +229,113 @@ static_assert(CODER_BASE_SHIFT > 0 && CODER_BASE_SHIFT < 15, "MAX_CTL_ATT_SHIFT 
 typedef enum {
 #define X(name,text) name,    
 #include "vces_inputs_names.def"
-        VOICES_INPUTS_NB  
+        VOICES_INPUTS_NB
+#define TOTAL_VOICES_INPUTS_NB (VOICES_INPUTS_NB*MAX_VOICES)
 #undef X
 }  Vces_inputs_names;
 
 typedef enum {
 #define X(name,text) name,    
 #include "lfos_inputs_names.def"
-        LFO_INPUTS_NB  
+        LFO_INPUTS_NB
+#define TOTAL_LFO_INPUTS_NB (LFO_INPUTS_NB*MAX_LFO)          
 #undef X
 }  Lfo_inputs_names;
 
 typedef enum {
 #define X(name,text) name,    
 #include "adsr_inputs_names.def"
-        ADSR_INPUTS_NB  
+        ADSR_INPUTS_NB 
+#define TOTAL_ADSR_INPUTS_NB (ADSR_INPUTS_NB*MAX_ADSR)         
 #undef X
 }  Adsr_inputs_names;
 
 typedef enum {
 #define X(name,text) name,    
 #include "norm_types.def"
-        NORM_TYPES_NB  
+        NORM_TYPES_NB          
 #undef X
 }  Norm_types_names;
 
 typedef enum {
 #define X(name,text) name,    
 #include "lfm_inputs_names.def"
-        LFM_INPUTS_NB  
+        LFM_INPUTS_NB
+#define TOTAL_LFM_INPUTS_NB (LFM_INPUTS_NB*MAX_LFM)          
 #undef X
 }  Lfm_inputs_names;
+
+typedef enum {
+#define X(name,text) name,    
+#include "rev_inputs_names.def"
+        REV_INPUTS_NB 
+#define TOTAL_REV_INPUTS_NB (REV_INPUTS_NB*MAX_REV)         
+#undef X
+}  Rev_inputs_names;
+
+typedef enum {
+#define X(name,text) name,    
+#include "echo_inputs_names.def"
+        ECHO_INPUTS_NB
+#define TOTAL_ECHO_INPUTS_NB (ECHO_INPUTS_NB*MAX_ECHO)          
+#undef X
+}  Echo_inputs_names;
 
 // ****** outputs ******
 
 typedef enum {
 #define X(name,text) name,    
 #include "lfos_outputs_names.def"
-        LFO_OUTPUTS_NB  
+        LFO_OUTPUTS_NB
+#define TOTAL_LFO_OUTPUTS_NB (LFO_OUTPUTS_NB*MAX_LFO)          
 #undef X
 }  Lfo_outputs_names;
 
 typedef enum {
 #define X(name,text) name,    
 #include "adsr_outputs_names.def"
-        ADSR_OUTPUTS_NB  
+        ADSR_OUTPUTS_NB
+#define TOTAL_ADSR_OUTPUTS_NB (ADSR_OUTPUTS_NB*MAX_ADSR)          
 #undef X
 }  Adsr_outputs_names;
 
 typedef enum {
 #define X(name,text) name,    
 #include "vces_outputs_names.def"
-        VCES_OUTPUTS_NB  
+        VCES_OUTPUTS_NB 
+#define TOTAL_VOICES_OUTPUTS_NB (VOICES_OUTPUTS_NB*MAX_VOICES)         
 #undef X
 }  Vces_outputs_names;
 
 typedef enum {
 #define X(name,text) name,    
 #include "tbut_outputs_names.def"
-        TBUT_OUTPUTS_NB  
+        TBUT_OUTPUTS_NB
+#define TOTAL_TBUT_OUTPUTS_NB (TBUT_OUTPUTS_NB*MAX_TBUT)         
 #undef X
 }  Tbut_outputs_names;
 
 typedef enum {
 #define X(name,text) name,    
 #include "lfm_outputs_names.def"
-        LFM_OUTPUTS_NB  
+        LFM_OUTPUTS_NB 
+#define TOTAL_LFM_OUTPUTS_NB (LFM_OUTPUTS_NB*MAX_LFM)         
 #undef X
 }  Lfm_outputs_names;
+
+/*typedef enum {
+#define X(name,text) name,    
+#include "rev_outputs_names.def"
+        REV_OUTPUTS_NB  
+#undef X
+}  Rev_outputs_names;*/
+
+/*typedef enum {
+#define X(name,text) name,    
+#include "echo_outputs_names.def"
+        ECHO_OUTPUTS_NB  
+#undef X
+}  Echo_outputs_names;*/
 
 // ****** basics waves codes ******
 

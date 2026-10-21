@@ -3,8 +3,6 @@
 
 #include <stdint.h>
 
-bool init_objects_outputs(void);
-bool init_objects_inputs(void);
 void connect_input(uint16_t input_id, uint16_t output_id);
 void disconnect_input(uint16_t input_id, uint16_t output_id);
 void update_inputs(int16_t input_id,int16_t valeur);

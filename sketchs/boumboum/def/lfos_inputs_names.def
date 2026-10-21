@@ -1,4 +1,4 @@
-/* inputs names for lfos */
+/* input names for lfos */
 
     X(LFRQ,"FREQ")
     X(LCR_,"CYCR")

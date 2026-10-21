@@ -1,0 +1,5 @@
+/* input names for echo */
+
+    X(ECHD,"ECHD")
+    X(ECHI,"ECHI")
+    X(ECHR,"ECHR")

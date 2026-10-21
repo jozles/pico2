@@ -70,7 +70,7 @@ volatile int16_t menuAdsrCoders[CODER_NB];          // [0] curr input nb ; [1] A
 uint16_t menuMaxAdsrCoders[CODER_NB]={MAX_ADSR-1,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_TIME_CODERS,ADSR_MAX_LEVEL_CODERS,0,0};
 uint16_t* adsrVar[CODER_NB];                        // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
 
-#define LFM_VAR_NB CODER_NB //(MAX_INPUTS_PER_OBJ)*2  !!!! le plus petit entre le nombre de coders et le nombre de variables             // 2 coders/input
+#define LFM_VAR_NB CODER_NB                         
 volatile int16_t menuLfmCoders[CODER_NB];       // [0] curr input nb ; [1] inp0 ; [2] inp0 att ; [3] inp1 ; [4] inp1 att
 uint16_t menuMaxLfmCoders[]={MAX_LFM-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1};
 uint16_t* lfmVar[CODER_NB];                         // inits dans menu.cpp ; les éléments inutilisés sont nullptr

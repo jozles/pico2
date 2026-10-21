@@ -36,8 +36,8 @@ extern bool st_buffer_free,st_dma_free,st_dma_done_blank,st_sched_free;
 
 // boumboum
 
-int16_t objects_first_input_id[OBJECT_TYPES_NB];
-int16_t objects_first_output_id[OBJECT_TYPES_NB];
+extern int16_t objects_first_input_id[OBJECT_TYPES_NB];
+extern int16_t objects_first_output_id[OBJECT_TYPES_NB];
 
 static int st_dma_channel;
 static int ws_dma_channel;
@@ -65,13 +65,13 @@ extern uint16_t adsrCoderSus[MAX_ADSR];
 extern uint16_t adsrCoderRel[MAX_ADSR];
 extern uint16_t adsrCoderLev[MAX_ADSR];
 
-extern uint16_t lfmCoder[MAX_INPUTS_PER_OBJ][MAX_LFM];
-extern uint16_t lfmCoderAtt[MAX_INPUTS_PER_OBJ][MAX_LFM];
-extern int16_t  lfm_ctl_input_id[MAX_INPUTS_PER_OBJ][MAX_LFM];
+extern uint16_t lfmCoder[LFM_INPUTS_NB][MAX_LFM];
+extern uint16_t lfmCoderAtt[LFM_INPUTS_NB][MAX_LFM];
+extern int16_t  lfm_ctl_input_id[LFM_INPUTS_NB][MAX_LFM];
 
-extern int16_t  ctl_input_srce[MAX_INPUTS];
-extern char     ctl_input_name[MAX_INPUTS][IN_OUT_NAME_LEN]; 
-extern char     ctl_output_name[MAX_OUTPUTS][IN_OUT_NAME_LEN];
+extern int16_t  ctl_input_srce[LFM_INPUTS_NB];
+//extern char     ctl_input_name[TOTAL_INPUTS_ID_REAL][IN_OUT_NAME_LEN]; 
+//extern char     ctl_output_name[MAX_OUTPUTS][IN_OUT_NAME_LEN];
 
 volatile uint32_t millisCounter;
 
@@ -435,10 +435,7 @@ void show_cnt(uint32_t cnt,uint16_t x,uint16_t y){
 
 // ***********  led  ***********
 
-uint32_t last_c2=0;
-uint32_t last_c3=0;
-uint32_t c2 = dma_hw->ch[2].ctrl_trig;
-uint32_t c3 = dma_hw->ch[3].ctrl_trig;
+
 void ledblinkn(uint8_t n){
     if(
         (led==0 && (millisCounter-ledBlinker)>(durOffOn[led]-durOffOn[led+1]-(n-1)*(durOffOn[led+2]+durOffOn[led+3]))) 
@@ -447,11 +444,16 @@ void ledblinkn(uint8_t n){
     )
     {
 
-if (c2 != last_c2 || c3 != last_c3) {
-    printf("DMA2/3 MODIFIED: c2=%08x c3=%08x\n", c2, c3);
-}
-last_c2 = c2;
-last_c3 = c3;
+/*// test pour claude
+static uint32_t last_c2=0xFFFFFFFF;
+static uint32_t last_c3=0xFFFFFFFF;
+uint32_t c2=dma_hw->ch[2].ctrl_trig;
+uint32_t c3=dma_hw->ch[3].ctrl_trig;
+if(c2!=last_c2 || c3!=last_c3){
+    printf("DMA2/3: c2=%08x c3=%08x\n",c2,c3);
+    last_c2=c2;
+    last_c3=c3;
+}*/
 
         if(n>MAXBLK){n=MAXBLK;}
         ledBlinker=millisCounter;

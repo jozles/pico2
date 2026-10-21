@@ -11,12 +11,9 @@
 
 #include "hardware/sync.h"
 
-extern int16_t   objects_first_output_id[];
-extern int16_t   objects_first_input_id[];
-
 extern uint8_t   adsrStatus[MAX_ADSR];
 extern uint32_t  adsrCurrEch[MAX_ADSR];
-extern int16_t   adsr_ctl_input_id[][MAX_INPUTS_PER_OBJ];
+extern int16_t   adsr_ctl_input_id[][ADSR_INPUTS_NB];
 extern int16_t   adsr_ctl_output_id[][MAX_OUTPUTS_PER_OBJ];
 //extern uint16_t  adsrOutputsValues[MAX_ADSR][MAX_OUTPUTS_PER_OBJ];
 
@@ -27,20 +24,22 @@ extern Voice voices[MAX_VOICES];
 extern float     lfosFrequency[MAX_LFO]; 
 extern uint16_t  lfosCodersFreq[MAX_LFO];
 extern uint16_t  lfosCodersFreqAtt[MAX_LFO];
-extern int16_t   lfo_ctl_input_id[][MAX_INPUTS_PER_OBJ];
+extern int16_t   lfo_ctl_input_id[][LFO_INPUTS_NB];
 extern int16_t   lfo_ctl_output_id[][MAX_OUTPUTS_PER_OBJ];
 extern int16_t   lfosOutputsValues[MAX_LFO][MAX_OUTPUTS_PER_OBJ]; 
 
-extern uint16_t  lfmCoder[MAX_LFM_INPUTS][MAX_LFM];
-extern uint16_t  lfmCoderAtt[MAX_LFM_INPUTS][MAX_LFM];
-extern int16_t   lfm_ctl_input_id[MAX_INPUTS_PER_OBJ][MAX_LFM];
+extern uint16_t  lfmCoder[LFM_INPUTS_NB][MAX_LFM];
+extern uint16_t  lfmCoderAtt[LFM_INPUTS_NB][MAX_LFM];
+extern int16_t   lfm_ctl_input_id[LFM_INPUTS_NB][MAX_LFM];
 extern int16_t   lfm_ctl_output_id[MAX_OUTPUTS_PER_OBJ][MAX_LFM];
 extern int16_t   intermediateOutputValues[MAX_LFM];
 extern int16_t   lfmGenAttValue[MAX_LFM];
 extern int16_t   lfmOutputValues[MAX_LFM];
-extern uint8_t   lfmInputType[MAX_LFM_INPUTS][MAX_LFM];
-extern uint8_t   lfmNb[MAX_INPUTS];
- 
+extern uint8_t   lfmInputType[LFM_INPUTS_NB][MAX_LFM];
+
+extern int16_t   rev_ctl_input_id[REV_INPUTS_NB][MAX_REV];
+extern int16_t   echo_ctl_input_id[ECHO_INPUTS_NB][MAX_ECHO];
+
 
 /* ************            objets           ************ */
 
@@ -65,6 +64,7 @@ extern uint8_t   lfmNb[MAX_INPUTS];
 // la mise à jour d'une entrée d'un objet se fait avec la fonction set/objet/paramètre (ex setAdsrDur, setLFoFreq, setLfm)
 // avec des arguments selon le type d'objet (ex le n° d'objet, l'entrée concernée et la valeur de l'entrée - setAdsrDur(adsr,ADSR_ATT,dur) )
 // la mise à jour des entrées chainées sur une sortie se fait avec la fonction update_inputs(id,valeur) qui remonte la chaine des id
+// la fonction setxxxxyyyyCoders charge les coders dans les variables adhoc de l'objet puis exécute setxxxxyyyy qui met à jour les variables internes de l'objet et fait update_inputs si une/des sorties sont modifiées
 // 
 // Cas des fréquences et durées
 //      En principe le coder et l'entrée sont linéaires et la conversion de la somme est à la fin de la fonction setxxxxyyyy 
@@ -108,57 +108,66 @@ extern uint8_t   lfmNb[MAX_INPUTS];
 //      shapers =   séquences à 4 étapes (adsr) + niveau de sustain ; déclenchement selon trig et tlev 
 //      mixers  =   mélangeurs audio ou de controles (atténuateurs pour chaque entrée, entrée 0=gain général ; ampli de sortie pour les audio)
 //      séquenceurs = générateurs d'impulsions et/ou valeurs 16bits programmables
-//      générateurs d'écho = délai, niveau
-//      générateurs de réverbération, durée, niveau
+//      générateurs d'écho = délai, injection, niveau
+//      générateurs de réverbération, durée, brillance, niveau
 //
 // Ajouter un objet nécessite plusieurs interventions :
 //      créer sa description (structure comme voice ou tables comme lfo)
 //      l'ajouter à la liste dans objects.def
-//      créer les 2 fichiers *.def pour décrire ses entrées et sorties
+//      créer les 2 fichiers *names.def pour décrire ses entrées et sorties
 //      (ajouter pour chaque entrée un nom de type dans norm_types.def)
-//      ajouter ses constantes dans const.h (MAX_xxx à utiliser dans la ligne MAX_OUTPUTS)
-//      ajouter un paragraphe enum d'entrées et de sorties dans const.h
-//      ajouter un paragraphe nom des entrées et des sorties ci-après
-//      ajouter un paragraphe d'init dans init_objects_inputs et init_objects_outputs ci-après
-//      ajouter la fonction setxxxxyyyy vue plus haut
+//      ajouter dans const.h
+//              son TOTAL_xxx dans les lignes TOTAL_INPUTS_REAL et TOTAL_OUTPUTS_REAL
+//              un paragraphe enum d'entrées et de sorties
+//      ajouter ci-aprés
+//              un paragraphe nom des entrées et des sorties 
+//              un paragraphe d'init dans init_objects_inputs et init_objects_outputs 
 //      ajouter le traitement d'update dans update_inputs
-//      ajouter un menu (ligne d'appel dans boumboum, inits dans boumboum et menu)
 //      ajouter un case dans menu_line_dsp qui gère la mise à jour des coders
-//      ajouter un handler à l'endroit approprié
+//      ajouter dans le fichier qui le reçoit
+//              la fonction d'init de ses variables
+//              les fonctions setxxxxyyyy vues plus haut
+//              un handler
+//      ajouter l'appel de son init dans setup()
 
 /* ************ control inputs and outputs ************* */
 
-// every (MAX_INPUTS_PER_OBJ) control input of every object (including unuseful inputs)
-//    have an unique id wich gives access to its parameters (value, source, norm, name etc)
+// every control input of every object (including unuseful inputs)
+//    has an unique id which gives access to its parameters (value, source, norm, name etc)
 // every object type has an [object_type]_ctl_input_id table with [object_type#][input#] elements 
 // (the ids table for the inputs of every objects of this type)
-// objects inputs are described in files [object_type]_input_names.def (ex: lfos_inputs_names.def)
-// ex: lfo#3 input#1 has the id : lfo_ctl_input_id[3][1] wich is the index in the tables ctl_input_xxx[]
+// object inputs are described in files [object_type]_input_names.def (ex: lfos_inputs_names.def)
+// ex: lfo#3 input#1 has the id : lfo_ctl_input_id[3][1] which is the index in the tables ctl_input_xxx[]
 // or: lfo_ctl_input_id[3][LCRA]
-// table ctl_input_id_chain[] allows to chain the inputs wich are connected to the same output for faster access
+// table ctl_input_id_chain[] allows to chain the inputs which are connected to the same output for faster access
 
-int16_t ctl_input_val[MAX_INPUTS];                       // all inputs actual input value
-int16_t ctl_input_prev_val[MAX_INPUTS];                  // all inputs prev values for trig level identification
-int16_t ctl_input_srce[MAX_INPUTS];                      // all inputs sources ie outputs used for inputs (usefull for disconnection) 
-//uint8_t ctl_input_norm[MAX_INPUTS];                      // all inputs norm type (0 nothing ; 1 lfo_freq ; 2 vce freq ; 3 rc ; 4 ampl 0-31 etc)
-int16_t ctl_input_shft[MAX_INPUTS];                      // all inputs values shift type (0 no shift ; in)  ??????? input shifting no yet implemented
-uint8_t ctl_input_trig[MAX_INPUTS];                      // all inputs trig type ; reset when read
-int16_t ctl_input_tlev[MAX_INPUTS];                      // all inputs trig level
-char    ctl_input_name[MAX_INPUTS][IN_OUT_NAME_LEN];     // all inputs names
-uint8_t ctl_input_update_type[MAX_INPUTS];               // all inputs update specific job
-uint8_t ctl_input_object[MAX_INPUTS];                    // all inputs object#
+int16_t ctl_input_val[TOTAL_INPUTS_ID_REAL];                       // current value of every input
+int16_t ctl_input_prev_val[TOTAL_INPUTS_ID_REAL];                  // all inputs prev values for trig level identification
+int16_t ctl_input_srce[TOTAL_INPUTS_ID_REAL];                      // all inputs sources ie outputs used for inputs (useful for disconnection) 
+//uint8_t ctl_input_norm[TOTAL_INPUTS_ID_REAL]];                      // all inputs norm type (0 nothing ; 1 lfo_freq ; 2 vce freq ; 3 rc ; 4 ampl 0-31 etc)
+int16_t ctl_input_shft[TOTAL_INPUTS_ID_REAL];                      // all inputs values shift type (0 no shift ; in)  ??????? input shifting not yet implemented
+uint8_t ctl_input_trig[TOTAL_INPUTS_ID_REAL];                      // all inputs trig type ; reset when read
+int16_t ctl_input_tlev[TOTAL_INPUTS_ID_REAL];                      // all inputs trig level
+char    ctl_input_name[TOTAL_INPUTS_ID_REAL][IN_OUT_NAME_LEN];     // all inputs names
+uint8_t ctl_input_update_type[TOTAL_INPUTS_ID_REAL];               // all inputs update specific job
+uint8_t ctl_input_object[TOTAL_INPUTS_ID_REAL];                    // all inputs object#
 
-int16_t ctl_input_id_chain[MAX_INPUTS];                  // next id(input) with same output (-1/NO_LINK if nothing)
+int16_t ctl_input_id_chain[TOTAL_INPUTS_ID_REAL];                  // next id(input) with same output (-1/NO_LINK if nothing)
 
 uint8_t norm_dividers[]={0,16-5,16-6,16-3};              // to add ; not used for now
 
-// every control output of every object has an unique id wich gives access to the name and input link chain of the output
+// pour retrouver les id de toute input ou output, l'init d'icelles charge le numéro du premier id de chaque object
+
+int16_t objects_first_input_id[OBJECT_TYPES_NB];
+int16_t objects_first_output_id[OBJECT_TYPES_NB];
+
+// every control output of every object has an unique id which gives access to the name and input link chain of the output
 // every object type has an [object]_ctl_output_id table with [object_type#][output#] elements
 // (ids table for the outputs of every objects of this type)
-// objects outputs are described in files [object_type]_output_names.def (ex: lfos_outputs_names.def)
-// ex: lfo#2 output#3 has the id : lfo_ctl_output_id[2][3] wich is the index in the tables ctl_output_xxx[] 
+// object outputs are described in files [object_type]_output_names.def (ex: lfos_outputs_names.def)
+// ex: lfo#2 output#3 has the id : lfo_ctl_output_id[2][3] which is the index in the tables ctl_output_xxx[] 
 // or: lfo_ctl_output_id[2][LSAW]
-// table ctl_output_id_chain[] (one element per output) allows to chain the inputs wich are connected to this output for faster access
+// table ctl_output_id_chain[] (one element per output) chains the inputs connected to the same output for faster access
 // contains first input id of the chain or -1/NO_LINK
 
 /* ************** fichiers *.def des enum *************** */
@@ -168,9 +177,9 @@ uint8_t norm_dividers[]={0,16-5,16-6,16-3};              // to add ; not used fo
 // pareil pour ses sorties [objet]_outputs_names.def
 // une autre liste concerne les procédures de mise à jour des valeurs des entrées
 
-//int16_t*  ctl_output_val[MAX_OUTPUTS];        // see xxxOutputValues  // all objects ptrs to outputs values
-char      ctl_output_name[MAX_OUTPUTS][IN_OUT_NAME_LEN];                // all objects outputs names
-int16_t   ctl_output_id_chain[MAX_OUTPUTS];     // all objects outputs chain to input (first link)
+char      ctl_output_name[MAX_OUTPUTS][IN_OUT_NAME_LEN];    // all objects outputs names
+int16_t   ctl_output_id_chain[MAX_OUTPUTS];                 // all objects outputs chain to input (first link)
+
 
 // ***** objets *****
 
@@ -206,6 +215,18 @@ const char lfm_inputs_names[][OBJ_IO_NAME_LEN]={
     #undef X   
 };
 
+const char rev_inputs_names[][OBJ_IO_NAME_LEN]={
+    #define X(name,text) text,
+    #include "rev_inputs_names.def"   
+    #undef X   
+};
+
+const char echo_inputs_names[][OBJ_IO_NAME_LEN]={
+    #define X(name,text) text,
+    #include "echo_inputs_names.def"   
+    #undef X   
+};
+
 const char lfo_outputs_names[][OBJ_IO_NAME_LEN]={
     #define X(name,text) text,
     #include "lfos_outputs_names.def"   
@@ -236,6 +257,17 @@ const char lfm_outputs_names[][OBJ_IO_NAME_LEN]={
     #undef X   
 };
 
+/*const char rev_outputs_names[][OBJ_IO_NAME_LEN]={
+    #define X(name,text) text,
+    #include "rev_outputs_names.def"   
+    #undef X   
+};*/
+
+/*const char echo_outputs_names[][OBJ_IO_NAME_LEN]={
+    #define X(name,text) text,
+    #include "echo_outputs_names.def"   
+    #undef X   
+};*/
 
 bool init_objects_outputs(void)
 {
@@ -314,16 +346,51 @@ bool init_objects_outputs(void)
         }        
     }
 
+    /*objects_first_output_id[REVERB___]=curr_output;
+    for (uint8_t rev=0;rev<MAX_REV;rev++)
+    {
+        for(uint8_t outs=0;outs<MAX_OUTPUTS_PER_OBJ;outs++)
+        {
+            ctl_output_id_chain[curr_output]=NO_LINK;
+            rev_ctl_output_id[rev][outs]=curr_output;
+            if(outs<MAX_REV_OUTPUTS){
+                char buf[IN_OUT_NAME_LEN]={'R','E','V','_'};
+                convIntToString(buf+4,rev,2);
+                memcpy(buf+6,&rev_outputs_names[outs],OBJ_IO_NAME_LEN-1);
+                memcpy(ctl_output_name[curr_output],buf,IN_OUT_NAME_LEN);
+            }
+            curr_output++;
+            if(curr_output>=MAX_OUTPUTS){return false;}
+        }
+    }*/
+
+    /*objects_first_output_id[ECHO_____]=curr_output;
+    for (uint8_t echo=0;echo<MAX_REV;echo++)
+    {
+        for(uint8_t outs=0;outs<MAX_OUTPUTS_PER_OBJ;outs++)
+        {
+            ctl_output_id_chain[curr_output]=NO_LINK;
+            echo_ctl_output_id[echo][outs]=curr_output;
+            if(outs<MAX_ECHO_OUTPUTS){
+                char buf[IN_OUT_NAME_LEN]={'E','C','H','_'};
+                convIntToString(buf+4,echo,2);
+                memcpy(buf+6,&echo_outputs_names[outs],OBJ_IO_NAME_LEN-1);
+                memcpy(ctl_output_name[curr_output],buf,IN_OUT_NAME_LEN);
+            }
+            curr_output++;
+            if(curr_output>=MAX_OUTPUTS){return false;}
+        }
+    }*/    
+
 // ajouter ici d'autres générateurs lents  (sequencers, kbd etc) ps: les voices n'ont pas de sorties lentes
 
-    printf("init_obects_outputs(%u)\n",curr_output-1);
+    printf("init_objects_outputs(%u)\n",curr_output-1);
 
     return true;
 }
 
-bool init_objects_inputs(void)
+uint8_t init_objects_inputs(void)
 {
-
     uint8_t inputNum=3;
     uint8_t objName=3;
     uint8_t objNum=2;
@@ -336,7 +403,7 @@ bool init_objects_inputs(void)
     memset(ctl_input_trig,0x00,sizeof(ctl_input_trig));
     memset(ctl_input_tlev,0x00,sizeof(ctl_input_tlev));
     
-    for (uint16_t i=0;i<MAX_INPUTS;i++){
+    for (uint16_t i=0;i<TOTAL_INPUTS_ID_REAL;i++){
         ctl_input_id_chain[i]=NO_LINK;
         ctl_input_val[i]=0;
     }
@@ -347,7 +414,7 @@ bool init_objects_inputs(void)
     objects_first_input_id[LFO______]=curr_input;
     for (uint8_t lfo=0;lfo<MAX_LFO;lfo++)
     {
-        for(uint8_t ins=0;ins<MAX_INPUTS_PER_OBJ;ins++)
+        for(uint8_t ins=0;ins<LFO_INPUTS_NB;ins++)
         {
             lfo_ctl_input_id[lfo][ins]=curr_input;
             ctl_input_id_chain[curr_input]=NO_LINK;
@@ -357,14 +424,14 @@ bool init_objects_inputs(void)
                 case LCR_:ctl_input_update_type[curr_input]=LFO_CRA;break;
             }
             
-            if(ins<LFO_INPUTS_NB){
+            //if(ins<LFO_INPUTS_NB){
                 char buf[IN_OUT_NAME_LEN]={'L','F','O','S'};    // see objName value
                 convIntToString(buf+objName,lfo,objNum);
                 memcpy(buf+objName+objNum,&lfo_inputs_names[ins],objOutType);  //OBJ_IO_NAME_LEN-1);
                 memcpy(ctl_input_name[curr_input],buf,lenInpName);   //IN_OUT_NAME_LEN);
-            }
+            //}
             curr_input++;
-            if(curr_input>=MAX_INPUTS){return false;}
+            if(curr_input>TOTAL_INPUTS_ID_REAL){return 1;}
         }
     }
     //printf(" lfo_curr_input  :%u %u\n",objects_first_input_id[LFO______],curr_input-1);
@@ -372,7 +439,7 @@ bool init_objects_inputs(void)
     objects_first_input_id[ADSR_____]=curr_input;
     for (uint8_t adsr=0;adsr<MAX_ADSR;adsr++)
     {
-        for(uint8_t ins=0;ins<MAX_INPUTS_PER_OBJ;ins++)
+        for(uint8_t ins=0;ins<ADSR_INPUTS_NB;ins++) 
         {
             adsr_ctl_input_id[adsr][ins]=curr_input;
             ctl_input_id_chain[curr_input]=NO_LINK;
@@ -390,14 +457,14 @@ bool init_objects_inputs(void)
                           break;
                 default: break;
             }           
-            if(ins<ADSR_INPUTS_NB){
+            //if(ins<ADSR_INPUTS_NB){
                 char buf[IN_OUT_NAME_LEN]={'A','D','S','R'};    // see objName value
                 convIntToString(buf+objName,adsr,objNum);
                 memcpy(buf+objName+objNum,&adsr_inputs_names[ins],objOutType);    //OBJ_IO_NAME_LEN-1);
                 memcpy(ctl_input_name[curr_input],buf,lenInpName);   //IN_OUT_NAME_LEN);
-            }
+            //}
             curr_input++;
-            if(curr_input>=MAX_INPUTS){return false;}
+            if(curr_input>TOTAL_INPUTS_ID_REAL){return 2;}
         }
     }
     //printf(" adsr_curr_input :%u %u\n",objects_first_input_id[ADSR_____],curr_input-1);
@@ -405,7 +472,7 @@ bool init_objects_inputs(void)
     objects_first_input_id[VOICE____]=curr_input;
     for (uint8_t vce=0;vce<MAX_VOICES;vce++)
     {
-        for(uint8_t ins=0;ins<MAX_INPUTS_PER_OBJ;ins++)
+        for(uint8_t ins=0;ins<VOICES_INPUTS_NB;ins++)
         {
             voices[vce].voice_ctl_input_id[ins]=curr_input;
             ctl_input_id_chain[curr_input]=NO_LINK;
@@ -422,52 +489,108 @@ bool init_objects_inputs(void)
                 case VGPW:ctl_input_update_type[curr_input]=VCE_GENA;break;
                 case VFIL:ctl_input_update_type[curr_input]=VCE_FILT;break;
                 case VRES:ctl_input_update_type[curr_input]=VCE_RES;break;
+                case VREV:ctl_input_update_type[curr_input]=REV_V__;break;
+                case VECH:ctl_input_update_type[curr_input]=ECHO_V_;break;
                 default:break;
             }
-            if(ins<VOICES_INPUTS_NB){
+            //if(ins<VOICES_INPUTS_NB){
                 char buf[IN_OUT_NAME_LEN]={'V','C','E','S'};    // see objName value
                 convIntToString(buf+objName,(uint32_t)vce,objNum);
                 memcpy(buf+objName+objNum,&voices_inputs_names[ins],objOutType);  //OBJ_IO_NAME_LEN-1);
                 memcpy(ctl_input_name[curr_input],buf,lenInpName);   //IN_OUT_NAME_LEN);
-            }
+            //}
             curr_input++;
-            if(curr_input>=MAX_INPUTS){return false;}
+            if(curr_input>TOTAL_INPUTS_ID_REAL){return 3;}
         }
     }
     //printf(" voice_curr_input:%u %u\n",objects_first_input_id[VOICE____],curr_input-1);
 
     objects_first_input_id[LF_MUX___]=curr_input;
-    for (uint8_t ins=0;ins<MAX_INPUTS_PER_OBJ;ins++)
+    for (uint8_t ins=0;ins<LFM_INPUTS_NB;ins++)
     {
         for(uint8_t lfm=0;lfm<MAX_LFM;lfm++)
         {
-            lfm_ctl_input_id[ins][lfm]=curr_input;
-//printf("l:%u i:%u ctid:%i\n",lfm,ins,lfm_ctl_input_id[ins][lfm]);           
+            lfm_ctl_input_id[ins][lfm]=curr_input;           
             ctl_input_id_chain[curr_input]=NO_LINK;
             ctl_input_object[curr_input]=lfm;
             ctl_input_update_type[curr_input]=LFM____;
             //ctl_input_val[curr_input]=0;  déjà fait
             
-            if(ins<MAX_LFM_INPUTS){
+            //if(ins<MAX_LFM_INPUTS){
                 char buf[IN_OUT_NAME_LEN]={'L','F','M','_'};    // see objName value
                 convIntToString(buf+objName,lfm,objNum);
                 *(buf+objName+objNum)='_';
                 convIntToString(buf+objName+objNum+1,ins,2);
                 memcpy(ctl_input_name[curr_input],buf,lenInpName);   //IN_OUT_NAME_LEN);
-            }
-            lfmNb[curr_input]=lfm;
+            //}
             curr_input++;
-            //printf("%u %s\n",curr_input-1,ctl_input_name[curr_input-1]);
-            if(curr_input>=MAX_INPUTS){return false;}
+            if(curr_input>TOTAL_INPUTS_ID_REAL){return 4;}
         }
     }
-    //printf(" lfm_curr_input  :%u %u\n",objects_first_input_id[LF_MUX___],curr_input-1);        
 
-    // ajouter ici d'autres entrées  (sequencers etc)
+    objects_first_input_id[REVERB___]=curr_input;
+    for (uint8_t ins=0;ins<REV_INPUTS_NB;ins++) 
+    {
+        for(uint8_t rev=0;rev<MAX_REV;rev++)
+        {
+            rev_ctl_input_id[ins][rev]=curr_input;           
+            ctl_input_id_chain[curr_input]=NO_LINK;
+            ctl_input_object[curr_input]=rev;
+            switch(ins){
+                case REVD:ctl_input_update_type[curr_input]=REV_D__;break;
+                case REVS:ctl_input_update_type[curr_input]=REV_S__;break;
+                case REVR:ctl_input_update_type[curr_input]=REV_R__;break;
+            }
+            //ctl_input_val[curr_input]=0;  déjà fait
+            
+            //if(ins<MAX_REV_INPUTS){
+                char buf[IN_OUT_NAME_LEN]={'R','E','V','_'};    // see objName value
+                convIntToString(buf+objName,rev,objNum);
+                *(buf+objName+objNum)='_';
+                convIntToString(buf+objName+objNum+1,ins,2);
+                memcpy(ctl_input_name[curr_input],buf,lenInpName);   //IN_OUT_NAME_LEN);
+            //}
+            curr_input++;
+            if(curr_input>TOTAL_INPUTS_ID_REAL){return 5;}
+        }
+    }    
+        
+    objects_first_input_id[ECHO_____]=curr_input;
+    for (uint8_t ins=0;ins<ECHO_INPUTS_NB;ins++)
+    {
+        for(uint8_t echo=0;echo<MAX_ECHO;echo++)
+        {
+            echo_ctl_input_id[ins][echo]=curr_input;           
+            ctl_input_id_chain[curr_input]=NO_LINK;
+            ctl_input_object[curr_input]=echo;
+            switch(ins){
+                case ECHD:ctl_input_update_type[curr_input]=ECHO_D_;break;
+                case ECHI:ctl_input_update_type[curr_input]=ECHO_I_;break;
+                case ECHR:ctl_input_update_type[curr_input]=ECHO_R_;break;
+            }
+            //ctl_input_val[curr_input]=0;  déjà fait
+            
+            //if(ins<MAX_ECHO_INPUTS){
+                char buf[IN_OUT_NAME_LEN]={'E','C','H','_'};    // see objName value
+                convIntToString(buf+objName,echo,objNum);
+                *(buf+objName+objNum)='_';
+                convIntToString(buf+objName+objNum+1,ins,2);
+                memcpy(ctl_input_name[curr_input],buf,lenInpName);   //IN_OUT_NAME_LEN);
+            //}
+            curr_input++;
+            if(curr_input>TOTAL_INPUTS_ID_REAL){
+                printf("%u>=%u\n",curr_input,TOTAL_INPUTS_ID_REAL);
+                return 6;}
+        }
+    } 
 
     printf("init_obects_inputs(%u)\n",curr_input-1);
 
-    return true;
+    // ajouter ici pour les entrées d'autres objets  (sequencers etc)
+    
+    if(curr_input!=TOTAL_INPUTS_ID_REAL){system_error("input count",curr_input);}      // short message: it is drawn on the display
+
+    return 0;
 }  
 
 static spin_lock_t *inputs_id__lock;
@@ -476,8 +599,9 @@ void objects_table_init()
 {
     inputs_id__lock = spin_lock_init(CTL_INPUTS_LOCK);
 
-    if(!init_objects_inputs()){system_error("init_objects_inputs");}
-    if(!init_objects_outputs()){system_error("init_objects_outputs");}
+    uint8_t e=init_objects_inputs();
+    if(e!=0){system_error("_init_objects_inputs",e);}
+    if(!init_objects_outputs()){system_error("_init_objects_outputs");}
 }
 
 void __not_in_flash_func(connect_input)(uint16_t input_id, uint16_t output_id)     // add input_id at end of output_id_chain * setup ctl_input_srce[input_id] to output_id
@@ -504,7 +628,7 @@ void __not_in_flash_func(connect_input)(uint16_t input_id, uint16_t output_id)  
             prev=next_id;
             next_id=ctl_input_id_chain[prev];
             //printf(" ciic[%i]=%i ",prev,next_id);
-            if(next_id>MAX_INPUTS || next_id<NO_LINK){
+            if(next_id>TOTAL_INPUTS_REAL || next_id<NO_LINK){
                 spin_unlock(inputs_id__lock, f);
                 system_error("input_id overflow c",next_id);}
         }        
@@ -520,7 +644,7 @@ void __not_in_flash_func(connect_input)(uint16_t input_id, uint16_t output_id)  
 
 void __not_in_flash_func(disconnect_input)(uint16_t input_id, uint16_t output_id)
 {
-    if(output_id==0){return;}
+    if(output_id==0 || output_id>=MAX_OUTPUTS){return;}
 
     uint32_t f = spin_lock_blocking(inputs_id__lock);
     int16_t first = ctl_output_id_chain[output_id];
@@ -545,7 +669,7 @@ void __not_in_flash_func(disconnect_input)(uint16_t input_id, uint16_t output_id
     int16_t prev = first;
     int16_t curr = ctl_input_id_chain[first];
    
-    if(prev>MAX_INPUTS || prev<NO_LINK || curr>MAX_INPUTS || curr<NO_LINK){
+    if(prev>TOTAL_INPUTS_REAL || prev<NO_LINK || curr>TOTAL_INPUTS_REAL || curr<NO_LINK){
         spin_unlock(inputs_id__lock, f);
         system_error("input_id overflow d1");}
 
@@ -553,7 +677,7 @@ void __not_in_flash_func(disconnect_input)(uint16_t input_id, uint16_t output_id
         prev = curr;
         curr = ctl_input_id_chain[curr];
         
-        if(curr>MAX_INPUTS || curr<NO_LINK){
+        if(curr>TOTAL_INPUTS_REAL || curr<NO_LINK){
             spin_unlock(inputs_id__lock, f);
             system_error("input_id overflow d2");}
     }
@@ -587,6 +711,7 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
             uint8_t object=ctl_input_object[id];
 
             switch(ctl_input_update_type[id]){
+                case NOTHING_:  break;
                 case VCE_FREQ:  setVoiceFrequency(&voices[object]);break;
                 case VCE_CRA :  setVoiceCycleR(&voices[object]);break;
                 case VCE_WSIN:  setVoiceAmpl(&voices[object],WSIN);break;
@@ -598,6 +723,7 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
                 case VCE_GENA:  setVoiceAmpl(&voices[object],BASIC_WAVES_NB);break;
                 case VCE_FILT:  setVoiceFilterFrequency(&voices[object]);break;         // cutoff code = coder + attenuated input (same shift of 6 as before)                         
                 case VCE_RES :  setVoiceFilterRes(&voices[object]);break;
+                
                 case LFO_FREQ:  setLfosFrequency(object);break;                         // 8k max VCES_MAX_FREQ_CODERS ; att 0-255 
                 case LFO_CRA :  setLfosCycleR(object); break;
                 case A_ATTACK:  setAdsrDur(object,ADSR_ATT);break;
@@ -626,13 +752,11 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
                                         }break;
                                     default:break;
                                 }break;
-                case LFM____ :  {
-                                uint8_t  lfm=lfmNb[id];                                 // lfm #
-                                setLfm(lfm);
+                case LFM____ :  {                                // lfm #
+                                setLfm(object);
                                 }break;
                 default: break;
             }
             id = ctl_input_id_chain[id];
         }
-//gpio_put(TST_PIN,0);restore_interrupts(ints);       
-}
+}        

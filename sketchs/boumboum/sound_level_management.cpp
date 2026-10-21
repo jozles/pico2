@@ -12,12 +12,12 @@
 #include "hardware/sync.h"
 
 extern Voice voices[MAX_VOICES];
-extern int16_t ctl_input_val[MAX_INPUTS];
+extern int16_t ctl_input_val[TOTAL_INPUTS_ID_REAL];
 
 extern uint16_t    lfosCodersFreq[MAX_LFO];                  // frequency coder value
 extern uint16_t    lfosCodersFreqAtt[MAX_LFO];               // frequency input attenuator value
 extern uint16_t    lfosCoderCycleR[MAX_LFO];
-extern int16_t     lfo_ctl_input_id[MAX_LFO][MAX_INPUTS_PER_OBJ];
+extern int16_t     lfo_ctl_input_id[MAX_LFO][TOTAL_INPUTS_ID_REAL];
 
 uint8_t stepAmpl=MAX_16B_LINEAR_VALUE/16;     // nbre d'intervalles / 3db
 uint16_t amplLevel[MAX_16B_LINEAR_VALUE];     // old law, 3 dB steps: voice gain (an integer multiplier: 1 at step 1) and any other user of the table
@@ -183,3 +183,4 @@ void __not_in_flash_func(ampGlideTick)(){                                       
     else{last+=n*GLIDE_TICK_US;}
     while(n--){glideStep();}
 }
+

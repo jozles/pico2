@@ -1,5 +1,6 @@
-/* inputs names for lf_mux */
+/* input names for lf_mux */
 
     X(LMUXI0,"LMX0")
     X(LMUXI1,"LMX1")
     X(LMUXI2,"LMX2")
+    X(LMUXI3,"LMX3")

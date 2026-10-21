@@ -52,12 +52,10 @@ struct VoiceFilter {
 
 
 struct Voice {
-    //uint16_t    sampleNbToFill;                 // sample Nb for 1 period    
-    //uint32_t    currentSample;                  // last value pushed in i2s buffer                  
+                
     volatile uint32_t phaseStep;        // table steps per sample, 11.21 fixed point, written and read as one word
     uint32_t          phase;            // current phase, same format: the table index is phase >> PHASE_SHIFT 
-    uint32_t    noiseSeed;                     // Q16.16
-    //uint32_t    noiseStep;                      // Q16.16
+    uint32_t          noiseSeed;                  // xorshift32 state
 
     volatile int16_t    genAmpl;               // genAmpl value
     volatile int16_t    coderGenAmpl;          // genAmpl coder value
@@ -65,38 +63,38 @@ struct Voice {
     
     volatile int16_t    basicWaveAmpl[BASIC_WAVES_NB];     // wave ampl value
     volatile int16_t    newBasicWaveAmpl[BASIC_WAVES_NB];
-    //volatile bool       waveAmplChge[BASIC_WAVES_NB];
-    //volatile int32_t    diffWaveAmpl[BASIC_WAVES_NB];
     volatile uint16_t   coderWaveAmpl[BASIC_WAVES_NB];     // wave ampl coder value
-    volatile uint16_t   coderWaveAmplAtt[BASIC_WAVES_NB];           // wave ampl input attenuator value
-    
-    //uint16_t    soundsCc[CODER_BANK_NB];
-    //uint16_t    adsrlCc[CODER_BANK_NB];
+    volatile uint16_t   coderWaveAmplAtt[BASIC_WAVES_NB];  // wave ampl input attenuator value
     
     volatile float      frequency;             // current frequency
     volatile int16_t    coderFreq;             // frequency coder value
     volatile int16_t    coderFreqAtt;          // frequency input attenuator value (0-MAX_CTL_ATT)
 
-    volatile float      filterFrequency;       // current frequency
+    volatile float      filterFrequency;       // current cutoff frequency
     volatile int16_t    coderFilterFreq;       // filterFrequency coder value
-    volatile int16_t    coderFilterFreqAtt;    // frequency input attenuator value (0->MAX_CTL_ATT)
+    volatile int16_t    coderFilterFreqAtt;    // cutoff input attenuator value (0->MAX_CTL_ATT)
     volatile int16_t    coderFilterLevAtt;     // filter input level attenuator, (0->MAX_CTL_ATT ; MAX_CTL_ATT = unity gain).
-    volatile int16_t    coderFilterRes;        // filter manual res adjust (0->MAX_CTL_ATT)
-    volatile int16_t    coderFilterResAtt;     // filter manual res input attenuator value (0->MAX_CTL_ATT)
+    volatile int16_t    coderFilterRes;        // manual resonance setting (0->MAX_CTL_ATT)
+    volatile int16_t    coderFilterResAtt;     // resonance input attenuator value (0->MAX_CTL_ATT)
 
     // --- filtre : fonctionnement réel, lu/écrit par fillVoiceBuffer_mono ---
-    VoiceFilter filter;               // per-stage state (z[]), persists across buffers
-    volatile int16_t    filterCode;           // final cutoff code 0..FILTER_CODE_MAX (coder + modulation), read once per sub-block by fillVoiceBuffer_mono
-    volatile uint8_t    filterRes;            // final resonance command 0..FILTER_RES_MAX
-    volatile int16_t filterCodeTarget;        // cutoff asked by the coders and the modulation ; filterCode glides towards it
+    VoiceFilter filter;                        // per-stage state (z[]), persists across buffers
+    volatile int16_t    filterCode;            // final cutoff code 0..FILTER_CODE_MAX (coder + modulation), read once per sub-block by fillVoiceBuffer_mono
+    volatile uint8_t    filterRes;             // final resonance command 0..FILTER_RES_MAX
+    volatile int16_t    filterCodeTarget;      // cutoff asked by the coders and the modulation ; filterCode glides towards it
 
-    volatile uint8_t    cycleR;       // cyclic ratio value (somme coderCycleR et ctl_input_val)
-    volatile uint8_t    coderCycleR;  // cyclic ratio -64/+64 coder value
-    int16_t     coderCycleRAtt;       // cyclic ratio input attenuator value (0-MAX_CTL_ATT)
+    volatile uint8_t    cycleR;                // duty cycle value (somme coderCycleR et ctl_input_val)
+    volatile uint8_t    coderCycleR;           // duty cycle coder value -64/+64 coder value
+    int16_t             coderCycleRAtt;        // duty cycle input attenuator value (0-MAX_CTL_ATT)
+
+    volatile int16_t    coderReverb;           // level of reverb injection
+    volatile int16_t    coderEcho;             // level of echo injection
+    volatile int16_t    coderReverbAtt;        // reverb send input attenuator
+    volatile int16_t    coderEchoAtt;          // echo send input attenuator
 
     int32_t     sqrTh;
     
-    int16_t     voice_ctl_input_id[MAX_INPUTS_PER_OBJ];
+    int16_t     voice_ctl_input_id[VOICES_INPUTS_NB];
 
 };
 
