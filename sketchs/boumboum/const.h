@@ -7,7 +7,7 @@
 
 #include "rc_33tables.h"
 
-#define VERSION "v1.49"
+#define VERSION "v1.4a"
 
 #define PI 3.14159265359
 
@@ -147,13 +147,10 @@ typedef enum {
 
 #define MAX_REV 1
 #define REV_BUF_LEN 6300                      // 22050hz
-//#define MAX_REV_OUTPUTS 1
-//#define MAX_REV_INPUTS 3
 
 #define MAX_ECHO 1
 #define ECHO_BUF_LEN 22050
-//#define MAX_ECHO_OUTPUTS 1
-//#define MAX_ECHO_INPUTS 3
+#define ECHO_STEPS (SAMPLES_PER_BUFFER/2)     // echo steps per audio buffer (22050 Hz)
 
 /* dma */
 

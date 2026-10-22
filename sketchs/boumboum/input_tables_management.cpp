@@ -257,17 +257,6 @@ const char lfm_outputs_names[][OBJ_IO_NAME_LEN]={
     #undef X   
 };
 
-/*const char rev_outputs_names[][OBJ_IO_NAME_LEN]={
-    #define X(name,text) text,
-    #include "rev_outputs_names.def"   
-    #undef X   
-};*/
-
-/*const char echo_outputs_names[][OBJ_IO_NAME_LEN]={
-    #define X(name,text) text,
-    #include "echo_outputs_names.def"   
-    #undef X   
-};*/
 
 bool init_objects_outputs(void)
 {
@@ -346,41 +335,6 @@ bool init_objects_outputs(void)
         }        
     }
 
-    /*objects_first_output_id[REVERB___]=curr_output;
-    for (uint8_t rev=0;rev<MAX_REV;rev++)
-    {
-        for(uint8_t outs=0;outs<MAX_OUTPUTS_PER_OBJ;outs++)
-        {
-            ctl_output_id_chain[curr_output]=NO_LINK;
-            rev_ctl_output_id[rev][outs]=curr_output;
-            if(outs<MAX_REV_OUTPUTS){
-                char buf[IN_OUT_NAME_LEN]={'R','E','V','_'};
-                convIntToString(buf+4,rev,2);
-                memcpy(buf+6,&rev_outputs_names[outs],OBJ_IO_NAME_LEN-1);
-                memcpy(ctl_output_name[curr_output],buf,IN_OUT_NAME_LEN);
-            }
-            curr_output++;
-            if(curr_output>=MAX_OUTPUTS){return false;}
-        }
-    }*/
-
-    /*objects_first_output_id[ECHO_____]=curr_output;
-    for (uint8_t echo=0;echo<MAX_REV;echo++)
-    {
-        for(uint8_t outs=0;outs<MAX_OUTPUTS_PER_OBJ;outs++)
-        {
-            ctl_output_id_chain[curr_output]=NO_LINK;
-            echo_ctl_output_id[echo][outs]=curr_output;
-            if(outs<MAX_ECHO_OUTPUTS){
-                char buf[IN_OUT_NAME_LEN]={'E','C','H','_'};
-                convIntToString(buf+4,echo,2);
-                memcpy(buf+6,&echo_outputs_names[outs],OBJ_IO_NAME_LEN-1);
-                memcpy(ctl_output_name[curr_output],buf,IN_OUT_NAME_LEN);
-            }
-            curr_output++;
-            if(curr_output>=MAX_OUTPUTS){return false;}
-        }
-    }*/    
 
 // ajouter ici d'autres générateurs lents  (sequencers, kbd etc) ps: les voices n'ont pas de sorties lentes
 
@@ -416,6 +370,7 @@ uint8_t init_objects_inputs(void)
     {
         for(uint8_t ins=0;ins<LFO_INPUTS_NB;ins++)
         {
+            if(curr_input>=TOTAL_INPUTS_ID_REAL){return 1;}             // checked before any write: curr_input must be a valid index
             lfo_ctl_input_id[lfo][ins]=curr_input;
             ctl_input_id_chain[curr_input]=NO_LINK;
             ctl_input_object[curr_input]=lfo;
@@ -431,7 +386,6 @@ uint8_t init_objects_inputs(void)
                 memcpy(ctl_input_name[curr_input],buf,lenInpName);   //IN_OUT_NAME_LEN);
             //}
             curr_input++;
-            if(curr_input>TOTAL_INPUTS_ID_REAL){return 1;}
         }
     }
     //printf(" lfo_curr_input  :%u %u\n",objects_first_input_id[LFO______],curr_input-1);
@@ -441,6 +395,7 @@ uint8_t init_objects_inputs(void)
     {
         for(uint8_t ins=0;ins<ADSR_INPUTS_NB;ins++) 
         {
+            if(curr_input>=TOTAL_INPUTS_ID_REAL){return 2;}             // checked before any write
             adsr_ctl_input_id[adsr][ins]=curr_input;
             ctl_input_id_chain[curr_input]=NO_LINK;
             ctl_input_object[curr_input]=adsr;
@@ -464,7 +419,6 @@ uint8_t init_objects_inputs(void)
                 memcpy(ctl_input_name[curr_input],buf,lenInpName);   //IN_OUT_NAME_LEN);
             //}
             curr_input++;
-            if(curr_input>TOTAL_INPUTS_ID_REAL){return 2;}
         }
     }
     //printf(" adsr_curr_input :%u %u\n",objects_first_input_id[ADSR_____],curr_input-1);
@@ -474,6 +428,7 @@ uint8_t init_objects_inputs(void)
     {
         for(uint8_t ins=0;ins<VOICES_INPUTS_NB;ins++)
         {
+            if(curr_input>=TOTAL_INPUTS_ID_REAL){return 3;}             // checked before any write
             voices[vce].voice_ctl_input_id[ins]=curr_input;
             ctl_input_id_chain[curr_input]=NO_LINK;
             ctl_input_object[curr_input]=vce;
@@ -500,7 +455,6 @@ uint8_t init_objects_inputs(void)
                 memcpy(ctl_input_name[curr_input],buf,lenInpName);   //IN_OUT_NAME_LEN);
             //}
             curr_input++;
-            if(curr_input>TOTAL_INPUTS_ID_REAL){return 3;}
         }
     }
     //printf(" voice_curr_input:%u %u\n",objects_first_input_id[VOICE____],curr_input-1);
@@ -510,6 +464,7 @@ uint8_t init_objects_inputs(void)
     {
         for(uint8_t lfm=0;lfm<MAX_LFM;lfm++)
         {
+            if(curr_input>=TOTAL_INPUTS_ID_REAL){return 4;}             // checked before any write
             lfm_ctl_input_id[ins][lfm]=curr_input;           
             ctl_input_id_chain[curr_input]=NO_LINK;
             ctl_input_object[curr_input]=lfm;
@@ -524,7 +479,6 @@ uint8_t init_objects_inputs(void)
                 memcpy(ctl_input_name[curr_input],buf,lenInpName);   //IN_OUT_NAME_LEN);
             //}
             curr_input++;
-            if(curr_input>TOTAL_INPUTS_ID_REAL){return 4;}
         }
     }
 
@@ -533,6 +487,7 @@ uint8_t init_objects_inputs(void)
     {
         for(uint8_t rev=0;rev<MAX_REV;rev++)
         {
+            if(curr_input>=TOTAL_INPUTS_ID_REAL){return 5;}             // checked before any write
             rev_ctl_input_id[ins][rev]=curr_input;           
             ctl_input_id_chain[curr_input]=NO_LINK;
             ctl_input_object[curr_input]=rev;
@@ -551,15 +506,17 @@ uint8_t init_objects_inputs(void)
                 memcpy(ctl_input_name[curr_input],buf,lenInpName);   //IN_OUT_NAME_LEN);
             //}
             curr_input++;
-            if(curr_input>TOTAL_INPUTS_ID_REAL){return 5;}
         }
     }    
         
-    objects_first_input_id[ECHO_____]=curr_input;
+    objects_first_input_id[ECHOS____]=curr_input;
     for (uint8_t ins=0;ins<ECHO_INPUTS_NB;ins++)
     {
         for(uint8_t echo=0;echo<MAX_ECHO;echo++)
         {
+            if(curr_input>=TOTAL_INPUTS_ID_REAL){                         // checked before any write
+                printf("%u>=%u\n",curr_input,TOTAL_INPUTS_ID_REAL);
+                return 6;}
             echo_ctl_input_id[ins][echo]=curr_input;           
             ctl_input_id_chain[curr_input]=NO_LINK;
             ctl_input_object[curr_input]=echo;
@@ -578,9 +535,6 @@ uint8_t init_objects_inputs(void)
                 memcpy(ctl_input_name[curr_input],buf,lenInpName);   //IN_OUT_NAME_LEN);
             //}
             curr_input++;
-            if(curr_input>TOTAL_INPUTS_ID_REAL){
-                printf("%u>=%u\n",curr_input,TOTAL_INPUTS_ID_REAL);
-                return 6;}
         }
     } 
 
@@ -723,7 +677,10 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
                 case VCE_GENA:  setVoiceAmpl(&voices[object],BASIC_WAVES_NB);break;
                 case VCE_FILT:  setVoiceFilterFrequency(&voices[object]);break;         // cutoff code = coder + attenuated input (same shift of 6 as before)                         
                 case VCE_RES :  setVoiceFilterRes(&voices[object]);break;
-                
+                case ECHO_V_ :  setVoiceEcho(&voices[object]);break;                    // echo send level of the voice
+                case ECHO_D_ :                                                          // delay, feedback, return: setEcho computes all three
+                case ECHO_I_ :
+                case ECHO_R_ :  setEcho(object);break;                
                 case LFO_FREQ:  setLfosFrequency(object);break;                         // 8k max VCES_MAX_FREQ_CODERS ; att 0-255 
                 case LFO_CRA :  setLfosCycleR(object); break;
                 case A_ATTACK:  setAdsrDur(object,ADSR_ATT);break;

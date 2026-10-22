@@ -744,6 +744,10 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                 snprintf(buf+2,LINE_LEN-2,"%3u %3u %3u %3u %3u %3u",lfmCoder[0][line],lfmCoderAtt[0][line],lfmCoder[1][line],lfmCoderAtt[1][line],lfmCoder[2][line],lfmCoderAtt[2][line]);
                 break;
 
+            case ECHOs____: //setEchoCoder(&voices[line]), coderDur, coderInj, coderRet, coderDurAtt, coderInjAtt, coderRetAtt);
+                            //setVoiceEchoCoders(&voices[line], coderEcho, coderEchoAtt);
+                break;
+
             default:break;
         }
 

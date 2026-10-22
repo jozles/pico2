@@ -87,10 +87,11 @@ struct Voice {
     volatile uint8_t    coderCycleR;           // duty cycle coder value -64/+64 coder value
     int16_t             coderCycleRAtt;        // duty cycle input attenuator value (0-MAX_CTL_ATT)
 
-    volatile int16_t    coderReverb;           // level of reverb injection
-    volatile int16_t    coderEcho;             // level of echo injection
+    volatile int16_t    coderReverb;           // reverb send level coder
+    volatile int16_t    coderEcho;             // echo send level coder
     volatile int16_t    coderReverbAtt;        // reverb send input attenuator
     volatile int16_t    coderEchoAtt;          // echo send input attenuator
+    volatile int16_t    echoAtt;               // echo send level 0..0x7fff, computed by setVoiceEcho
 
     int32_t     sqrTh;
     

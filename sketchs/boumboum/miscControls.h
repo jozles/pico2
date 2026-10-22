@@ -1,7 +1,9 @@
 #ifndef _MISC_H_
 #define _MISC_H_
 
-#include <stdint.h>
+#include <stdint.h>                                            
+
+struct Voice;                                                   // defined in frequences.h: only a pointer is needed here
 
 void adsrInit();
 void adsrHandler();
@@ -22,6 +24,8 @@ void lfmScopeHandler();
 void disp_lfm(uint8_t lfm);
 void disp_lfm(uint8_t lfm,char* t);
 
+void effects_init();
+
 enum AdsrStates {
     ADSR_OFF,
     ADSR_ATT,
@@ -30,6 +34,31 @@ enum AdsrStates {
     ADSR_REL,
     ADSR_MAX_STATES
 };
+
+
+
+// ************************* echo ****************************
+
+enum { ECHO_IDLE, ECHO_RUNNING, ECHO_CLEARING };
+
+struct EchoState {
+    uint8_t state;                                              // ECHO_IDLE: bufEcho is clean, nothing computed ; ECHO_CLEARING: the DMA is clearing bufEcho
+    bool    clearStarted;                                       // the DMA clear of bufEcho has been started
+    int32_t w;                                                  // write index in bufEcho
+    int32_t dCur;                                               // delay in use (the new one during a crossfade)
+    int32_t dOld;                                               // previous delay, faded out during the crossfade
+    int32_t fadePos;                                            // position in the crossfade, ECHO_FADE_LEN when there is none
+    int32_t fbLast;                                             // feedback reached at the end of the previous buffer
+    int32_t retLast;                                            // return level reached at the end of the previous buffer
+    int32_t yLast;                                              // last output step, for the interpolation back to 44100 Hz
+    int32_t silent;                                             // steps of output below ECHO_SILENCE since the last send
+};
+
+void echoProcess(int32_t* vBuffer);
+void setEcho(uint8_t echo);
+void setVoiceEcho(Voice* v);
+void setVoiceEchoCoders(Voice* v, uint16_t coder, uint16_t coderAtt);
+void setEchoCoder(uint8_t echo, uint16_t coderDur, uint16_t coderInj, uint16_t coderRet, uint16_t coderDurA, uint16_t coderInjA, uint16_t coderRetA);
 
 
 #endif // _MISC_H_

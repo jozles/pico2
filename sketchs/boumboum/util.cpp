@@ -330,6 +330,9 @@ void setup(){
     fillDur();
     adsrInit();
 
+    // **** echo/reverb ****
+    effects_init();
+
     // ****** lmuxs *******
     lf_mixer_init();
 

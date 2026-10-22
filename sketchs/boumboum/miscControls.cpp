@@ -8,6 +8,9 @@
 #include "input_tables_management.h"
 #include "frequences.h"
 #include "hardware/sync.h"
+#include "hardware/dma.h"
+
+extern Voice voices[MAX_VOICES];
 
 /* ****** adsr ****** */
 
@@ -76,7 +79,8 @@ uint16_t revRetCoderAtt[MAX_REV];
 int16_t bufReverb[MAX_REV][REV_BUF_LEN];
 
 int16_t rev_ctl_input_id[REV_INPUTS_NB][MAX_REV];
-int16_t rev_ctl_output_id[MAX_OUTPUTS_PER_OBJ][MAX_REV];
+
+// ************************* echo ****************************
 
 uint16_t echoDurCoder[MAX_ECHO];
 uint16_t echoInjCoder[MAX_ECHO];
@@ -84,20 +88,50 @@ uint16_t echoRetCoder[MAX_ECHO];
 uint16_t echoDurCoderAtt[MAX_ECHO];
 uint16_t echoInjCoderAtt[MAX_ECHO];
 uint16_t echoRetCoderAtt[MAX_ECHO];
-
-int16_t bufEcho[MAX_ECHO][ECHO_BUF_LEN];
         
 int16_t echo_ctl_input_id[ECHO_INPUTS_NB][MAX_ECHO];
-int16_t echo_ctl_output_id[MAX_OUTPUTS_PER_OBJ][MAX_ECHO];
+
+
+// the echo runs at 22050 Hz: one step = one pair of samples of the audio buffer
+#define ECHO_STEPS_SHIFT  8                                     // log2(ECHO_STEPS)
+static_assert((1 << ECHO_STEPS_SHIFT) == ECHO_STEPS, "ECHO_STEPS_SHIFT must be log2(ECHO_STEPS)");
+static_assert(((ECHO_BUF_LEN * 2) % 4) == 0, "the DMA clears bufEcho with 32-bit words");
+
+#define ECHO_MIN_DELAY    441                                   // 20 ms at 22050 Hz: delay of coder step 0
+#define ECHO_DUR_SHIFT    8                                     // input shift for the 128 steps of the duration (whole range with a full-scale input)
+#define ECHO_INJ_STEPS    64                                    // steps of the feedback coder
+#define ECHO_INJ_SHIFT    9                                     // input shift for the 64 steps of the feedback
+#define ECHO_FB_MAX_Q15   29491                                 // highest feedback: 0.9 (Q15); 1.0 or more would grow until saturation
+#define ECHO_FADE_SHIFT   10                                    // crossfade between the old and the new delay: 1024 steps = 46 ms
+#define ECHO_FADE_LEN     (1 << ECHO_FADE_SHIFT)
+#define ECHO_SILENCE      4                                     // about -72 dB below a full-scale voice (16384 in bufEcho)
+
+int16_t       bufEcho[MAX_ECHO][ECHO_BUF_LEN] __attribute__((aligned(4)));    // delay line: the last second of the echo input, at 22050 Hz
+int32_t       echoBus[MAX_ECHO][ECHO_STEPS];                    // sum of the voices sent to the echo during the current audio buffer, at 22050 Hz
+volatile bool echoBusUsed[MAX_ECHO];                            // set by fillVoiceBuffer_mono when a voice has sent something
+
+// values computed by setEcho (menu or 1 kHz interrupt), read once per audio buffer by echoProcess
+static volatile int32_t echoDelay[MAX_ECHO];                    // delay in steps (22050 Hz)
+static volatile int32_t echoFb[MAX_ECHO];                       // feedback, Q15
+static volatile int32_t echoRet[MAX_ECHO];                      // return level, 0..32767
+
+static EchoState echoSt[MAX_ECHO];
+static int       echoDmaChan = -1;
+static uint32_t  echoZero = 0;                                  // source of the DMA clear: static, it must outlive the transfer
+
 
 /* *******  extern  ******** */
 
 extern volatile uint32_t millisCounter;
-extern bool     setupComplete;
-extern uint16_t amplLevel[];
-extern int16_t  ctl_input_val[TOTAL_INPUTS_ID_REAL];
-extern int16_t  ctl_output_id_chain[];
-//extern uint8_t  ctl_input_update_type[];
+extern bool             setupComplete;
+extern uint16_t         amplLevel[];
+extern int16_t          ctl_input_val[TOTAL_INPUTS_ID_REAL];
+extern int16_t          ctl_output_id_chain[];
+extern uint16_t         waveLevel[];
+extern const uint32_t   yTableQ16[];
+extern Voice            voices[MAX_VOICES];
+
+
 
 void adsrInit()                     // (id ptrs dans inits_objects_inputs/outputs)
 {
@@ -121,7 +155,7 @@ void adsrInit()                     // (id ptrs dans inits_objects_inputs/output
 #define RC_SAMPLES_NB  2048
 #define P16 (1<<16) 
 
-const uint32_t yTableQ16[DUR_ECH_NB] = {
+extern const uint32_t yTableQ16[DUR_ECH_NB] = {
 //1,2,3,4,5,7,8,10,11,13,15,18,21,24,27,31,35,39,44,49,55,62,69,76,84,93,103,114,125,137,151,165,181,197,215,235,256,278,302,328,356,
 //386,418,452,488,527,569,614,661,712,766,824,886,952,1021,1096,1175,1259,1348,1443,1544,1651,1765,1886,2014,2149,2293,2445,2606,2777,
 //2957,3148,3350,3564,3790,4028,4281,4547,4828,5124,5438,5768,6116,6483,6871,7279,7709,8162,8639,9141,9669,10226,10811,11427,12074,
@@ -526,36 +560,228 @@ void disp_lfm(uint8_t lfm){
 
 /* ****** reverb/echo ****** */
 
+// init of the effects: coders at 0, delay lines and states cleared, echo values computed
+// to call after the tables (fillDur, fillAmplIncr) and the inputs (objects_table_init): the input ids are not touched here
 void effects_init()
 {
-
-    for (uint8_t r=0;r=MAX_REV;r++){
-        revDurCoder[r]=0;
-        revShiCoder[r]=0;
-        revRetCoder[r]=0;
-        revDurCoderAtt[r]=0;
-        revShiCoderAtt[r]=0;
-        revRetCoderAtt[r]=0;        
-
-        for(uint8_t o=0;o<MAX_ECHO;o++){
-            rev_ctl_input_id[o][r]=0;
-            rev_ctl_output_id[o][r]=0;
-        }
+    for (uint8_t r = 0; r < MAX_REV; r++) {
+        revDurCoder[r]    = 0;
+        revShiCoder[r]    = 0;
+        revRetCoder[r]    = 0;
+        revDurCoderAtt[r] = 0;
+        revShiCoderAtt[r] = 0;
+        revRetCoderAtt[r] = 0;
     }
-    memset(bufReverb,0x00,sizeof(bufReverb[0])*MAX_REV*REV_BUF_LEN);
+    memset(bufReverb, 0x00, sizeof(bufReverb));
 
-    for(uint8_t e=0;e<MAX_ECHO;e++){
-        echoDurCoder[e]=0;
-        echoInjCoder[e]=0;
-        echoRetCoder[e]=0;
-        echoDurCoderAtt[e]=0;
-        echoInjCoderAtt[e]=0;
-        echoRetCoderAtt[e]=0;        
-
-        for(uint8_t o=0;o<MAX_ECHO;o++){
-            echo_ctl_input_id[o][e]=0;
-            echo_ctl_output_id[o][e]=0;
-        }
+    if (echoDmaChan < 0) { echoDmaChan = dma_claim_unused_channel(true); }
+    for (uint8_t e = 0; e < MAX_ECHO; e++) {
+        echoDurCoder[e]    = 0;
+        echoInjCoder[e]    = 0;
+        echoRetCoder[e]    = 0;
+        echoDurCoderAtt[e] = 0;
+        echoInjCoderAtt[e] = 0;
+        echoRetCoderAtt[e] = 0;
+        memset(&echoSt[e], 0, sizeof(EchoState));
+        echoSt[e].state   = ECHO_IDLE;                          // bufEcho is cleared below
+        echoSt[e].fadePos = ECHO_FADE_LEN;
+        echoBusUsed[e]    = false;
+        setEcho(e);
     }
-   memset(bufEcho,0x00,sizeof(bufEcho[0])*MAX_ECHO*ECHO_BUF_LEN);    
+    memset(bufEcho, 0x00, sizeof(bufEcho));
+    memset(echoBus, 0x00, sizeof(echoBus));
+
+    for (uint8_t v = 0; v < MAX_VOICES; v++) { setVoiceEcho(&voices[v]); }
+    printf("effects_init: %u echo, delay %ld steps (%ld ms), dma %d\n", (unsigned)MAX_ECHO, (long)echoDelay[0], (long)(echoDelay[0] * 1000 / 22050), echoDmaChan);
 }
+
+static inline int32_t sat32(int64_t x)
+{
+    return (x > INT32_MAX) ? INT32_MAX : ((x < INT32_MIN) ? INT32_MIN : (int32_t)x);
+}
+
+// level of a send or return: table value of the coder + attenuated input, as the wave levels of setVoiceAmpl
+static inline int32_t echoLevel(int32_t coder, int32_t att, int16_t input)
+{
+    if (coder < 0) coder = 0;
+    if (coder > WAVE_LEVEL_STEPS - 1) coder = WAVE_LEVEL_STEPS - 1;
+    int32_t v = (int32_t)waveLevel[coder] + (((int32_t)input * att) >> MAX_CTL_ATT_SHIFT);
+    if (v < 0) v = 0;
+    if (v > 32767) v = 32767;
+    return v;
+}
+
+// compute: delay, feedback and return of an echo, from the stored coders and the stored values of its inputs
+void __not_in_flash_func(setEcho)(uint8_t echo)
+{
+    if (echo >= MAX_ECHO) return;
+
+    const int32_t n = ctlCombine(echoDurCoder[echo], echoDurCoderAtt[echo], ctl_input_val[echo_ctl_input_id[ECHD][echo]], ECHO_DUR_SHIFT, 0, DUR_ECH_NB - 1);
+    int32_t d = ECHO_MIN_DELAY + (int32_t)(((uint32_t)yTableQ16[n] * (uint32_t)(ECHO_BUF_LEN - ECHO_MIN_DELAY)) / yTableQ16[DUR_ECH_NB - 1]);
+    if (d > ECHO_BUF_LEN - 1) d = ECHO_BUF_LEN - 1;             // the read index must never be the write index
+    echoDelay[echo] = d;
+
+    const int32_t i = ctlCombine(echoInjCoder[echo], echoInjCoderAtt[echo], ctl_input_val[echo_ctl_input_id[ECHI][echo]], ECHO_INJ_SHIFT, 0, ECHO_INJ_STEPS - 1);
+    echoFb[echo] = (i * ECHO_FB_MAX_Q15) / (ECHO_INJ_STEPS - 1);
+
+    echoRet[echo] = echoLevel(echoRetCoder[echo], echoRetCoderAtt[echo], ctl_input_val[echo_ctl_input_id[ECHR][echo]]);
+}
+
+// load the coders of an echo, then compute it (same model as setVoiceAmplCoders)
+void __not_in_flash_func(setEchoCoder)(uint8_t echo, uint16_t coderDur, uint16_t coderInj, uint16_t coderRet, uint16_t coderDurA, uint16_t coderInjA, uint16_t coderRetA)
+{
+    if (echo >= MAX_ECHO) return;
+    const uint32_t irq = save_and_disable_interrupts();         // the interrupt that updates the inputs computes the same values: no interleaving
+    echoDurCoder[echo]    = coderDur;
+    echoInjCoder[echo]    = coderInj;
+    echoRetCoder[echo]    = coderRet;
+    echoDurCoderAtt[echo] = coderDurA;
+    echoInjCoderAtt[echo] = coderInjA;
+    echoRetCoderAtt[echo] = coderRetA;
+    setEcho(echo);
+    restore_interrupts(irq);
+}
+
+// compute: the echo send level of a voice, from its stored coders and the stored value of its input
+void __not_in_flash_func(setVoiceEcho)(Voice* v)
+{
+    v->echoAtt = (int16_t)echoLevel(v->coderEcho, v->coderEchoAtt, ctl_input_val[v->voice_ctl_input_id[VECH]]);
+}
+
+// load the echo send coders of a voice, then compute its send level
+void __not_in_flash_func(setVoiceEchoCoders)(Voice* v, uint16_t coder, uint16_t coderAtt)
+{
+    const uint32_t irq = save_and_disable_interrupts();
+    v->coderEcho    = (int16_t)coder;
+    v->coderEchoAtt = (int16_t)coderAtt;
+    setVoiceEcho(v);
+    restore_interrupts(irq);
+}
+
+// clear of bufEcho by DMA, the CPU does not wait: returns true once bufEcho is clean (the echo is then ECHO_IDLE)
+static bool __not_in_flash_func(echoClearService)(uint8_t echo)
+{
+    EchoState& s = echoSt[echo];
+    if (!s.clearStarted) {
+        if (dma_channel_is_busy(echoDmaChan)) return false;     // channel still clearing another echo: retry at the next buffer
+        dma_channel_config c = dma_channel_get_default_config(echoDmaChan);
+        channel_config_set_transfer_data_size(&c, DMA_SIZE_32);
+        channel_config_set_read_increment(&c, false);           // always the same zero word
+        channel_config_set_write_increment(&c, true);
+        dma_channel_configure(echoDmaChan, &c, bufEcho[echo], &echoZero, (ECHO_BUF_LEN * 2) / 4, true);
+        s.clearStarted = true;
+        return false;
+    }
+    if (dma_channel_is_busy(echoDmaChan)) return false;
+    s.state = ECHO_IDLE;
+    return true;
+}
+
+// echo of every echo object, added to the audio buffer (left = right); nothing is computed for an echo that is idle and receives nothing
+void __not_in_flash_func(echoProcess)(int32_t* vBuffer)
+{
+    for (uint8_t e = 0; e < MAX_ECHO; e++) {
+        EchoState& s = echoSt[e];
+        const bool used = echoBusUsed[e];
+        echoBusUsed[e] = false;
+
+        if (s.state == ECHO_CLEARING) {
+            if (!used) { echoClearService(e); continue; }
+            while (!echoClearService(e)) {}                     // a voice sends again before the end of the clear: wait (tens of us, rare)
+        }
+        if (s.state == ECHO_IDLE) {
+            if (!used) continue;
+            s.state   = ECHO_RUNNING;                           // start: bufEcho is clean, the settings are taken as they are
+            s.silent  = 0;
+            s.yLast   = 0;
+            s.fbLast  = echoFb[e];
+            s.retLast = echoRet[e];
+            s.dCur    = echoDelay[e];
+            s.dOld    = s.dCur;
+            s.fadePos = ECHO_FADE_LEN;
+        }
+
+        // a new delay starts a crossfade, only once the previous one is over: a delay that keeps moving is followed by steps of 46 ms
+        const int32_t dTarget = echoDelay[e];
+        if (s.fadePos >= ECHO_FADE_LEN && dTarget != s.dCur) {
+            s.dOld    = s.dCur;
+            s.dCur    = dTarget;
+            s.fadePos = 0;
+        }
+
+        // feedback and return ramp over the buffer, from their value at the end of the previous buffer
+        const int32_t fbEnd  = echoFb[e];
+        const int32_t retEnd = echoRet[e];
+        int32_t       fbAcc  = s.fbLast << ECHO_STEPS_SHIFT;
+        const int32_t fbInc  = fbEnd - s.fbLast;
+        int32_t       retAcc = s.retLast << ECHO_STEPS_SHIFT;
+        const int32_t retInc = retEnd - s.retLast;
+
+        int16_t*      buf     = bufEcho[e];
+        int32_t*      bus     = echoBus[e];
+        int32_t       w       = s.w;
+        const int32_t dCur    = s.dCur;
+        const int32_t dOld    = s.dOld;
+        int32_t       fadePos = s.fadePos;
+        int32_t       yPrev   = s.yLast;
+        int32_t       peak    = 0;
+        int32_t*      vb      = vBuffer;
+
+        for (uint32_t k = 0; k < ECHO_STEPS; k++) {
+            int32_t r = w - dCur;
+            if (r < 0) r += ECHO_BUF_LEN;
+            int32_t y = buf[r];                                 // the input of dCur steps ago
+            if (fadePos < ECHO_FADE_LEN) {
+                int32_t ro = w - dOld;
+                if (ro < 0) ro += ECHO_BUF_LEN;
+                const int32_t yo = buf[ro];
+                y = yo + (((y - yo) * fadePos) >> ECHO_FADE_SHIFT);    // linear crossfade from the old delay to the new one
+                fadePos++;
+            }
+
+            fbAcc  += fbInc;
+            retAcc += retInc;
+
+            int32_t x = (bus[k] >> 16) + ((y * (fbAcc >> ECHO_STEPS_SHIFT)) >> 15);   // input + feedback ; a full-scale voice gives 16384: 6 dB of headroom for the feedback
+            if (x >  32767) x =  32767;
+            if (x < -32768) x = -32768;
+            buf[w] = (int16_t)x;
+
+            const int32_t ret = retAcc >> ECHO_STEPS_SHIFT;
+            const int32_t o0  = sat32(((int64_t)(yPrev + y) * ret) << 1);   // back to 44100 Hz: the mean of two steps, then the step itself
+            const int32_t o1  = sat32(((int64_t)y * ret) << 2);             // 16384 * 32767 * 4 = full scale of a voice
+            vb[0] += o0;
+            vb[1] += o0;
+            vb[2] += o1;
+            vb[3] += o1;
+            vb += 4;
+
+            const int32_t ay = (y < 0) ? -y : y;
+            if (ay > peak) peak = ay;
+            yPrev = y;
+            if (++w >= ECHO_BUF_LEN) w = 0;
+        }
+
+        s.w       = w;
+        s.fadePos = fadePos;
+        s.yLast   = yPrev;
+        s.fbLast  = fbEnd;
+        s.retLast = retEnd;
+
+        if (used) {
+            memset(bus, 0, sizeof(echoBus[0]));                 // ready for the next buffer
+            s.silent = 0;
+        }
+        else {
+            // stop once the output has stayed below ECHO_SILENCE during a whole delay: what is left in bufEcho is then below it too
+            s.silent = (peak < ECHO_SILENCE) ? (s.silent + ECHO_STEPS) : 0;
+            const int32_t span = ((dCur > dOld) ? dCur : dOld) + ECHO_STEPS;
+            if (s.silent >= span && fadePos >= ECHO_FADE_LEN) {
+                s.state        = ECHO_CLEARING;                 // clear bufEcho, otherwise its residue would come back when a voice sends again
+                s.clearStarted = false;
+                echoClearService(e);
+            }
+        }
+    }
+}
+

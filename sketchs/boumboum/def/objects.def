@@ -6,4 +6,4 @@
     Z(TBUTTON__,"t_but")
     Z(LF_MUX___,"lf_mux")
     Z(REVERB___,"reverb")
-    Z(ECHO_____,"echo")
+    Z(ECHOS____,"echo")
