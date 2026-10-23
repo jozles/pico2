@@ -91,21 +91,6 @@ uint16_t echoRetCoderAtt[MAX_ECHO];
         
 int16_t echo_ctl_input_id[ECHO_INPUTS_NB][MAX_ECHO];
 
-
-// the echo runs at 22050 Hz: one step = one pair of samples of the audio buffer
-#define ECHO_STEPS_SHIFT  8                                     // log2(ECHO_STEPS)
-static_assert((1 << ECHO_STEPS_SHIFT) == ECHO_STEPS, "ECHO_STEPS_SHIFT must be log2(ECHO_STEPS)");
-static_assert(((ECHO_BUF_LEN * 2) % 4) == 0, "the DMA clears bufEcho with 32-bit words");
-
-#define ECHO_MIN_DELAY    441                                   // 20 ms at 22050 Hz: delay of coder step 0
-#define ECHO_DUR_SHIFT    8                                     // input shift for the 128 steps of the duration (whole range with a full-scale input)
-#define ECHO_INJ_STEPS    64                                    // steps of the feedback coder
-#define ECHO_INJ_SHIFT    9                                     // input shift for the 64 steps of the feedback
-#define ECHO_FB_MAX_Q15   29491                                 // highest feedback: 0.9 (Q15); 1.0 or more would grow until saturation
-#define ECHO_FADE_SHIFT   10                                    // crossfade between the old and the new delay: 1024 steps = 46 ms
-#define ECHO_FADE_LEN     (1 << ECHO_FADE_SHIFT)
-#define ECHO_SILENCE      4                                     // about -72 dB below a full-scale voice (16384 in bufEcho)
-
 int16_t       bufEcho[MAX_ECHO][ECHO_BUF_LEN] __attribute__((aligned(4)));    // delay line: the last second of the echo input, at 22050 Hz
 int32_t       echoBus[MAX_ECHO][ECHO_STEPS];                    // sum of the voices sent to the echo during the current audio buffer, at 22050 Hz
 volatile bool echoBusUsed[MAX_ECHO];                            // set by fillVoiceBuffer_mono when a voice has sent something

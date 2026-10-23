@@ -331,7 +331,7 @@ void setup(){
     adsrInit();
 
     // **** echo/reverb ****
-    effects_init();
+    //effects_init();
 
     // ****** lmuxs *******
     lf_mixer_init();

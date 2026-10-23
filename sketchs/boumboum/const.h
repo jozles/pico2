@@ -143,15 +143,6 @@ typedef enum {
 #define LED 25              // pico2 built_int led
 #define LED_PIN LED
 
-/* REVERB/ECHO */
-
-#define MAX_REV 1
-#define REV_BUF_LEN 6300                      // 22050hz
-
-#define MAX_ECHO 1
-#define ECHO_BUF_LEN 22050
-#define ECHO_STEPS (SAMPLES_PER_BUFFER/2)     // echo steps per audio buffer (22050 Hz)
-
 /* dma */
 
 #define GLOBAL_DMA_IRQ_HANDLER
@@ -193,6 +184,30 @@ static_assert((SAMPLES_PER_BUFFER % 4) == 0, "the unrolled index loop writes 4 s
 #define BASIC_WAVE_TABLE_LEN (RC_TABLES_LEN*2)          // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
 #define BASIC_WAVE_TABLE_POW 11                         // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
 static_assert((1u << BASIC_WAVE_TABLE_POW) == BASIC_WAVE_TABLE_LEN, "BASIC_WAVE_TABLE_POW and BASIC_WAVE_TABLE_LEN are inconsistent");
+
+/* REVERB/ECHO */
+
+#define MAX_REV 1
+#define REV_BUF_LEN 6300                      // 22050hz
+
+#define MAX_ECHO 1
+#define ECHO_BUF_LEN 22050
+#define ECHO_STEPS (SAMPLES_PER_BUFFER/2)     // echo steps per audio buffer (22050 Hz)
+
+// the echo runs at 22050 Hz: one step = one pair of samples of the audio buffer
+#define ECHO_STEPS_SHIFT  8                                     // log2(ECHO_STEPS)
+static_assert((1 << ECHO_STEPS_SHIFT) == ECHO_STEPS, "ECHO_STEPS_SHIFT must be log2(ECHO_STEPS)");
+static_assert(((ECHO_BUF_LEN * 2) % 4) == 0, "the DMA clears bufEcho with 32-bit words");
+
+#define ECHO_MIN_DELAY    441                                   // 20 ms at 22050 Hz: delay of coder step 0
+#define ECHO_DUR_SHIFT    8                                     // input shift for the 128 steps of the duration (whole range with a full-scale input)
+#define ECHO_INJ_STEPS    64                                    // steps of the feedback coder
+#define ECHO_INJ_SHIFT    9                                     // input shift for the 64 steps of the feedback
+#define ECHO_FB_MAX_Q15   29491                                 // highest feedback: 0.9 (Q15); 1.0 or more would grow until saturation
+#define ECHO_FADE_SHIFT   10                                    // crossfade between the old and the new delay: 1024 steps = 46 ms
+#define ECHO_FADE_LEN     (1 << ECHO_FADE_SHIFT)
+#define ECHO_SILENCE      4                                     // about -72 dB below a full-scale voice (16384 in bufEcho)
+
 
 /* inputs/outputs */
 
