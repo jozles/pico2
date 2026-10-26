@@ -237,26 +237,26 @@ void dumpVoices(Voice* v, uint8_t line)                      // one voice on 3 l
   const int    fi=(int)f,  ff=(int)((f-(float)fi)*1000.0f+0.5f);
   const int    ci=(int)cf, cfr=(int)((cf-(float)ci)*1000.0f+0.5f);
 
-  printf("V%d VSPW=%d ids: [0]=%d [VSPW]=%d  f:%d/%d %d.%03dHz step:%lu.%lu rc:%d(c%d a%d) sqrTh:%ld gen:%d/%d=%d\n",line,
-      (int)VSPW,p->voice_ctl_input_id[0],p->voice_ctl_input_id[VSPW],
-      p->coderFreq,VCES_MAX_FREQ_CODERS,fi,ff,
-      (unsigned long)(p->phaseStep>>PHASE_SHIFT),(unsigned long)(p->phaseStep&((1u<<PHASE_SHIFT)-1)),
-      p->cycleR,p->coderCycleR,p->coderCycleRAtt,(long)p->sqrTh,p->coderGenAmpl,VCES_MAX_AMPL_CODERS,p->genAmpl);
+  //printf("V%d VSPW=%d ids: [0]=%d [VSPW]=%d  f:%d/%d %d.%03dHz step:%lu.%lu rc:%d(c%d a%d) sqrTh:%ld gen:%d/%d=%d\n",line,
+      //(int)VSPW,p->voice_ctl_input_id[0],p->voice_ctl_input_id[VSPW],
+      //p->coderFreq,VCES_MAX_FREQ_CODERS,fi,ff,
+      //(unsigned long)(p->phaseStep>>PHASE_SHIFT),(unsigned long)(p->phaseStep&((1u<<PHASE_SHIFT)-1)),
+      //p->cycleR,p->coderCycleR,p->coderCycleRAtt,(long)p->sqrTh,p->coderGenAmpl,VCES_MAX_AMPL_CODERS,p->genAmpl);
   fillVoices();
 
   // amplitude path of every wave: coder/max, base level of the coder, attenuator, value of its amplitude input (slot VSPW + wave), current>target
   for(uint8_t wa=0;wa<BASIC_WAVES_NB;wa++){
       const uint16_t cc=(p->coderWaveAmpl[wa]<WAVE_LEVEL_STEPS)?p->coderWaveAmpl[wa]:(WAVE_LEVEL_STEPS-1);
-      printf(" %s:%d/%d base%u att%d in%d %d>%d\n",waveNames[wa],p->coderWaveAmpl[wa],WAVE_LEVEL_STEPS,waveLevel[cc],p->coderWaveAmplAtt[wa],
-          ctl_input_val[p->voice_ctl_input_id[VSPW+wa]],p->basicWaveAmpl[wa],p->newBasicWaveAmpl[wa]);
+      //printf(" %s:%d/%d base%u att%d in%d %d>%d\n",waveNames[wa],p->coderWaveAmpl[wa],WAVE_LEVEL_STEPS,waveLevel[cc],p->coderWaveAmplAtt[wa],
+          //ctl_input_val[p->voice_ctl_input_id[VSPW+wa]],p->basicWaveAmpl[wa],p->newBasicWaveAmpl[wa]);
       fillVoices();
   }
 
-  printf("   filter code:%d (c%d a%d) %d.%03dHz lev:%d res:%d (c%d a%d) z:%ld %ld %ld %ld\n",
-      p->filterCode,p->coderFilterFreq,p->coderFilterFreqAtt,ci,cfr,p->coderFilterLevAtt,p->filterRes,p->coderFilterRes,p->coderFilterResAtt,
-      (long)p->filter.z[0],(long)p->filter.z[1],(long)p->filter.z[2],(long)p->filter.z[3]);
+  //printf("   filter code:%d (c%d a%d) %d.%03dHz lev:%d res:%d (c%d a%d) z:%ld %ld %ld %ld\n",
+      //p->filterCode,p->coderFilterFreq,p->coderFilterFreqAtt,ci,cfr,p->coderFilterLevAtt,p->filterRes,p->coderFilterRes,p->coderFilterResAtt,
+      //(long)p->filter.z[0],(long)p->filter.z[1],(long)p->filter.z[2],(long)p->filter.z[3]);
   fillVoices();
-  printf("click: ratio max %lu (x1e-4) over %lu buffers ; i2s underruns: %lu\n",(unsigned long)dbgClickRatio,(unsigned long)dbgClickBufs,(unsigned long)i2sUnderruns);
+  //printf("click: ratio max %lu (x1e-4) over %lu buffers ; i2s underruns: %lu\n",(unsigned long)dbgClickRatio,(unsigned long)dbgClickBufs,(unsigned long)i2sUnderruns);
   dbgClickRatio=0; dbgClickBufs=0;                                                                 // peak hold: restarts after each dump
 }
 

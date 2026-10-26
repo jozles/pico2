@@ -78,6 +78,9 @@ extern uint16_t* vcesVarT[];
 uint16_t tempVcesCoderAtt[VCES_OUTPUTS_NB][MAX_VOICES];      // pour accéder d'un ptr aux att (sin, ampl tri etc)
 extern volatile int16_t menuVcesCodersT[];
 
+extern volatile int16_t* vcesVarE[];
+extern volatile int16_t menuVcesCodersE[];
+
 extern uint16_t* vcesVarFi[];
 uint16_t tempVceCoderFiFreq[MAX_VOICES];
 uint16_t tempVceCoderFiFreqAtt[MAX_VOICES];
@@ -124,19 +127,19 @@ uint16_t tempLfmCoders[CODER_NB][MAX_LFM];    // lfmVar ne peut vas être utilis
 extern int32_t  lfmScopeBufReal[MAX_LFM*LFM_SCOPE_BUFFER_LEN];
 extern bool     lfmScopeDisp[];
 
+extern uint16_t echoCoderDur[MAX_ECHO];
+extern uint16_t echoCoderInj[MAX_ECHO];
+extern uint16_t echoCoderRet[MAX_ECHO];
+extern uint16_t echoCoderDurAtt[MAX_ECHO];
+extern uint16_t echoCoderInjAtt[MAX_ECHO];
+extern uint16_t echoCoderRetAtt[MAX_ECHO];
+extern volatile int16_t menuEchoCoders[];
+extern uint16_t* echoVar[];
+
 volatile bool codersSw[CODER_NB];                           // coder it handler scans all physical coders
 volatile bool codersTB[CODER_NB];                           // coder it handler scans all touchButtons
 extern volatile bool* coderTouchB;
 static bool oldCTB[CODER_NB];
-
-extern uint16_t echoDurCoder[MAX_ECHO];
-extern uint16_t echoInjCoder[MAX_ECHO];
-extern uint16_t echoRetCoder[MAX_ECHO];
-extern uint16_t echoDurCoderAtt[MAX_ECHO];
-extern uint16_t echoInjCoderAtt[MAX_ECHO];
-extern uint16_t echoRetCoderAtt[MAX_ECHO];
-extern volatile int16_t menuEchoCoders[];
-extern uint16_t* echoVar[];
 
 // mapping
 
@@ -179,8 +182,13 @@ enum OscCoders {        // coders pour menu voices et lfos
      OSCCODERFREQATT,
      OSCCODERCRAATT,
      OSCCODERUNUSED,    // pour décaler OSCGENAMP aussi utilisé avec Wavesamps et WavesAtt
-     OSCGENAMP,
-     OSCGENAMPATT
+};
+
+enum EffectsCoders {
+     EFFECHO,
+     EFFECHOATT,
+     EFFGENAMP,
+     EFFGENAMPATT
 };
 
 enum FiltersCoders {
@@ -287,6 +295,7 @@ void menus_init(){
         vcesVarFi[c]=nullptr;
         adsrVar[c]=nullptr;
         lfmVar[c]=nullptr;
+        echoVar[c]=nullptr;
     }
     
     // pour chaque menu : setup des xxxVar  et  pré-chargement des variables de la ligne 0
@@ -306,13 +315,11 @@ void menus_init(){
     vcesVarF[OSCCODERCRA-1]=tempVceCoderCycleR;  // vcesVarF[1]
     vcesVarF[OSCCODERCRAATT-1]=tempVceCoderCycleRAtt;
     vcesVarF[OSCCODERFREQATT-1]=tempVceCoderFreqAtt;
-    vcesVarF[OSCGENAMP-1]=tempVceCoderGenAmp;    // vcesVarF[4]
     menuVcesCodersF[OSCMENU]=0;                  // line 0 du menu
     menuVcesCodersF[OSCCODERFREQ]=voices[0].coderFreq;
     menuVcesCodersF[OSCCODERCRA]=voices[0].coderCycleR;
     menuVcesCodersF[OSCCODERFREQATT]=voices[0].coderFreqAtt;    // (atténuateur de la valeur de l'input)
     menuVcesCodersF[OSCCODERCRAATT]=voices[0].coderCycleRAtt;   // (atténuateur de la valeur de l'input)
-    menuVcesCodersF[OSCGENAMP]=voices[0].coderGenAmpl;
         // ***  voices Amp ***
     vcesVarM[WSIN]=tempVcesCoderAmp[WSIN];   
     vcesVarM[WTRI]=tempVcesCoderAmp[WTRI];
@@ -328,10 +335,15 @@ void menus_init(){
     menuVcesCodersM[WSQR+1]=voices[0].coderWaveAmpl[WSQR];
     menuVcesCodersM[WHIT+1]=voices[0].coderWaveAmpl[WHIT];
     menuVcesCodersM[PONK+1]=voices[0].coderWaveAmpl[PONK];
-    #define WECHO (PONK+1)
-    #define WECHOATT (WECHO+1)
-    menuVcesCodersM[WECHO+1]=voices[0].coderEcho;
-    menuVcesCodersM[WECHOATT+1]=voices[0].coderEchoAtt;
+        // *** voices effects ***
+    vcesVarE[EFFECHO]=&voices[0].coderEcho;  
+    vcesVarE[EFFECHOATT]=&voices[0].coderEchoAtt;
+    vcesVarE[EFFGENAMP]=&voices[0].coderGenAmpl;
+    vcesVarE[EFFGENAMPATT]=&voices[0].coderGenAmplAtt;
+    menuVcesCodersE[EFFECHO+1]=voices[0].coderEcho;
+    menuVcesCodersE[EFFECHOATT+1]=voices[0].coderEchoAtt;
+    menuVcesCodersE[EFFGENAMP+1]=voices[0].coderGenAmpl;
+    menuVcesCodersE[EFFGENAMPATT+1]=voices[0].coderGenAmplAtt;
         // ***  voices Att ***
     vcesVarT[WSIN]=tempVcesCoderAtt[WSIN];   
     vcesVarT[WTRI]=tempVcesCoderAtt[WTRI];
@@ -371,19 +383,19 @@ void menus_init(){
     menuAdsrCoders[ADSRREL]=adsrCoderRel[0];
     menuAdsrCoders[ADSRLEV]=adsrCoderLev[0];
             // ***  Echo  ****
-    echoVar[ECHODUR-1]=echoDurCoder;
-    echoVar[ECHOINJ-1]=echoInjCoder;
-    echoVar[ECHORET-1]=echoRetCoder;
-    echoVar[ECHODURATT-1]=echoDurCoderAtt;
-    echoVar[ECHOINJATT-1]=echoInjCoderAtt;
-    echoVar[ECHORETATT-1]=echoDurCoderAtt;
+    echoVar[ECHODUR-1]=echoCoderDur;
+    echoVar[ECHODURATT-1]=echoCoderDurAtt;
+    echoVar[ECHOINJ-1]=echoCoderInj;
+    echoVar[ECHOINJATT-1]=echoCoderInjAtt;
+    echoVar[ECHORET-1]=echoCoderRet;
+    echoVar[ECHORETATT-1]=echoCoderRetAtt;
     menuEchoCoders[ECHOMENU]=0;                 // line 0 du menu
-    menuEchoCoders[ECHODUR]=echoDurCoder[0];
-    menuEchoCoders[ECHOINJ]=echoInjCoder[0];
-    menuEchoCoders[ECHORET]=echoRetCoder[0];
-    menuEchoCoders[ECHODURATT]=echoDurCoderAtt[0];
-    menuEchoCoders[ECHOINJATT]=echoInjCoderAtt[0];
-    menuEchoCoders[ECHORETATT]=echoRetCoderAtt[0];
+    menuEchoCoders[ECHODUR]=echoCoderDur[0];
+    menuEchoCoders[ECHODURATT]=echoCoderDurAtt[0];    
+    menuEchoCoders[ECHOINJ]=echoCoderInj[0];
+    menuEchoCoders[ECHOINJATT]=echoCoderInjAtt[0];    
+    menuEchoCoders[ECHORET]=echoCoderRet[0];
+    menuEchoCoders[ECHORETATT]=echoCoderRetAtt[0];
         // ***  Lfm  ****     
     for(uint8_t c=0;c<CODER_NB;c++){menuLfmCoders[c]=0;}        
     for(uint8_t in=0;in<(CODER_NB/2);in++){
@@ -418,7 +430,7 @@ void title_dsp(const char* title,uint8_t item,uint8_t type,float v0, int32_t v1,
                        snprintf(buf2,LINE_LEN,"crAt:%i frAt:%i",lfosCoderCycleRAtt[item],lfosCodersFreqAtt[item]);break;        
         case ADSRL____:snprintf(buf,LINE_LEN,"%s%u %c%c",title,item,onoff[i2s_running],onoff[tb7]);
                        snprintf(buf2,LINE_LEN,"%u %u %u %+u %u",adsrCoderAtt[item],adsrCoderDec[item],adsrCoderSus[item],adsrCoderRel[item],adsrCoderLev[item]);break;
-        case ECHOs____:snprintf(buf,LINE_LEN,"%s%u %c%c",title,item,onoff[i2s_running],onoff[tb7]);
+        case ECHOs____:snprintf(buf,LINE_LEN,"%s%u %c%c",title,item,onoff[i2s_running],onoff[tb7]);break;
         default:snprintf(buf,LINE_LEN,"%s %u %c%c   ",title,type,onoff[i2s_running],onoff[tb7]);break;
     }        
     tft_draw_text_12x12_dma_mult(0,0,buf,0x001f,0x0000,1);
@@ -689,29 +701,43 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                     case OSCCODERCRAATT:if(varChge){
                         setVoiceCycleRCoders(&voices[line],voices[line].coderCycleR,cc);}
                         break;
-                    case OSCGENAMP:if(varChge){                                             // voice gain coder
-                        setVoiceAmplCoders(&voices[line],BASIC_WAVES_NB,cc,voiceAmplAtt(&voices[line],BASIC_WAVES_NB));}
-                        break;
+                    //case OSCGENAMP:if(varChge){                                             // voice gain coder
+                        //setVoiceAmplCoders(&voices[line],BASIC_WAVES_NB,cc,voiceAmplAtt(&voices[line],BASIC_WAVES_NB));}
+                        //break;
                     default: break;
                 }
 
-                snprintf(buf+2,LINE_LEN-2,"%4.3f %i %u %i %i ",voices[line].frequency,voices[line].coderCycleR-MAXCODER_RC/2,voices[line].coderGenAmpl,
+                snprintf(buf+2,LINE_LEN-2,"%4.3f %i %u %i %i ",voices[line].frequency,voices[line].coderCycleR-MAXCODER_RC/2,
                     voices[line].coderFreqAtt,voices[line].coderCycleRAtt);               
                 break;
+
+            case VOICES_EF:          
+                if(varChge){
+                    switch(line){
+                        case EFFECHO:setVoiceEchoCoders(&voices[line], cc16, voices[line].coderEchoAtt);break;
+                        case EFFECHOATT:setVoiceEchoCoders(&voices[line], voices[line].coderEcho, cc16);break;
+                        case EFFGENAMP:setVoiceAmplCoders(&voices[line],BASIC_WAVES_NB,cc,voiceAmplAtt(&voices[line],BASIC_WAVES_NB));break;
+                        case EFFGENAMPATT:setVoiceAmplCoders(&voices[line],coder-1,voiceAmplCoder(&voices[line],coder-1),cc);break;                                                 
+                        default: break;                       
+                   }
+                }
+                              
+                snprintf(buf+2,LINE_LEN-2,"%u %u %u %u %u %u %u ",voices[line].coderEcho,voices[line].coderEchoAtt,voices[line].coderGenAmpl,voices[line].coderGenAmplAtt);               
+                break;                 
 
             case VOICES_AM:          
                 if(varChge){
                     switch(line){
-                        case WECHO:setVoiceEchoCoders(&voices[line], cc16, voices[line].coderEchoAtt);break;
-                        case WECHOATT:setVoiceEchoCoders(&voices[line], voices[line].coderEcho, cc16);break;
+                        //case WECHO:setVoiceEchoCoders(&voices[line], cc16, voices[line].coderEchoAtt);break;
+                        //case WECHOATT:setVoiceEchoCoders(&voices[line], voices[line].coderEcho, cc16);break;
                         default:setVoiceAmplCoders(&voices[line],coder-1,cc,voiceAmplAtt(&voices[line],coder-1));     // coders 1-6: the waves ; the gain coder is in the frequency menu
-                                dumpLine=line; dumpRequest=true;
+                                dumpLine=line; dumpRequest=true;break;
                     }
                 }
                               
                 snprintf(buf+2,LINE_LEN-2,"%u %u %u %u %u %u %u ",voices[line].coderWaveAmpl[WSIN],voices[line].coderWaveAmpl[WTRI],voices[line].coderWaveAmpl[WSAW],
-                    voices[line].coderWaveAmpl[WSQR],voices[line].coderWaveAmpl[WHIT],voices[line].coderWaveAmpl[PONK],voices[line].coderGenAmpl);               
-                break;
+                    voices[line].coderWaveAmpl[WSQR],voices[line].coderWaveAmpl[WHIT],voices[line].coderWaveAmpl[PONK]);               
+                break;                       
 
             case VOICES_AT:      
                 if(varChge){
@@ -719,7 +745,7 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                 }
            
                 snprintf(buf+2,LINE_LEN-2,"%u %u %u %u %u %u %u",voices[line].coderWaveAmplAtt[WSIN],voices[line].coderWaveAmplAtt[WTRI],voices[line].coderWaveAmplAtt[WSAW],
-                    voices[line].coderWaveAmplAtt[WSQR],voices[line].coderWaveAmplAtt[WHIT],voices[line].coderWaveAmplAtt[PONK],voices[line].coderGenAmplAtt);               
+                    voices[line].coderWaveAmplAtt[WSQR],voices[line].coderWaveAmplAtt[WHIT],voices[line].coderWaveAmplAtt[PONK]);               
                 break;
             
             case VOICES_FI:
@@ -785,18 +811,19 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                 break;
 
             case ECHOs____: 
-                if(varChge){
+                if(varChge){                   
                     switch(coder){
-                        case 1:setEchoCoder(line,cc16,echoDurCoderAtt[line],echoInjCoder[line],echoInjCoderAtt[line],echoRetCoder[line],echoRetCoderAtt[line]);break;
-                        case 2:setEchoCoder(line,echoDurCoder[line],cc16,echoInjCoder[line],echoInjCoderAtt[line],echoRetCoder[line],echoRetCoderAtt[line]);break;
-                        case 3:setEchoCoder(line,echoDurCoder[line],echoDurCoderAtt[line],cc16,echoInjCoderAtt[line],echoRetCoder[line],echoRetCoderAtt[line]);break;
-                        case 4:setEchoCoder(line,echoDurCoder[line],echoDurCoderAtt[line],echoInjCoder[line],cc16,echoRetCoder[line],echoRetCoderAtt[line]);break;
-                        case 5:setEchoCoder(line,echoDurCoder[line],echoDurCoderAtt[line],echoInjCoder[line],echoInjCoderAtt[line],cc16,echoRetCoderAtt[line]);break;
-                        case 6:setEchoCoder(line,echoDurCoder[line],echoDurCoderAtt[line],echoInjCoder[line],echoInjCoderAtt[line],echoRetCoder[line],cc16);break;
+                        case 1:setEchoCoder(line,cc16              ,echoCoderDurAtt[line],echoCoderInj[line],echoCoderInjAtt[line],echoCoderRet[line],echoCoderRetAtt[line]);break;
+                        case 2:setEchoCoder(line,echoCoderDur[line],cc16                 ,echoCoderInj[line],echoCoderInjAtt[line],echoCoderRet[line],echoCoderRetAtt[line]);break;
+                        case 3:setEchoCoder(line,echoCoderDur[line],echoCoderDurAtt[line],cc16              ,echoCoderInjAtt[line],echoCoderRet[line],echoCoderRetAtt[line]);break;
+                        case 4:setEchoCoder(line,echoCoderDur[line],echoCoderDurAtt[line],echoCoderInj[line],cc16                 ,echoCoderRet[line],echoCoderRetAtt[line]);break;
+                        case 5:setEchoCoder(line,echoCoderDur[line],echoCoderDurAtt[line],echoCoderInj[line],echoCoderInjAtt[line],cc16              ,echoCoderRetAtt[line]);break;
+                        case 6:setEchoCoder(line,echoCoderDur[line],echoCoderDurAtt[line],echoCoderInj[line],echoCoderInjAtt[line],echoCoderRet[line],cc16);break;
                         default:break;
                     }            
                             //setVoiceEchoCoders(&voices[line], coderEcho, coderEchoAtt);
                 }
+                snprintf(buf+2,LINE_LEN-2,"%3u %3u %3u %3u %3u %3u",echoCoderDur[line],echoCoderDurAtt[line],echoCoderInj[line],echoCoderInjAtt[line],echoCoderRet[line],echoCoderRetAtt[line]);
                 break;
 
             default:break;
@@ -804,7 +831,7 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
 
     if(!mode_scope){    
         switch (type){
-            case MENU0____:tft_draw_text_12x12_dma_mult(0,line*(12*1+5)+first_row,buf,fgc,bgc,1);break;
+            case MENU0____:tft_draw_text_12x12_dma_mult(0,line*(12*1+6)+first_row,buf,fgc,bgc,1);break;
             case VOICES_FI:tft_draw_text_11x12_dma_mult(0,line*(12*2+1)+first_row,buf,fgc,bgc,1);break;   // 11-pixel font: 29 characters fit in 320 pixels
             default:tft_draw_text_12x12_dma_mult(0,line*(12*2+1)+first_row,buf,fgc,bgc,1);break;
         }
@@ -819,7 +846,7 @@ void fullMenuDsp(const char* title,const char* menu,uint8_t linesNb,uint8_t line
     tft_fill_rect_blank(0,0,TFT_H,TFT_W);   // clear screen
     title_dsp(title,0,type);
     uint8_t bgl=0;                          // first line to display
-    if(type==0){bgl=1;}                     // skip unused MENU0___ entry
+    if(type==MENU0____){bgl=1;}             // skip unused MENU0___ entry
 
     for(uint8_t l=bgl;l<linesNb;l++){
         fillVoices();
@@ -853,11 +880,8 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
 
     coderSetup(cTC,cTS,cTB,maxi,linesNb);   // coderSetup initialise les variables du coder_handler avec cTC,cTS,cTB,maxi ; ignore lineNb
 
-    printf("cTC:");for(uint8_t c=0;c<CODER_NB;c++){printf(" %u",cTC[c]);}printf("\n lnb:%u l:%u\n",linesNb,line);
+    printf("cTC:");for(uint8_t c=0;c<CODER_NB;c++){printf(" %u",cTC[c]);}printf(" lnb:%u l:%u\n",linesNb,line);
     fullMenuDsp(title,text,linesNb,line_len,line,object_type,0,0,false);
-    
-    //start adsr 0
-    //adsrStatus[0]=ADSR_ATT
 
     while(1){
 

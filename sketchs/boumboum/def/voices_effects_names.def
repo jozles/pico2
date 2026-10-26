@@ -1,0 +1,8 @@
+/* input names for voices */
+    
+    X(VREV,"SERV")
+    X(VRVA,"SERA")
+    X(VECH,"SECH")
+    X(VECA,"SECA")
+    X(VGEN,"SEGE")
+    X(VGEA,"SEGA")

@@ -59,7 +59,7 @@ struct Voice {
 
     volatile int16_t    genAmpl;               // genAmpl value
     volatile int16_t    coderGenAmpl;          // genAmpl coder value
-    volatile uint16_t   coderGenAmplAtt;       // genAmpl input attenuator value    
+    volatile int16_t    coderGenAmplAtt;       // genAmpl input attenuator value    
     
     volatile int16_t    basicWaveAmpl[BASIC_WAVES_NB];     // wave ampl value
     volatile int16_t    newBasicWaveAmpl[BASIC_WAVES_NB];

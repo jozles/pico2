@@ -58,7 +58,7 @@ void echoProcess(int32_t* vBuffer);
 void setEcho(uint8_t echo);
 void setVoiceEcho(Voice* v);
 void setVoiceEchoCoders(Voice* v, uint16_t coder, uint16_t coderAtt);
-void setEchoCoder(uint8_t echo, uint16_t coderDur, uint16_t coderInj, uint16_t coderRet, uint16_t coderDurA, uint16_t coderInjA, uint16_t coderRetA);
+void setEchoCoder(uint8_t echo, uint16_t coderDur, uint16_t coderDurA, uint16_t coderInj, uint16_t coderInjA, uint16_t coderRet, uint16_t coderRetA);
 
 
 #endif // _MISC_H_

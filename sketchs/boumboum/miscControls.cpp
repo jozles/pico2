@@ -82,12 +82,12 @@ int16_t rev_ctl_input_id[REV_INPUTS_NB][MAX_REV];
 
 // ************************* echo ****************************
 
-uint16_t echoDurCoder[MAX_ECHO];
-uint16_t echoInjCoder[MAX_ECHO];
-uint16_t echoRetCoder[MAX_ECHO];
-uint16_t echoDurCoderAtt[MAX_ECHO];
-uint16_t echoInjCoderAtt[MAX_ECHO];
-uint16_t echoRetCoderAtt[MAX_ECHO];
+uint16_t echoCoderDur[MAX_ECHO];
+uint16_t echoCoderInj[MAX_ECHO];
+uint16_t echoCoderRet[MAX_ECHO];
+uint16_t echoCoderDurAtt[MAX_ECHO];
+uint16_t echoCoderInjAtt[MAX_ECHO];
+uint16_t echoCoderRetAtt[MAX_ECHO];
         
 int16_t echo_ctl_input_id[ECHO_INPUTS_NB][MAX_ECHO];
 
@@ -561,12 +561,12 @@ void effects_init()
 
     if (echoDmaChan < 0) { echoDmaChan = dma_claim_unused_channel(true); }
     for (uint8_t e = 0; e < MAX_ECHO; e++) {
-        echoDurCoder[e]    = 0;
-        echoInjCoder[e]    = 0;
-        echoRetCoder[e]    = 0;
-        echoDurCoderAtt[e] = 0;
-        echoInjCoderAtt[e] = 0;
-        echoRetCoderAtt[e] = 0;
+        echoCoderDur[e]    = 0;
+        echoCoderInj[e]    = 0;
+        echoCoderRet[e]    = 0;
+        echoCoderDurAtt[e] = 0;
+        echoCoderInjAtt[e] = 0;
+        echoCoderRetAtt[e] = 0;
         memset(&echoSt[e], 0, sizeof(EchoState));
         echoSt[e].state   = ECHO_IDLE;                          // bufEcho is cleared below
         echoSt[e].fadePos = ECHO_FADE_LEN;
@@ -601,28 +601,28 @@ void __not_in_flash_func(setEcho)(uint8_t echo)
 {
     if (echo >= MAX_ECHO) return;
 
-    const int32_t n = ctlCombine(echoDurCoder[echo], echoDurCoderAtt[echo], ctl_input_val[echo_ctl_input_id[ECHD][echo]], ECHO_DUR_SHIFT, 0, DUR_ECH_NB - 1);
+    const int32_t n = ctlCombine(echoCoderDur[echo], echoCoderDurAtt[echo], ctl_input_val[echo_ctl_input_id[ECHD][echo]], ECHO_DUR_SHIFT, 0, DUR_ECH_NB - 1);
     int32_t d = ECHO_MIN_DELAY + (int32_t)(((uint32_t)yTableQ16[n] * (uint32_t)(ECHO_BUF_LEN - ECHO_MIN_DELAY)) / yTableQ16[DUR_ECH_NB - 1]);
     if (d > ECHO_BUF_LEN - 1) d = ECHO_BUF_LEN - 1;             // the read index must never be the write index
     echoDelay[echo] = d;
 
-    const int32_t i = ctlCombine(echoInjCoder[echo], echoInjCoderAtt[echo], ctl_input_val[echo_ctl_input_id[ECHI][echo]], ECHO_INJ_SHIFT, 0, ECHO_INJ_STEPS - 1);
+    const int32_t i = ctlCombine(echoCoderInj[echo], echoCoderInjAtt[echo], ctl_input_val[echo_ctl_input_id[ECHI][echo]], ECHO_INJ_SHIFT, 0, ECHO_INJ_STEPS - 1);
     echoFb[echo] = (i * ECHO_FB_MAX_Q15) / (ECHO_INJ_STEPS - 1);
 
-    echoRet[echo] = echoLevel(echoRetCoder[echo], echoRetCoderAtt[echo], ctl_input_val[echo_ctl_input_id[ECHR][echo]]);
+    echoRet[echo] = echoLevel(echoCoderRet[echo], echoCoderRetAtt[echo], ctl_input_val[echo_ctl_input_id[ECHR][echo]]);
 }
 
 // load the coders of an echo, then compute it (same model as setVoiceAmplCoders)
-void __not_in_flash_func(setEchoCoder)(uint8_t echo, uint16_t coderDur, uint16_t coderInj, uint16_t coderRet, uint16_t coderDurA, uint16_t coderInjA, uint16_t coderRetA)
+void __not_in_flash_func(setEchoCoder)(uint8_t echo, uint16_t coderDur, uint16_t coderDurA,  uint16_t coderInj, uint16_t coderInjA, uint16_t coderRet,uint16_t coderRetA)
 {
     if (echo >= MAX_ECHO) return;
     const uint32_t irq = save_and_disable_interrupts();         // the interrupt that updates the inputs computes the same values: no interleaving
-    echoDurCoder[echo]    = coderDur;
-    echoInjCoder[echo]    = coderInj;
-    echoRetCoder[echo]    = coderRet;
-    echoDurCoderAtt[echo] = coderDurA;
-    echoInjCoderAtt[echo] = coderInjA;
-    echoRetCoderAtt[echo] = coderRetA;
+    echoCoderDur[echo]    = coderDur;
+    echoCoderInj[echo]    = coderInj;
+    echoCoderRet[echo]    = coderRet;
+    echoCoderDurAtt[echo] = coderDurA;
+    echoCoderInjAtt[echo] = coderInjA;
+    echoCoderRetAtt[echo] = coderRetA;
     setEcho(echo);
     restore_interrupts(irq);
 }
