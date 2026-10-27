@@ -91,7 +91,7 @@ struct Voice {
     volatile int16_t    coderEcho;             // echo send level coder
     volatile int16_t    coderReverbAtt;        // reverb send input attenuator
     volatile int16_t    coderEchoAtt;          // echo send input attenuator
-    volatile int16_t    echoAtt;               // echo send level 0..0x7fff, computed by setVoiceEcho
+    volatile int16_t    echoLevel;             // echo send level 0..0x7fff, computed by setVoiceEcho
 
     int32_t     sqrTh;
     

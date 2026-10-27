@@ -206,7 +206,7 @@ void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)    // cga = genAmpl c
     for(uint8_t v=0;v<MAX_VOICES;v++){
         setVoiceCycleRCoders(&voices[v],MAXCODER_RC/2,FULL_ATTENUATION_VALUE);
         setVoiceFreqCoders(&voices[v],coderF,FULL_ATTENUATION_VALUE);
-        setVoiceAmplCoders(&voices[v],BASIC_WAVES_NB,cga,FULL_ATTENUATION_VALUE);       // voice gain
+        setVoiceAmplCoders(&voices[v],BASIC_WAVES_NB,cga,FULL_ATTENUATION_VALUE);       // genAmpl
 
         for(uint8_t w=0;w<BASIC_WAVES_NB;w++){
             setVoiceAmplCoders(&voices[v],w,0,FULL_ATTENUATION_VALUE);                  // every wave off
@@ -216,7 +216,10 @@ void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)    // cga = genAmpl c
         voices[v].noiseSeed=0;             // seed of the noise generator: 0 = initialised by the first buffer
         voices[v].sqrTh=1024;
         voices[v].coderReverb=0;
+        voices[v].coderReverbAtt=0;        
         voices[v].coderEcho=0;
+        voices[v].coderEchoAtt=0;
+        setVoiceEcho(&voices[v]);       
 
         printf("voice %u: id=%d type=%d\n", v, voices[v].voice_ctl_input_id[VFIL], ctl_input_update_type[voices[v].voice_ctl_input_id[VFIL]]);
         filtersInit(v);
@@ -804,7 +807,7 @@ static_assert((1u << GEN_RAMP_SHIFT) == SAMPLES_PER_BUFFER, "GEN_RAMP_SHIFT must
 
 static int32_t genLast[MAX_VOICES];                             // voice gain reached at the end of the previous buffer
 static int32_t levLast[MAX_VOICES];                             // filter input attenuator reached at the end of the previous buffer
-static int32_t echoAttLast[MAX_VOICES];                         // echo send level reached at the end of the previous buffer
+static int32_t echoLevelLast[MAX_VOICES];                       // echo send level reached at the end of the previous buffer
 static bool    voiceStarted[MAX_VOICES];                        // false until the first buffer of the voice
 
 void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* v,uint8_t voiceNum)
@@ -949,8 +952,8 @@ gpio_put(TST_PIN,1);
     const int32_t yMax   = (genMax > 2) ? (0x7fffffff / (128 * genMax)) : 8388607;      // never more than 2^23 - 1 (a full-scale voice)
 
     // echo send: level read once per buffer, 4 steps per buffer from its value at the end of the previous buffer
-    const int32_t echoEnd  = v->echoAtt;
-    const int32_t echoFrom = first ? echoEnd : echoAttLast[voiceNum];
+    const int32_t echoEnd  = v->echoLevel;
+    const int32_t echoFrom = first ? echoEnd : echoLevelLast[voiceNum];
     const bool    echoOn   = ((echoEnd | echoFrom) != 0);                 // a voice whose send stays at 0 costs nothing
     int32_t*      eb       = echoBus[0];                                  // the voices send to echo 0
     if (echoOn) { echoBusUsed[0] = true; }
@@ -987,7 +990,7 @@ gpio_put(TST_PIN,1);
     v->filter.z[0] = s0;  v->filter.z[1] = s1;  v->filter.z[2] = s2;  v->filter.z[3] = s3;
     genLast[voiceNum] = genEnd;
     levLast[voiceNum] = levEnd;
-    echoAttLast[voiceNum] = echoEnd;
+    echoLevelLast[voiceNum] = echoEnd;
     voiceStarted[voiceNum] = true;
 
     *waveAmplSin = sinEnd;                                                // the ramps have reached their targets

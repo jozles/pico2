@@ -717,12 +717,12 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                         case EFFECHO:setVoiceEchoCoders(&voices[line], cc16, voices[line].coderEchoAtt);break;
                         case EFFECHOATT:setVoiceEchoCoders(&voices[line], voices[line].coderEcho, cc16);break;
                         case EFFGENAMP:setVoiceAmplCoders(&voices[line],BASIC_WAVES_NB,cc,voiceAmplAtt(&voices[line],BASIC_WAVES_NB));break;
-                        case EFFGENAMPATT:setVoiceAmplCoders(&voices[line],coder-1,voiceAmplCoder(&voices[line],coder-1),cc);break;                                                 
+                        case EFFGENAMPATT:setVoiceAmplCoders(&voices[line],BASIC_WAVES_NB,voiceAmplCoder(&voices[line],BASIC_WAVES_NB),cc);break;                                                 
                         default: break;                       
                    }
                 }
                               
-                snprintf(buf+2,LINE_LEN-2,"%u %u %u %u %u %u %u ",voices[line].coderEcho,voices[line].coderEchoAtt,voices[line].coderGenAmpl,voices[line].coderGenAmplAtt);               
+                snprintf(buf+2,LINE_LEN-2,"%u %u %u %u ",voices[line].coderEcho,voices[line].coderEchoAtt,voices[line].coderGenAmpl,voices[line].coderGenAmplAtt);               
                 break;                 
 
             case VOICES_AM:          

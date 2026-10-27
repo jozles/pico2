@@ -630,7 +630,7 @@ void __not_in_flash_func(setEchoCoder)(uint8_t echo, uint16_t coderDur, uint16_t
 // compute: the echo send level of a voice, from its stored coders and the stored value of its input
 void __not_in_flash_func(setVoiceEcho)(Voice* v)
 {
-    v->echoAtt = (int16_t)echoLevel(v->coderEcho, v->coderEchoAtt, ctl_input_val[v->voice_ctl_input_id[VECH]]);
+    v->echoLevel = (int16_t)echoLevel(v->coderEcho, v->coderEchoAtt, ctl_input_val[v->voice_ctl_input_id[VECH]]);
 }
 
 // load the echo send coders of a voice, then compute its send level
