@@ -142,12 +142,12 @@ extern uint16_t echoCoderRetAtt[MAX_ECHO];
 extern volatile int16_t menuEchoCoders[];
 extern uint16_t* echoVar[];
 
-extern uint16_t revbCoderDur[MAX_ECHO];
-extern uint16_t revbCoderShi[MAX_ECHO];
-extern uint16_t revbCoderRet[MAX_ECHO];
-extern uint16_t revbCoderDurAtt[MAX_ECHO];
-extern uint16_t revbCoderShiAtt[MAX_ECHO];
-extern uint16_t revbCoderRetAtt[MAX_ECHO];
+extern uint16_t revbCoderDur[MAX_REV];
+extern uint16_t revbCoderShi[MAX_REV];
+extern uint16_t revbCoderRet[MAX_REV];
+extern uint16_t revbCoderDurAtt[MAX_REV];
+extern uint16_t revbCoderShiAtt[MAX_REV];
+extern uint16_t revbCoderRetAtt[MAX_REV];
 extern volatile int16_t menuRevbCoders[];
 extern uint16_t* revbVar[];
 
@@ -307,6 +307,8 @@ void menus_init(){
         tempVceCoderGenAmpAtt[v]=voices[v].coderGenAmplAtt;
         tempVceCoderEcho[v]=voices[v].coderEcho;
         tempVceCoderEchoAtt[v]=voices[v].coderEchoAtt;
+        tempVceCoderRevb[v]=voices[v].coderReverb;
+        tempVceCoderRevbAtt[v]=voices[v].coderReverbAtt;        
         
         tempVceCoderFiFreq[v]=voices[v].coderFilterFreq;
         tempVceCoderFiFreqAtt[v]=voices[v].coderFilterFreqAtt;
@@ -375,8 +377,8 @@ void menus_init(){
         // *** voices effects ***
     vcesVarE[EFFECHO-1]=tempVceCoderEcho;  
     vcesVarE[EFFECHOATT-1]=tempVceCoderEchoAtt;
-    vcesVarE[EFFECHO-1]=tempVceCoderRevb;  
-    vcesVarE[EFFECHOATT-1]=tempVceCoderRevbAtt;    
+    vcesVarE[EFFREVB-1]=tempVceCoderRevb;  
+    vcesVarE[EFFREVBATT-1]=tempVceCoderRevbAtt;    
     vcesVarE[EFFGENAMP-1]=tempVceCoderGenAmp;
     vcesVarE[EFFGENAMPATT-1]=tempVceCoderGenAmpAtt;
     menuVcesCodersE[EFFMENU]=0;                  // line 0 du men
@@ -439,12 +441,12 @@ void menus_init(){
     menuEchoCoders[ECHORET]=echoCoderRet[0];
     menuEchoCoders[ECHORETATT]=echoCoderRetAtt[0];
             // ***  Reverb  ****
-    echoVar[REVBDUR-1]=revbCoderDur;
-    echoVar[REVBDURATT-1]=revbCoderDurAtt;
-    echoVar[REVBSHI-1]=revbCoderShi;
-    echoVar[REVBSHIATT-1]=revbCoderShiAtt;
-    echoVar[REVBRET-1]=revbCoderRet;
-    echoVar[REVBRETATT-1]=revbCoderRetAtt;
+    revbVar[REVBDUR-1]=revbCoderDur;
+    revbVar[REVBDURATT-1]=revbCoderDurAtt;
+    revbVar[REVBSHI-1]=revbCoderShi;
+    revbVar[REVBSHIATT-1]=revbCoderShiAtt;
+    revbVar[REVBRET-1]=revbCoderRet;
+    revbVar[REVBRETATT-1]=revbCoderRetAtt;
     menuRevbCoders[REVBMENU]=0;                 // line 0 du menu
     menuRevbCoders[REVBDUR]=revbCoderDur[0];
     menuRevbCoders[REVBDURATT]=revbCoderDurAtt[0];    
@@ -487,6 +489,7 @@ void title_dsp(const char* title,uint8_t item,uint8_t type,float v0, int32_t v1,
         case ADSRL____:snprintf(buf,LINE_LEN,"%s%u %c%c",title,item,onoff[i2s_running],onoff[tb7]);
                        snprintf(buf2,LINE_LEN,"%u %u %u %+u %u",adsrCoderAtt[item],adsrCoderDec[item],adsrCoderSus[item],adsrCoderRel[item],adsrCoderLev[item]);break;
         case ECHOs____:snprintf(buf,LINE_LEN,"%s%u %c%c",title,item,onoff[i2s_running],onoff[tb7]);break;
+        case REVERb___:snprintf(buf,LINE_LEN,"%s%u %c%c",title,item,onoff[i2s_running],onoff[tb7]);break;        
         default:snprintf(buf,LINE_LEN,"%s %u %c%c   ",title,type,onoff[i2s_running],onoff[tb7]);break;
     }        
     tft_draw_text_12x12_dma_mult(0,0,buf,0x001f,0x0000,1);
@@ -780,7 +783,7 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                    }
                 }
                               
-                snprintf(buf+2,LINE_LEN-2,"%u %u %u %u ",voices[line].coderEcho,voices[line].coderEchoAtt,voices[line].coderGenAmpl,voices[line].coderGenAmplAtt);               
+                snprintf(buf+2,LINE_LEN-2,"%u %u %u %u %u %u ",voices[line].coderEcho,voices[line].coderEchoAtt,voices[line].coderReverb,voices[line].coderReverbAtt,voices[line].coderGenAmpl,voices[line].coderGenAmplAtt);               
                 break;                 
 
             case VOICES_AM:          
@@ -793,7 +796,7 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                     }
                 }
                               
-                snprintf(buf+2,LINE_LEN-2,"%u %u %u %u %u %u %u ",voices[line].coderWaveAmpl[WSIN],voices[line].coderWaveAmpl[WTRI],voices[line].coderWaveAmpl[WSAW],
+                snprintf(buf+2,LINE_LEN-2,"%u %u %u %u %u %u ",voices[line].coderWaveAmpl[WSIN],voices[line].coderWaveAmpl[WTRI],voices[line].coderWaveAmpl[WSAW],
                     voices[line].coderWaveAmpl[WSQR],voices[line].coderWaveAmpl[WHIT],voices[line].coderWaveAmpl[PONK]);               
                 break;                       
 
@@ -962,10 +965,14 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
 
             //testVoice();
 
-            if(dumpRequest){dumpRequest=false; dumpVoices(voices,dumpLine);}
+            //if(dumpRequest){dumpRequest=false; dumpVoices(voices,dumpLine);}
             //envLogDump();
             
             fillVoices();        
+
+    static uint32_t effectsReportTime = 0;
+    if (millisCounter - effectsReportTime >= 1000) { effectsReportTime = millisCounter; effectsReport(); }
+
             //ws_show_3(30);
             ledblinkn(2);
             //if(!mode_scope){test_st7789_2();}    // animation balayage de lignes            

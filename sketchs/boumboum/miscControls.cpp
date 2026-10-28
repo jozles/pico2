@@ -93,16 +93,18 @@ static uint32_t  echoZero = 0;                                  // source of the
 
 // ************************** reverb *************************
 
-uint16_t revbCoderDur[MAX_ECHO];
-uint16_t revbCoderShi[MAX_ECHO];
-uint16_t revbCoderRet[MAX_ECHO];
-uint16_t revbCoderDurAtt[MAX_ECHO];
-uint16_t revbCoderShiAtt[MAX_ECHO];
-uint16_t revbCoderRetAtt[MAX_ECHO];
+uint16_t revbCoderDur[MAX_REV];
+uint16_t revbCoderShi[MAX_REV];
+uint16_t revbCoderRet[MAX_REV];
+uint16_t revbCoderDurAtt[MAX_REV];
+uint16_t revbCoderShiAtt[MAX_REV];
+uint16_t revbCoderRetAtt[MAX_REV];
 
 int16_t rev_ctl_input_id[REVB_INPUTS_NB][MAX_REV];
 
-int16_t revBus[MAX_REV][ECHO_STEPS];
+int32_t       bufReverb[MAX_REV][REV_BUF_LEN];                  // the 10 lines of the reverb (int32: no clipping inside the lines), each in its own slice, at 22050 Hz
+int32_t       revbBus[MAX_REV][ECHO_STEPS];                     // sum of the voices sent to the reverb during the current audio buffer, at 22050 Hz
+volatile bool revbBusUsed[MAX_REV];                             // set by fillVoiceBuffer_mono when a voice has sent something
 
 /* *******  extern  ******** */
 
@@ -567,11 +569,52 @@ static void fillEchoTables()
     }
 }
 
-// init of the effects: coders at 0, delay lines and states cleared, echo values computed
+// ************************* reverb ****************************
+// 2 allpass filters in series spread the input (they blur the arrival times without changing the level of any frequency), then a
+// network of 8 coupled delay lines: the outputs of the 8 lines are mixed together before they go back in (each line receives its own
+// output minus a quarter of the sum of the 8), so every line feeds the 7 others; all at 22050 Hz, the 10 lines share bufReverb (int32: no clipping inside the lines), each in its own slice
+
+static const uint16_t revbLen[REVB_LINES] = {
+    397, 461, 547, 613, 683, 739, 811, 887,                     // network lines (prime numbers: no common resonance)
+    113, 167                                                    // input allpass filters
+};
+static uint16_t revbOff[REVB_LINES];                            // start of the slice of every line in bufReverb, set by effects_init
+
+// values computed by setRevb (menu or 1 kHz interrupt), read once per audio buffer by revbProcess
+static volatile int32_t revbDurStep[MAX_REV];                   // duration step 0..DUR_ECH_NB-1: revbProcess turns it into the 8 feedbacks
+static volatile int32_t revbDamp[MAX_REV];                      // damping of the network lines, Q15 (0 = bright)
+static volatile int32_t revbRet[MAX_REV];                       // return level, 0..32767
+
+enum { REVB_IDLE, REVB_RUNNING };
+
+struct RevbState {
+    uint8_t  state;                                             // REVB_IDLE: bufReverb is clean, nothing computed
+    int32_t  durStep;                                           // duration step for which g[] was computed (-1: none)
+    uint16_t idx[REVB_LINES];                                   // read/write position of every line in its slice
+    int32_t  f[REVB_FDN];                                       // state of the damping low-pass of every network line
+    int32_t  g[REVB_FDN];                                       // feedback of every network line, Q15
+    int32_t  retLast;                                           // return level reached at the end of the previous buffer
+    int32_t  yLast;                                             // last output step, for the interpolation back to 44100 Hz
+    int32_t  silent;                                            // steps of output below REVB_SILENCE since the last send
+};
+static RevbState revbSt[MAX_REV];
+
+// p / 32768 rounded toward 0: a plain >> 15 rounds toward minus infinity, so small negative values never reach 0
+// and a delay line would keep a permanent small residue (used by the echo)
+static inline int32_t q15ToZero(int32_t p)
+{
+    return (p + ((p >> 31) & 32767)) >> 15;
+}
+
+// init of the effects: coders at 0, delay lines and states cleared, values computed
 // to call after the tables (fillDur, fillAmplIncr) and the inputs (objects_table_init): the input ids are not touched here
 void effects_init()
 {
-    fillEchoTables();                                           // before setEcho and setVoiceEcho, which read them
+    fillEchoTables();                                           // before setEcho, setRevb and the voice sends, which read them
+
+    uint16_t off = 0;
+    for (uint8_t l = 0; l < REVB_LINES; l++) { revbOff[l] = off; off += revbLen[l]; }
+    if (off > REV_BUF_LEN) { system_error("revb buf len", off); }          // short message: it is drawn on the display
 
     for (uint8_t r = 0; r < MAX_REV; r++) {
         revbCoderDur[r]    = 0;
@@ -580,8 +623,14 @@ void effects_init()
         revbCoderDurAtt[r] = 0;
         revbCoderShiAtt[r] = 0;
         revbCoderRetAtt[r] = 0;
+        memset(&revbSt[r], 0, sizeof(RevbState));
+        revbSt[r].state   = REVB_IDLE;                          // bufReverb is cleared below
+        revbSt[r].durStep = -1;
+        revbBusUsed[r]    = false;
+        setRevb(r);
     }
-    memset(revBus, 0x00, sizeof(revBus));
+    memset(bufReverb, 0x00, sizeof(bufReverb));
+    memset(revbBus, 0x00, sizeof(revbBus));
 
     if (echoDmaChan < 0) { echoDmaChan = dma_claim_unused_channel(true); }
     for (uint8_t e = 0; e < MAX_ECHO; e++) {
@@ -600,8 +649,9 @@ void effects_init()
     memset(bufEcho, 0x00, sizeof(bufEcho));
     memset(echoBus, 0x00, sizeof(echoBus));
 
-    for (uint8_t v = 0; v < MAX_VOICES; v++) { setVoiceEcho(&voices[v]); }
-    printf("effects_init: %u echo, delay %ld steps (%ld ms), dma %d\n", (unsigned)MAX_ECHO, (long)echoDelay[0], (long)(echoDelay[0] * 1000 / 22050), echoDmaChan);
+    for (uint8_t v = 0; v < MAX_VOICES; v++) { setVoiceEcho(&voices[v]); setVoiceRevb(&voices[v]); }
+    printf("effects_init: %u echo, delay %ld steps (%ld ms), dma %d ; %u reverb, %u of %u steps used\n",
+           (unsigned)MAX_ECHO, (long)echoDelay[0], (long)(echoDelay[0] * 1000 / 22050), echoDmaChan, (unsigned)MAX_REV, (unsigned)off, (unsigned)REV_BUF_LEN);
 }
 
 static inline int32_t sat32(int64_t x)
@@ -750,7 +800,7 @@ void __not_in_flash_func(echoProcess)(int32_t* vBuffer)
             fbAcc  += fbInc;
             retAcc += retInc;
 
-            int32_t x = (bus[k] >> 16) + ((y * (fbAcc >> ECHO_STEPS_SHIFT)) >> 15);   // input + feedback ; a full-scale voice gives 16384: 6 dB of headroom for the feedback
+            int32_t x = (bus[k] >> 16) + q15ToZero(y * (fbAcc >> ECHO_STEPS_SHIFT));   // input + feedback, rounded toward 0 (else a residue of -1..-9 circulates for ever) ; a full-scale voice gives 16384: 6 dB of headroom
             if (x >  32767) x =  32767;
             if (x < -32768) x = -32768;
             buf[w] = (int16_t)x;
@@ -758,10 +808,10 @@ void __not_in_flash_func(echoProcess)(int32_t* vBuffer)
             const int32_t ret = retAcc >> ECHO_STEPS_SHIFT;
             const int32_t o0  = sat32(((int64_t)(yPrev + y) * ret) << 1);   // back to 44100 Hz: the mean of two steps, then the step itself
             const int32_t o1  = sat32(((int64_t)y * ret) << 2);             // 16384 * 32767 * 4 = full scale of a voice
-            vb[0] += o0;
-            vb[1] += o0;
-            vb[2] += o1;
-            vb[3] += o1;
+            vb[0] = sat32((int64_t)vb[0] + o0);                 // limited sums: beyond full scale the mix stays at the limit instead of jumping to the opposite one
+            vb[1] = sat32((int64_t)vb[1] + o0);
+            vb[2] = sat32((int64_t)vb[2] + o1);
+            vb[3] = sat32((int64_t)vb[3] + o1);
             vb += 4;
 
             const int32_t ay = (y < 0) ? -y : y;
@@ -793,7 +843,191 @@ void __not_in_flash_func(echoProcess)(int32_t* vBuffer)
     }
 }
 
-// reverb
+// compute: duration step, damping and return of a reverb, from the stored coders and the stored values of its inputs
+void __not_in_flash_func(setRevb)(uint8_t rev)
+{
+    if (rev >= MAX_REV) return;
 
-void setRevbCoder(uint16_t rev, uint16_t dur, uint16_t durA, uint16_t shi, uint16_t shiA, uint16_t ret, uint16_t retA){}
-void setVoiceRevbCoders(Voice* v, uint16_t coder, uint16_t coderAtt){}
+    revbDurStep[rev] = ctlCombine(revbCoderDur[rev], revbCoderDurAtt[rev], ctl_input_val[rev_ctl_input_id[REVD][rev]], REVB_DUR_SHIFT, 0, DUR_ECH_NB - 1);
+
+    const int32_t shi = ctlCombine(revbCoderShi[rev], revbCoderShiAtt[rev], ctl_input_val[rev_ctl_input_id[REVS][rev]], REVB_SHI_SHIFT, 0, REVB_SHI_STEPS - 1);
+    revbDamp[rev] = ((REVB_SHI_STEPS - 1 - shi) * REVB_DAMP_MAX_Q15) / (REVB_SHI_STEPS - 1);              // top step: no damping, the brightest
+
+    revbRet[rev] = echoLevel(revbCoderRet[rev], revbCoderRetAtt[rev], ctl_input_val[rev_ctl_input_id[REVR][rev]]);
+}
+
+// load the coders of a reverb, then compute it (same model as setEchoCoder)
+void __not_in_flash_func(setRevbCoder)(uint8_t rev, uint16_t coderDur, uint16_t coderDurA, uint16_t coderShi, uint16_t coderShiA, uint16_t coderRet, uint16_t coderRetA)
+{
+    if (rev >= MAX_REV) return;
+    const uint32_t irq = save_and_disable_interrupts();         // the interrupt that updates the inputs computes the same values: no interleaving
+    revbCoderDur[rev]    = coderDur;
+    revbCoderShi[rev]    = coderShi;
+    revbCoderRet[rev]    = coderRet;
+    revbCoderDurAtt[rev] = coderDurA;
+    revbCoderShiAtt[rev] = coderShiA;
+    revbCoderRetAtt[rev] = coderRetA;
+    setRevb(rev);
+    restore_interrupts(irq);
+}
+
+// compute: the reverb send level of a voice, from its stored coders and the stored value of its input
+void __not_in_flash_func(setVoiceRevb)(Voice* v)
+{
+    v->revbLevel = (int16_t)echoLevel(v->coderReverb, v->coderReverbAtt, ctl_input_val[v->voice_ctl_input_id[VREV]]);
+}
+
+// load the reverb send coders of a voice, then compute its send level
+void __not_in_flash_func(setVoiceRevbCoders)(Voice* v, uint16_t coder, uint16_t coderAtt)
+{
+    const uint32_t irq = save_and_disable_interrupts();
+    v->coderReverb    = (int16_t)coder;
+    v->coderReverbAtt = (int16_t)coderAtt;
+    setVoiceRevb(v);
+    restore_interrupts(irq);
+}
+
+// x * c / 32768 for a Q15 coefficient c, on 64 bits: the values of the lines use the whole 32-bit range
+static inline int32_t mulQ15(int32_t x, int32_t c)
+{
+    return (int32_t)(((int64_t)x * c) >> 15);
+}
+
+// reverb of every reverb object, added to the audio buffer (left = right); nothing is computed for a reverb that is idle and receives nothing
+void __not_in_flash_func(revbProcess)(int32_t* vBuffer)
+{
+    for (uint8_t r = 0; r < MAX_REV; r++) {
+        RevbState& s = revbSt[r];
+        const bool used = revbBusUsed[r];
+        revbBusUsed[r] = false;
+
+        if (s.state == REVB_IDLE) {
+            if (!used) continue;
+            s.state   = REVB_RUNNING;                           // start: bufReverb is clean
+            s.silent  = 0;
+            s.yLast   = 0;
+            s.retLast = revbRet[r];
+        }
+
+        // feedbacks of the 8 network lines, recomputed only when the duration has changed: each one loses 60 dB in the same time (RT60)
+        const int32_t n = revbDurStep[r];
+        if (n != s.durStep) {
+            const float rt = REVB_RT60_MIN + (REVB_RT60_MAX - REVB_RT60_MIN) * (float)yTableQ16[n] / (float)yTableQ16[DUR_ECH_NB - 1];
+            for (uint8_t c = 0; c < REVB_FDN; c++) {
+                s.g[c] = (int32_t)roundf(32768.0f * powf(10.0f, -3.0f * (float)revbLen[c] / (rt * 22050.0f)));
+            }
+            s.durStep = n;
+        }
+
+        int32_t* buf = bufReverb[r];
+        int32_t* x   = revbBus[r];                              // the bus becomes the input of the network, in place
+
+        // 1) input: scaling, then the 2 allpass filters in series, each one over the whole buffer (short loops, one line at a time)
+        for (uint32_t k = 0; k < ECHO_STEPS; k++) { x[k] >>= REVB_IN_SHIFT; }      // a full-scale voice sent at the top level gives 2^22
+        for (uint8_t l = REVB_FDN; l < REVB_LINES; l++) {
+            int32_t*       p   = buf + revbOff[l] + s.idx[l];
+            int32_t* const beg = buf + revbOff[l];
+            int32_t* const end = beg + revbLen[l];
+            for (uint32_t k = 0; k < ECHO_STEPS; k++) {
+                const int32_t b = *p;
+                *p   = x[k] + mulQ15(b, REVB_DIFF_Q15);
+                x[k] = b - mulQ15(x[k], REVB_DIFF_Q15);
+                if (++p == end) p = beg;
+            }
+            s.idx[l] = (uint16_t)(p - beg);
+        }
+
+        // 2) network: local copies of the positions, damping states and feedbacks, so that nothing is reloaded after each write
+        int32_t* p[REVB_FDN];
+        int32_t* beg[REVB_FDN];
+        int32_t* end[REVB_FDN];
+        int32_t  f[REVB_FDN];
+        int32_t  g[REVB_FDN];
+        for (uint8_t c = 0; c < REVB_FDN; c++) {
+            beg[c] = buf + revbOff[c];
+            end[c] = beg[c] + revbLen[c];
+            p[c]   = beg[c] + s.idx[c];
+            f[c]   = s.f[c];
+            g[c]   = s.g[c];
+        }
+
+        const int32_t a      = revbDamp[r];                     // damping, Q15
+        const int32_t retEnd = revbRet[r];
+        int32_t       retAcc = s.retLast << ECHO_STEPS_SHIFT;   // the return ramps over the buffer
+        const int32_t retInc = retEnd - s.retLast;
+        int32_t       yPrev  = s.yLast;
+        int32_t       peak   = 0;
+        int32_t*      vb     = vBuffer;
+
+        for (uint32_t k = 0; k < ECHO_STEPS; k++) {
+            int32_t y[REVB_FDN];
+            int32_t sum = 0;
+            for (uint8_t c = 0; c < REVB_FDN; c++) { y[c] = *p[c]; sum += y[c]; }  // outputs: the values written revbLen[c] steps ago
+            const int32_t h  = sum >> 2;                        // mixing: each line gets its own output minus 2/8 of the sum
+            const int32_t xk = x[k];
+
+            int32_t sg = 0;
+            for (uint8_t c = 0; c < REVB_FDN; c++) {
+                const int32_t u = y[c] - h;
+                f[c] = u + mulQ15(f[c] - u, a);                 // damping: one-pole low-pass in the loop, the high frequencies die first
+                *p[c] = xk + mulQ15(f[c], g[c]);
+                sg += (c & 1) ? -y[c] : y[c];                   // output: the 8 lines with alternate signs
+                if (++p[c] == end[c]) p[c] = beg[c];
+            }
+
+            retAcc += retInc;
+            const int32_t ret = retAcc >> ECHO_STEPS_SHIFT;
+            const int32_t o0  = sat32(((int64_t)(yPrev + sg) * ret) >> (REVB_OUT_RSHIFT + 1));   // back to 44100 Hz: the mean of two steps, then the step itself
+            const int32_t o1  = sat32(((int64_t)sg * ret) >> REVB_OUT_RSHIFT);
+            vb[0] = sat32((int64_t)vb[0] + o0);                 // limited sums: beyond full scale the mix stays at the limit instead of jumping to the opposite one
+            vb[1] = sat32((int64_t)vb[1] + o0);
+            vb[2] = sat32((int64_t)vb[2] + o1);
+            vb[3] = sat32((int64_t)vb[3] + o1);
+            vb += 4;
+
+            const int32_t ay = (sg < 0) ? -sg : sg;
+            if (ay > peak) peak = ay;
+            yPrev = sg;
+        }
+
+        for (uint8_t c = 0; c < REVB_FDN; c++) {
+            s.idx[c] = (uint16_t)(p[c] - beg[c]);
+            s.f[c]   = f[c];
+        }
+        s.yLast   = yPrev;
+        s.retLast = retEnd;
+
+        if (used) {
+            memset(x, 0, sizeof(revbBus[0]));                   // ready for the next buffer
+            s.silent = 0;
+        }
+        else {
+            // stop once the output has stayed below REVB_SILENCE for longer than the longest line, then clear the lines
+            s.silent = (peak < REVB_SILENCE) ? (s.silent + ECHO_STEPS) : 0;
+            if (s.silent >= REVB_MAX_LINE + ECHO_STEPS) {
+                memset(buf, 0, sizeof(bufReverb[0]));           // about 40 us, once
+                memset(s.f, 0, sizeof(s.f));
+                s.state = REVB_IDLE;
+            }
+        }
+    }
+}
+
+// debug: state of the effects and send levels of the voices ; call it about once per second from the main loop, remove when done
+void effectsReport()
+{
+    for (uint8_t e = 0; e < MAX_ECHO; e++) {
+        const char* st = (echoSt[e].state == ECHO_RUNNING) ? "running" : ((echoSt[e].state == ECHO_CLEARING) ? "clearing" : "idle");
+        printf("echo %u: %s, delay %ld ms, feedback %ld, return %ld\n", e, st, (long)(echoDelay[e] * 1000 / 22050), (long)echoFb[e], (long)echoRet[e]);
+    }
+    for (uint8_t r = 0; r < MAX_REV; r++) {
+        const char* st = (revbSt[r].state == REVB_RUNNING) ? "running" : "idle";
+        printf("revb %u: %s, duration step %ld, damping %ld, return %ld\n", r, st, (long)revbDurStep[r], (long)revbDamp[r], (long)revbRet[r]);
+    }
+    for (uint8_t v = 0; v < MAX_VOICES; v++) {
+        const Voice* vc = &voices[v];
+        printf("voice %u: echo send %d (coder %d att %d input %d) ; revb send %d (coder %d att %d input %d)\n", v,
+               vc->echoLevel, vc->coderEcho, vc->coderEchoAtt, ctl_input_val[vc->voice_ctl_input_id[VECH]],
+               vc->revbLevel, vc->coderReverb, vc->coderReverbAtt, ctl_input_val[vc->voice_ctl_input_id[VREV]]);
+    }
+}

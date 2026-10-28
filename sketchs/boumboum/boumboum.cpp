@@ -45,14 +45,14 @@ volatile int16_t menuVcesCodersF[CODER_NB];             // [0] curr input nb ; [
 uint16_t menuMaxVcesCodersF[CODER_NB]={MAX_VOICES-1,VCES_MAX_FREQ_CODERS,MAXCODER_RC,MAX_CTL_ATT,MAX_CTL_ATT,0,MAX_16B_LINEAR_VALUE-1,0};
 uint16_t* vcesVarF[CODER_NB];                           // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
 
-#define VCE_VAR_M_NB (1+6+1)                            // voices ampl menu : 6 waves
+#define VCE_VAR_M_NB (1+6)                              // voices ampl menu : 6 waves
 volatile int16_t menuVcesCodersM[CODER_NB];             // [0] curr input nb ; [1] sin ; [2] tri etc (saw,sqr,wh,pnk)
 uint16_t menuMaxVcesCodersM[CODER_NB]={MAX_VOICES-1,WAVE_LEVEL_STEPS-1,WAVE_LEVEL_STEPS-1,WAVE_LEVEL_STEPS-1,WAVE_LEVEL_STEPS-1,WAVE_LEVEL_STEPS-1,WAVE_LEVEL_STEPS-1};
 uint16_t* vcesVarM[CODER_NB];                           // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
 
-#define VCE_VAR_E_NB (1+4)                              // voices effects menu : echo + echo att + gen + gen att
-volatile int16_t menuVcesCodersE[CODER_NB];             // [0] curr input nb ; [1] echo ; [2] echo_att ; [3] gen ; [4] gen_att
-uint16_t menuMaxVcesCodersE[CODER_NB]={MAX_VOICES-1,WAVE_LEVEL_STEPS-1,MAX_CTL_ATT,WAVE_LEVEL_STEPS-1,MAX_CTL_ATT};
+#define VCE_VAR_E_NB (1+6)                              // voices effects menu : echo + echo att + revb + revb att + gen + gen att
+volatile int16_t menuVcesCodersE[CODER_NB];             // [0] curr input nb ; [1] echo ; [2] echo_att ; [3] revb ; [4] revbAtt + [5] gen ; [6] gen_att
+uint16_t menuMaxVcesCodersE[CODER_NB]={MAX_VOICES-1,WAVE_LEVEL_STEPS-1,MAX_CTL_ATT,WAVE_LEVEL_STEPS-1,MAX_CTL_ATT,WAVE_LEVEL_STEPS-1,MAX_CTL_ATT};
 uint16_t* vcesVarE[CODER_NB];                           // inits dans menu.cpp ; les éléments inutilisés sont nullptr
 
 #define VCE_VAR_T_NB (1+6)                              // voices attenuators menu
@@ -90,6 +90,7 @@ volatile int16_t menuRevbCoders[CODER_NB];              // [0] curr input nb ; [
 uint16_t menuMaxRevbCoders[CODER_NB]={MAX_ECHO-1,DUR_ECH_NB-1,MAX_CTL_ATT,ECHO_INJ_STEPS-1,MAX_CTL_ATT,WAVE_LEVEL_STEPS-1,MAX_CTL_ATT-1,0};
 uint16_t* revbVar[CODER_NB];                            // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
 
+
 int main() {
 
     stdio_init_all();
@@ -122,18 +123,18 @@ if (watchdog_caused_reboot()) {
         menu=coders_for_menu("boumboum ",(const char*)menu0_names,MENU0_NB,MENU_NAME_LEN,MENU0____,menu0Coders,codersSw,codersTB,menu0MaxCoders,nullptr,0,MENU0_CODER_NB,menu);
 
         switch(menu){
-            case VOICES_FR: coders_for_menu("V",(const char*)nullptr,MAX_VOICES,0,VOICES_FR,menuVcesCodersF,codersSw,codersTB,menuMaxVcesCodersF,vcesVarF,VCE_VAR_F_NB,BASIC_WAVES_NB,0);break;
-            case VOICES_AM: coders_for_menu("V_AMP",(const char*)nullptr,MAX_VOICES,0,VOICES_AM,menuVcesCodersM,codersSw,codersTB,menuMaxVcesCodersM,vcesVarM,VCE_VAR_M_NB,BASIC_WAVES_NB,0);break;
-            case VOICES_AT: coders_for_menu("V_ATT",(const char*)nullptr,MAX_VOICES,0,VOICES_AT,menuVcesCodersT,codersSw,codersTB,menuMaxVcesCodersT,vcesVarT,VCE_VAR_T_NB,BASIC_WAVES_NB,0);break;
-            case VOICES_FI: coders_for_menu("V_FI",(const char*)nullptr,MAX_VOICES,0,VOICES_FI,menuVcesCodersFi,codersSw,codersTB,menuMaxVcesCodersFi,vcesVarFi,VCE_VAR_FI_NB,BASIC_WAVES_NB,0);break;
-            case VOICES_EF: coders_for_menu("V_EFF",(const char*)nullptr,MAX_VOICES,0,VOICES_EF,menuVcesCodersE,codersSw,codersTB,menuMaxVcesCodersE,vcesVarE,VCE_VAR_E_NB,BASIC_WAVES_NB,0);break;
+            case VOICES_FR: coders_for_menu("V",(const char*)nullptr,MAX_VOICES,0,VOICES_FR,menuVcesCodersF,codersSw,codersTB,menuMaxVcesCodersF,vcesVarF,VCE_VAR_F_NB,CODER_NB,0);break;
+            case VOICES_AM: coders_for_menu("V_AMP",(const char*)nullptr,MAX_VOICES,0,VOICES_AM,menuVcesCodersM,codersSw,codersTB,menuMaxVcesCodersM,vcesVarM,VCE_VAR_M_NB,CODER_NB,0);break;
+            case VOICES_AT: coders_for_menu("V_ATT",(const char*)nullptr,MAX_VOICES,0,VOICES_AT,menuVcesCodersT,codersSw,codersTB,menuMaxVcesCodersT,vcesVarT,VCE_VAR_T_NB,CODER_NB,0);break;
+            case VOICES_FI: coders_for_menu("V_FI",(const char*)nullptr,MAX_VOICES,0,VOICES_FI,menuVcesCodersFi,codersSw,codersTB,menuMaxVcesCodersFi,vcesVarFi,VCE_VAR_FI_NB,CODER_NB,0);break;
+            case VOICES_EF: coders_for_menu("V_EFF",(const char*)nullptr,MAX_VOICES,0,VOICES_EF,menuVcesCodersE,codersSw,codersTB,menuMaxVcesCodersE,vcesVarE,VCE_VAR_E_NB,CODER_NB,0);break;
             //case WAVES_AMP: coders_for_wavesAmpl(currVoice);break;
             //case GEN_AMPL_: coders_for_genAmpl(currVoice);break;
-            case LFOS_____: coders_for_menu("L",(const char*)nullptr,MAX_LFO,0,LFOS_____,menuLfosCoders,codersSw,codersTB,menuMaxLfosCoders,lfosVar,LFO_VAR_NB,BASIC_WAVES_NB,0);break;
-            case ADSRL____: coders_for_menu("ADSR:",(const char*)nullptr,MAX_ADSR,0,ADSRL____,menuAdsrCoders,codersSw,codersTB,menuMaxAdsrCoders,adsrVar,ADSR_VAR_NB,BASIC_WAVES_NB,0);break;
-            case LMUX_____: coders_for_menu("LM",(const char*)nullptr,MAX_LFM,0,LMUX_____,menuLfmCoders,codersSw,codersTB,menuMaxLfmCoders,lfmVar,LFM_VAR_NB,LFM_INPUTS_NB,0);break;            
-            case ECHOs____: coders_for_menu("ECHOs",(const char*)nullptr,MAX_ECHO,0,ECHOs____,menuEchoCoders,codersSw,codersTB,menuMaxEchoCoders,echoVar,ECH_VAR_NB,ECHO_INPUTS_NB,0);break;            
-            case REVERb___: coders_for_menu("REVERb",(const char*)nullptr,MAX_REV,0,REVERb___,menuRevbCoders,codersSw,codersTB,menuMaxRevbCoders,revbVar,REVB_VAR_NB,REVB_INPUTS_NB,0);break;             
+            case LFOS_____: coders_for_menu("L",(const char*)nullptr,MAX_LFO,0,LFOS_____,menuLfosCoders,codersSw,codersTB,menuMaxLfosCoders,lfosVar,LFO_VAR_NB,CODER_NB,0);break;
+            case ADSRL____: coders_for_menu("ADSR:",(const char*)nullptr,MAX_ADSR,0,ADSRL____,menuAdsrCoders,codersSw,codersTB,menuMaxAdsrCoders,adsrVar,ADSR_VAR_NB,CODER_NB,0);break;
+            case LMUX_____: coders_for_menu("LM",(const char*)nullptr,MAX_LFM,0,LMUX_____,menuLfmCoders,codersSw,codersTB,menuMaxLfmCoders,lfmVar,LFM_VAR_NB,CODER_NB,0);break;            
+            case ECHOs____: coders_for_menu("ECHOs",(const char*)nullptr,MAX_ECHO,0,ECHOs____,menuEchoCoders,codersSw,codersTB,menuMaxEchoCoders,echoVar,ECH_VAR_NB,CODER_NB,0);break;            
+            case REVERb___: coders_for_menu("REVERb",(const char*)nullptr,MAX_REV,0,REVERb___,menuRevbCoders,codersSw,codersTB,menuMaxRevbCoders,revbVar,REVB_VAR_NB,CODER_NB,0);break;             
             case MAPPING__: coders_for_mapping();break;
 
             default:break;

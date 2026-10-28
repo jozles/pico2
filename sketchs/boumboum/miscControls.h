@@ -60,7 +60,12 @@ void setVoiceEcho(Voice* v);
 void setVoiceEchoCoders(Voice* v, uint16_t coder, uint16_t coderAtt);
 void setEchoCoder(uint8_t echo, uint16_t coderDur, uint16_t coderDurA, uint16_t coderInj, uint16_t coderInjA, uint16_t coderRet, uint16_t coderRetA);
 
-void setRevbCoder(uint16_t rev, uint16_t dur, uint16_t durA, uint16_t shi, uint16_t shiA, uint16_t ret, uint16_t retA);
+void revbProcess(int32_t* vBuffer);                             // in fillVoiceBuffer, after echoProcess: adds the reverb to the audio buffer
+void setRevb(uint8_t rev);
+void setRevbCoder(uint8_t rev, uint16_t coderDur, uint16_t coderDurA, uint16_t coderShi, uint16_t coderShiA, uint16_t coderRet, uint16_t coderRetA);
+void setVoiceRevb(Voice* v);
 void setVoiceRevbCoders(Voice* v, uint16_t coder, uint16_t coderAtt);
+
+void effectsReport();                                           // debug: state of the effects and send levels of the voices, remove when done
 
 #endif // _MISC_H_

@@ -680,7 +680,11 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
                 case ECHO_V_ :  setVoiceEcho(&voices[object]);break;                    // echo send level of the voice
                 case ECHO_D_ :                                                          // delay, feedback, return: setEcho computes all three
                 case ECHO_I_ :
-                case ECHO_R_ :  setEcho(object);break;                
+                case ECHO_R_ :  setEcho(object);break;           
+                case REV_V__ :  setVoiceRevb(&voices[object]);break;                    // reverb send level of the voice
+                case REV_D__ :                                                          // decay time, brightness, return: setRevb computes all three
+                case REV_S__ :
+                case REV_R__ :  setRevb(object);break;                     
                 case LFO_FREQ:  setLfosFrequency(object);break;                         // 8k max VCES_MAX_FREQ_CODERS ; att 0-255 
                 case LFO_CRA :  setLfosCycleR(object); break;
                 case A_ATTACK:  setAdsrDur(object,ADSR_ATT);break;

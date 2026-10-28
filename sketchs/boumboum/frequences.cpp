@@ -17,6 +17,8 @@
 
 extern int32_t       echoBus[MAX_ECHO][ECHO_STEPS];
 extern volatile bool echoBusUsed[MAX_ECHO];
+extern int32_t       revbBus[MAX_REV][ECHO_STEPS];
+extern volatile bool revbBusUsed[MAX_REV];
 
 //extern bool tb7;
 //static bool filterTraceDone = false;
@@ -60,11 +62,8 @@ volatile uint32_t lfosPhaseStep[MAX_LFO];       // Q16.16
 uint32_t          lfoPhase[MAX_LFO];            // Q16.16, replaces currLfoEch's fraction
 
 uint16_t    currLfoEch[MAX_LFO];
-//uint32_t    currLfoEchFra[MAX_LFO];
-//int16_t     lfosOutputsValues[MAX_LFO][MAX_OUTPUTS_PER_OBJ];    // inutilisé ??
 uint32_t    lfoTime=1;                                          // synchrone avec le handler adsr 
 uint32_t    lfoTimingInterval=1000/LFOS_SAMPLE_RATE;  
-//int32_t     lfoScopeBuffer[MAX_LFO*OSC_SCOPE_BUFFER_LEN];       // n° echantillons+rc_table 
 int32_t     lfoScopeBufReal[MAX_LFO*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB];  // real values
 uint16_t    lfoScopeBufPtr=0;
 
@@ -87,7 +86,6 @@ int32_t     voicesScopeDataBuffer[MAX_VOICES*SAMPLES_PER_BUFFER];  // all voices
 // i2s
 
 Voice voices[MAX_VOICES];
-//int32_t w0[MAX_VOICES][BASIC_WAVES_NB];
 
 extern int i2s_dma_chan0;
 extern int i2s_dma_chan1;
@@ -808,6 +806,7 @@ static_assert((1u << GEN_RAMP_SHIFT) == SAMPLES_PER_BUFFER, "GEN_RAMP_SHIFT must
 static int32_t genLast[MAX_VOICES];                             // voice gain reached at the end of the previous buffer
 static int32_t levLast[MAX_VOICES];                             // filter input attenuator reached at the end of the previous buffer
 static int32_t echoLevelLast[MAX_VOICES];                       // echo send level reached at the end of the previous buffer
+static int32_t revbLevelLast[MAX_VOICES];                       // reverb send level reached at the end of the previous buffer
 static bool    voiceStarted[MAX_VOICES];                        // false until the first buffer of the voice
 
 void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* v,uint8_t voiceNum)
@@ -951,26 +950,34 @@ gpio_put(TST_PIN,1);
     const int32_t genMax = (genEnd > genFrom) ? genEnd : genFrom;
     const int32_t yMax   = (genMax > 2) ? (0x7fffffff / (128 * genMax)) : 8388607;      // never more than 2^23 - 1 (a full-scale voice)
 
-    // echo send: level read once per buffer, 4 steps per buffer from its value at the end of the previous buffer
+    // echo and reverb sends: levels read once per buffer, 4 steps per buffer from their value at the end of the previous buffer
+    // a voice sends only if its send level and its gain are not 0: a silent voice does not keep the effects running
+    const bool    voiceOn  = ((genEnd | genFrom) != 0);
     const int32_t echoEnd  = v->echoLevel;
     const int32_t echoFrom = first ? echoEnd : echoLevelLast[voiceNum];
-    const bool    echoOn   = ((echoEnd | echoFrom) != 0);                 // a voice whose send stays at 0 costs nothing
+    const bool    echoOn   = voiceOn && ((echoEnd | echoFrom) != 0);      // a voice whose send stays at 0 costs nothing
     int32_t*      eb       = echoBus[0];                                  // the voices send to echo 0
     if (echoOn) { echoBusUsed[0] = true; }
+    const int32_t revbEnd  = v->revbLevel;
+    const int32_t revbFrom = first ? revbEnd : revbLevelLast[voiceNum];
+    const bool    revbOn   = voiceOn && ((revbEnd | revbFrom) != 0);
+    int32_t*      rb       = revbBus[0];                                  // the voices send to reverb 0
+    if (revbOn) { revbBusUsed[0] = true; }
 
     volatile int32_t* vb = vBuffer;
     for (uint32_t sb = 0; sb < SAMPLES_PER_BUFFER; sb += RAMP_LEN) {
         int32_t c[6];
         filterCoefs(filterGTab[v->filterCode], v->filterRes, c);          // control values read once per sub-block
         const int32_t jb    = (int32_t)(sb >> RAMP_SHIFT) + 1;            // sub-block number, 1..SUBBLOCKS
-        const int32_t echoQ = (echoFrom + ((echoEnd - echoFrom) * jb) / (int32_t)SUBBLOCKS) << 16;    // send level of this sub-block, scaled for smmulr
+        const int32_t echoQ = (echoFrom + ((echoEnd - echoFrom) * jb) / (int32_t)SUBBLOCKS) << 16;    // send levels of this sub-block, scaled for smmulr
+        const int32_t revbQ = (revbFrom + ((revbEnd - revbFrom) * jb) / (int32_t)SUBBLOCKS) << 16;
 
         for (uint32_t i = sb; i < sb + RAMP_LEN; i++) {                   // section 1, with the input attenuator, in place
             attAcc += attInc;
             const int32_t xq = smmulr(voiceTmp[i] >> (FILTER_PRE_SHIFT - FILTER_FRAC), attAcc) * 4;    // xq = input * att / 256
             voiceTmp[i] = filterSection(s0, s1, xq, c[0], c[1], c[2]);
         }
-        for (uint32_t i = sb; i < sb + RAMP_LEN; i += 2) {                // section 2 (resonant), voice gain, mix into the output (left = right), echo send: two samples per pass
+        for (uint32_t i = sb; i < sb + RAMP_LEN; i += 2) {                // section 2 (resonant), voice gain, mix into the output (left = right), sends: two samples per pass
             int32_t o[2];
             for (uint32_t k = 0; k < 2; k++) {
                 int32_t y = filterSectionLim(s2, s3, voiceTmp[i + k], c[3], c[4], c[5]);
@@ -982,7 +989,9 @@ gpio_put(TST_PIN,1);
                 vb[1] += o[k];
                 vb += 2;
             }
-            if (echoOn) { eb[i >> 1] += smmulr((o[0] >> 1) + (o[1] >> 1), echoQ); }   // mean of the pair (22050 Hz) times the send level, halved: the bus keeps 6 dB more headroom than the mix
+            const int32_t pair = (o[0] >> 1) + (o[1] >> 1);              // mean of the pair (22050 Hz)
+            if (echoOn) { eb[i >> 1] += smmulr(pair, echoQ); }            // times the send level, halved: the bus keeps 6 dB more headroom than the mix
+            if (revbOn) { rb[i >> 1] += smmulr(pair, revbQ); }
         }
     }
 
@@ -991,6 +1000,7 @@ gpio_put(TST_PIN,1);
     genLast[voiceNum] = genEnd;
     levLast[voiceNum] = levEnd;
     echoLevelLast[voiceNum] = echoEnd;
+    revbLevelLast[voiceNum] = revbEnd;
     voiceStarted[voiceNum] = true;
 
     *waveAmplSin = sinEnd;                                                // the ramps have reached their targets
@@ -1093,7 +1103,10 @@ void __not_in_flash_func(fillVoiceBuffer)(int32_t* vBuffer, Voice* voices, uint8
     for(uint8_t v=0;v<MAX_VOICES;v++){
       fillVoiceBuffer_mono(vBuffer, &voices[v],v);
     }
+gpio_put(TST_PIN,1);    
     echoProcess(vBuffer);                          // echo of the voices that send to it, added to the mix
+    revbProcess(vBuffer);
+gpio_put(TST_PIN,0);    
     //clickCheck(vBuffer);                           // debug: remove when done
     envLogPush(vBuffer,voices);                    // debug: remove when done
     i2s_buf_free[bufNum] = false;

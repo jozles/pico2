@@ -200,7 +200,22 @@ static_assert(((ECHO_BUF_LEN * 2) % 4) == 0, "the DMA clears bufEcho with 32-bit
 /* REVERB */
 
 #define MAX_REV 1
-#define REV_BUF_LEN 6300                      // 22050hz
+#define REV_BUF_LEN 5418 // 22050 Hz, int32: the 10 lines of the reverb ;
+
+#define REVB_FDN          8                                     // coupled delay lines of the network
+#define REVB_ALLPASS      2                                     // input allpass filters in series
+#define REVB_LINES        (REVB_FDN + REVB_ALLPASS)
+#define REVB_MAX_LINE     887                                   // longest line, in steps
+#define REVB_DIFF_Q15     19661                                 // gain of the input allpass filters: 0.6 (Q15)
+#define REVB_RT60_MIN     0.3f                                  // decay time (-60 dB) of duration step 0, in s
+#define REVB_RT60_MAX     5.0f                                  // decay time of the top duration step, in s
+#define REVB_DUR_SHIFT    8                                     // input shift for the 128 steps of the duration
+#define REVB_SHI_STEPS    64                                    // steps of the brightness coder
+#define REVB_SHI_SHIFT    9                                     // input shift for the 64 steps of the brightness
+#define REVB_DAMP_MAX_Q15 22938                                 // damping at brightness 0: 0.7 (Q15)
+#define REVB_IN_SHIFT     8                                     // bus to line input: a full-scale voice gives 2^22, about 30 dB of headroom left in the int32 lines
+#define REVB_OUT_RSHIFT   11                                    // output gain: one unit = 6 dB ; a full-scale voice at the longest decay stays 5 dB below full scale
+#define REVB_SILENCE      1024                                  // output below this (about -72 dB below a full-scale voice): the reverb stops
 
 
 /* inputs/outputs */
