@@ -1,9 +1,9 @@
 /* objects */
 
     Z(VOICE____,"voices")
-    Z(LFO______,"lfos")
-    Z(ADSR_____,"adsr")
-    Z(TBUTTON__,"t_but")
+    Z(LFO______,"lfos  ")
+    Z(ADSR_____,"adsr  ")
+    Z(TBUTTON__,"t_but ")
     Z(LF_MUX___,"lf_mux")
     Z(REVERB___,"reverb")
-    Z(ECHOS____,"echo")
+    Z(ECHOS____,"echo  ")

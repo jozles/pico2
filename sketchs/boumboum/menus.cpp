@@ -66,7 +66,7 @@ uint16_t tempVceCoderFreq[MAX_VOICES];                      // pour accéder d'u
 uint16_t tempVceCoderFreqAtt[MAX_VOICES];
 uint16_t tempVceCoderCycleR[MAX_VOICES];
 uint16_t tempVceCoderCycleRAtt[MAX_VOICES];
-uint16_t tempVceCoderGenAmp[MAX_VOICES];
+
 extern volatile int16_t menuVcesCodersF[];
 extern int32_t voicesScopeDataBuffer[];
 
@@ -78,7 +78,13 @@ extern uint16_t* vcesVarT[];
 uint16_t tempVcesCoderAtt[VCES_OUTPUTS_NB][MAX_VOICES];      // pour accéder d'un ptr aux att (sin, ampl tri etc)
 extern volatile int16_t menuVcesCodersT[];
 
-extern volatile int16_t* vcesVarE[];
+extern uint16_t* vcesVarE[];
+uint16_t tempVceCoderGenAmp[MAX_VOICES];
+uint16_t tempVceCoderGenAmpAtt[MAX_VOICES];
+uint16_t tempVceCoderEcho[MAX_VOICES];
+uint16_t tempVceCoderEchoAtt[MAX_VOICES];
+uint16_t tempVceCoderRevb[MAX_VOICES];
+uint16_t tempVceCoderRevbAtt[MAX_VOICES];
 extern volatile int16_t menuVcesCodersE[];
 
 extern uint16_t* vcesVarFi[];
@@ -136,6 +142,15 @@ extern uint16_t echoCoderRetAtt[MAX_ECHO];
 extern volatile int16_t menuEchoCoders[];
 extern uint16_t* echoVar[];
 
+extern uint16_t revbCoderDur[MAX_ECHO];
+extern uint16_t revbCoderShi[MAX_ECHO];
+extern uint16_t revbCoderRet[MAX_ECHO];
+extern uint16_t revbCoderDurAtt[MAX_ECHO];
+extern uint16_t revbCoderShiAtt[MAX_ECHO];
+extern uint16_t revbCoderRetAtt[MAX_ECHO];
+extern volatile int16_t menuRevbCoders[];
+extern uint16_t* revbVar[];
+
 volatile bool codersSw[CODER_NB];                           // coder it handler scans all physical coders
 volatile bool codersTB[CODER_NB];                           // coder it handler scans all touchButtons
 extern volatile bool* coderTouchB;
@@ -185,8 +200,11 @@ enum OscCoders {        // coders pour menu voices et lfos
 };
 
 enum EffectsCoders {
+     EFFMENU,
      EFFECHO,
      EFFECHOATT,
+     EFFREVB,
+     EFFREVBATT,
      EFFGENAMP,
      EFFGENAMPATT
 };
@@ -245,15 +263,28 @@ enum EchoCoders {        // coders pour menu echo
      ECHORETATT
 };
 
+enum RevbCoders {        // coders pour menu echo
+     REVBMENU,
+     REVBDUR,
+     REVBDURATT,
+     REVBSHI,
+     REVBSHIATT,
+     REVBRET,
+     REVBRETATT
+};
+
 // ****** inits ******
 
-// xxxVar est la liste des pointeurs sur les variables d'une ligne de menu 
+// xxxVar est la liste des pointeurs sur les variables d'une ligne de menu (pointeurs du tableau des valeurs de codeur pour une donnée) 
 // *xxxVar[1] 1ère variable ; *xxxVar[2] seconde etc
 // à l'init xxxVar doit être chargée avec l'adresse des tables qui contiennent les variables de chaque ligne
-// les tables de ceretaines variables sont organisées différemment et il faut utiliser un tableau local 
-// préchargé dans l'init
-// par exemple les variables de voices sont dans voices[v].variable([type]) : on n'a pas de liste devariable homogène sur quoi pointer
-// on crée donc tempVceCoder{var}[voice]([type]) et xxxVar peut pointer sur tempVceCoder{var}[voice] qui est la table des variables du genre var pour chaque voice
+// les tables de certaines variables sont organisées différemment 
+// il faut alors utiliser un tableau local préchargé dans l'init 
+//      tempxxxCoderyyy par ex pour la structure Voice dont les données ne sont pas en tableau consécutif
+//      les variables de voices sont dans voices[v].variable([type]) : on n'a pas de liste de variable homogène sur quoi pointer
+//      tempVceCoder{var}[voice]([type]) est le tableau sur lequel xxxVar peut pointer :
+//      tempVceCoder{var}[voice] qui est la table des variables du genre var pour chaque voice
+// la valorisation des variables de la table "originelle" se fait dans menuLineDsp pour tous les coders
 // 
 // la table mémoire des coders correspond à une ligne de variable ; il y en a une par genre : menu{nom}Coders[coder]
 // la ligne 0 de tous les menus est préchargée dans l'init ; c'est ensuite géré dans coders_for_menu
@@ -273,6 +304,9 @@ void menus_init(){
         tempVceCoderCycleRAtt[v]=voices[v].coderCycleRAtt;
         tempVceCoderFreqAtt[v]=voices[v].coderFreqAtt;
         tempVceCoderGenAmp[v]=voices[v].coderGenAmpl;
+        tempVceCoderGenAmpAtt[v]=voices[v].coderGenAmplAtt;
+        tempVceCoderEcho[v]=voices[v].coderEcho;
+        tempVceCoderEchoAtt[v]=voices[v].coderEchoAtt;
         
         tempVceCoderFiFreq[v]=voices[v].coderFilterFreq;
         tempVceCoderFiFreqAtt[v]=voices[v].coderFilterFreqAtt;
@@ -296,9 +330,12 @@ void menus_init(){
         adsrVar[c]=nullptr;
         lfmVar[c]=nullptr;
         echoVar[c]=nullptr;
+        revbVar[c]=nullptr;
     }
     
-    // pour chaque menu : setup des xxxVar  et  pré-chargement des variables de la ligne 0
+    // pour chaque menu : 
+    //          setup des xxxVar  
+    //          pré-chargement dans menuxxx des valeurs de la ligne 0
 
     // ***   lfos  ***
     lfosVar[OSCCODERFREQ-1]=lfosCodersFreq;     // lfosVar[0]
@@ -336,14 +373,19 @@ void menus_init(){
     menuVcesCodersM[WHIT+1]=voices[0].coderWaveAmpl[WHIT];
     menuVcesCodersM[PONK+1]=voices[0].coderWaveAmpl[PONK];
         // *** voices effects ***
-    vcesVarE[EFFECHO]=&voices[0].coderEcho;  
-    vcesVarE[EFFECHOATT]=&voices[0].coderEchoAtt;
-    vcesVarE[EFFGENAMP]=&voices[0].coderGenAmpl;
-    vcesVarE[EFFGENAMPATT]=&voices[0].coderGenAmplAtt;
-    menuVcesCodersE[EFFECHO+1]=voices[0].coderEcho;
-    menuVcesCodersE[EFFECHOATT+1]=voices[0].coderEchoAtt;
-    menuVcesCodersE[EFFGENAMP+1]=voices[0].coderGenAmpl;
-    menuVcesCodersE[EFFGENAMPATT+1]=voices[0].coderGenAmplAtt;
+    vcesVarE[EFFECHO-1]=tempVceCoderEcho;  
+    vcesVarE[EFFECHOATT-1]=tempVceCoderEchoAtt;
+    vcesVarE[EFFECHO-1]=tempVceCoderRevb;  
+    vcesVarE[EFFECHOATT-1]=tempVceCoderRevbAtt;    
+    vcesVarE[EFFGENAMP-1]=tempVceCoderGenAmp;
+    vcesVarE[EFFGENAMPATT-1]=tempVceCoderGenAmpAtt;
+    menuVcesCodersE[EFFMENU]=0;                  // line 0 du men
+    menuVcesCodersE[EFFECHO]=voices[0].coderEcho;
+    menuVcesCodersE[EFFECHOATT]=voices[0].coderEchoAtt;
+    menuVcesCodersE[EFFREVB]=voices[0].coderReverb;
+    menuVcesCodersE[EFFREVBATT]=voices[0].coderReverbAtt;
+    menuVcesCodersE[EFFGENAMP]=voices[0].coderGenAmpl;
+    menuVcesCodersE[EFFGENAMPATT]=voices[0].coderGenAmplAtt;
         // ***  voices Att ***
     vcesVarT[WSIN]=tempVcesCoderAtt[WSIN];   
     vcesVarT[WTRI]=tempVcesCoderAtt[WTRI];
@@ -396,7 +438,21 @@ void menus_init(){
     menuEchoCoders[ECHOINJATT]=echoCoderInjAtt[0];    
     menuEchoCoders[ECHORET]=echoCoderRet[0];
     menuEchoCoders[ECHORETATT]=echoCoderRetAtt[0];
-        // ***  Lfm  ****     
+            // ***  Reverb  ****
+    echoVar[REVBDUR-1]=revbCoderDur;
+    echoVar[REVBDURATT-1]=revbCoderDurAtt;
+    echoVar[REVBSHI-1]=revbCoderShi;
+    echoVar[REVBSHIATT-1]=revbCoderShiAtt;
+    echoVar[REVBRET-1]=revbCoderRet;
+    echoVar[REVBRETATT-1]=revbCoderRetAtt;
+    menuRevbCoders[REVBMENU]=0;                 // line 0 du menu
+    menuRevbCoders[REVBDUR]=revbCoderDur[0];
+    menuRevbCoders[REVBDURATT]=revbCoderDurAtt[0];    
+    menuRevbCoders[REVBSHI]=revbCoderShi[0];
+    menuRevbCoders[REVBSHIATT]=revbCoderShiAtt[0];    
+    menuRevbCoders[REVBRET]=revbCoderRet[0];
+    menuRevbCoders[REVBRETATT]=revbCoderRetAtt[0];
+    // ***  Lfm  ****     
     for(uint8_t c=0;c<CODER_NB;c++){menuLfmCoders[c]=0;}        
     for(uint8_t in=0;in<(CODER_NB/2);in++){
         for(uint8_t l=0;l<MAX_LFM;l++){
@@ -713,9 +769,11 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
 
             case VOICES_EF:          
                 if(varChge){
-                    switch(line){
+                    switch(coder){
                         case EFFECHO:setVoiceEchoCoders(&voices[line], cc16, voices[line].coderEchoAtt);break;
                         case EFFECHOATT:setVoiceEchoCoders(&voices[line], voices[line].coderEcho, cc16);break;
+                        case EFFREVB:setVoiceRevbCoders(&voices[line], cc16, voices[line].coderReverbAtt);break;
+                        case EFFREVBATT:setVoiceRevbCoders(&voices[line], voices[line].coderReverb, cc16);break;                        
                         case EFFGENAMP:setVoiceAmplCoders(&voices[line],BASIC_WAVES_NB,cc,voiceAmplAtt(&voices[line],BASIC_WAVES_NB));break;
                         case EFFGENAMPATT:setVoiceAmplCoders(&voices[line],BASIC_WAVES_NB,voiceAmplCoder(&voices[line],BASIC_WAVES_NB),cc);break;                                                 
                         default: break;                       
@@ -826,7 +884,24 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                 snprintf(buf+2,LINE_LEN-2,"%3u %3u %3u %3u %3u %3u",echoCoderDur[line],echoCoderDurAtt[line],echoCoderInj[line],echoCoderInjAtt[line],echoCoderRet[line],echoCoderRetAtt[line]);
                 break;
 
+            case REVERb___: 
+                if(varChge){                   
+                    switch(coder){
+                        case 1:setRevbCoder(line,cc16              ,revbCoderDurAtt[line],revbCoderShi[line],revbCoderShiAtt[line],revbCoderRet[line],revbCoderRetAtt[line]);break;
+                        case 2:setRevbCoder(line,revbCoderDur[line],cc16                 ,revbCoderShi[line],revbCoderShiAtt[line],revbCoderRet[line],revbCoderRetAtt[line]);break;
+                        case 3:setRevbCoder(line,revbCoderDur[line],revbCoderDurAtt[line],cc16              ,revbCoderShiAtt[line],revbCoderRet[line],revbCoderRetAtt[line]);break;
+                        case 4:setRevbCoder(line,revbCoderDur[line],revbCoderDurAtt[line],revbCoderShi[line],cc16                 ,revbCoderRet[line],revbCoderRetAtt[line]);break;
+                        case 5:setRevbCoder(line,revbCoderDur[line],revbCoderDurAtt[line],revbCoderShi[line],revbCoderShiAtt[line],cc16              ,revbCoderRetAtt[line]);break;
+                        case 6:setRevbCoder(line,revbCoderDur[line],revbCoderDurAtt[line],revbCoderShi[line],revbCoderShiAtt[line],revbCoderRet[line],cc16);break;
+                        default:break;
+                    }            
+                            //setVoiceEchoCoders(&voices[line], coderEcho, coderEchoAtt);
+                }
+                snprintf(buf+2,LINE_LEN-2,"%3u %3u %3u %3u %3u %3u",revbCoderDur[line],revbCoderDurAtt[line],revbCoderShi[line],revbCoderShiAtt[line],revbCoderRet[line],revbCoderRetAtt[line]);
+                break;
+
             default:break;
+
         }
 
     if(!mode_scope){    

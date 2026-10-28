@@ -79,6 +79,7 @@ struct Voice {
 
     // --- filtre : fonctionnement réel, lu/écrit par fillVoiceBuffer_mono ---
     VoiceFilter filter;                        // per-stage state (z[]), persists across buffers
+    
     volatile int16_t    filterCode;            // final cutoff code 0..FILTER_CODE_MAX (coder + modulation), read once per sub-block by fillVoiceBuffer_mono
     volatile uint8_t    filterRes;             // final resonance command 0..FILTER_RES_MAX
     volatile int16_t    filterCodeTarget;      // cutoff asked by the coders and the modulation ; filterCode glides towards it
@@ -92,6 +93,7 @@ struct Voice {
     volatile int16_t    coderReverbAtt;        // reverb send input attenuator
     volatile int16_t    coderEchoAtt;          // echo send input attenuator
     volatile int16_t    echoLevel;             // echo send level 0..0x7fff, computed by setVoiceEcho
+    volatile int16_t    revbLevel;             // echo send level 0..0x7fff, computed by setVoiceRevb    
 
     int32_t     sqrTh;
     

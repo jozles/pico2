@@ -11,5 +11,6 @@
     Z(MAPPING__,"I/O mapping")
     Z(LMUX_____,"lf mux     ")
     Z(ECHOs____,"echo       ")
+    Z(REVERb___,"reverb     ")
     
 

@@ -7,7 +7,7 @@
 
 #include "rc_33tables.h"
 
-#define VERSION "v1.4a"
+#define VERSION "v1.4b"
 
 #define PI 3.14159265359
 
@@ -84,16 +84,6 @@ typedef enum {
 
 #define WAVE_LEVEL_STEPS 64                         // number of steps of the wave amplitude coders (0 = off)
 
-/* Objects */
-
-typedef enum {
-#define Z(name,text) name,    
-#include "objects.def"
-        OBJECT_TYPES_NB
-#undef Z
-}  objects;
-
-#define OBJECTS_NAME_LEN 8
 
 /* Voices */
 
@@ -185,10 +175,7 @@ static_assert((SAMPLES_PER_BUFFER % 4) == 0, "the unrolled index loop writes 4 s
 #define BASIC_WAVE_TABLE_POW 11                         // ***** POWER OF 2 *****  nombre d'échantillons dans les tables d'ondes
 static_assert((1u << BASIC_WAVE_TABLE_POW) == BASIC_WAVE_TABLE_LEN, "BASIC_WAVE_TABLE_POW and BASIC_WAVE_TABLE_LEN are inconsistent");
 
-/* REVERB/ECHO */
-
-#define MAX_REV 1
-#define REV_BUF_LEN 6300                      // 22050hz
+/* ECHO */
 
 #define MAX_ECHO 1
 #define ECHO_BUF_LEN 22050
@@ -199,7 +186,9 @@ static_assert((1u << BASIC_WAVE_TABLE_POW) == BASIC_WAVE_TABLE_LEN, "BASIC_WAVE_
 static_assert((1 << ECHO_STEPS_SHIFT) == ECHO_STEPS, "ECHO_STEPS_SHIFT must be log2(ECHO_STEPS)");
 static_assert(((ECHO_BUF_LEN * 2) % 4) == 0, "the DMA clears bufEcho with 32-bit words");
 
-#define ECHO_MIN_DELAY    441                                   // 20 ms at 22050 Hz: delay of coder step 0
+#define ECHO_MIN_DELAY    1438                                  // 65 ms at 22050 Hz: delay of coder step 0 (shorter delays saturate)
+#define ECHO_RANGE_DB     30.0f 
+#define ECHO_FB_STEP1_DB  30.0f                                 // loss per repetition at feedback step 1 (the top step loses what ECHO_FB_MAX_Q15 gives)
 #define ECHO_DUR_SHIFT    8                                     // input shift for the 128 steps of the duration (whole range with a full-scale input)
 #define ECHO_INJ_STEPS    64                                    // steps of the feedback coder
 #define ECHO_INJ_SHIFT    9                                     // input shift for the 64 steps of the feedback
@@ -208,16 +197,20 @@ static_assert(((ECHO_BUF_LEN * 2) % 4) == 0, "the DMA clears bufEcho with 32-bit
 #define ECHO_FADE_LEN     (1 << ECHO_FADE_SHIFT)
 #define ECHO_SILENCE      4                                     // about -72 dB below a full-scale voice (16384 in bufEcho)
 
+/* REVERB */
+
+#define MAX_REV 1
+#define REV_BUF_LEN 6300                      // 22050hz
+
 
 /* inputs/outputs */
 
 #define MAX_OUTPUT_OBJ          (MAX_VOICES+MAX_LFO+MAX_ADSR+MAX_TBUT+MAX_LFM)
 #define MAX_OUTPUTS_PER_OBJ     8
 #define MAX_OUTPUTS             (MAX_OUTPUT_OBJ*MAX_OUTPUTS_PER_OBJ)
-#define MAX_OUTPUTS_REAL        (TOTAL_VOICES_OUTPUTS_NB+TOTAL_LFO_OUTPUTS_NB+TOTAL_ADSR_OUTPUTS_NB+TOTAL_TBUT_OUTPUTS_NB+TOTAL_LFM_OUTPUTS_NB+TOTAL_REV__OUTPUTS_NB+TOTAL_ECHO_OUTPUTS_NB)
+#define MAX_OUTPUTS_REAL        (TOTAL_VOICES_OUTPUTS_NB+TOTAL_LFO_OUTPUTS_NB+TOTAL_ADSR_OUTPUTS_NB+TOTAL_TBUT_OUTPUTS_NB+TOTAL_LFM_OUTPUTS_NB)
 #define MAX_INPUT_OBJ           (MAX_VOICES+MAX_LFO+MAX_ADSR+MAX_TBUT+MAX_LFM+MAX_REV+MAX_ECHO)
-//#define MAX_INPUTS_PER_OBJ      16      // MUST be a power of 2
-//#define MAX_INPUTS              (MAX_INPUT_OBJ*MAX_INPUTS_PER_OBJ)
+
 #define TOTAL_INPUTS_REAL       (TOTAL_VOICES_INPUTS_NB+TOTAL_LFO_INPUTS_NB+TOTAL_ADSR_INPUTS_NB+TOTAL_LFM_INPUTS_NB+TOTAL_REV_INPUTS_NB+TOTAL_ECHO_INPUTS_NB)
 #define TOTAL_INPUTS_ID_REAL    (TOTAL_INPUTS_REAL+1)
 #define NO_LINK                 (-1)
@@ -235,6 +228,17 @@ static_assert(CODER_BASE_SHIFT > 0 && CODER_BASE_SHIFT < 15, "MAX_CTL_ATT_SHIFT 
 #define FULL_ATTENUATION_VALUE  0x0000
 
 #define BASIC_WAVES_NB 6
+
+/* Objects */
+
+typedef enum {
+#define Z(name,text) name,    
+#include "objects.def"
+        OBJECT_TYPES_NB
+#undef Z
+}  objects;
+
+#define OBJECTS_NAME_LEN 8
 
 // ****** inputs ******
 
@@ -280,8 +284,8 @@ typedef enum {
 typedef enum {
 #define X(name,text) name,    
 #include "rev_inputs_names.def"
-        REV_INPUTS_NB 
-#define TOTAL_REV_INPUTS_NB (REV_INPUTS_NB*MAX_REV)         
+        REVB_INPUTS_NB 
+#define TOTAL_REV_INPUTS_NB (REVB_INPUTS_NB*MAX_REV)         
 #undef X
 }  Rev_inputs_names;
 
@@ -315,7 +319,7 @@ typedef enum {
 #define X(name,text) name,    
 #include "vces_outputs_names.def"
         VCES_OUTPUTS_NB 
-#define TOTAL_VOICES_OUTPUTS_NB (VOICES_OUTPUTS_NB*MAX_VOICES)         
+#define TOTAL_VOICES_OUTPUTS_NB (VCES_OUTPUTS_NB*MAX_VOICES)         
 #undef X
 }  Vces_outputs_names;
 
@@ -335,19 +339,6 @@ typedef enum {
 #undef X
 }  Lfm_outputs_names;
 
-/*typedef enum {
-#define X(name,text) name,    
-#include "rev_outputs_names.def"
-        REV_OUTPUTS_NB  
-#undef X
-}  Rev_outputs_names;*/
-
-/*typedef enum {
-#define X(name,text) name,    
-#include "echo_outputs_names.def"
-        ECHO_OUTPUTS_NB  
-#undef X
-}  Echo_outputs_names;*/
 
 // ****** basics waves codes ******
 

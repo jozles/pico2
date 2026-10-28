@@ -9,8 +9,8 @@
 #include "frequences.h"
 #include "hardware/sync.h"
 #include "hardware/dma.h"
+#include <math.h>
 
-extern Voice voices[MAX_VOICES];
 
 /* ****** adsr ****** */
 
@@ -67,19 +67,6 @@ extern uint16_t* lfmVar[];
 
 static_assert(sizeof(lfmCoder[0][0]) == 2, "CODER_BASE_SHIFT assumes lfmCoder is 16-bit; update the shift if the type changes or create a new parameter");
 
-/* ****** reverb/echo ****** */
-
-uint16_t revDurCoder[MAX_REV];
-uint16_t revShiCoder[MAX_REV];
-uint16_t revRetCoder[MAX_REV];
-uint16_t revDurCoderAtt[MAX_REV];
-uint16_t revShiCoderAtt[MAX_REV];
-uint16_t revRetCoderAtt[MAX_REV];
-
-int16_t bufReverb[MAX_REV][REV_BUF_LEN];
-
-int16_t rev_ctl_input_id[REV_INPUTS_NB][MAX_REV];
-
 // ************************* echo ****************************
 
 uint16_t echoCoderDur[MAX_ECHO];
@@ -104,6 +91,18 @@ static EchoState echoSt[MAX_ECHO];
 static int       echoDmaChan = -1;
 static uint32_t  echoZero = 0;                                  // source of the DMA clear: static, it must outlive the transfer
 
+// ************************** reverb *************************
+
+uint16_t revbCoderDur[MAX_ECHO];
+uint16_t revbCoderShi[MAX_ECHO];
+uint16_t revbCoderRet[MAX_ECHO];
+uint16_t revbCoderDurAtt[MAX_ECHO];
+uint16_t revbCoderShiAtt[MAX_ECHO];
+uint16_t revbCoderRetAtt[MAX_ECHO];
+
+int16_t rev_ctl_input_id[REVB_INPUTS_NB][MAX_REV];
+
+int16_t revBus[MAX_REV][ECHO_STEPS];
 
 /* *******  extern  ******** */
 
@@ -112,7 +111,7 @@ extern bool             setupComplete;
 extern uint16_t         amplLevel[];
 extern int16_t          ctl_input_val[TOTAL_INPUTS_ID_REAL];
 extern int16_t          ctl_output_id_chain[];
-extern uint16_t         waveLevel[];
+//extern uint16_t         waveLevel[];
 extern const uint32_t   yTableQ16[];
 extern Voice            voices[MAX_VOICES];
 
@@ -545,19 +544,44 @@ void disp_lfm(uint8_t lfm){
 
 /* ****** reverb/echo ****** */
 
+// tables of the echo, built once by fillEchoTables:
+// echoLevelTab: send and return levels, as waveLevel but over ECHO_RANGE_DB
+// echoFbTab:    feedback (Q15), on a log scale of the loss per repetition: from ECHO_FB_STEP1_DB at step 1 down to the loss of ECHO_FB_MAX_Q15 at the top step,
+//               so every step multiplies the number of audible repetitions by the same ratio
+static uint16_t echoLevelTab[WAVE_LEVEL_STEPS];
+static int16_t  echoFbTab[ECHO_INJ_STEPS];
+
+static void fillEchoTables()
+{
+    echoLevelTab[0] = 0;                                                                            // step 0: off
+    for (uint8_t k = 1; k < WAVE_LEVEL_STEPS; k++) {
+        const float db = -ECHO_RANGE_DB * (float)(WAVE_LEVEL_STEPS - 1 - k) / (float)(WAVE_LEVEL_STEPS - 2);   // 0 dB at the top step, -ECHO_RANGE_DB at step 1
+        echoLevelTab[k] = (uint16_t)roundf(32767.0f * powf(10.0f, db / 20.0f));
+    }
+
+    const float lossMin = -20.0f * log10f((float)ECHO_FB_MAX_Q15 / 32768.0f);                      // loss per repetition at the top step (0.9 dB for 0.9)
+    echoFbTab[0] = 0;                                                                               // step 0: no feedback, a single repetition
+    for (uint8_t k = 1; k < ECHO_INJ_STEPS; k++) {
+        const float loss = ECHO_FB_STEP1_DB * powf(lossMin / ECHO_FB_STEP1_DB, (float)(k - 1) / (float)(ECHO_INJ_STEPS - 2));
+        echoFbTab[k] = (int16_t)roundf(32768.0f * powf(10.0f, -loss / 20.0f));
+    }
+}
+
 // init of the effects: coders at 0, delay lines and states cleared, echo values computed
 // to call after the tables (fillDur, fillAmplIncr) and the inputs (objects_table_init): the input ids are not touched here
 void effects_init()
 {
+    fillEchoTables();                                           // before setEcho and setVoiceEcho, which read them
+
     for (uint8_t r = 0; r < MAX_REV; r++) {
-        revDurCoder[r]    = 0;
-        revShiCoder[r]    = 0;
-        revRetCoder[r]    = 0;
-        revDurCoderAtt[r] = 0;
-        revShiCoderAtt[r] = 0;
-        revRetCoderAtt[r] = 0;
+        revbCoderDur[r]    = 0;
+        revbCoderShi[r]    = 0;
+        revbCoderRet[r]    = 0;
+        revbCoderDurAtt[r] = 0;
+        revbCoderShiAtt[r] = 0;
+        revbCoderRetAtt[r] = 0;
     }
-    memset(bufReverb, 0x00, sizeof(bufReverb));
+    memset(revBus, 0x00, sizeof(revBus));
 
     if (echoDmaChan < 0) { echoDmaChan = dma_claim_unused_channel(true); }
     for (uint8_t e = 0; e < MAX_ECHO; e++) {
@@ -585,17 +609,16 @@ static inline int32_t sat32(int64_t x)
     return (x > INT32_MAX) ? INT32_MAX : ((x < INT32_MIN) ? INT32_MIN : (int32_t)x);
 }
 
-// level of a send or return: table value of the coder + attenuated input, as the wave levels of setVoiceAmpl
+// level of a send or return: table value of the coder + attenuated input, as the wave levels of setVoiceAmpl (but with echoLevelTab)
 static inline int32_t echoLevel(int32_t coder, int32_t att, int16_t input)
 {
     if (coder < 0) coder = 0;
     if (coder > WAVE_LEVEL_STEPS - 1) coder = WAVE_LEVEL_STEPS - 1;
-    int32_t v = (int32_t)waveLevel[coder] + (((int32_t)input * att) >> MAX_CTL_ATT_SHIFT);
+    int32_t v = (int32_t)echoLevelTab[coder] + (((int32_t)input * att) >> MAX_CTL_ATT_SHIFT);
     if (v < 0) v = 0;
     if (v > 32767) v = 32767;
     return v;
 }
-
 // compute: delay, feedback and return of an echo, from the stored coders and the stored values of its inputs
 void __not_in_flash_func(setEcho)(uint8_t echo)
 {
@@ -607,7 +630,7 @@ void __not_in_flash_func(setEcho)(uint8_t echo)
     echoDelay[echo] = d;
 
     const int32_t i = ctlCombine(echoCoderInj[echo], echoCoderInjAtt[echo], ctl_input_val[echo_ctl_input_id[ECHI][echo]], ECHO_INJ_SHIFT, 0, ECHO_INJ_STEPS - 1);
-    echoFb[echo] = (i * ECHO_FB_MAX_Q15) / (ECHO_INJ_STEPS - 1);
+    echoFb[echo] = echoFbTab[i];
 
     echoRet[echo] = echoLevel(echoCoderRet[echo], echoCoderRetAtt[echo], ctl_input_val[echo_ctl_input_id[ECHR][echo]]);
 }
@@ -770,3 +793,7 @@ void __not_in_flash_func(echoProcess)(int32_t* vBuffer)
     }
 }
 
+// reverb
+
+void setRevbCoder(uint16_t rev, uint16_t dur, uint16_t durA, uint16_t shi, uint16_t shiA, uint16_t ret, uint16_t retA){}
+void setVoiceRevbCoders(Voice* v, uint16_t coder, uint16_t coderAtt){}

@@ -60,5 +60,7 @@ void setVoiceEcho(Voice* v);
 void setVoiceEchoCoders(Voice* v, uint16_t coder, uint16_t coderAtt);
 void setEchoCoder(uint8_t echo, uint16_t coderDur, uint16_t coderDurA, uint16_t coderInj, uint16_t coderInjA, uint16_t coderRet, uint16_t coderRetA);
 
+void setRevbCoder(uint16_t rev, uint16_t dur, uint16_t durA, uint16_t shi, uint16_t shiA, uint16_t ret, uint16_t retA);
+void setVoiceRevbCoders(Voice* v, uint16_t coder, uint16_t coderAtt);
 
 #endif // _MISC_H_

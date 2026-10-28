@@ -37,7 +37,7 @@ extern int16_t   lfmGenAttValue[MAX_LFM];
 extern int16_t   lfmOutputValues[MAX_LFM];
 extern uint8_t   lfmInputType[LFM_INPUTS_NB][MAX_LFM];
 
-extern int16_t   rev_ctl_input_id[REV_INPUTS_NB][MAX_REV];
+extern int16_t   rev_ctl_input_id[REVB_INPUTS_NB][MAX_REV];
 extern int16_t   echo_ctl_input_id[ECHO_INPUTS_NB][MAX_ECHO];
 
 
@@ -179,7 +179,7 @@ int16_t objects_first_output_id[OBJECT_TYPES_NB];
 
 char      ctl_output_name[MAX_OUTPUTS][IN_OUT_NAME_LEN];    // all objects outputs names
 int16_t   ctl_output_id_chain[MAX_OUTPUTS];                 // all objects outputs chain to input (first link)
-
+uint8_t   ctl_output_objects_nb[OBJECT_TYPES_NB];
 
 // ***** objets *****
 
@@ -483,7 +483,7 @@ uint8_t init_objects_inputs(void)
     }
 
     objects_first_input_id[REVERB___]=curr_input;
-    for (uint8_t ins=0;ins<REV_INPUTS_NB;ins++) 
+    for (uint8_t ins=0;ins<REVB_INPUTS_NB;ins++) 
     {
         for(uint8_t rev=0;rev<MAX_REV;rev++)
         {

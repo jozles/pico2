@@ -98,7 +98,7 @@ static inline int32_t baseLevel(const Voice* v,uint8_t item){
 }
 
 // compute: the target level of a wave (item 0..5) or of the voice gain (item 6), from the stored coders and the stored value of its input
-void __not_in_flash_func(setVoiceAmpl)(Voice* v,uint8_t item){
+void __not_in_flash_func(setVoiceAmpl)(Voice* v,uint8_t item){                          // fitted for waves & genAmpl gain control !!
 
     const int32_t amplMax=32767;                                                        // waves and genAmpl are both int16_t (0..0x7fff)
     const uint8_t shift=MAX_CTL_ATT_SHIFT;
@@ -125,7 +125,7 @@ void __not_in_flash_func(setVoiceAmpl)(Voice* v,uint8_t item){
 }
 
 // load the coders of a wave (item 0..5) or of the voice gain (item 6), then compute the level (same model as setVoiceFilter)
-void __not_in_flash_func(setVoiceAmplCoders)(Voice* v,uint8_t item,uint16_t coder,uint16_t coderAtt){
+void __not_in_flash_func(setVoiceAmplCoders)(Voice* v,uint8_t item,uint16_t coder,uint16_t coderAtt){   // fitted for waves & genAmpl gain control coders !!
 
     const uint32_t irq=save_and_disable_interrupts();                                   // the ADSR/LFO interrupt computes the same level: no interleaving
     if(item==BASIC_WAVES_NB){

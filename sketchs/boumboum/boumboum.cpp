@@ -82,8 +82,13 @@ uint16_t* lfmVar[CODER_NB];                             // inits dans menu.cpp ;
 
 #define ECH_VAR_NB (1+6)
 volatile int16_t menuEchoCoders[CODER_NB];              // [0] curr input nb ; [1] dur ; [2] dur ret ; [3] inj ; [4] inj ret ; [5] ret ; [6] att ret
-uint16_t menuMaxEchoCoders[CODER_NB]={MAX_ECHO-1,DUR_ECH_NB-1,MAX_CTL_ATT,ECHO_INJ_STEPS-1,MAX_CTL_ATT,WAVE_LEVEL_STEPS-1,MAX_CTL_ATT};
+uint16_t menuMaxEchoCoders[CODER_NB]={MAX_ECHO-1,DUR_ECH_NB-1,MAX_CTL_ATT,ECHO_INJ_STEPS-1,MAX_CTL_ATT,WAVE_LEVEL_STEPS-1,MAX_CTL_ATT-1,0};
 uint16_t* echoVar[CODER_NB];                            // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
+
+#define REVB_VAR_NB (1+6)
+volatile int16_t menuRevbCoders[CODER_NB];              // [0] curr input nb ; [1] dur ; [2] dur ret ; [3] inj ; [4] inj ret ; [5] ret ; [6] att ret
+uint16_t menuMaxRevbCoders[CODER_NB]={MAX_ECHO-1,DUR_ECH_NB-1,MAX_CTL_ATT,ECHO_INJ_STEPS-1,MAX_CTL_ATT,WAVE_LEVEL_STEPS-1,MAX_CTL_ATT-1,0};
+uint16_t* revbVar[CODER_NB];                            // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
 
 int main() {
 
@@ -128,6 +133,7 @@ if (watchdog_caused_reboot()) {
             case ADSRL____: coders_for_menu("ADSR:",(const char*)nullptr,MAX_ADSR,0,ADSRL____,menuAdsrCoders,codersSw,codersTB,menuMaxAdsrCoders,adsrVar,ADSR_VAR_NB,BASIC_WAVES_NB,0);break;
             case LMUX_____: coders_for_menu("LM",(const char*)nullptr,MAX_LFM,0,LMUX_____,menuLfmCoders,codersSw,codersTB,menuMaxLfmCoders,lfmVar,LFM_VAR_NB,LFM_INPUTS_NB,0);break;            
             case ECHOs____: coders_for_menu("ECHOs",(const char*)nullptr,MAX_ECHO,0,ECHOs____,menuEchoCoders,codersSw,codersTB,menuMaxEchoCoders,echoVar,ECH_VAR_NB,ECHO_INPUTS_NB,0);break;            
+            case REVERb___: coders_for_menu("REVERb",(const char*)nullptr,MAX_REV,0,REVERb___,menuRevbCoders,codersSw,codersTB,menuMaxRevbCoders,revbVar,REVB_VAR_NB,REVB_INPUTS_NB,0);break;             
             case MAPPING__: coders_for_mapping();break;
 
             default:break;

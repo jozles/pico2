@@ -107,19 +107,20 @@ void voiceConfig(uint8_t voice,uint8_t wave,uint16_t coderFreq,uint8_t attenFreq
         voice,voices[voice].coderFreq,voices[voice].coderFreqAtt,wave,voices[voice].coderWaveAmpl[wave],voices[voice].coderWaveAmplAtt[wave]);    
 }
 
-void vsetup(uint8_t v,uint16_t coderFreq,uint16_t coderFreqAtt,uint16_t coderAmp,uint16_t coderAmpAtt,int8_t cr,int16_t crAtt,uint8_t wave,int16_t filterFr,int16_t filterFrAtt,int16_t filterLevAtt,int16_t filterRes,int16_t filterResAtt,uint8_t cga,uint16_t cgaa)
+void vsetup(uint8_t v,uint16_t coderFreq,uint16_t coderFreqAtt,uint16_t coderAmp,uint16_t coderAmpAtt,int8_t cr,int16_t crAtt,uint8_t wave,int16_t filterFr,int16_t filterFrAtt,int16_t filterLevAtt,int16_t filterRes,int16_t filterResAtt,uint8_t cga,uint16_t cgaa,uint8_t echo,uint8_t echoAtt)
 {
     setVoiceFreqCoders(&voices[v],coderFreq,coderFreqAtt);
     setVoiceCycleRCoders(&voices[v],cr+RC_TABLES_NB-1,crAtt);
     setVoiceFilter(&voices[v],filterFr,filterFrAtt,filterLevAtt,filterRes,filterResAtt);
     setVoiceAmplCoders(&voices[v],wave,coderAmp,coderAmpAtt);                   // manual level, input level attenuator
     setVoiceAmplCoders(&voices[v],BASIC_WAVES_NB,cga,cgaa);                     // voice gain (these two parameters were ignored)
+    setVoiceEchoCoders(&voices[v],echo,echoAtt);
 
     dumpVoices(voices,v);
 }
 
 void vsetup(uint8_t v,uint16_t coderFreq,uint16_t coderFreqAtt,uint8_t coderAmp,uint8_t  coderAmpAtt,int8_t cr,int16_t crAtt,uint8_t wave){
-    vsetup(v,coderFreq,coderFreqAtt,coderAmp, coderAmpAtt,cr,crAtt,wave,coderFreq+409,0,MAX_CTL_ATT,0,0,1,0);   
+    vsetup(v,coderFreq,coderFreqAtt,coderAmp, coderAmpAtt,cr,crAtt,wave,coderFreq+409,0,MAX_CTL_ATT,0,0,1,0,0,0);   
 }
 
 void asetup(uint8_t adsr,uint8_t att,uint8_t dec, uint8_t sus,uint8_t rel){
@@ -293,7 +294,7 @@ void testSetup()
     #define VOICE1 0x40
     #define VOICE2 0x20
     #define VOICE3 0x10
-    uint8_t action=VOICE0|VOICE1|VOICE2;
+    uint8_t action=VOICE3|VOICE0|VOICE1|VOICE2;
 
     printf("\n========== test-setup 0x%02X ==========\n",action);    
 
@@ -368,6 +369,21 @@ void testSetup()
         asetup(adsr,127,32,16,127);
     }
 
+    if((action&VOICE3) != 0){ 
+        //      tb1->adsr->mux0inp0->sinpower2
+        //      lfo5->mux1inp1 coder[1][1]=32563
+        //      mux1->mux0inp1
+        uint8_t adsr=3;
+        uint8_t v=3;
+        uint8_t b=1;
+        uint16_t coderf=1500;
+        vsetup(v,coderf,0,0,120,0,0,WSIN,coderf+409,0,MAX_CTL_ATT,0,0,1,0,63,0);
+        obj_connect(objects_first_input_id[ADSR_____]+adsr*ADSR_INPUTS_NB+STAR,objects_first_output_id[TBUTTON__]+b*MAX_OUTPUTS_PER_OBJ+TOUCH_BUTTON);
+        obj_connect(objects_first_input_id[VOICE____]+v*VOICES_INPUTS_NB+VSPW+WSIN,objects_first_output_id[ADSR_____]+adsr*MAX_OUTPUTS_PER_OBJ+ADSR_SHAPE);
+        asetup(adsr,1,40,1,40);
+        setEchoCoder(0,100,0,50,0,63,0);
+    }
+
     if(action==0){
         uint8_t     voice=0;
         uint8_t     vwave=WSIN;
@@ -391,9 +407,7 @@ void testSetup()
 
         //obj_connect(objects_first_input_id[VOICE____]+voice*VOICES_INPUTS_NB+VFRQ,objects_first_output_id[LFO______]+lfo*MAX_OUTPUTS_PER_OBJ+lwave);        
     }
-
-    if(action==VOICE3){
-    }        
+ 
     printf("========================================\n");
 
 //pwm_timer_1khz_enable(false);while(1){}
@@ -449,7 +463,7 @@ void testVoiceInit(uint8_t vv,uint8_t w)
         coderGA=1;
         coderGAA=0;
         
-        vsetup(voice,coderF,coderFAtt,coderWA[wave],coderWAA[wave],cr,crAtt,wave,coderFilterF,coderFilterFAtt,coderFilterLevAtt,coderFilterRes,coderFilterResAtt,coderGA,coderGAA); 
+        vsetup(voice,coderF,coderFAtt,coderWA[wave],coderWAA[wave],cr,crAtt,wave,coderFilterF,coderFilterFAtt,coderFilterLevAtt,coderFilterRes,coderFilterResAtt,coderGA,coderGAA,63,0); 
 }
 
 void testVoice()
