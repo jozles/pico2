@@ -214,9 +214,12 @@ static_assert(((ECHO_BUF_LEN * 2) % 4) == 0, "the DMA clears bufEcho with 32-bit
 #define REVB_SHI_SHIFT    9                                     // input shift for the 64 steps of the brightness
 #define REVB_DAMP_MAX_Q15 22938                                 // damping at brightness 0: 0.7 (Q15)
 #define REVB_IN_SHIFT     8                                     // bus to line input: a full-scale voice gives 2^22, about 30 dB of headroom left in the int32 lines
-#define REVB_OUT_RSHIFT   11                                    // output gain: one unit = 6 dB ; a full-scale voice at the longest decay stays 5 dB below full scale
+#define REVB_OUT_RSHIFT   9                                     // output gain: one unit = 6 dB ; a loud voice at a long decay can reach full scale: lower the return.
 #define REVB_SILENCE      1024                                  // output below this (about -72 dB below a full-scale voice): the reverb stops
 
+/* tests: a defined TEST_xxx runs its test at start-up (testSetup, tests.cpp) */
+#define TEST_REVERB                                             // reverb test: test_reverb()
+#define REVB_TEST_LOG_LEN 700                                   // reverb test: buffers logged (700 x 11.6 ms = 8.1 s)
 
 /* inputs/outputs */
 

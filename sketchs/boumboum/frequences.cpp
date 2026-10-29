@@ -19,6 +19,9 @@ extern int32_t       echoBus[MAX_ECHO][ECHO_STEPS];
 extern volatile bool echoBusUsed[MAX_ECHO];
 extern int32_t       revbBus[MAX_REV][ECHO_STEPS];
 extern volatile bool revbBusUsed[MAX_REV];
+#ifdef TEST_REVERB
+extern volatile bool testDryMute;                               // reverb test: the voices are not added to the mix, their sends are kept
+#endif
 
 //extern bool tb7;
 //static bool filterTraceDone = false;
@@ -985,8 +988,12 @@ gpio_put(TST_PIN,1);
                 if (y < -yMax) y = -yMax;
                 genAcc += genInc;
                 o[k] = (y * (1 << (FILTER_PRE_SHIFT - FILTER_FRAC))) * (genAcc >> GEN_RAMP_SHIFT);
+#ifdef TEST_REVERB
+                if (!testDryMute) { vb[0] += o[k]; vb[1] += o[k]; }
+#else
                 vb[0] += o[k];
                 vb[1] += o[k];
+#endif
                 vb += 2;
             }
             const int32_t pair = (o[0] >> 1) + (o[1] >> 1);              // mean of the pair (22050 Hz)

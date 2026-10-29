@@ -887,10 +887,46 @@ void __not_in_flash_func(setVoiceRevbCoders)(Voice* v, uint16_t coder, uint16_t 
     restore_interrupts(irq);
 }
 
-// x * c / 32768 for a Q15 coefficient c, on 64 bits: the values of the lines use the whole 32-bit range
+#ifdef TEST_REVERB
+// reverb test (tests.cpp, test_reverb): filled by revbProcess, read and reset by the test
+uint16_t          revbTestLog[REVB_TEST_LOG_LEN];               // peak of the reverb output of every buffer, >> 16 (32767 = full scale)
+volatile uint16_t revbTestN       = 0;                          // entries used in revbTestLog
+volatile uint32_t revbTestTimeSum = 0;                          // total time spent in the reverb computation, us
+volatile uint32_t revbTestTimeMax = 0;                          // longest computation of one buffer, us
+volatile uint32_t revbTestCalls   = 0;                          // buffers computed
+volatile uint32_t revbTestClip    = 0;                          // samples where the mix + reverb went beyond full scale
+#endif
+
+// DSP instructions of the Cortex-M33 (one cycle each) ; plain C versions for the PC harness
+#if defined(__ARM_ARCH)
+static inline __attribute__((always_inline)) int32_t revbQadd(int32_t a, int32_t b)    // a + b limited to the int32 range
+{
+    int32_t r;
+    asm("qadd %0, %1, %2" : "=r"(r) : "r"(a), "r"(b));
+    return r;
+}
+static inline __attribute__((always_inline)) int32_t revbSmulwb(int32_t a, int32_t b)  // (a * low 16 bits of b, signed) >> 16
+{
+    int32_t r;
+    asm("smulwb %0, %1, %2" : "=r"(r) : "r"(a), "r"(b));
+    return r;
+}
+static inline __attribute__((always_inline)) int32_t revbSsat25(int32_t x)             // x limited to +-2^24
+{
+    int32_t r;
+    asm("ssat %0, #25, %1" : "=r"(r) : "r"(x));
+    return r;
+}
+#else
+static inline int32_t revbQadd(int32_t a, int32_t b)   { return sat32((int64_t)a + b); }
+static inline int32_t revbSmulwb(int32_t a, int32_t b) { return (int32_t)(((int64_t)a * (int16_t)b) >> 16); }
+static inline int32_t revbSsat25(int32_t x)            { return (x > 16777215) ? 16777215 : ((x < -16777216) ? -16777216 : x); }
+#endif
+
+// x * c / 32768 for a Q15 coefficient c (0..32767): one SMULWB, the lowest bit is lost
 static inline int32_t mulQ15(int32_t x, int32_t c)
 {
-    return (int32_t)(((int64_t)x * c) >> 15);
+    return revbSmulwb(x, c) << 1;
 }
 
 // reverb of every reverb object, added to the audio buffer (left = right); nothing is computed for a reverb that is idle and receives nothing
@@ -908,6 +944,11 @@ void __not_in_flash_func(revbProcess)(int32_t* vBuffer)
             s.yLast   = 0;
             s.retLast = revbRet[r];
         }
+
+#ifdef TEST_REVERB
+        const uint32_t testT0   = time_us_32();
+        int32_t        testPeak = 0;
+#endif
 
         // feedbacks of the 8 network lines, recomputed only when the duration has changed: each one loses 60 dB in the same time (RT60)
         const int32_t n = revbDurStep[r];
@@ -955,7 +996,7 @@ void __not_in_flash_func(revbProcess)(int32_t* vBuffer)
         const int32_t retEnd = revbRet[r];
         int32_t       retAcc = s.retLast << ECHO_STEPS_SHIFT;   // the return ramps over the buffer
         const int32_t retInc = retEnd - s.retLast;
-        int32_t       yPrev  = s.yLast;
+        int32_t       oPrev  = s.yLast;                         // last output step (scaled), for the interpolation
         int32_t       peak   = 0;
         int32_t*      vb     = vBuffer;
 
@@ -977,25 +1018,43 @@ void __not_in_flash_func(revbProcess)(int32_t* vBuffer)
 
             retAcc += retInc;
             const int32_t ret = retAcc >> ECHO_STEPS_SHIFT;
-            const int32_t o0  = sat32(((int64_t)(yPrev + sg) * ret) >> (REVB_OUT_RSHIFT + 1));   // back to 44100 Hz: the mean of two steps, then the step itself
-            const int32_t o1  = sat32(((int64_t)sg * ret) >> REVB_OUT_RSHIFT);
-            vb[0] = sat32((int64_t)vb[0] + o0);                 // limited sums: beyond full scale the mix stays at the limit instead of jumping to the opposite one
-            vb[1] = sat32((int64_t)vb[1] + o0);
-            vb[2] = sat32((int64_t)vb[2] + o1);
-            vb[3] = sat32((int64_t)vb[3] + o1);
+            const int32_t o1  = revbSsat25(revbSmulwb(sg, ret)) << (16 - REVB_OUT_RSHIFT);   // sg * ret >> REVB_OUT_RSHIFT, limited to the int32 range
+            const int32_t o0  = (oPrev >> 1) + (o1 >> 1);       // back to 44100 Hz: the mean of two steps, then the step itself
+#ifdef TEST_REVERB
+            {
+                const int32_t ao = (o1 < 0) ? -o1 : o1;
+                if (ao > testPeak) testPeak = ao;
+                const int64_t t = (int64_t)vb[2] + o1;
+                if (t > INT32_MAX || t < INT32_MIN) revbTestClip++;
+            }
+#endif
+            vb[0] = revbQadd(vb[0], o0);                        // limited sums: beyond full scale the mix stays at the limit instead of jumping to the opposite one
+            vb[1] = revbQadd(vb[1], o0);
+            vb[2] = revbQadd(vb[2], o1);
+            vb[3] = revbQadd(vb[3], o1);
             vb += 4;
+            oPrev = o1;
 
             const int32_t ay = (sg < 0) ? -sg : sg;
             if (ay > peak) peak = ay;
-            yPrev = sg;
         }
 
         for (uint8_t c = 0; c < REVB_FDN; c++) {
             s.idx[c] = (uint16_t)(p[c] - beg[c]);
             s.f[c]   = f[c];
         }
-        s.yLast   = yPrev;
+        s.yLast   = oPrev;
         s.retLast = retEnd;
+
+#ifdef TEST_REVERB
+        {
+            const uint32_t dt = time_us_32() - testT0;
+            revbTestTimeSum += dt;
+            if (dt > revbTestTimeMax) revbTestTimeMax = dt;
+            revbTestCalls++;
+            if (revbTestN < REVB_TEST_LOG_LEN) { revbTestLog[revbTestN++] = (uint16_t)(testPeak >> 16); }
+        }
+#endif
 
         if (used) {
             memset(x, 0, sizeof(revbBus[0]));                   // ready for the next buffer
@@ -1012,6 +1071,7 @@ void __not_in_flash_func(revbProcess)(int32_t* vBuffer)
         }
     }
 }
+ 
 
 // debug: state of the effects and send levels of the voices ; call it about once per second from the main loop, remove when done
 void effectsReport()

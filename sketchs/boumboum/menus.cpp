@@ -34,7 +34,7 @@ extern volatile uint32_t i2sUnderruns;
 extern volatile bool dumpRequest; 
 extern volatile uint8_t dumpLine;
 
-bool tb7=false;
+volatile bool tb7=false;
 
 // mapping
 
@@ -154,7 +154,7 @@ extern uint16_t* revbVar[];
 volatile bool codersSw[CODER_NB];                           // coder it handler scans all physical coders
 volatile bool codersTB[CODER_NB];                           // coder it handler scans all touchButtons
 extern volatile bool* coderTouchB;
-static bool oldCTB[CODER_NB];
+bool oldCTB[CODER_NB];
 
 // mapping
 
@@ -766,8 +766,8 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                     default: break;
                 }
 
-                snprintf(buf+2,LINE_LEN-2,"%4.3f %i %u %i %i ",voices[line].frequency,voices[line].coderCycleR-MAXCODER_RC/2,
-                    voices[line].coderFreqAtt,voices[line].coderCycleRAtt);               
+                snprintf(buf+2,LINE_LEN-2,"%4.3f %i %u %i %u ",voices[line].frequency,voices[line].coderCycleR-MAXCODER_RC/2,
+                    voices[line].coderFreqAtt,voices[line].coderCycleRAtt,voices[line].coderFreq);               
                 break;
 
             case VOICES_EF:          
@@ -805,7 +805,7 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                     setVoiceAmplCoders(&voices[line],coder-1,voiceAmplCoder(&voices[line],coder-1),cc);
                 }
            
-                snprintf(buf+2,LINE_LEN-2,"%u %u %u %u %u %u %u",voices[line].coderWaveAmplAtt[WSIN],voices[line].coderWaveAmplAtt[WTRI],voices[line].coderWaveAmplAtt[WSAW],
+                snprintf(buf+2,LINE_LEN-2,"%u %u %u %u %u %u ",voices[line].coderWaveAmplAtt[WSIN],voices[line].coderWaveAmplAtt[WTRI],voices[line].coderWaveAmplAtt[WSAW],
                     voices[line].coderWaveAmplAtt[WSQR],voices[line].coderWaveAmplAtt[WHIT],voices[line].coderWaveAmplAtt[PONK]);               
                 break;
             
@@ -970,8 +970,8 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
             
             fillVoices();        
 
-    static uint32_t effectsReportTime = 0;
-    if (millisCounter - effectsReportTime >= 1000) { effectsReportTime = millisCounter; effectsReport(); }
+    //static uint32_t effectsReportTime = 0;
+    //if (millisCounter - effectsReportTime >= 1000) { effectsReportTime = millisCounter; effectsReport(); }
 
             //ws_show_3(30);
             ledblinkn(2);

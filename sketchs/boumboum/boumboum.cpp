@@ -109,6 +109,7 @@ if (watchdog_caused_reboot()) {
 
     i2s_start(true);                                    // launch sound output
 
+    coderSetup(menu0Coders,codersSw,codersTB,menu0MaxCoders,MENU_NAME_LEN);
     testSetup();
 
     //testVoiceInit(3,0);
