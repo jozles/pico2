@@ -218,8 +218,10 @@ static_assert(((ECHO_BUF_LEN * 2) % 4) == 0, "the DMA clears bufEcho with 32-bit
 #define REVB_SILENCE      1024                                  // output below this (about -72 dB below a full-scale voice): the reverb stops
 
 /* tests: a defined TEST_xxx runs its test at start-up (testSetup, tests.cpp) */
-#define TEST_REVERB                                             // reverb test: test_reverb()
+//#define TEST_REVERB                                             // reverb test: test_reverb()
 #define REVB_TEST_LOG_LEN 700                                   // reverb test: buffers logged (700 x 11.6 ms = 8.1 s)
+#define OLD_TEST
+//#define TEST_PING
 
 /* inputs/outputs */
 
