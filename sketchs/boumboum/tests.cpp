@@ -104,6 +104,25 @@ void sub_lfo(uint8_t object_type,uint8_t object_nb,uint8_t obj_inp_nb,uint8_t vI
     obj_connect(objects_first_input_id[object_type]+object_nb*obj_inp_nb+vInpNb,objects_first_output_id[launcher]+lfo*MAX_OUTPUTS_PER_OBJ+lOutNb);
 }
 
+/*void voiceConfig(uint8_t voice,uint8_t wave,uint16_t coderFreq,uint8_t attenFreqLevel,uint8_t freqLfo,uint16_t freqLfoCoder,
+    uint8_t manualAmpLevel,uint8_t attenAmpLevel,uint8_t adsr,int8_t adsrLfo,uint16_t adsrLfoFreqCoder,int8_t cr,uint8_t crAtt)       // adsrLfo >=0 lfo ; <0 touch
+{
+    setVoiceCycleRCoders(&voices[voice],cr+RC_TABLES_NB-1,crAtt);
+    setVoiceAmplCoders(&voices[voice],wave,manualAmpLevel,attenAmpLevel);        // manual level, input level attenuator
+    setVoiceFreqCoders(&voices[voice],coderFreq,attenFreqLevel);
+
+    if(freqLfo!=0){sub_lfo(VOICE____,voice,VOICES_INPUTS_NB,VFRQ,freqLfo,freqLfoCoder,WTRI);}    // modulation freq de la voix
+
+    // CX (voice)SIP (adsr)
+    printf("Amp ctl adsr:%u ",adsr);
+    obj_connect(objects_first_input_id[VOICE____]+voice*VOICES_INPUTS_NB+VSPW+wave,objects_first_output_id[ADSR_____]+adsr*MAX_OUTPUTS_PER_OBJ+ADSR_SHAPE);
+
+    sub_lfo(ADSR_____,adsr,ADSR_INPUTS_NB,STAR,adsrLfo,adsrLfoFreqCoder,WTRI);                 // adsr launcher lfo/touchB
+    
+    printf("voice:%u coderFreq:%i frAtt:%i wave:%u Ampl:%u amplAtt:%i\n\n",
+        voice,voices[voice].coderFreq,voices[voice].coderFreqAtt,wave,voices[voice].coderWaveAmpl[wave],voices[voice].coderWaveAmplAtt[wave]);    
+}*/
+
 void voiceConfig(uint8_t voice,uint8_t wave,uint16_t coderFreq,uint8_t attenFreqLevel,uint8_t freqLfo,uint16_t freqLfoCoder,
     uint8_t manualAmpLevel,uint8_t attenAmpLevel,uint8_t adsr,int8_t adsrLfo,uint16_t adsrLfoFreqCoder,int8_t cr,uint8_t crAtt)       // adsrLfo >=0 lfo ; <0 touch
 {
