@@ -118,8 +118,6 @@ void init_basic_sine_table(void)
 
 const int32_t alpha = 32113;        // 0.98 en Q15
 
-volatile int32_t pink_state = 0;    // Q15 interne
-
 // *************************** tables *******************************
 
 // tableau des fréquences d'octaves
@@ -215,6 +213,7 @@ void voicesInit(Voice* voices,uint16_t coderF,uint8_t cga)    // cga = genAmpl c
 
         voices[v].phase=0;
         voices[v].noiseSeed=0;             // seed of the noise generator: 0 = initialised by the first buffer
+        voices[v].pinkState=0;             // pink noise filter: starts from 0        
         voices[v].sqrTh=1024;
         voices[v].coderReverb=0;
         voices[v].coderReverbAtt=0;        
@@ -811,6 +810,7 @@ static int32_t levLast[MAX_VOICES];                             // filter input 
 static int32_t echoLevelLast[MAX_VOICES];                       // echo send level reached at the end of the previous buffer
 static int32_t revbLevelLast[MAX_VOICES];                       // reverb send level reached at the end of the previous buffer
 static bool    voiceStarted[MAX_VOICES];                        // false until the first buffer of the voice
+static uint32_t phaseStepSnap[MAX_VOICES];                      // phase step of every voice, read once per buffer by fillVoiceBuffer: voices tuned alike advance together
 
 void __not_in_flash_func(fillVoiceBuffer_mono)(volatile int32_t* vBuffer,Voice* v,uint8_t voiceNum)
 {
@@ -822,12 +822,12 @@ gpio_put(TST_PIN,1);
 
     i2s_buf_scope=vBuffer;
 
-    const uint32_t phaseStep = v->phaseStep;                              // read once for the whole buffer
+    const uint32_t phaseStep = phaseStepSnap[voiceNum];                   // read by fillVoiceBuffer for all the voices at once, not between two voices
 
 // init noise: one xorshift32 generator per voice (its state must never be 0); v->noiseSeed holds the state
     uint32_t nSeed = v->noiseSeed;
     if (nSeed == 0) { nSeed = 0x9E3779B9u + 0x7F4A7C15u * (uint32_t)(voiceNum + 1); }
-    int32_t  pink_state_loc = pink_state;
+    int32_t  pink_state_loc = v->pinkState;                               // each voice keeps its own pink noise state from one buffer to the next
 
 // init rc
     const uint32_t rc           = v->cycleR & 63;                         // rc=0-63
@@ -1019,7 +1019,7 @@ gpio_put(TST_PIN,1);
 
     v->sqrTh      = sqrTh;
     v->noiseSeed  = nSeed;
-    pink_state    = pink_state_loc;
+    v->pinkState  = pink_state_loc;
 
 gpio_put(TST_PIN,0);
     restore_interrupts(ints);
@@ -1106,6 +1106,11 @@ void envLogDump()                                       // call it from the main
 void __not_in_flash_func(fillVoiceBuffer)(int32_t* vBuffer, Voice* voices, uint8_t bufNum)
 {
     blank_(vBuffer,SAMPLES_PER_BUFFER*2*4,0x00);   // env 12uS
+
+    // one consistent set of frequencies for the whole buffer: the 1 kHz interrupt cannot change them between two voices
+    const uint32_t irq = save_and_disable_interrupts();
+    for(uint8_t v=0;v<MAX_VOICES;v++){ phaseStepSnap[v] = voices[v].phaseStep; }
+    restore_interrupts(irq);
 
     for(uint8_t v=0;v<MAX_VOICES;v++){
       fillVoiceBuffer_mono(vBuffer, &voices[v],v);

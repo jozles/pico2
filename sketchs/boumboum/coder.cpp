@@ -20,7 +20,7 @@ volatile bool* coderTouchB=nullptr;         // current touch button states (on/o
 volatile uint16_t* coderCountMaxi=nullptr;  // maximum value for coderTimerCount
 
 uint8_t cOC[CODER_NB]={6,7,0,1,2,5,4,3};    // CODER ORDER TABLE ordre physique
-uint8_t cOB[CODER_NB]={0,1,2,3,4,5,6,7};    // TOUCH ORDER TABLE ordre physique
+uint8_t cOB[CODER_NB]={0,1,4,3,2,5,6,7};    // TOUCH ORDER TABLE ordre physique
 
 // pico2 coders 
 

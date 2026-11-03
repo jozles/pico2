@@ -700,6 +700,7 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
                                         if(valeur>=tlev && prev<tlev){
                                             adsrStatus[object]=ADSR_ATT;
                                             adsrCurrEch[object]=0;
+                                            //printf("adsr:%u start\n",object);
                                         }break;
                                     case INP_DOWN_TRIG:
                                         if(valeur<=tlev && prev>tlev){

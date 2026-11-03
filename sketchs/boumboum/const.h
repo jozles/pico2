@@ -87,7 +87,7 @@ typedef enum {
 
 /* Voices */
 
-#define MAX_VOICES 4 
+#define MAX_VOICES 8 
 #define VCES_MAX_FREQ_CODERS 4498 //4399
 #define VCES_MIN_FREQ_CODERS 25
 #define VCES_MAX_AMPL_CODERS MAX_16B_LINEAR_VALUE
@@ -104,7 +104,7 @@ typedef enum {
 
 /* Adsrl */
 
-#define MAX_ADSR 4
+#define MAX_ADSR 8
 #define ADSR_SAMPLE_RATE 500
 #define DUR_ECH_NB 128                  // puissance de 2 !!! définit le pas dans les tables d'échantillons 
 #define ADSR_MAX_TIME_CODERS (DUR_ECH_NB-1)       // valeur maxi saisie par les coders      
@@ -219,9 +219,10 @@ static_assert(((ECHO_BUF_LEN * 2) % 4) == 0, "the DMA clears bufEcho with 32-bit
 
 /* tests: a defined TEST_xxx runs its test at start-up (testSetup, tests.cpp) */
 //#define TEST_REVERB                                             // reverb test: test_reverb()
-#define REVB_TEST_LOG_LEN 700                                   // reverb test: buffers logged (700 x 11.6 ms = 8.1 s)
+//#define REVB_TEST_LOG_LEN 700                                   // reverb test: buffers logged (700 x 11.6 ms = 8.1 s)
 #define OLD_TEST
 //#define TEST_PING
+//#define TEST_A
 
 /* inputs/outputs */
 

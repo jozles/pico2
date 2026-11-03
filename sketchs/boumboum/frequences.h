@@ -53,9 +53,10 @@ struct VoiceFilter {
 
 struct Voice {
                 
-    volatile uint32_t phaseStep;        // table steps per sample, 11.21 fixed point, written and read as one word
-    uint32_t          phase;            // current phase, same format: the table index is phase >> PHASE_SHIFT 
-    uint32_t          noiseSeed;                  // xorshift32 state
+    volatile uint32_t phaseStep;               // table steps per sample, 11.21 fixed point, written and read as one word
+    uint32_t          phase;                   // current phase, same format: the table index is phase >> PHASE_SHIFT 
+    uint32_t          noiseSeed;               // xorshift32 state
+    int32_t           pinkState;               // state of the low-pass that makes the pink noise of this voice
 
     volatile int16_t    genAmpl;               // genAmpl value
     volatile int16_t    coderGenAmpl;          // genAmpl coder value
