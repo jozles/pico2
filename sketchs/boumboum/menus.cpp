@@ -7,7 +7,6 @@
 #include "util.h"
 #include "std_utils.h"
 #include "menus.h"
-#include "st7789.h"
 #include "leds.h"
 #include "frequences.h"
 #include "miscControls.h"
@@ -16,6 +15,11 @@
 #include "sound_level_management.h"
 #include "hardware/sync.h"
 #include "tests.h"
+#include "screen.h"
+
+#ifdef ST7789
+#include "st7789.h"
+#endif
 
 extern int16_t  ctl_input_val[TOTAL_INPUTS_ID_REAL];
 extern char     ctl_input_name[TOTAL_INPUTS_ID_REAL][IN_OUT_NAME_LEN];
@@ -492,8 +496,8 @@ void title_dsp(const char* title,uint8_t item,uint8_t type,float v0, int32_t v1,
         case REVERb___:snprintf(buf,LINE_LEN,"%s%u %c%c",title,item,onoff[i2s_running],onoff[tb7]);break;        
         default:snprintf(buf,LINE_LEN,"%s %u %c%c   ",title,type,onoff[i2s_running],onoff[tb7]);break;
     }        
-    tft_draw_text_12x12_dma_mult(0,0,buf,0x001f,0x0000,1);
-    if(type!=MENU0____){tft_draw_text_12x12_dma_mult(0,14,buf2,0x001f,0x0000,1);}
+    display(0,0,buf,0x001f,0x0000,1);
+    if(type!=MENU0____){display(0,14,buf2,0x001f,0x0000,1);}
 }
 
 void title_dsp(const char* title,uint8_t item,uint8_t type){
@@ -570,7 +574,7 @@ void mappingLineDsp(uint16_t inp,uint16_t line,bool rev){
     uint16_t buc=fgc;
     if(rev){fgc=bgc;bgc=buc;}
 
-    tft_draw_text_11x12_dma_mult(0,line*((11+2))+FIRSTLINEH,buf11x12,fgc,bgc,1);
+    display11(0,line*((11+2))+FIRSTLINEH,buf11x12,fgc,bgc,1);
 }
 
 void fullMappingDsp(uint16_t firstInput,uint16_t currDspInput){
@@ -909,9 +913,9 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
 
     if(!mode_scope){    
         switch (type){
-            case MENU0____:tft_draw_text_12x12_dma_mult(0,line*(12*1+6)+first_row,buf,fgc,bgc,1);break;
-            case VOICES_FI:tft_draw_text_11x12_dma_mult(0,line*(12*2+1)+first_row,buf,fgc,bgc,1);break;   // 11-pixel font: 29 characters fit in 320 pixels
-            default:tft_draw_text_12x12_dma_mult(0,line*(12*2+1)+first_row,buf,fgc,bgc,1);break;
+            case MENU0____:display(0,line*(12*1+6)+first_row,buf,fgc,bgc,1);break;
+            case VOICES_FI:display11(0,line*(12*2+1)+first_row,buf,fgc,bgc,1);break;   // 11-pixel font: 29 characters fit in 320 pixels
+            default:display(0,line*(12*2+1)+first_row,buf,fgc,bgc,1);break;
         }
     }
 }
@@ -1028,13 +1032,13 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
             if(mode_scope){
                 switch(object_type){
                     case LFOS_____:if(firstScope){title_dsp(title,line,LFOS_____);}    
-                        scope(lfoScopeBufReal,lfosFrequency[line],begline,false,firstScope,0,wave,2,line);
+                        scope(lfoScopeBufReal,lfosFrequency[line],begline,false,firstScope,0,wave,2,line,0);
                         firstScope=false;break;
                     
                     case VOICES_FR:
                         if(firstScope){title_dsp(title,line,VOICES_FR);}
-                        if(type_scope==1){scope(voicesScopeDataBuffer+line*SAMPLES_PER_BUFFER,voices[line].frequency,begline,false,firstScope,0,wave,1,line);}
-                        else{scope((int32_t*)i2s_buf_scope,voices[line].frequency,begline,false,firstScope,0,wave,0);}
+                        if(type_scope==1){scope(voicesScopeDataBuffer+line*SAMPLES_PER_BUFFER,voices[line].frequency,begline,false,firstScope,0,wave,1,line,0);}
+                        else{scope((int32_t*)i2s_buf_scope,voices[line].frequency,begline,false,firstScope,0,wave,0,0,0);}
                         firstScope=false;         
                         break;
 

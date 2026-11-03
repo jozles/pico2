@@ -1,3 +1,7 @@
+#include "const.h"
+
+#ifdef ST7789
+
 /* st7789 */
 #include <stdio.h>
 #include <string.h>
@@ -16,12 +20,12 @@
 #include "font12x12.h"
 #include "font11x12.h"
 
-#include "const.h"
+
 #include "util.h"
 #include "std_utils.h"
 
 
-uint32_t ticker10=0;
+//uint32_t ticker10=0;
 
 extern uint32_t millisCounter;
 extern uint32_t st_dma_tfr_count;
@@ -270,6 +274,33 @@ int init_dma_spi() {
     return st_dma_chan;
 }
 
+// ---------------------------------------------------------
+// BLANK : 1 DMA = un rectangle dans l'écran
+// ---------------------------------------------------------
+void __not_in_flash_func(tft_fill_rect_blank)(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,uint16_t col_nb)
+{
+
+    st_dma_wait_blank();
+
+    size_t total_pixels = lines_nb * col_nb;
+    size_t total_bytes  = total_pixels * 2;
+
+    tft_set_window(beg_col,beg_line,beg_col+col_nb-1,beg_line+lines_nb-1);
+
+    gpio_put(ST7789_PIN_DC, 1);
+    gpio_put(ST7789_PIN_CS, 0);
+
+    dma_channel_configure(
+        st_dma_chan,
+        &dma_cfg_single,
+        &spi0_hw->dr,
+        &zero16,          
+        total_bytes,
+        true
+    );
+
+}
+
 int st7789_setup(uint32_t spiSpeed)
 {
     gpio_init(ST7789_PIN_BL);  gpio_set_dir(ST7789_PIN_BL, GPIO_OUT);
@@ -434,32 +465,7 @@ void tft_fill_rect(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,uint16_t
 
 }
 
-// ---------------------------------------------------------
-// BLANK : 1 DMA = un rectangle dans l'écran
-// ---------------------------------------------------------
-void __not_in_flash_func(tft_fill_rect_blank)(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,uint16_t col_nb)
-{
 
-    st_dma_wait_blank();
-
-    size_t total_pixels = lines_nb * col_nb;
-    size_t total_bytes  = total_pixels * 2;
-
-    tft_set_window(beg_col,beg_line,beg_col+col_nb-1,beg_line+lines_nb-1);
-
-    gpio_put(ST7789_PIN_DC, 1);
-    gpio_put(ST7789_PIN_CS, 0);
-
-    dma_channel_configure(
-        st_dma_chan,
-        &dma_cfg_single,
-        &spi0_hw->dr,
-        &zero16,          
-        total_bytes,
-        true
-    );
-
-}
 
 // ---------------------------------------------------------
 // DRAW : 1 DMA = un rectangle dans l'écran
@@ -872,7 +878,7 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
     scope(buf,f,begline,fd,blk,refr,wf,mode_calcul,0);
 }    
 
-bool debug_ticker(){
+/*bool debug_ticker(){
     if(__builtin_expect((millisCounter-ticker10)>10000,0)){
         printf("10s_cnt:%d\n",millisCounter/10000);ticker10=millisCounter;
         
@@ -885,7 +891,7 @@ bool debug_ticker(){
         return true;   
     }
     return false;
-}
+}*/
 
 
 // -----------------------------------------------
@@ -1032,3 +1038,6 @@ void __not_in_flash_func(test_st7789_2)(void)
       l++;     
     }
 }*/
+
+
+#endif // ST7789

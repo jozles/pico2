@@ -21,7 +21,7 @@
 #include "coder.h"
 #include "frequences.h"
 #include "leds.h"
-#include "st7789.h"
+//#include "st7789.h"
 #include "menus.h"
 #include "input_tables_management.h"
 #include "sound_level_management.h"

@@ -370,6 +370,15 @@ typedef enum {
 
 /* st7789 */
 
+#define ST7789
+//#ifdef ST7789
+#define BLUE    0xf800 
+#define PINK    0xf81f 
+#define YELLOW  0x07ff 
+#define GREEN   0x07e0 
+#define RED     0x001f
+//#endif
+
 #define TFT_W 320
 #define TFT_H 240
 

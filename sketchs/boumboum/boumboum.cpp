@@ -13,10 +13,13 @@
 #include "bb_i2s.h"
 #include "frequences.h"
 #include "leds.h"
-#include "st7789.h"
 #include "menus.h"
 #include "sound_level_management.h"
 #include "tests.h"
+
+#ifdef ST7789
+#include "st7789.h"
+#endif
 
 const char* version=VERSION;
 uint8_t currVoice=0;
@@ -105,7 +108,7 @@ if (watchdog_caused_reboot()) {
     printf("RESET = NORMAL\n\n");
 }
     setup();
-    init_test_7789(20,25*8,0,TFT_H-12*8,TFT_H,1);       // init screen animation
+    //init_test_7789(20,25*8,0,TFT_H-12*8,TFT_H,1);       // init screen animation
 
     i2s_start(true);                                    // launch sound output
 

@@ -19,11 +19,15 @@
 #include "coder.h"
 #include "frequences.h"
 #include "leds.h"
-#include "st7789.h"
+#include "screen.h"
 #include "menus.h"
 #include "input_tables_management.h"
 #include "sound_level_management.h"
 #include "miscControls.h"
+
+#ifdef ST7789
+#include "st7789.h"
+#endif
 
 #define SYSTICK_BASE 0xE000E010UL
 
@@ -98,7 +102,7 @@ void blank(void* s,uint32_t len)
 void system_error(const char* s,int32_t v)
 {
     printf("syst err:%s :%i",s,v);
-    tft_draw_text_12x12_dma_mult(0,0,s,0x001f,0,1);
+    display(0,0,s,0x001f,0,1);
     while(1){} 
 }
 
@@ -111,12 +115,12 @@ uint32_t signal_overflow(const char* s,uint16_t id,int32_t val,int32_t min,int32
 {
     if(val>max || val<min){
         printf("signal ovf:%s (min:%u max:%u v:%u) id:%d\n",s,min,max,val,id);
-        tft_draw_text_12x12_dma_mult(0,0,s,0x001f,0,2);
+        display(0,0,s,0x001f,0,2);
         char buf[TFT_W/12+1];
         int8_t l=convIntToString(buf,val);buf[l]=';';
         l+=convIntToString(buf+l+1,min);buf[l++]=':';
         l+=convIntToString(buf+l+1,max);buf[l++]='\0';
-        tft_draw_text_12x12_dma_mult(0,27,buf,0x001f,0,1);
+        display(0,27,buf,0x001f,0,1);
         if(val>max){val=max;}
         else val=min;
     }
@@ -243,10 +247,12 @@ void __not_in_flash_func(global_dma_irq_handler)(){
 
     if((global_dma_irq_status & (1u << ws_dma_channel))!=0){
         ws_dma_irq_handler();
-    } 
+    }
+#ifdef ST7789     
     if((global_dma_irq_status & (1u << st_dma_channel))!=0){
         st_dma_irq_handler();
     }
+#endif    
     
     //gpio_put(TST_PIN,LOW);     
 }
@@ -304,10 +310,12 @@ void setup(){
     ws_dma_channel=ledsWs2812Setup(ws2812_pio,WS2812_LED_PIN);
     if(ws_dma_channel<0){LEDBLINK_ERROR_DMA}
 
+    #ifdef ST7789
     // ****** st7789 ******
     st_dma_channel=st7789_setup(ST7789_SPI_SPEED);
     if(st_dma_channel<0){LEDBLINK_ERROR_DMA}
     printf("ws dma ch:%i st dma ch:%i\n",ws_dma_channel,st_dma_channel);
+    #endif
 
     // ****** global irq (st+ws) ******
     init_global_dma_irq();
@@ -354,7 +362,7 @@ void setup(){
 
     // ****** scope check ******
     //scope(voicesScopeDataBuffer,voices[0].frequency,14,true,true,0,0,true);    // scope mode_calcul
-    scope(i2s_buf0,voices[0].frequency,14,true,true,0,0,0);     // scope mode_data
+    scope(i2s_buf0,voices[0].frequency,14,true,true,0,0,0,0,0);     // scope mode_data
 
     // après démo mute voices[0] sinus
     setVoiceAmplCoders(&voices[0],WSIN,cga,0);
@@ -376,16 +384,16 @@ void setup(){
     tft_fill_rect_blank(0,0,TFT_H,TFT_W);
     
     uint8_t m=3;
-    tft_draw_text_12x12_dma_mult((TFT_W-(6*10*m))/2,(TFT_H-m*10)/2, "ST7789", 0xF80F, 0x0000,m); // ST7789
+    display((TFT_W-(6*10*m))/2,(TFT_H-m*10)/2, "ST7789", 0xF80F, 0x0000,m); // ST7789
 
     uint8_t ls=16;
     char s[ls];memset(s,0x00,ls);
     int t=convIntToString(s,TFT_W);s[t]='x';convIntToString(s+t+1,TFT_H);
 
-    tft_draw_text_12x12_dma_mult((TFT_W-(7*10))/2,TFT_H/2+14,s, 0xF81F, 0x0000,1); 
+    display((TFT_W-(7*10))/2,TFT_H/2+14,s, 0xF81F, 0x0000,1); 
 
     const char* version=VERSION;
-    tft_draw_text_12x12_dma_mult((TFT_W-(strlen(version)*10))/2,TFT_H/2+25,version, 0xFFE0, 0x0000,1);
+    display((TFT_W-(strlen(version)*10))/2,TFT_H/2+25,version, 0xFFE0, 0x0000,1);
 
     delayBlk(5);
 
@@ -400,7 +408,9 @@ void setup(){
 // ******** diags/debug ********
 
 void pd0(){
+#ifdef ST7789
     printf("st_dma_chan=%d, st_dma_free=%d\n",st_dma_channel,get_st_dma_free());
+#endif
     printf("ws_dma_chan=%d, ws_dma_done=%d\n",ws_dma_channel,get_ws_dma_done());
     printf("dma_irq_status %x\n",dma_hw->ints0);
 }
@@ -428,7 +438,7 @@ void show_cnt(uint32_t cnt,uint16_t x,uint16_t y,uint8_t mult){
         int v10000=((cnt/1000)%10);
         int v100000=((cnt/10000)%10);
         char a[]={(char)(v100000+48),(char)(v10000+48),(char)(v1000+48),(char)(v100+48),(char)(v10+48),(char)0x00};
-        tft_draw_text_12x12_dma_mult(x,y,a,0xffff,0x0000,mult);
+        display(x,y,a,0xffff,0x0000,mult);
     }
 }
 

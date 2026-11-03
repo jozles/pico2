@@ -11,7 +11,7 @@
 
 #include "ws2812.pio.h"
 #include "const.h"
-#include "st7789.h"
+//#include "st7789.h"
 
 extern volatile uint32_t millisCounter;
 
