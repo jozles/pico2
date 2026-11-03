@@ -8,4 +8,8 @@ void scope(int32_t* buf,float f,uint16_t begline,bool fd,bool blk,uint8_t refr,u
 void tft_fill_rect_blank(uint16_t beg_line,uint16_t beg_col,uint16_t lines_nb,uint16_t col_nb);
 bool debug_ticker();
 
+int  display_setup(uint32_t spiSpeed);
+int  disp_dma_init();
+void disp_dma_irq_handler();
+
 #endif  // _SCREEN_H

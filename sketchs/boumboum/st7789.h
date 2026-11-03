@@ -6,7 +6,7 @@
 #include "const.h"
 //#ifdef ST7789
 
-int st7789_setup(uint32_t spiSpeed);
+int st7789_setup();
 volatile bool get_st_dma_free();        // uniquement à des fins de consultation
 
 void tft_draw_text_11x12_dma_mult(uint16_t x,uint16_t y,const char *s,uint16_t fg,uint16_t bg,int8_t mult);
@@ -28,7 +28,7 @@ void scope(int32_t* buf,float f,uint16_t begline,bool fd,bool blk,uint8_t refr,u
 //bool debug_ticker();
 void test_st7789();
 void test_st7789_2(void);*/
-void st_dma_irq_handler();
+void st_dma_end();
 
 
 //#endif //   ST7789

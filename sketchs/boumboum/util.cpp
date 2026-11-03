@@ -36,14 +36,12 @@
 #define SYST_CVR  (*(volatile uint32_t *)(SYSTICK_BASE + 0x08))
 #define SYST_CALIB (*(volatile uint32_t *)(SYSTICK_BASE + 0x0C))
 
-extern bool st_buffer_free,st_dma_free,st_dma_done_blank,st_sched_free;
-
 // boumboum
 
 extern int16_t objects_first_input_id[OBJECT_TYPES_NB];
 extern int16_t objects_first_output_id[OBJECT_TYPES_NB];
 
-static int st_dma_channel;
+extern int disp_dma_chan;
 static int ws_dma_channel;
 
 int32_t* i2s_dma_buffers[2];                // les 2 pointeurs sur les 2 buffers dma
@@ -222,7 +220,7 @@ void out_anal(uint32_t val_u32)
 }
 
 
-void quick_delay(uint32_t us){           // 0/1-> 2.33uS 5->8.33 10->14.25  env 1.2uS par step +2.25 init
+void quick_delay(uint32_t us){           // 0/1-> 2.33µS 5->8.33 10->14.25  env 1.2µS par step +2.25 init
     for(uint32_t i=0;i<us-1;i++){
         __asm volatile("nop");
     }
@@ -248,11 +246,9 @@ void __not_in_flash_func(global_dma_irq_handler)(){
     if((global_dma_irq_status & (1u << ws_dma_channel))!=0){
         ws_dma_irq_handler();
     }
-#ifdef ST7789     
-    if((global_dma_irq_status & (1u << st_dma_channel))!=0){
-        st_dma_irq_handler();
+    if((global_dma_irq_status & (1u << disp_dma_chan))!=0){    // ST7789 or ESP32 link
+        disp_dma_irq_handler();
     }
-#endif    
     
     //gpio_put(TST_PIN,LOW);     
 }
@@ -287,7 +283,7 @@ void gpio_irq_init(uint pin) {
     gpio_irq_set=false;
 }
 
-// hardware full init 
+// full hardware init 
 void setup(){
 
     gpio_init(TST_PIN);gpio_set_dir(TST_PIN,GPIO_OUT); gpio_put(TST_PIN,LOW); 
@@ -310,14 +306,11 @@ void setup(){
     ws_dma_channel=ledsWs2812Setup(ws2812_pio,WS2812_LED_PIN);
     if(ws_dma_channel<0){LEDBLINK_ERROR_DMA}
 
-    #ifdef ST7789
-    // ****** st7789 ******
-    st_dma_channel=st7789_setup(ST7789_SPI_SPEED);
-    if(st_dma_channel<0){LEDBLINK_ERROR_DMA}
-    printf("ws dma ch:%i st dma ch:%i\n",ws_dma_channel,st_dma_channel);
-    #endif
+    // ****** display (ST7789 or ESP32 link) ******
+    if(display_setup(DISP_SPI_SPEED)<0){LEDBLINK_ERROR_DMA}
+    printf("ws dma ch:%i disp dma ch:%i\n",ws_dma_channel,disp_dma_chan);
 
-    // ****** global irq (st+ws) ******
+    // ****** global irq (disp+ws) ******
     init_global_dma_irq();
 
     // ****** button(s) ******
@@ -327,7 +320,7 @@ void setup(){
     // ****** sound ******
     sound_tables_init();
 
-    float fr0=440;                  // initial frequency every voices
+    float fr0=440;                  // initial frequency of every voice
     uint8_t cga=1;                  // initial gain for genAmpl
     voicesInit(voices,fr0,cga);     // every waveAmpl = 0 ; every voice's genAmpl = cga
 
@@ -409,7 +402,9 @@ void setup(){
 
 void pd0(){
 #ifdef ST7789
-    printf("st_dma_chan=%d, st_dma_free=%d\n",st_dma_channel,get_st_dma_free());
+    printf("disp_dma_chan=%d, st_dma_free=%d\n",disp_dma_chan,get_st_dma_free());
+#else
+    printf("disp_dma_chan=%d\n",disp_dma_chan);
 #endif
     printf("ws_dma_chan=%d, ws_dma_done=%d\n",ws_dma_channel,get_ws_dma_done());
     printf("dma_irq_status %x\n",dma_hw->ints0);

@@ -714,7 +714,7 @@ uint8_t coders_for_mapping(){
 void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type,uint8_t coder,uint32_t cc,bool mode_scope,bool varChge)    // varChge false : display only
 {
 //printf("line:%u rev:%u type:%u ",line,rev);    
-        uint16_t fgc=GREEN;
+        uint16_t fgc=COL_GREEN;
         uint16_t bgc=0x0000;
         uint16_t buc=fgc;
         if(rev){fgc=bgc;bgc=buc;}

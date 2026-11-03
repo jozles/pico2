@@ -32,13 +32,14 @@ extern uint32_t st_dma_tfr_count;
 
 extern Voice voices[MAX_VOICES];
 
-static int st_dma_chan=-1;
-static dma_channel_config dma_cfg;
+extern int                disp_dma_chan;    // screen.cpp
+extern dma_channel_config disp_dma_cfg;     // screen.cpp
+extern spin_lock_t*       disp_dma_lock;    // screen.cpp
+
 static dma_channel_config dma_cfg_single;
 static const uint16_t zero16=0x0000;
 //static 
 volatile bool st_dma_free = true;      // false busy : dma en cours sur buffer
-static spin_lock_t *st_dma_lock;
 //static 
 volatile bool st_dma_done_blank = false;
 //static 
@@ -51,9 +52,7 @@ static volatile uint16_t sched_x;
 static volatile uint16_t sched_y;
 static volatile uint16_t sched_w;
 static volatile uint16_t sched_h;
-
-extern uint16_t lfmCoder[LFM_INPUTS_NB][MAX_LFM];       
-extern uint16_t lfmCoderAtt[LFM_INPUTS_NB][MAX_LFM];
+   
 
 // --------------------------------------------------------
 // accélérateur uc pendant effacement écran :
@@ -75,20 +74,20 @@ static void tft_init(void);
 // DMA IRQ : gestion dma_done
 // ---------------------------------------------------------
 
-void st_dma_wait(){                     // wait for end of current st buffer usage ; if blank en cours run
+void st_dma_wait(){                     // wait until the st buffer is free; if a blank is running, keep running
     while(true){
-        uint32_t f = spin_lock_blocking(st_dma_lock); //protège dma_done_xxx contre un accès asynchrone
+        uint32_t f = spin_lock_blocking(disp_dma_lock); //protège dma_done_xxx contre un accès asynchrone
 
         // on continue si dma_done free (rien en cours) ou blank busy et sched free (blank en cours)
         // c-a-d si le buffer est dispo
 
         if(st_buffer_free) {
             st_buffer_free=false;
-            spin_unlock(st_dma_lock, f);
+            spin_unlock(disp_dma_lock, f);
             return;
         } 
 
-        spin_unlock(st_dma_lock, f);            
+        spin_unlock(disp_dma_lock, f);            
         sleep_us(100);
         fillVoices();
     }
@@ -99,16 +98,16 @@ void st_dma_wait(){                     // wait for end of current st buffer usa
 // ---------------------------------------------------------
 static inline void tft_cmd(uint8_t c) {
     gpio_put(ST7789_PIN_DC, 0);
-    gpio_put(ST7789_PIN_CS, 0);
+    gpio_put(DISP_PIN_CS, 0);
     spi_write_blocking(spi0, &c, 1);
-    gpio_put(ST7789_PIN_CS, 1);
+    gpio_put(DISP_PIN_CS, 1);
 }
 
 static inline void tft_data(const uint8_t *d, size_t len) {
     gpio_put(ST7789_PIN_DC, 1);
-    gpio_put(ST7789_PIN_CS, 0);
+    gpio_put(DISP_PIN_CS, 0);
     spi_write_blocking(spi0, d, len);
-    gpio_put(ST7789_PIN_CS, 1);
+    gpio_put(DISP_PIN_CS, 1);
 }
 
 static void tft_reset(void) {
@@ -135,18 +134,16 @@ static void tft_set_window(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) {
 }
 
 // -----------------------------------------------------------
-// wait for end of current st dma usage 
-// if blank running -> load sched and run
+// wait until the current st DMA transfer has finished
+// if a blank is running, schedule this frame and return
 //
-// x,y window upper left corner ; w,h size
+// x, y: upper-left corner of the window; w, h: its size
 // -----------------------------------------------------------
 void st_dma_launch(uint8_t* frame,uint16_t x,uint16_t y,uint16_t w,uint16_t h){       
 
-//uint8_t cnt=0;
-//printf("launch cnt:%d stdf:%d stddb:%d stsf:%d\n",cnt,st_dma_free,st_dma_done_blank,st_sched_free);    
     while(1){ 
         
-        uint32_t f = spin_lock_blocking(st_dma_lock); //protège st_dma_done_xxx et sched_xxx contre un accès asynchrone
+        uint32_t f = spin_lock_blocking(disp_dma_lock); //protège st_dma_done_xxx et sched_xxx contre un accès asynchrone
 
         // si launch s'éxécute c'est que le buffer était dispo et 
         // st_dma_wait a mis st_buffer_free false pour bloquer d'autres demandes
@@ -163,17 +160,17 @@ void st_dma_launch(uint8_t* frame,uint16_t x,uint16_t y,uint16_t w,uint16_t h){
             tft_set_window(x, y, x + w - 1, y + h - 1);
             
             gpio_put(ST7789_PIN_DC, 1);
-            gpio_put(ST7789_PIN_CS, 0);
+            gpio_put(DISP_PIN_CS, 0);
 
             dma_channel_configure(
-                st_dma_chan,
-                &dma_cfg,
+                disp_dma_chan,
+                &disp_dma_cfg,
                 &spi0_hw->dr,
                 frame,
                 w*h*2,
                 true
             );
-            spin_unlock(st_dma_lock, f);          
+            spin_unlock(disp_dma_lock, f);          
             return;
         }
 
@@ -188,33 +185,32 @@ void st_dma_launch(uint8_t* frame,uint16_t x,uint16_t y,uint16_t w,uint16_t h){
             sched_w=w;
             sched_h=h;
             st_sched_free=false;
-            spin_unlock(st_dma_lock, f);
+            spin_unlock(disp_dma_lock, f);
             return;
         }
 
-        spin_unlock(st_dma_lock, f);
+        spin_unlock(disp_dma_lock, f);
         sleep_us(100);
     }
 }
 
 void st_dma_wait_blank(){       // wait for end of current st dma usage -- special pour blank : attente obligatoire
     while(true){
-        uint32_t f = spin_lock_blocking(st_dma_lock); //protège dma_done contre un accès asynchrone
+        uint32_t f = spin_lock_blocking(disp_dma_lock); //protège dma_done contre un accès asynchrone
         if(st_dma_free) {
             st_dma_free=false;
             st_dma_done_blank=false;
-            spin_unlock(st_dma_lock, f);
+            spin_unlock(disp_dma_lock, f);
             return;}          
-        spin_unlock(st_dma_lock, f);
+        spin_unlock(disp_dma_lock, f);
     }
 }
 
 volatile bool get_st_dma_free(){return st_dma_free;}
 
-void __not_in_flash_func(st_dma_irq_handler)() {
-    while (spi_is_busy(spi0)) {
-        tight_loop_contents();
-    }
+// end of an ST7789 DMA transfer, called by disp_dma_irq_handler (screen.cpp)
+// once the SPI is idle; the IRQ flag is cleared there
+void __not_in_flash_func(st_dma_end)() {
 
     if(!st_dma_done_blank){             // fin de blank
         st_dma_done_blank=true;
@@ -225,11 +221,11 @@ void __not_in_flash_func(st_dma_irq_handler)() {
         tft_set_window(sched_x, sched_y, sched_x + sched_w - 1, sched_y + sched_h - 1);
         
         gpio_put(ST7789_PIN_DC, 1);
-        gpio_put(ST7789_PIN_CS, 0);
+        gpio_put(DISP_PIN_CS, 0);
         
         dma_channel_configure(          // launch pending
-            st_dma_chan,
-            &dma_cfg,
+            disp_dma_chan,
+            &disp_dma_cfg,
             &spi0_hw->dr,
             sched_frame,
             sched_size,
@@ -237,41 +233,11 @@ void __not_in_flash_func(st_dma_irq_handler)() {
         );
         st_sched_free=true;
     }
-    else {                              // sched free ; nothing to launch
-        gpio_put(ST7789_PIN_CS, 1);     // fin transfert 
+    else {                              // nothing scheduled: nothing to launch
+        gpio_put(DISP_PIN_CS, 1);       // fin transfert 
         st_buffer_free=true;           
         st_dma_free=true;
     }
-    dma_hw->ints0 = 1u << st_dma_chan;   // clear IRQ
-}
-
-// ---------------------------------------------------------
-// DMA init
-// ---------------------------------------------------------
-int init_dma_spi() {
-    st_dma_chan = dma_claim_unused_channel(true);
-    if(st_dma_chan<0){return -1;}                   // no channel available
-
-    // dma_cfg 
-    dma_cfg = dma_channel_get_default_config(st_dma_chan);
-    channel_config_set_transfer_data_size(&dma_cfg, DMA_SIZE_8);
-    channel_config_set_read_increment(&dma_cfg, true);
-    channel_config_set_write_increment(&dma_cfg, false);
-    channel_config_set_dreq(&dma_cfg, DREQ_SPI0_TX);
-   
-    // dma_cfg_single (blank only)
-    dma_cfg_single = dma_channel_get_default_config(st_dma_chan);
-    channel_config_set_transfer_data_size(&dma_cfg_single, DMA_SIZE_16);
-    channel_config_set_read_increment(&dma_cfg_single, false);
-    channel_config_set_write_increment(&dma_cfg_single, false);
-    channel_config_set_dreq(&dma_cfg_single, DREQ_SPI0_TX);
-
-    dma_channel_set_irq1_enabled(st_dma_chan, true);
-#ifndef GLOBAL_DMA_IRQ_HANDLER 
-    irq_set_exclusive_handler(DMA_IRQ_1, st_dma_irq_handler);
-    irq_set_enabled(DMA_IRQ_1, true);
-#endif
-    return st_dma_chan;
 }
 
 // ---------------------------------------------------------
@@ -288,10 +254,10 @@ void __not_in_flash_func(tft_fill_rect_blank)(uint16_t beg_line,uint16_t beg_col
     tft_set_window(beg_col,beg_line,beg_col+col_nb-1,beg_line+lines_nb-1);
 
     gpio_put(ST7789_PIN_DC, 1);
-    gpio_put(ST7789_PIN_CS, 0);
+    gpio_put(DISP_PIN_CS, 0);
 
     dma_channel_configure(
-        st_dma_chan,
+        disp_dma_chan,
         &dma_cfg_single,
         &spi0_hw->dr,
         &zero16,          
@@ -301,38 +267,32 @@ void __not_in_flash_func(tft_fill_rect_blank)(uint16_t beg_line,uint16_t beg_col
 
 }
 
-int st7789_setup(uint32_t spiSpeed)
+// SPI, CS, DMA channel and lock are set up by display_setup (screen.cpp)
+int st7789_setup()
 {
     gpio_init(ST7789_PIN_BL);  gpio_set_dir(ST7789_PIN_BL, GPIO_OUT);
     gpio_put(ST7789_PIN_BL, 0);
     gpio_init(ST7789_PIN_DC);  gpio_set_dir(ST7789_PIN_DC, GPIO_OUT);
     gpio_init(ST7789_PIN_RST); gpio_set_dir(ST7789_PIN_RST, GPIO_OUT);
-    gpio_init(ST7789_PIN_CS);  gpio_set_dir(ST7789_PIN_CS, GPIO_OUT);
-    gpio_put(ST7789_PIN_CS, 1);
-
-    spi_init(spi0, spiSpeed);
-    gpio_set_function(ST7789_PIN_SCK,  GPIO_FUNC_SPI);
-    gpio_set_function(ST7789_PIN_MOSI, GPIO_FUNC_SPI);
-
-    spi_set_format(spi0, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
 
     tft_init();
-    if(init_dma_spi()<0){printf("st7789_Setup: no spi dma channel available\n");return -1;}
+
+    // dma_cfg_single (blank only)
+    dma_cfg_single = dma_channel_get_default_config(disp_dma_chan);
+    channel_config_set_transfer_data_size(&dma_cfg_single, DMA_SIZE_16);
+    channel_config_set_read_increment(&dma_cfg_single, false);
+    channel_config_set_write_increment(&dma_cfg_single, false);
+    channel_config_set_dreq(&dma_cfg_single, DREQ_SPI0_TX);
  
     st_dma_free = true;
-    st_dma_lock = spin_lock_init(DMA_LOCK);
-    //st_dma_lock = spin_lock_instance(DMA_LOCK);
     st_dma_done_blank = true;
     st_sched_free = true;
-
-    //memset(tft_frame_blk,0x00,FRAME_SIZE);
-    //blank(tft_frame_blk,FRAME_SIZE); inutile fill rect blk modifié un seul octet
 
     tft_fill_rect_blank(0,0,TFT_H,TFT_W);
     gpio_put(ST7789_PIN_BL, 1);
     printf("st7789_Setup done\n");
     delay_ms(100);
-    return st_dma_chan;
+    return 0;
 }
 
 
@@ -561,7 +521,7 @@ void tft_draw_text_11x12_dma(uint16_t y, uint16_t x,
     
     while (*s) {
         tft_draw_char_11x12(y, x, *s, color_fg, color_bg);
-        x += 11;   // avance de 12 pixels
+        x += 11;
         s++;
     }
 }
@@ -767,7 +727,7 @@ uint16_t tft_draw_float_12x12_dma_mult(uint16_t x,uint16_t y,uint16_t fg,uint16_
     return tft_draw_float_12x12_dma_mult(x,y,fg,bg,mult,num,0);
 }
 // display the scope from the values in buf ; len = buf size ; f = frequency ; begline first available line ; 
-// fd freq display ; wf required waveform ; mode_calcul: 0 = i2s true data ; 1 = computed from ce and cr  ; 2 =lfo_mode one waveform output)
+// fd: frequency display; wf: requested waveform ; mode_calcul: 0 = i2s true data ; 1 = computed from ce and cr  ; 2 = lfo mode, one waveform output)
 // begline first line after title ;
 // zline: position of the zero line (0 = middle, 1 = bottom)
 void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bool blk,uint8_t refr,uint8_t wf,uint8_t mode_calcul,uint8_t object,int16_t zline){
@@ -799,7 +759,7 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
         const int16_t *rcTableCurr=nullptr;
         bool rcReverse=false;
 
-        if(mode_calcul==1){                                     // one time init: the cycle ratio is the one of the voice (the index buffer only holds the table index)
+        if(mode_calcul==1){                                     // one-time init: the cycle ratio is the voice's own (the index buffer only holds the table index)
             const uint32_t rcv=voices[object].cycleR&63;
             rcReverse=(rcv>32);
             rcTableCurr=&rc_tables[rcReverse?(64-rcv):rcv][0][0];
@@ -842,7 +802,7 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
                     b=(float)t/(float)0x7fff;
                     }break;
 
-                case 3:{                                                // adsr real wave view (15 bits amplitude), drawn at 94 % of the height to stay clear of the title
+                case 3:{                                                // ADSR real wave view (15-bit amplitude), drawn at 94% of the height
                     uint32_t t=buf[object*ADSR_SCOPE_BUFFER_LEN+i];     
                     b=(float)t*0.94f/(float)0x7fff;
                     }break;
@@ -877,21 +837,6 @@ void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bo
 void __not_in_flash_func(scope)(int32_t* buf,float f,uint16_t begline,bool fd,bool blk,uint8_t refr,uint8_t wf,uint8_t mode_calcul){
     scope(buf,f,begline,fd,blk,refr,wf,mode_calcul,0);
 }    
-
-/*bool debug_ticker(){
-    if(__builtin_expect((millisCounter-ticker10)>10000,0)){
-        printf("10s_cnt:%d\n",millisCounter/10000);ticker10=millisCounter;
-        
-        // printf("W v2 f:%u att:%u amp:%u | lfm0 c:%u %u %u %u | lfm1 c:%u %u %u %u\n",
-        //voices[2].coderFreq, voices[2].coderFreqAtt, voices[2].coderWaveAmpl[0],
-        //lfmCoder[0][0],lfmCoder[1][0],lfmCoder[2][0],lfmCoder[3][0],
-        //lfmCoder[0][1],lfmCoder[1][1],lfmCoder[2][1],lfmCoder[3][1]);
-        
-        tft_draw_int_12x12_dma_mult(TFT_W-4*12,0,0x001f,0x0000,1,millisCounter/10000); 
-        return true;   
-    }
-    return false;
-}*/
 
 
 // -----------------------------------------------

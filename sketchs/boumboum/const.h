@@ -7,7 +7,7 @@
 
 #include "rc_33tables.h"
 
-#define VERSION "v1.4b"
+#define VERSION "v1.4c"
 
 #define PI 3.14159265359
 
@@ -368,34 +368,84 @@ typedef enum {
 
 #define PIN_DCDC_PSM_CTRL 23        // to set the DCDC in PSM mode for less audio noise
 
-/* st7789 */
+/* display */
+
+// RGB565 colours
+#define RGB565(r, g, b)     ((uint16_t)((((r) & 0xF8) << 8) | (((g) & 0xFC) << 3) | ((b) >> 3)))
+#define COL_BLACK           0x0000
+#define COL_WHITE           0xFFFF
+#define COL_RED             0xF800
+#define COL_GREEN           0x07E0
+#define COL_BLUE            0x001F
+#define COL_YELLOW          0xFFE0
+#define COL_CYAN            0x07FF
+#define COL_MAGENTA         0xF81F
+#define COL_GREY            0x7BEF
+#define COL_ORANGE          0xFDA0
 
 #define ST7789
-//#ifdef ST7789
-#define BLUE    0xf800 
-#define PINK    0xf81f 
-#define YELLOW  0x07ff 
-#define GREEN   0x07e0 
-#define RED     0x001f
-//#endif
 
 #define TFT_W 320
 #define TFT_H 240
 
+#define DISP_PIN_SCK   18
+#define DISP_PIN_MOSI  19
+#define DISP_PIN_CS    17
+
+#ifdef ST7789
+
 // le dma utilise l'irq1 ; l'irq 0 est utilisée par le dma de l'i2s
 
-#define ST7789_PIN_SCK   18
-#define ST7789_PIN_MOSI  19
 #define ST7789_PIN_DC    16
 #define ST7789_PIN_RST   20
-#define ST7789_PIN_CS    17
 #define ST7789_PIN_BL    21
 
 #define ST7789_SPI 0
 #define ST7789_spi __CONCAT(spi, ST7789_SPI)
 #define ST7789_SPI_SPEED 40000000
 
+#define DISP_SPI_SPEED  ST7789_SPI_SPEED
 
+#endif  // ST7789
+
+#ifndef ST7789
+
+#define DISP_PIN_READY  20     // handshake input from the ESP32 (IO22)
+
+// ---------- SPI link to the ESP32 display ----------
+
+#define LNK_SCREEN_W        320
+#define LNK_SCREEN_H        240
+
+#define LNK_SPI_FREQ        10000000u   // ESP32 slave guaranteed limit (Hz)
+#define DISP_SPI_SPEED LNK_SPI_FREQ
+
+// Command letters
+#define LNK_CMD_TEXT        'T'   // UTF-8 text at current position
+#define LNK_CMD_FONT        'P'   // size multiplier (1 byte)
+#define LNK_CMD_POS         'A'   // x, y
+#define LNK_CMD_CLEAR       'C'   // x, y, w, h filled with bg
+#define LNK_CMD_COLOR       'K'   // fg, bg (RGB565)
+#define LNK_CMD_GRAPH       'G'   // pixels: x, y, colour
+
+// Font: TFT_eSPI font 2 (16 px high), size multiplier 1..4
+#define LNK_FONT_MAX        4
+
+// Packet sizes (an order = letter + 2-byte length + data; a packet = one or more orders)
+#define LNK_HDR_SIZE        3
+#define LNK_TEXT_MAX        160                    // bytes of UTF-8 text per order
+#define LNK_GRAPH_MAX_PIX   320
+#define LNK_GRAPH_PIX_SIZE  6                      // x, y, colour: 2 bytes each
+#define LNK_PAD4(n)         (((n) + 3u) & ~3u)     // ESP32 slave needs multiples of 4 bytes
+#define LNK_SMALL_BUF_SIZE  LNK_PAD4(4 * LNK_HDR_SIZE + 4 + 1 + 4 + LNK_TEXT_MAX)          // K+P+A+T: 184
+#define LNK_GRAPH_BUF_SIZE  LNK_PAD4(LNK_HDR_SIZE + LNK_GRAPH_MAX_PIX * LNK_GRAPH_PIX_SIZE) // 1924
+#define LNK_NB_SMALL_BUF    3     // one being sent, one waiting, one being filled
+
+// Timing
+#define LNK_WAIT_TIMEOUT_US 100000    // ESP silent this long: packets dropped until it answers
+#define LNK_POLL_US         100       // polling step while waiting (sound kept running)
+
+#endif  //  ndef ST7789
 
 #endif  // _CONST_H_
 

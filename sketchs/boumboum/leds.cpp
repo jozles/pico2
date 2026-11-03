@@ -27,8 +27,8 @@ extern uint32_t gdis;
 
 volatile bool get_ws_dma_done(){return ws_dma_done;}
 
-void ws_dma_wait(){                     // wait for end of current st dma usage 
-    uint32_t save;                      // and set st_dma_done false
+void ws_dma_wait(){                     // wait for end of current ws DMA transfer 
+    uint32_t save;                      // and set ws dma_done false
     while(true){
         uint32_t f = spin_lock_blocking(ws_dma_lock); //save = save_and_disable_interrupts();
         if(ws_dma_done) {

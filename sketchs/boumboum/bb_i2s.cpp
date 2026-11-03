@@ -55,10 +55,10 @@ void __not_in_flash_func(dma_i2s_handler)() {
 
 
 int init_dma_i2s() {
-    i2s_dma_chan0 = dma_claim_unused_channel(true);
+    i2s_dma_chan0 = dma_claim_unused_channel(false);
     if(i2s_dma_chan0<0){return -1;}                     // no channel available           
 
-    i2s_dma_chan1 = dma_claim_unused_channel(true);
+    i2s_dma_chan1 = dma_claim_unused_channel(false);
     if(i2s_dma_chan1<0){return -2;}                     // no channel available
 
     dma_cfg0 = dma_channel_get_default_config(i2s_dma_chan0);
