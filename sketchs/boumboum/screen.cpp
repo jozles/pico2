@@ -7,6 +7,7 @@
 #include "screen.h"
 
 #include "hardware/spi.h"
+#include "hardware/uart.h"
 #include "hardware/dma.h"
 #include "hardware/sync.h"
 #include "hardware/irq.h"
@@ -36,7 +37,11 @@ int disp_dma_init()
     channel_config_set_transfer_data_size(&disp_dma_cfg, DMA_SIZE_8);
     channel_config_set_read_increment(&disp_dma_cfg, true);
     channel_config_set_write_increment(&disp_dma_cfg, false);
+#ifdef ST7789
     channel_config_set_dreq(&disp_dma_cfg, DREQ_SPI0_TX);
+#else
+    channel_config_set_dreq(&disp_dma_cfg, uart_get_index(DISP_UART) == 0 ? DREQ_UART0_TX : DREQ_UART1_TX);
+#endif
 
     dma_channel_set_irq1_enabled(disp_dma_chan, true);
 #ifndef GLOBAL_DMA_IRQ_HANDLER
@@ -48,10 +53,10 @@ int disp_dma_init()
 
 void __not_in_flash_func(disp_dma_irq_handler)()
 {
+#ifdef ST7789
     while (spi_is_busy(spi0)) {             // the last bytes are still being shifted out
         tight_loop_contents();
     }
-#ifdef ST7789
     st_dma_end();
 #else
     esp_dma_end();
@@ -59,16 +64,19 @@ void __not_in_flash_func(disp_dma_irq_handler)()
     dma_hw->ints0 = 1u << disp_dma_chan;    // clear the channel flag (INTS0 and INTS1 clear the same raw flag)
 }
 
-int display_setup(uint32_t spiSpeed)
+// speed: SPI clock for the ST7789, UART bit rate for the ESP32 link
+int display_setup(uint32_t speed)
 {
+#ifdef ST7789
     gpio_init(DISP_PIN_CS); gpio_set_dir(DISP_PIN_CS, GPIO_OUT);
     gpio_put(DISP_PIN_CS, 1);
 
-    uint32_t real = spi_init(spi0, spiSpeed);   // returns the frequency actually obtained
+    uint32_t real = spi_init(spi0, speed);      // returns the frequency actually obtained
     gpio_set_function(DISP_PIN_SCK,  GPIO_FUNC_SPI);
     gpio_set_function(DISP_PIN_MOSI, GPIO_FUNC_SPI);
     spi_set_format(spi0, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
     printf("display_setup: SPI %lu Hz\n", (unsigned long)real);
+#endif
 
     disp_dma_lock = spin_lock_init(DMA_LOCK);
     if (disp_dma_init() < 0) { printf("display_setup: no SPI DMA channel available\n"); return -1; }
@@ -76,7 +84,7 @@ int display_setup(uint32_t spiSpeed)
 #ifdef ST7789
     if (st7789_setup() < 0) { return -1; }
 #else
-    if (display_esp_setup() < 0) { return -1; }
+    if (display_esp_setup(speed) < 0) { return -1; }
 #endif
     return disp_dma_chan;
 }

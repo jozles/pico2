@@ -307,7 +307,7 @@ void setup(){
     if(ws_dma_channel<0){LEDBLINK_ERROR_DMA}
 
     // ****** display (ST7789 or ESP32 link) ******
-    if(display_setup(DISP_SPI_SPEED)<0){LEDBLINK_ERROR_DMA}
+    if(display_setup(DISP_SPEED)<0){LEDBLINK_ERROR_DMA}
     printf("ws dma ch:%i disp dma ch:%i\n",ws_dma_channel,disp_dma_chan);
 
     // ****** global irq (disp+ws) ******

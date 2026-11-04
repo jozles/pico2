@@ -32,8 +32,6 @@
 #define WS_LOCK  3
 #define CTL_INPUTS_LOCK 7
 
-/* */
-
 /* coders */
 
 #define CODER_GPIO_CLOCK       10          
@@ -383,16 +381,20 @@ typedef enum {
 #define COL_GREY            0x7BEF
 #define COL_ORANGE          0xFDA0
 
-#define ST7789
+//#define ST7789
 
 #define TFT_W 320
 #define TFT_H 240
 
+#ifdef ST7789
+
 #define DISP_PIN_SCK   18
 #define DISP_PIN_MOSI  19
 #define DISP_PIN_CS    17
+#define DISP_SPEED     ST7789_SPI_SPEED
 
-#ifdef ST7789
+#define CHAR_W  12      // ST7789 font 12x12: character cell width (pixels, size 1)
+#define CHAR_H  12      // ST7789 font 12x12: character cell height
 
 // le dma utilise l'irq1 ; l'irq 0 est utilisée par le dma de l'i2s
 
@@ -400,52 +402,59 @@ typedef enum {
 #define ST7789_PIN_RST   20
 #define ST7789_PIN_BL    21
 
-#define ST7789_SPI 0
-#define ST7789_spi __CONCAT(spi, ST7789_SPI)
-#define ST7789_SPI_SPEED 40000000
-
-#define DISP_SPI_SPEED  ST7789_SPI_SPEED
-
 #endif  // ST7789
 
 #ifndef ST7789
 
-#define DISP_PIN_READY  20     // handshake input from the ESP32 (IO22)
+// Câblage : Pico GP16 vers P3 IO35, P3 IO22 vers Pico GP18, et GND vers GND.
 
-// ---------- SPI link to the ESP32 display ----------
+#define DISP_UART      uart0
+#define DISP_PIN_TX    16       // to the ESP32 IO35 (its UART RX)
+#define DISP_PIN_CTS   18       // from the ESP32 IO22 (high: ESP32 cannot receive)
+#define DISP_PIN_RX    17       // reserved: data from the ESP32 (config reads), not wired yet
+#define LNK_UART_BAUD  4000000  // 2000000 if errors appear (same value on the ESP)
+#define DISP_SPEED     LNK_UART_BAUD
 
-#define LNK_SCREEN_W        320
-#define LNK_SCREEN_H        240
+#define CHAR_W  8       // ESP32 font: character cell width (pixels, size 1)
+#define CHAR_H  16      // ESP32 font: character cell height
 
-#define LNK_SPI_FREQ        10000000u   // ESP32 slave guaranteed limit (Hz)
-#define DISP_SPI_SPEED LNK_SPI_FREQ
+// ---------- link to the ESP32 display (UART, pins and speed in the DISP_ section) ----------
+// packet = LNK_SYNC, length of the orders (2 bytes, low first), orders, sum of the order bytes (8 bits)
+// order  = letter, n (2 bytes, low first), n data bytes
+#define LNK_SYNC            0xA5
+#define LNK_PKT_MAX         2048        // largest orders part of a packet (same value on the ESP)
+#define LNK_PKT_HDR         3           // LNK_SYNC + 2-byte length
+#define LNK_HDR_SIZE        3           // order: letter + 2-byte length
 
 // Command letters
-#define LNK_CMD_TEXT        'T'   // UTF-8 text at current position
+#define LNK_CMD_TEXT        'T'   // UTF-8 text at the current position
 #define LNK_CMD_FONT        'P'   // size multiplier (1 byte)
 #define LNK_CMD_POS         'A'   // x, y
 #define LNK_CMD_CLEAR       'C'   // x, y, w, h filled with bg
 #define LNK_CMD_COLOR       'K'   // fg, bg (RGB565)
 #define LNK_CMD_GRAPH       'G'   // pixels: x, y, colour
+#define LNK_CMD_ZONE        'Z'   // scrolling zone: y (2 bytes), number of lines (1), pitch in pixels (1)
+#define LNK_CMD_UP          'U'   // scroll up, new line (UTF-8 text) written at the bottom
+#define LNK_CMD_DOWN        'D'   // scroll down, new line written at the top
 
-// Font: TFT_eSPI font 2 (16 px high), size multiplier 1..4
-#define LNK_FONT_MAX        4
-
-// Packet sizes (an order = letter + 2-byte length + data; a packet = one or more orders)
-#define LNK_HDR_SIZE        3
-#define LNK_TEXT_MAX        160                    // bytes of UTF-8 text per order
+#define LNK_FONT_MAX        4     // size multiplier 1..4
+#define LNK_TEXT_MAX        160   // bytes of UTF-8 text per order
 #define LNK_GRAPH_MAX_PIX   320
-#define LNK_GRAPH_PIX_SIZE  6                      // x, y, colour: 2 bytes each
-#define LNK_PAD4(n)         (((n) + 3u) & ~3u)     // ESP32 slave needs multiples of 4 bytes
-#define LNK_SMALL_BUF_SIZE  LNK_PAD4(4 * LNK_HDR_SIZE + 4 + 1 + 4 + LNK_TEXT_MAX)          // K+P+A+T: 184
-#define LNK_GRAPH_BUF_SIZE  LNK_PAD4(LNK_HDR_SIZE + LNK_GRAPH_MAX_PIX * LNK_GRAPH_PIX_SIZE) // 1924
+#define LNK_GRAPH_PIX_SIZE  6     // x, y, colour: 2 bytes each
+#define LNK_SCROLL_MAX_LINES 15
+
+// Buffer sizes (whole packets: header + orders + sum)
+#define LNK_SMALL_BUF_SIZE  (LNK_PKT_HDR + 4 * LNK_HDR_SIZE + 4 + 1 + 4 + LNK_TEXT_MAX + 1)                // K+P+A+T: 185
+#define LNK_GRAPH_BUF_SIZE  (LNK_PKT_HDR + LNK_HDR_SIZE + LNK_GRAPH_MAX_PIX * LNK_GRAPH_PIX_SIZE + 1)      // 1927
 #define LNK_NB_SMALL_BUF    3     // one being sent, one waiting, one being filled
 
 // Timing
-#define LNK_WAIT_TIMEOUT_US 100000    // ESP silent this long: packets dropped until it answers
+#define LNK_WAIT_TIMEOUT_US 100000    // ESP silent this long: packets dropped until it is ready again
 #define LNK_POLL_US         100       // polling step while waiting (sound kept running)
 
 #endif  //  ndef ST7789
+
+#define LINE_SIZE           (SCREEN_W/CHAR_W)
 
 #endif  // _CONST_H_
 

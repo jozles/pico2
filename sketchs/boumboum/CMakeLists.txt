@@ -109,6 +109,7 @@ target_link_libraries(boumboum
         pico_stdlib
 		pico_time
 		hardware_clocks
+		hardware_uart
 		hardware_dma
 		hardware_pio
 		hardware_spi
