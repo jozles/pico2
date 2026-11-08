@@ -80,7 +80,7 @@ uint16_t* adsrVar[CODER_NB];                            // inits dans menu.cpp ;
 
 #define LFM_VAR_NB (1+4)                         
 volatile int16_t menuLfmCoders[CODER_NB];               // [0] curr input nb ; [1] inp0 ; [2] inp0 att ; [3] inp1 ; [4] inp1 att
-uint16_t menuMaxLfmCoders[]={MAX_LFM-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1};
+uint16_t menuMaxLfmCoders[CODER_NB]={MAX_LFM-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1,MAX_CTL_ATT-1};
 uint16_t* lfmVar[CODER_NB];                             // inits dans menu.cpp ; les éléments inutilisés sont nullptr
 
 #define ECH_VAR_NB (1+6)

@@ -299,7 +299,12 @@ void setup(){
     objects_table_init();
 
     // ****** coders ******
+#ifndef CPLD    
     coderInit(CODER_GPIO_CLOCK,CODER_GPIO_DATA,CODER_GPIO_SW,CODER_GPIO_VCC,CODER_PIO_SEL0,CODER_SEL_NB,CODER_NB,CODER_TIMER_POLLING_INTERVAL_MS,CODER_STROBE_NUMBER);
+#endif
+#ifdef CPLD
+    coderInit(CODER_GPIO_CLOCK,CODER_GPIO_DATA,CODER_GPIO_SW,CODER_NB,CODER_TIMER_POLLING_INTERVAL_MS,CODER_STROBE_NUMBER);
+#endif
     coderSetup(nullptr,nullptr,nullptr,nullptr,0);
 
     // ****** ws2812 ******
@@ -315,7 +320,7 @@ void setup(){
 
     // ****** button(s) ******
     irq_button_init(BUTTON_PIN);
-    touch_button_init(TOUCH_PIN);
+    touch_button_init(MUXED_TOUCH_PIN);
 
     // ****** sound ******
     sound_tables_init();

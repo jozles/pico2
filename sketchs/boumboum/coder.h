@@ -28,7 +28,12 @@ struct Coders{
     uint32_t touchButtonTime;         // previous physical touchButton time
 };
 
+#ifndef CPLD
 void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_t sel_nb,uint8_t nb,uint16_t ctpi,uint8_t cstn);
+#endif
+#ifdef CPLD
+void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t nb,uint16_t ctpi,uint8_t cstn);
+#endif
 bool coderTimerHandler();
 
 void slow_coder_test(uint32_t ms);

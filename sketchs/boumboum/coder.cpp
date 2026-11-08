@@ -11,7 +11,6 @@
 
 #include "hardware/sync.h"
 
-
 uint16_t coderTimerPollingInterval=1;       // delay between interrupts (ms), set by coderInit
 uint8_t coderStrobeNumber=3;                // first strobe delay, in polls (the second strobe delay is 1)
 volatile int16_t* coderTimerCount=nullptr;  // pointer to the values to increment or decrement
@@ -27,10 +26,12 @@ uint8_t cOB[CODER_NB]={0,1,4,3,2,5,6,7};    // TOUCH ORDER TABLE ordre physique
 uint8_t gpio_clock_pin;
 uint8_t gpio_data_pin;
 uint8_t gpio_switch_pin;
+#ifndef CPLD
 uint8_t gpio_vcc_pin;
 uint8_t gpio_sel0_pin;
-uint8_t coder_nb;
 uint8_t coder_sel_nb;
+#endif
+uint8_t coder_nb;
 uint32_t sel_gpio_mask=0;
 
 Coders c[CODER_NB];
@@ -53,19 +54,33 @@ bool __not_in_flash_func(coderTimerHandler)(){
         Coders* ct;
         uint32_t currTime=millisCounter;
 
-        for(uint8_t cod=0;cod<coder_nb;cod++){
+#ifdef CPLD
+        gpio_put(CODER_CLK_CNT_PIN,0);
+        gpio_put(CODER_CLR_CNT_PIN,1);sleep_us(1);gpio_put(CODER_CLR_CNT_PIN,0);     // counter of the CPLD to position 0
+
+        for(uint8_t cod=0;cod<coder_nb;cod++){ 
+            if(__builtin_expect(cod!=0,true)){
+                gpio_put(CODER_CLK_CNT_PIN,1);              // rising edge: next position
+                busy_wait_at_least_cycles(20);              // about 130 ns at 150 MHz: the result lines of the CPLD are stable
+                gpio_put(CODER_CLK_CNT_PIN,0);
+            }
+#endif 
+        
+#ifndef CPLD
+        for(uint8_t cod=0;cod<coder_nb;cod++){            
             gpio_put_masked(sel_gpio_mask, cod << gpio_sel0_pin);     // sel current coder ; env 6uS le pas de boucle + les traitements
-            
+#endif            
+
             uint8_t coder=cOC[cod]; // récup n° coder physique pour coders (le cablage est dans le désordre)
             cp=&c[coder];           // initialise le pointeur de la structure pour coders
 
             uint8_t touch=cOB[cod]; // récup n° coder physique pour touch (le cablage est dans le désordre - ordre différent des coders)
             ct=&c[touch];           // initialise le pointeur de la structure  
-            //gpio_put(TST_PIN,1);
+#ifndef CPLD
             quick_delay(4);         // 9uS semble nécessaire pour stabiliser les coders et 4051 sinon ca fait nimporte quoi
                                     // temps total du step 19uS ! avec 8mS d'intervalle ça semble ok (v1.2)
                                     // mesure 2.5uS total avec le delay !!! incompréhensible ... et ça marche
-            //gpio_put(TST_PIN,0);
+#endif
             // traitement switchs (avant les coders pour ne pas être zappé par les "continue")
             if(__builtin_expect((cp->coderSwitch!=gpio_get(gpio_switch_pin))&&((currTime-cp->coderSwitchTime)>CODER_SW_STROBE_MS),false)){
                 
@@ -80,7 +95,7 @@ bool __not_in_flash_func(coderTimerHandler)(){
             }
             
             // traitement touch buttons (avant les coders pour ne pas être zappé par les "continue")  
-            if(__builtin_expect((ct->touchButton!=gpio_get(TOUCH_PIN) && (currTime-ct->touchButtonTime >CODER_SW_STROBE_MS)),false)){   // si la valeur "mémoire" est != de la valeur lue et time-out de debounce ok...
+            if(__builtin_expect((ct->touchButton!=gpio_get(MUXED_TOUCH_PIN) && (currTime-ct->touchButtonTime >CODER_SW_STROBE_MS)),false)){   // si la valeur "mémoire" est != de la valeur lue et time-out de debounce ok...
 
                 ct->touchButtonTime=currTime;                                       // re-arm time_out
                 //printf("c:%u:%u\n",cod,ct->touchButton);
@@ -130,8 +145,12 @@ bool __not_in_flash_func(coderTimerHandler)(){
     return true;    // relancer le timer
 }
 
+#ifndef CPLD
 void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_t sel_nb,uint8_t nb,uint16_t ctpi,uint8_t cstn){
-
+#endif
+#ifdef CPLD
+void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t nb,uint16_t ctpi,uint8_t cstn){   
+#endif
     // ********************* doit absolument etre fait avant la mise en route du timer *******************
     coderTimerCount=nullptr;
     coderTimerSwitch=nullptr;
@@ -140,9 +159,24 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_
     gpio_clock_pin=ck;
     gpio_data_pin=data;
     gpio_switch_pin=sw;
+#ifndef CPLD    
     gpio_vcc_pin=vc;
     gpio_sel0_pin=sel0;
     coder_sel_nb=sel_nb;
+    
+    gpio_init(gpio_vcc_pin);gpio_set_dir(gpio_vcc_pin,GPIO_OUT);gpio_put(gpio_vcc_pin,1);
+    sel_gpio_mask=0;
+    for(int pin=gpio_sel0_pin;pin<gpio_sel0_pin+coder_sel_nb;pin++){
+        gpio_init(pin);
+        gpio_set_function(pin, GPIO_FUNC_SIO);
+        sel_gpio_mask |=1u<<pin;
+    }
+    gpio_set_dir_out_masked(sel_gpio_mask);    
+
+    printf("coders sel gpio mask:%X sel0_pin:%d sel_nb:%d\n",sel_gpio_mask,gpio_sel0_pin,coder_sel_nb);
+
+#endif    
+
     coder_nb=nb;
 
     coderTimerPollingInterval=ctpi;
@@ -151,23 +185,28 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_
     gpio_init(gpio_data_pin);gpio_set_dir(gpio_data_pin,GPIO_IN);gpio_pull_up(gpio_data_pin);
     gpio_init(gpio_clock_pin);gpio_set_dir(gpio_clock_pin,GPIO_IN);gpio_pull_up(gpio_clock_pin);
     gpio_init(gpio_switch_pin);gpio_set_dir(gpio_switch_pin,GPIO_IN);gpio_pull_up(gpio_switch_pin);
-    gpio_init(gpio_vcc_pin);gpio_set_dir(gpio_vcc_pin,GPIO_OUT);gpio_put(gpio_vcc_pin,1);
 
     sleep_ms(10);
 
-    sel_gpio_mask=0;
-    for(int pin=gpio_sel0_pin;pin<gpio_sel0_pin+coder_sel_nb;pin++){
-        gpio_init(pin);
-        gpio_set_function(pin, GPIO_FUNC_SIO);
-        sel_gpio_mask |=1u<<pin;
-    }
-    gpio_set_dir_out_masked(sel_gpio_mask);
-
-    printf("coders sel gpio mask:%X sel0_pin:%d sel_nb:%d\n",sel_gpio_mask,gpio_sel0_pin,coder_sel_nb);
-
+#ifndef CPLD           
     for(uint8_t coder=0;coder<coder_nb;coder++){
         gpio_put_masked(sel_gpio_mask,coder<<gpio_sel0_pin);     // sel one coder
         sleep_us(10);
+#endif 
+
+#ifdef CPLD
+        gpio_init(CODER_CLK_CNT_PIN);gpio_set_dir(CODER_CLK_CNT_PIN,GPIO_OUT);
+        gpio_put(CODER_CLK_CNT_PIN,0);
+        gpio_init(CODER_CLR_CNT_PIN);gpio_set_dir(CODER_CLR_CNT_PIN,GPIO_OUT);
+        gpio_put(CODER_CLR_CNT_PIN,1);sleep_us(1);gpio_put(CODER_CLR_CNT_PIN,0);     // counter of the CPLD to position 0
+
+        for(uint8_t coder=0;coder<coder_nb;coder++){ 
+            if(__builtin_expect(coder!=0,true)){
+                gpio_put(CODER_CLK_CNT_PIN,1);              // rising edge: next position
+                busy_wait_at_least_cycles(20);              // about 130 ns at 150 MHz: the result lines of the CPLD are stable
+                gpio_put(CODER_CLK_CNT_PIN,0);
+            }
+#endif 
         c[coder].coderClock0=gpio_get(gpio_clock_pin);           // get clock
         c[coder].coderData0=gpio_get(gpio_data_pin);             // get data
         c[coder].coderSwitch=0;
@@ -180,7 +219,7 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_
     }
 }
 
-uint32_t test_cnt=1;
+/*uint32_t test_cnt=1;
 void slow_coder_test(uint32_t ms){
     
     coderInit(CODER_GPIO_CLOCK,CODER_GPIO_DATA,CODER_GPIO_SW,CODER_GPIO_VCC,CODER_PIO_SEL0,CODER_SEL_NB,CODER_NB,CODER_TIMER_POLLING_INTERVAL_MS,CODER_STROBE_NUMBER);
@@ -193,7 +232,7 @@ void slow_coder_test(uint32_t ms){
         printf("coder:%d Ck:%d Da:%d Sw:%d\n",coder,gpio_get(CODER_GPIO_CLOCK),gpio_get(CODER_GPIO_DATA),gpio_get(CODER_GPIO_SW));
         sleep_ms(ms);//printf("%d\n",test_cnt++);
     }
-}
+}*/
 
 void coderSetup(volatile int16_t* cTC,volatile bool* cTS,volatile bool* cTB,uint16_t* maxi,uint8_t nb){
     coderTimerCount=cTC;

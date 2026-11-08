@@ -164,7 +164,7 @@ bool oldCTB[CODER_NB];
 
 #define MAPPING_CODER_NB 6
 volatile int16_t mappingCoders[CODER_NB];   // [0] curr input nb ; [1] curr_input value ; [2] norm ; [3] shift ; [4] trig ; [5] trig level
-uint16_t maxMappingCoders[]={TOTAL_INPUTS_ID_REAL,MAX_OUTPUTS,3,2,4,0xffff,0,0};
+uint16_t maxMappingCoders[CODER_NB]={TOTAL_INPUTS_ID_REAL,MAX_OUTPUTS,3,2,4,0xffff,0,0};
 
 // i2s
 
@@ -460,14 +460,15 @@ void menus_init(){
     menuRevbCoders[REVBRETATT]=revbCoderRetAtt[0];
     // ***  Lfm  ****     
     for(uint8_t c=0;c<CODER_NB;c++){menuLfmCoders[c]=0;}        
-    for(uint8_t in=0;in<(CODER_NB/2);in++){
+    for(uint8_t in=0;in<LFM_INPUTS_NB;in++){
         for(uint8_t l=0;l<MAX_LFM;l++){
             tempLfmCoders[in*2][l]=lfmCoder[in][l];         //>>(sizeof(lfmCoder[0][0])*8-MAX_CTL_ATT_SHIFT-1);
             tempLfmCoders[in*2+1][l]=lfmCoderAtt[in][l];
         }   
         lfmVar[in*2]=tempLfmCoders[in*2];            // inputs data ptr
         lfmVar[in*2+1]=tempLfmCoders[in*2+1];        // inputs data ptr        
-        menuLfmCoders[in+1]=tempLfmCoders[in][0];    // préchargt inputs data values mux 0
+        menuLfmCoders[in*2+1]=tempLfmCoders[in*2][0];    // level of input in, mux 0
+        menuLfmCoders[in*2+2]=tempLfmCoders[in*2+1][0];  // attenuator of input in, mux 0
     }                         
 
     //disp_lfm(255,(char*)"menu_Init");

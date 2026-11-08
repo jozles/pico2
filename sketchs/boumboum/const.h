@@ -19,7 +19,6 @@
 
 #define BUT_VCC_PIN 28
 #define BUTTON_PIN  27
-#define TOUCH_PIN   26
 #define BUTTON_CODE -100
 
 /* slices */
@@ -34,6 +33,12 @@
 
 /* coders */
 
+#define CPLD
+
+#ifndef CPLD
+
+#define MUXED_TOUCH_PIN        26
+
 #define CODER_GPIO_CLOCK       10          
 #define CODER_GPIO_DATA        11          
 #define CODER_GPIO_SW          12
@@ -43,6 +48,22 @@
 #define CODER_BANK_NB           6
 #define CODER_SEL_NB            4       // bits to sel
 #define CODER_PIO_SEL0          2       // CODER_SEL_NB consecutive pins
+
+#endif  // !CPLD
+
+#ifdef CPLD
+
+#define MUXED_TOUCH_PIN         7
+
+#define CODER_GPIO_CLOCK       12          
+#define CODER_GPIO_DATA        11          
+#define CODER_GPIO_SW          10
+
+#define CODER_NB               18
+#define CODER_CLR_CNT_PIN       8
+#define CODER_CLK_CNT_PIN       9
+
+#endif  // CPLD
 
 // *** coders actions ***
 
@@ -368,18 +389,19 @@ typedef enum {
 
 /* display */
 
-// RGB565 colours
-#define RGB565(r, g, b)     ((uint16_t)((((r) & 0xF8) << 8) | (((g) & 0xFC) << 3) | ((b) >> 3)))
+// Colours, as displayed by the screen (BGR order on both the ST7789 and the ESP32 panel:
+// blue in the high bits, red in the low bits)
+#define RGB565(r, g, b)     ((uint16_t)((((b) & 0xF8) << 8) | (((g) & 0xFC) << 3) | ((r) >> 3)))
 #define COL_BLACK           0x0000
 #define COL_WHITE           0xFFFF
-#define COL_RED             0xF800
+#define COL_RED             0x001F
 #define COL_GREEN           0x07E0
-#define COL_BLUE            0x001F
-#define COL_YELLOW          0xFFE0
-#define COL_CYAN            0x07FF
+#define COL_BLUE            0xF800
+#define COL_YELLOW          0x07FF
+#define COL_CYAN            0xFFE0
 #define COL_MAGENTA         0xF81F
 #define COL_GREY            0x7BEF
-#define COL_ORANGE          0xFDA0
+#define COL_ORANGE          0x05BF
 
 //#define ST7789
 
@@ -454,7 +476,7 @@ typedef enum {
 
 #endif  //  ndef ST7789
 
-#define LINE_SIZE           (SCREEN_W/CHAR_W)
+#define LINE_SIZE           (TFT_W/CHAR_W)      // characters per line at size 1
 
 #endif  // _CONST_H_
 
