@@ -118,6 +118,8 @@ if (watchdog_caused_reboot()) {
 
     int16_t coders_value[CODER_NB];
     memset(coders_value,0x00,CODER_NB*2);
+    memset(menu0MaxCoders,0x01,CODER_NB*2);
+    for(uint8_t i=0;i<CODER_NB;i++) printf("max%u:%u\n",i,menu0MaxCoders[i]);
     while(1){
         for(uint8_t c=0;c<CODER_NB;c++){
             uint16_t cc=menu0Coders[c];
