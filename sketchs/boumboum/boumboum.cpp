@@ -1,6 +1,6 @@
 #include <stdio.h>
-#include <string.h>
 #include <stdint.h>
+#include <string.h>
 #include "pico/stdlib.h"
 #include "hardware/pio.h"
 #include "hardware/dma.h"
@@ -14,8 +14,8 @@
 #include "frequences.h"
 #include "leds.h"
 #include "menus.h"
-#include "sound_level_management.h"
 #include "tests.h"
+#include "screen.h"
 
 #ifdef ST7789
 #include "st7789.h"
@@ -112,12 +112,24 @@ if (watchdog_caused_reboot()) {
 
     i2s_start(true);                                    // launch sound output
 
+    menus_init();
     coderSetup(menu0Coders,codersSw,codersTB,menu0MaxCoders,MENU_NAME_LEN);
     testSetup();
 
+    int16_t coders_value[CODER_NB];
+    memset(coders_value,0x00,CODER_NB*2);
+    while(1){
+        for(uint8_t c=0;c<CODER_NB;c++){
+            uint16_t cc=menu0Coders[c];
+            if(coders_value[c]!=cc){
+                coders_value[c]=cc;
+                printf("c:%u %u\n",c,cc);
+            }
+        }
+    }
+
     //testVoiceInit(3,0);
 
-    menus_init();
     uint8_t menu=1;
 
    

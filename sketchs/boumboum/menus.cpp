@@ -532,14 +532,13 @@ int8_t tst_switchs(uint8_t coder,uint8_t maxi){
 #define SCOPE_MODE -2       
 extern bool gpio_irq_set;
 
-int8_t tst_switchs_(uint8_t max_sw){      // return -1 if nothing, 0-n coder number, -99 return button 
+int8_t __not_in_flash_func(tst_switchs_)(uint8_t max_sw){      // return -1 if nothing, 0-n coder number, -99 return button 
     
     if((millisCounter-swIgnore)>=SWIGNORE){ 
         for(uint8_t c=0;c<max_sw;c++){
-            volatile int vs=codersSw[c];
-            if((volatile int)vs==0){    // coder[coder] on
+            if(__builtin_expect(codersSw[c]==ON_SWITCH,false)){    // coder[coder] on
                 swIgnore=millisCounter;
-                codersSw[c]=1;                     
+                codersSw[c]=!ON_SWITCH;                     
                 return c;               // coder number
             }      
         }

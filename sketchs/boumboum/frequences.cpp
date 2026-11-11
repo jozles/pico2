@@ -1120,7 +1120,7 @@ gpio_put(TST_PIN,1);
     revbProcess(vBuffer);
 gpio_put(TST_PIN,0);    
     //clickCheck(vBuffer);                           // debug: remove when done
-    envLogPush(vBuffer,voices);                    // debug: remove when done
+    //envLogPush(vBuffer,voices);                    // debug: remove when done
     i2s_buf_free[bufNum] = false;
 }
 

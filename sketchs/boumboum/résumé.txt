@@ -5,6 +5,7 @@ boutons sensitifs
 st7789 320*240
 MAX98357A 44100hz
 ws2812
+CPLD ATF1508AS pour multiplexer les coders rotatifs et touch buttons
 
 VSC
 JLINK
@@ -18,10 +19,11 @@ Langages : C11 / C++17
 
 Modules :
 - ondes, bruit, filtres, LFO : frequences.cpp
-- ADSR / LFM : miscControls.cpp
+- ADSR / LFM / TB / reverb / echo : miscControls.cpp
 - I2S : bb_i2s.cpp
 - WS2812 : leds.cpp
 - ST7789 : st7789.cpp
+- Affichage : screen.cpp (selon define ST7789 ou liaison série vers ESP32)
 - Menus : menus.cpp
 - dma/int : util.cpp
 - Tables RC : rc_33tables.cpp
@@ -53,7 +55,7 @@ y  leds
 
 chiffres :
 	2 buffers i2s de 512 échantillons = 11,6 ms sortis en dma flip/flop automatique
-	fillVoices_mono sin+saw 318 ; sin+noise 312 ; sin seul 262 ; tout 370
+	à vérifier : fillVoices_mono sin+saw 318 ; sin+noise 312 ; sin seul 262 ; tout 370
 	Interruption à 1 kHz : polling des codeurs, LFO, ADSR, LFM, glissades.
 	Pas de l’ADSR : 2 ms (500 Hz). Les LFO tournent à 40 Hz.
 	Le rendu des voices tourne interruptions coupées : les cibles de modulation sont donc constantes pendant un buffer.
@@ -122,47 +124,163 @@ __not_in_flash_func : place la fonction en RAM, pour les routines appelées dans
 Harness : programme de test sur PC qui reproduit un morceau du code, pour le vérifier avant la carte.
 
 
-TDL
+TDL - certaines choses
 
-1.LFM / chaîne de contrôle
+Organisation et outils
+0.1 Créer un test de la réverb « grande salle » (adapter le test en 12 étapes).
+0.2 Dupliquer les sorties des LFO et du LFM : en plus des sorties actuelles (−32 768 à +32 767), une sortie de 0 à 32 767 pour chacune.
+0.3 Rationaliser le code :
+0.3.1 sortir l’écho et la réverb de miscControls.cpp vers effects.cpp ;
+0.3.2 regrouper sound_level_management.cpp avec les tables du son dans sound_tables.cpp ;
+0.3.3 répartir le reste de frequences.cpp entre voices.cpp et mix.cpp ;
+0.3.4 passer le code des LFO de frequences.cpp dans miscControls.cpp.
+Documentation à rédiger et à joindre au code
+1.1 Gestion des niveaux : tout le son sur 32 bits, converti en 24 bits avant l’i2s ; le limiteur de fillVoiceBuffer_mono (une voice écrête dès que genAmpl dépasse 2) ; la broche GAIN du MAX98357A au VDD (6 dB).
+1.2 fillVoiceBuffer_mono : oscillateurs, rampes, filtre, envois, relevé des pas de phase au début de fillVoiceBuffer, état du bruit rose par voice.
+1.3 Écho : bus, ligne à 22 050 Hz, fondu sur la durée, réinjection logarithmique, arrêt et vidage DMA.
+1.4 Réverb : version « grande salle » (11 025 Hz, prédélai, passe-tout, lignes couplées, brillance).
+1.5 CPLD baby_bb : logique (compteur, positions, report d’horloge, cascade), brochage, alimentation, et chaîne de programmation (WinCUPL, ATMISP, OpenOCD avec le J-Link en mode WinUSB).
+1.6 Chaque module à venir, dans sa version finale.
+LFM / chaîne de contrôle
+2.1 Risque de boucle sans fin dans update_inputs : une entrée dont la modification change la sortie de son objet rappelle update_inputs (cas du LFM notamment) ; non traité.
+2.2 Menu LFM : le préchargement de menuLfmCoders dans menus_init ne suit pas la disposition des coders (niveau et atténuateur de chaque entrée).
+ADSR
+3.1 Option de relance « reprise au niveau » en plus de « reprise à 0 » (mise de côté).
+3.2 ADSR_GATE est envoyée à chaque pas de 2 ms, même quand l’enveloppe est éteinte (à vérifier).
+3.3 Option « loop = autoretrig ».
+3.4 Possibilité de suspendre et reprendre les ADSR.
+3.5 Mettre une led sur la gate des ADSR.
+3.6 Une attaque au cran 0 sonne comme au cran 35 : vérifier si la glissade d’amplitude (ampGlideTick) limite la vitesse de l’enveloppe.
+LFO
+4.1 Contrôle de mode : un coder de choix du mode, un coder de déclenchement et une entrée de déclenchement, combinée en « ou » avec le coder. Modes : 0 = libre ; 1 = de 0 au maximum puis arrêt ; 2 = de 0 à 0 puis arrêt ; 3 = une période puis arrêt ; 4 = arrêt forcé ; plus des options de portions d’onde en mode déclenché.
+4.2 Rapport cyclique sur les carrés des LFO.
+4.3 Passer la fréquence d’échantillonnage des LFO de 40 Hz à 100 Hz, et leur donner une plage de 14 octaves.
+fillVoiceBuffer_mono / oscillateurs
+5.1 Regrouper sin + tri et saw + sqr avec vsBuffer élargi à 64 bits, à mesurer.
+5.2 Quand toutes les sorties sont à 0, tout sauter et redémarrer l’oscillateur et le filtre de 0 à la reprise.
+5.3 Remettre le saut du sinus quand il est inutilisé.
+5.4 Dent de scie sans lecture de table (SAW_FROM_TABLE) : passer à 0 quand le message de démarrage affiche « gap 0 » ou « gap 1 », puis chronométrer.
+5.5 À retirer une fois les mesures finies : clickCheck, journal d’enveloppe (envLogPush, envLogDump), effectsReport.
+5.6 Synchronisation des voices (prévu pour 24 voices) :
+5.6.1 par voice, deux coders (page de menu V_SYNC) : voice suivie (0 à 23), et mode (0 = aucun, 1 = synchro dure, 2 = 1/1, puis une liste de rapports, sous-octaves comprises), appliqué quand le coder n’a plus bougé depuis environ 300 ms ;
+5.6.2 en modes 1/1 et rapports, la voice qui suit prend la fréquence de la voice suivie × le rapport (pas de phase calculé exactement en entiers), et ignore son propre coder et son entrée de fréquence ; en synchro dure, elle garde sa propre fréquence ;
+5.6.3 déclenchement automatique quand le mode ou la voice suivie change, ou quand la voice suivie est remise à zéro ; pour chaque voice : voice suivie, mode et drapeau « synchro à faire » ; boucles refusées au réglage ;
+5.6.4 mise en phase douce (correction de fréquence d’au plus 1/10 de ton jusqu’à écart nul), ou recopie directe de la phase quand la voice qui suit est silencieuse ; pour un rapport p/q, l’alignement le plus proche parmi les q possibles.
+Filtre
+6.1 Choix configurable 12 dB / 24 dB par octave (2 ou 4 étages).
+6.2 Le coder de fréquence du filtre monte jusqu’à 4 498 alors que le filtre s’arrête à 4 090 (16,7 kHz) : borner ce coder à FILTER_CODE_MAX.
+6.3 Modes du filtre : passe-bas (actuel), passe-haut et passe-bande à largeur réglable :
+6.3.1 chaque section calcule déjà en interne ses sorties passe-bas, passe-bande et passe-haut : le mode revient surtout à choisir la sortie ;
+6.3.2 passe-haut : la sortie passe-haut des deux sections, en 24 dB par octave ;
+6.3.3 passe-bande large (plus d’une octave) : section 1 en passe-haut à fb, puis section 2 en passe-bas à fh, avec fb = fc − L × 409 / 2 et fh = fc + L × 409 / 2 en codes ; pentes de 12 dB par octave de chaque côté, Q = 0,707 par section, résonance possible aux deux bords ;
+6.3.4 passe-bande étroit (moins d’une octave) : une seule section en passe-bande, largeur réglée par la résonance ;
+6.3.5 un seul coder de largeur choisit entre 6.3.3 et 6.3.4 ;
+6.3.6 coût : le même par échantillon qu’aujourd’hui, plus deux lectures de filterGTab et deux calculs de coefficients par sous-bloc ;
+6.3.7 menu du filtre : coder de mode, coder de largeur, et une entrée de commande pour la largeur.
+Architecture générale
+7.1 Réverb : reporter sur la carte la version « grande salle » avec la variante 3 (mélange complet et passe-bas d’entrée réglé par la brillance).
+7.2 Sortie :
+7.2.1 saturation douce, à la manière d’un ampli à lampes, à chaque voice (un dispositif existe, à vérifier et corriger) ;
+7.2.2 volume global toutes voices confondues, appliqué pendant la relecture de vBuffer qui remplit le second canal (mixage en mono, puis une seule passe qui applique le volume et recopie en stéréo).
+7.3 Nombre de voices alloué dynamiquement plutôt qu’un maximum fixe.
+7.4 Passer le tampon du scope des LFO (lfoScopeBufReal, 49 Ko) en int16_t et adapter le mode 2 de scope().
+7.5 Réviser le tampon d’affichage (tft_frame, 153 Ko), qui disparaîtra avec l’afficheur sur ESP32.
+7.6 genAmpl n’est pas traité à plusieurs endroits.
+7.7 ctlCombine (dans frequences.cpp) devra passer dans un futur fichier dynamic_tools (nom à rediscuter).
+7.8 Reporter la modification des entrées : MAX_INPUTS et MAX_INPUTS_PER_OBJ supprimés, remplacés par XXX_INPUTS_NB, TOTAL_INPUTS_REAL et TOTAL_INPUTS_ID_REAL.
+Projet voix (servira aussi de son de référence pour tester la réverb)
+8.1 Formants par filtres passe-bande (dépend de 6.3).
+8.2 Source en impulsion étroite (carré à 10 à 30 % de largeur).
+8.3 Souffle : bruit rose à bas niveau dans chaque voice, filtré par les formants.
+8.4 LFO aléatoire lissé, très lent et très faible, sur la hauteur et le niveau.
+8.5 Voyelles en mouvement : enveloppe sur la fréquence des formants (« oua », « aou »).
+8.6 Réglage de référence actuel (trois voices) : dent de scie à 110 Hz, formants à 750, 1 200 et 2 500 Hz, résonance 200, niveaux d’entrée de filtre 64, 32 et 12, bruit rose vers 10.
+CPLD (révision 03 programmée et vérifiée)
+9.1 Lecture côté Pico (coder.cpp et const.h) :
 
-1.1 Amélioration future ADSR : option de relance « reprise au niveau » en plus de « reprise à 0 » (actuel) — mise de côté
-1.2 Risque de boucle sans fin dans update_inputs : une entrée dont la modification change la sortie de son objet rappelle update_inputs (cas LFM notamment) ; non traité
+9.1.2 coderInit : CLK (GP9) et CLR (GP8) initialisés en sorties à 0, GP7 en entrée ;
+9.1.3 lecture des touch buttons sur GP7 au lieu de MUXED_TOUCH_PIN ;
+9.1.4 tables cOC et cOB remplies selon le câblage (correspondance positions du CPLD et numéros logiques à fournir), en gardant le numéro logique 7 pour le touch button de tb7.
+9.2 Tableaux de maxima passés à coderSetup : maxMappingCoders (menus.cpp) et menuMaxLfmCoders (boumboum.cpp) à déclarer avec CODER_NB éléments.
+9.3 Séparer le nombre de coders lus (CODER_NB) de la largeur d’une page de menu (8), par exemple avec une constante MENU_CODER_NB.
+9.4 Câblage de la plaque pour la révision 03 :
+9.4.1 liaison vers le Pico : OCK 81 vers GP12, ODT 83 vers GP11, OSW 85 vers GP10, CLK 87 depuis GP9, CLR 89 depuis GP8, OTB 93 vers GP7 ;
+9.4.2 broche 36 : devient le touch button TB9 (c’était un switch dans la révision 02) ;
+9.4.3 CASCK, CADT et CASW (96, 98, 100) à la masse tant qu’il n’y a pas d’esclave ;
+9.4.4 entrées de coders et de touch buttons non câblées à la masse.
+9.5 Design des CPLD esclaves (second fichier .pld) : coders sans touch buttons, horloge reçue sur CLKO du maître, CLR commun, trois lignes de résultat vers CASCK, CADT et CASW du maître.
 
-2.ADSR
+pour info
 
-2.1 ADSR_GATE est envoyée à chaque tick de 2 ms, même quand l’enveloppe est éteinte (à vérifier)
-2.2 Option « loop=autoretrig » pour les ADSR
-2.3 Possibilité de suspendre/reprendre les ADSR
+Listing the full pinout by functional group.
+Listing the full pinout by functional group.
+Brochage du CPLD, révision 03 (maître)
 
-3.LFO
+Alimentation
+VCCINT (5 V) : 39, 91.
+VCCIO (3,3 V) : 3, 18, 34, 51, 66, 82.
+GND : 11, 26, 43, 59, 74, 95.
+GND du cœur : 38, 86.
+JTAG (vers le J-Link)
+TDI : 4 (J-Link 5).
+TMS : 15 (J-Link 7).
+TCK : 62 (J-Link 9).
+TDO : 73 (J-Link 13).
+Liaison avec le Pico 2
+OCK, broche 81 : vers GP12 (broche physique 16 du Pico).
+ODT, broche 83 : vers GP11 (broche physique 15).
+OSW, broche 85 : vers GP10 (broche physique 14).
+CLK, broche 87 : depuis GP9 (broche physique 12).
+CLR, broche 89 : depuis GP8 (broche physique 11).
+OTB, broche 93 : vers GP7 (broche physique 10).
+Masse commune : broche physique 13 du Pico, reliée au GND du CPLD.
+Liaison avec l’esclave
+CLKO : 94.
+CASCK : 96.
+CADT : 98.
+CASW : 100.
+(96, 98 et 100 à la masse tant qu’il n’y a pas d’esclave.)
+Coders (ck, data, switch)
+coder 0 : 5, 7, 9.
+coder 1 : 6, 8, 10.
+coder 2 : 12, 14, 16.
+coder 3 : 17, 19, 21.
+coder 4 : 20, 22, 24.
+coder 5 : 23, 25, 27.
+coder 6 : 35, 37, 41.
+coder 7 : 40, 42, 44.
+coder 8 : 45, 47, 49.
+coder 9 : 46, 48, 50.
+coder 10 : 52, 54, 56.
+coder 11 : 53, 55, 57.
+coder 12 : 58, 60, 64.
+coder 13 : 61, 63, 65.
+coder 14 : 67, 69, 71.
+coder 15 : 68, 70, 72.
+coder 16 : 75, 77, 79.
+coder 17 : 76, 78, 80.
+Touch buttons
+TB0 : 1.
+TB1 : 2.
+TB2 : 13.
+TB3 : 28.
+TB4 : 29.
+TB5 : 30.
+TB6 : 31.
+TB7 : 32.
+TB8 : 33.
+TB9 : 36.
+TB10 : 84.
+TB11 : 88.
+TB12 : 90.
+TB13 : 92.
+TB14 : 97.
+TB15 : 99.
+Ces numéros sont ceux des positions du CPLD. Les numéros logiques utilisés par les menus viendront des tables cOC et cOB, selon le câblage.
 
-3.1 Contrôle de mode par LFO : un coder de choix du mode + un coder de déclenchement + une entrée de déclenchement, combinée en « ou » avec le coder de déclenchement. Modes : 0 = free run ; 1 = de 0 au maximum puis stop ; 2 = de 0 à 0 puis stop ; 3 = une période puis stop ; 4 = stop forcé ; et des options de portions d'onde en déclenché/one-shoot
-3.2 ajouter une sortie non flottante qui évolue entre 0 et 0x7fff pour chaque sortie existante
+Évolutions prévues (commentaires)
 
-4.fillVoiceBuffer_mono / oscillateurs
-
-4.1 rc sur sqr lfos
-4.2 Regrouper sin+tri / saw+sqr avec vsBuffer élargi à 64 bits (ce + index précalculé), à mesurer
-4.3 quand toutes les sorties sont à 0 sauter tout et démarrer l'oscillateur et le filtre de 0 quand ça reprend
-4.4 Mixage : la sortie est écrite deux fois par échantillon (vb[0] et vb[1], pointeur volatile) alors que gauche = droite → accumuler en mono et recopier une seule fois en stéréo à la fin de fillVoiceBuffer.
-4.5 remettre le skip se sinus si inutilisé
-4.6 Dent de scie sans lecture de table : interrupteur SAW_FROM_TABLE (frequences.cpp), à 1 pour l’instant ; le passer à 0 quand le message de démarrage « saw table 0 … gap N » affiche N = 0 ou 1, puis chronométrer la dent de scie seule avant/après
-4.7 À retirer une fois les mesures finies : clickCheck, journal d’enveloppe (envLogPush, envLogDump).
-
-5.Filtre
-
-5.1 Choix configurable 12 dB / 24 dB (2 vs 4 étages)
-5.2 Lissage passe-bas de la coupure du filtre : constante fixée à 160 ms (seuil trouvé à l’écoute avec une dent de scie sur la coupure)
-
-6.Architecture générale
-
-6.1 Réverbération et écho par voice, en bus partagé (après le filtre)
-6.2 Nombre de voices alloué dynamiquement plutôt qu’un maximum fixe
-6.3 Passer le tampon du scope des LFO (lfoScopeBufReal, 49 Ko) en int16_t : adapter le mode 2 de scope()
-6.4 Réviser le tampon d’affichage (tft_frame, 153 Ko) : le couper en 2 bandes ? ; il disparaîtra quand l’afficheur sera remplacé par un afficheur SPI avec ESP32 recevant directement des caractères
-6.5 Vérifier ce que produit la chaîne i2s → MAX98357A (signal 24 bits attendu) avec le coder de volume à 30 : distorsion à l’oreille alors que le scope montre environ −9 dBFS
-6.6 genAmpl n’est pas traité à plusieurs endroits
-6.7 ctlCombine (actuellement dans frequences) devra passer dans un futur fichier dynamic_tools (nom à rediscuter quand on s’en occupera)
-
-
+baby_boumboum (en cours) : ST7789, CPLD ATF1508AS-10AU100, moins de 40 coders, une vingtaine de touch_buttons, une ligne de WS2812, esp 32 en liaison série pour l'affichage.
+daddy_boumboum : une tablette comme interface, sur le même matériel, et mise en service du connecteur d’extension (coders, touch_buttons, leds) du futur circuit imprimé.
+Sorties son à ajouter : une sortie ligne (puce à retrouver, piste : PCM5102A), une sortie vers enceintes Bluetooth via l’ESP32, une sortie son sur USB.
+Après : à voir.

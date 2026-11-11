@@ -1,0 +1,39 @@
+/*  ******************** Physical configuration of the coders: board with the CPLD ********************
+
+    One line per position of the CPLD, in the order of the scan (position 0 first):
+        CODER(coder, touch, type, sw, dir)
+    coder : logical number of the coder read at this position (index of the coder values and of codersSw)
+    touch : logical number of the touch button read at this position
+    type  : CT_FULL  blue coders, bare: one full cycle of CK and DT per detent, rest at 11
+            CT_HALF  green coders, bare or on modules: half a cycle per detent, rest at 11 and 00
+            CT_NONE  no coder at this position (inputs to ground): not decoded, its touch button is still read
+    sw    : SW_HIGH  pressing the switch gives a high level (switch to 3.3 V, SW pulled down: blue coders of the proto)
+            SW_LOW   pressing the switch gives a low level (switch to ground, SW pulled up: modules, printed board)
+    dir   : DIR_NORM CK falls first when turning clockwise: the value goes up
+            DIR_REV  CK and DT swapped in the wiring: the direction is reversed
+    Types, switches and directions can be mixed freely. The number of lines must be CODER_NB.
+
+    *****************************************************************************************************/
+
+#if CODER_NB != 18
+#error "this table describes 18 positions: CODER_NB must be 18"
+#endif
+
+CODER( 0,  0, CT_NONE, SW_HIGH, DIR_NORM)       // position 0: not wired
+CODER( 1,  1, CT_NONE, SW_HIGH, DIR_NORM)
+CODER( 2,  2, CT_NONE, SW_HIGH, DIR_NORM)
+CODER( 3,  3, CT_NONE, SW_HIGH, DIR_NORM)
+CODER( 4,  4, CT_NONE, SW_HIGH, DIR_NORM)
+CODER( 5,  5, CT_NONE, SW_HIGH, DIR_NORM)
+CODER( 6,  6, CT_FULL, SW_HIGH, DIR_NORM)       // position 6: CPLD pins 35, 37, 41
+CODER( 7,  7, CT_FULL, SW_HIGH, DIR_NORM)
+CODER( 8,  8, CT_FULL, SW_HIGH, DIR_NORM)
+CODER( 9,  9, CT_FULL, SW_HIGH, DIR_NORM)
+CODER(10, 10, CT_FULL, SW_HIGH, DIR_NORM)
+CODER(11, 11, CT_FULL, SW_HIGH, DIR_NORM)
+CODER(12, 12, CT_FULL, SW_HIGH, DIR_NORM)
+CODER(13, 13, CT_FULL, SW_HIGH, DIR_NORM)
+CODER(14, 14, CT_FULL, SW_HIGH, DIR_NORM)
+CODER(15, 15, CT_FULL, SW_HIGH, DIR_NORM)
+CODER(16, 16, CT_FULL, SW_HIGH, DIR_NORM)
+CODER(17, 17, CT_FULL, SW_HIGH, DIR_NORM)       // position 17: CPLD pins 76, 78, 80

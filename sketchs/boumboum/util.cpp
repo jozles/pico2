@@ -299,12 +299,7 @@ void setup(){
     objects_table_init();
 
     // ****** coders ******
-#ifndef CPLD    
     coderInit(CODER_GPIO_CLOCK,CODER_GPIO_DATA,CODER_GPIO_SW,CODER_GPIO_VCC,CODER_PIO_SEL0,CODER_SEL_NB,CODER_NB,CODER_TIMER_POLLING_INTERVAL_MS,CODER_STROBE_NUMBER);
-#endif
-#ifdef CPLD
-    coderInit(CODER_GPIO_CLOCK,CODER_GPIO_DATA,CODER_GPIO_SW,CODER_NB,CODER_TIMER_POLLING_INTERVAL_MS,CODER_STROBE_NUMBER);
-#endif
     coderSetup(nullptr,nullptr,nullptr,nullptr,0);
 
     // ****** ws2812 ******
@@ -358,6 +353,8 @@ void setup(){
 
     pwm_timer_1khz_enable(true);    // start millicounter, coders, buttons, lfos, adsr 
 
+    display(0,30,"pico2 running ... waiting tb to continue",COL_RED,COL_BLACK,1);
+
     // ****** scope check ******
     //scope(voicesScopeDataBuffer,voices[0].frequency,14,true,true,0,0,true);    // scope mode_calcul
     scope(i2s_buf0,voices[0].frequency,14,true,true,0,0,0,0,0);     // scope mode_data
@@ -371,12 +368,6 @@ void setup(){
         ledblinkn(3);
     }
     gpio_irq_set=false;
-
-    /*while(!codersTB[0][RISE]){
-        debug_ticker();
-        ledblinkn(3);
-    }
-    codersTB[0][RISE]=false;*/
     
     // ****** hello ******
     tft_fill_rect_blank(0,0,TFT_H,TFT_W);
@@ -388,7 +379,7 @@ void setup(){
     char s[ls];memset(s,0x00,ls);
     int t=convIntToString(s,TFT_W);s[t]='x';convIntToString(s+t+1,TFT_H);
 
-    display((TFT_W-(7*10))/2,TFT_H/2+14,s, 0xF81F, 0x0000,1); 
+    display((TFT_W-(7*10))/2,TFT_H/2+m*CHAR_H,s, 0xF81F, 0x0000,1); 
 
     const char* version=VERSION;
     display((TFT_W-(strlen(version)*10))/2,TFT_H/2+25,version, 0xFFE0, 0x0000,1);

@@ -7,7 +7,7 @@
 
 #include "rc_33tables.h"
 
-#define VERSION "v1.4c"
+#define VERSION "v1.4d"
 
 #define PI 3.14159265359
 
@@ -33,7 +33,76 @@
 
 /* coders */
 
-#define CPLD
+/*  ******************** Coders: hardware and configuration ********************
+
+    Reading
+      With CPLD defined, the coders are read through the CPLD (ATF1508AS). At each poll, the Pico
+      pulses CLR (the CPLD counter goes to position 0), then for each position it reads the result
+      lines and pulses CLK to move to the next position. Lines read at each position: CK (OCK),
+      DT (ODT), SW (OSW) and the touch button of that position (OTB).
+      Without CPLD, the coders are read through 4051 multiplexers (former boards).
+      Polling: every CODER_TIMER_POLLING_INTERVAL_MS (1 ms). A scan of the 18 positions took 11 us
+      before the overlapped reading of coder.cpp (to be measured again).
+
+    Physical configuration: one table per board, coders_cpld.def or coders_4051.def
+      For each position: logical numbers of the coder and of the touch button, type of coder,
+      level given by a pressed switch, direction. Coder types and switch wirings can be mixed.
+
+    Coder types
+      - Blue coders, bare, 20 detents: one full cycle of CK and DT per detent, rest at 11: CT_FULL.
+      - Green coders, bare, 30 detents, and green coders on black modules (Keyes): half a cycle
+        per detent, rest alternately at 11 and 00: CT_HALF.
+      Each detent gives +1 or -1 on the value of the coder.
+      Decoding (coder.cpp): from the state of CK and DT. A detent is made of 4 changes of state
+      (CT_FULL) or 2 (CT_HALF); no debouncing is needed, since a contact bounce (up to 100 us)
+      gives a change then its reverse. A state skipped between two polls is taken in the direction
+      of the last move. Limits simulated at 1 ms polling, with 100 us bounces: about 280 detents/s
+      for the blue coders (fastest gesture measured: 233 detents/s), about 450 detents/s for the
+      green ones (symmetric model, to be checked by measurement).
+      Direction: CK falls first when turning clockwise, and the value goes up.
+
+    Switches
+      codersSw (set by coderSetup) holds ON_SWITCH when the switch is pressed and !ON_SWITCH when it
+      is released, whatever its wiring: the sw column of the table gives the level of a pressed switch.
+
+    Wiring
+      The CPLD has no internal pull-up or pull-down resistors: every coder line needs one (10 kohm).
+      All pull-ups go to 3.3 V (VCCIO of the CPLD), never to 5 V.
+      - Printed board: the same wiring for every bare coder (no modules): all the contacts to ground,
+        CK, DT and SW pulled up to 3.3 V: SW_LOW for every coder.
+      - Proto board, bare coders: common pin (middle of the 3-pin side) to ground, CK and DT pulled
+        up to 3.3 V; switch between SW and 3.3 V, SW pulled down to ground: SW_HIGH.
+      - Modules: they carry the pull-ups of CK and DT; their "+" pin goes to 3.3 V. Their switch goes
+        to ground, so SW needs a pull-up to 3.3 V (often missing on the module): SW_LOW.
+      - Unused coder and touch button inputs of the CPLD: to ground, without any resistor.
+
+    *****************************************************************************/
+
+#define CPLD                               // coders read through the CPLD (comment out for the 4051 multiplexers)
+
+// columns of coders_cpld.def and coders_4051.def
+#define CT_NONE                 0          // type: no coder at this position
+#define CT_HALF                 2          // type: half a cycle per detent (green coders); value = changes of state per detent
+#define CT_FULL                 4          // type: one full cycle per detent (blue coders); value = changes of state per detent
+#define SW_LOW                  0          // a pressed switch gives a low level
+#define SW_HIGH                 1          // a pressed switch gives a high level
+#define DIR_NORM                0          // CK falls first clockwise
+#define DIR_REV                 1          // CK and DT swapped
+
+#define CODER_IS_REST(st,q)     (((st)&((q)-1))==0)    // rest positions: 11 (q = 4), 11 and 00 (q = 2)
+#define CODER_DIR_SKIP          2          // coderDir: full-cycle coder, one state skipped from rest, direction not known yet
+#define CODER_DIR_HOLD_MS       5          // direction of the last move kept this long (used when a state is skipped)
+
+#define CODER_TIMER_POLLING_INTERVAL_MS 1  // timer polling interval in milliseconds
+#define CODER_STROBE_NUMBER     3          // unused since the decoding by state (still passed to coderInit)
+#define CODER_SW_STROBE_MS      50         // minimum delay between two valid switch changes (debouncing)
+#define ON_SWITCH               1          // value of codersSw for a pressed switch, whatever its wiring
+
+// unused if CPLD
+
+#define CODER_GPIO_VCC         22
+#define CODER_PIO_SEL0          2       // CODER_SEL_NB consecutive pins
+#define CODER_SEL_NB            4       // selection bits
 
 #ifndef CPLD
 
@@ -42,26 +111,23 @@
 #define CODER_GPIO_CLOCK       10          
 #define CODER_GPIO_DATA        11          
 #define CODER_GPIO_SW          12
-#define CODER_GPIO_VCC         22
 
 #define CODER_NB                8
 #define CODER_BANK_NB           6
-#define CODER_SEL_NB            4       // bits to sel
-#define CODER_PIO_SEL0          2       // CODER_SEL_NB consecutive pins
 
 #endif  // !CPLD
 
 #ifdef CPLD
 
-#define MUXED_TOUCH_PIN         7
-
-#define CODER_GPIO_CLOCK       12          
-#define CODER_GPIO_DATA        11          
-#define CODER_GPIO_SW          10
+#define CODER_GPIO_CLOCK       12       // CPLD 81       
+#define CODER_GPIO_DATA        11       // 83
+#define CODER_GPIO_SW          10       // 85
 
 #define CODER_NB               18
-#define CODER_CLR_CNT_PIN       8
-#define CODER_CLK_CNT_PIN       9
+#define CODER_CLR_CNT_PIN       8       // 89
+#define CODER_CLK_CNT_PIN       9       // 87
+
+#define MUXED_TOUCH_PIN         7       // 93
 
 #endif  // CPLD
 
@@ -73,18 +139,6 @@
 #define OFF 0
 #define HIGH 1
 #define ON 1
-
-// these 2 parameters are working together ; their product is the minimum time during which no change should occur.
-// on the clock line after a change in mS
-// the polling interval duration is the time between 2 calls to the coder timer handler
-// it's also the delay where no change should occur on the clock line after a change to validate it
-// in short there are 2 strobes : no change after change and no change before next change
-// It's possible to reach 2mS between 2 changes but who cares
-
-#define CODER_TIMER_POLLING_INTERVAL_MS 4  // timer polling interval in milliseconds            
-#define CODER_STROBE_NUMBER 3              // minimum timer intervals for a valid new change
-
-#define CODER_SW_STROBE_MS 50              // minimum delay for switch valid change (debouncer);
 
 /* Menus */
 
@@ -178,11 +232,8 @@ typedef enum {
 #define SAMPLE_F SAMPLE_RATE                            // fréquence d'échantillonnage audio   
 #define SAMPLE_PER ((float)1/SAMPLE_F)
 
-//#define NUMBER_OF_OCTAVES 10
-//#define OCTAVE0_FREQ SAMPLE_F/SAMPLE_BUFFER_SIZE
 #define SAMPLES_PER_BUFFER 512                          // nombre d'échantillons (L+R) par buffer (1024 trop lent) 
 static_assert((SAMPLES_PER_BUFFER % 4) == 0, "the unrolled index loop writes 4 samples per pass"); 
-//#define SAMPLE_BUFFER_SIZE SAMPLES_PER_BUFFER           // taille du buffer (doit être multiple de 4 pour le dma i2s)
 
 #define RC_TABLES_LEN RC_N_SAMPLES                      // ***** POWER OF 2 *****  nombre d'échantillons dans les 1/2 tables d'ondes
 #define RC_TABLES_NB RC_N_TABLES                        // nombre de tables RC (MAXCODER_RC possible values)

@@ -76,6 +76,8 @@ add_executable(boumboum
 	def/lfm_inputs_names.def
 	def/lfm_outputs_names.def
 	def/objects.def
+	def/coders_cpld.def
+	def/coders_4051.def
 	blank_.S
 	miscControls.cpp				# adsr, lfos
 	input_tables_management.cpp			
