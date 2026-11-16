@@ -30,6 +30,16 @@ CoderPhys coderPhys[]={
 };
 static_assert(sizeof(coderPhys)/sizeof(coderPhys[0])==CODER_NB,"the coder table must have CODER_NB lines");
 
+#ifdef TEST_CODERS
+// coders test (tests.cpp): log of every change of CK, DT or SW read by the handler
+static_assert((CODER_LOG_LEN & (CODER_LOG_LEN-1))==0,"CODER_LOG_LEN must be a power of 2");
+CoderLogEntry coderLog[CODER_LOG_LEN];
+volatile uint16_t coderLogHead=0;           // next entry to write (handler)
+volatile uint16_t coderLogTail=0;           // next entry to print (tests.cpp)
+volatile uint32_t coderLogLost=0;           // entries lost because the log was full
+uint8_t coderLogLast[CODER_NB];             // last CK DT SW of each position (0xFF: none yet)
+#endif
+
 // pico2 coders 
 
 uint8_t gpio_clock_pin;
@@ -123,6 +133,23 @@ bool __not_in_flash_func(coderTimerHandler)(){
         bool lineCk=(lines>>gpio_clock_pin)&1;
         bool lineDt=(lines>>gpio_data_pin)&1;
 
+#ifdef TEST_CODERS
+        int16_t logIdx=-1;                              // entry written for this position, completed after the decoding
+        uint8_t raw=(lineCk<<2)|(lineDt<<1)|lineSw;
+        if(raw!=coderLogLast[cod]){
+            coderLogLast[cod]=raw;
+            uint16_t h=coderLogHead;
+            if((uint16_t)(h-coderLogTail)<CODER_LOG_LEN){
+                logIdx=h&(CODER_LOG_LEN-1);
+                CoderLogEntry* e=&coderLog[logIdx];
+                e->time=currTime;e->pos=cod;e->raw=raw;e->detent=0;
+                e->value=(coderTimerCount!=nullptr) ? *(coderTimerCount+coder) : -1;
+                coderLogHead=h+1;
+            }
+            else coderLogLost++;
+        }
+#endif
+
         // traitement switchs (avant les coders pour ne pas être zappé par les "continue")
         if(__builtin_expect((cp->coderSwitch!=lineSw)&&((currTime-cp->coderSwitchTime)>CODER_SW_STROBE_MS),false)){
                 cp->coderSwitch=lineSw;
@@ -175,6 +202,12 @@ bool __not_in_flash_func(coderTimerHandler)(){
         cp->coderAcc=acc;
 
         if(detent!=0) coderCount(coder,detent);
+#ifdef TEST_CODERS
+        if(logIdx>=0){
+            coderLog[logIdx].detent=detent;
+            coderLog[logIdx].value=(coderTimerCount!=nullptr) ? *(coderTimerCount+coder) : -1;
+        }
+#endif
     }
 //gpio_put(TST_PIN,0);restore_interrupts(ints);
     return true;    // restart the timer
@@ -216,6 +249,10 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_
     gpio_init(gpio_data_pin);gpio_set_dir(gpio_data_pin,GPIO_IN);gpio_pull_up(gpio_data_pin);
     gpio_init(gpio_clock_pin);gpio_set_dir(gpio_clock_pin,GPIO_IN);gpio_pull_up(gpio_clock_pin);
     gpio_init(gpio_switch_pin);gpio_set_dir(gpio_switch_pin,GPIO_IN);gpio_pull_up(gpio_switch_pin);
+
+#ifdef TEST_CODERS
+    for(uint8_t i=0;i<CODER_NB;i++) coderLogLast[i]=0xFF;       // the first scan logs every position
+#endif
 
     for(uint8_t i=0;i<CODER_NB;i++){                             // touch buttons and coders without position
         c[i].touchButton=0;

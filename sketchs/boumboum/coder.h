@@ -16,7 +16,7 @@
     Le paramètre CODER_BANK_NB le nombre de codeurs dans le panneau de config
 
     configuration physique (types de coders, câblage des switchs, ordre) : coders_cpld.def ou coders_4051.def
-    onSwitchs[] (coder.cpp) : 1 quand le switch est appuyé, quel que soit son câblage
+    codersSw[] (coderSetup) : ON_SWITCH quand le switch est appuyé, quel que soit son câblage (colonne sw de la table)
 */
 
 struct Coders{
@@ -41,6 +41,14 @@ struct CoderPhys{                     // one line of coders_cpld.def or coders_4
     uint8_t type;                     // CT_NONE, CT_HALF or CT_FULL
     uint8_t sw;                       // SW_LOW or SW_HIGH: level given by a pressed switch
     uint8_t dir;                      // DIR_NORM or DIR_REV
+};
+
+struct CoderLogEntry{                 // coders test (TEST_CODERS): one change of CK, DT or SW read by the handler
+    uint32_t time;                    // millisCounter
+    uint8_t pos;                      // position of the scan
+    uint8_t raw;                      // CK, DT, SW read: bits 2, 1, 0
+    int8_t detent;                    // detent counted on this change: +1, -1 or 0
+    int16_t value;                    // value of the coder after this change (-1: coderSetup not done yet)
 };
 
 void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_t sel_nb,uint8_t nb,uint16_t ctpi,uint8_t cstn);

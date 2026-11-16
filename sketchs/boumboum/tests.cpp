@@ -2,7 +2,6 @@
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
-#include <malloc.h>
 #include "pico/stdlib.h"
 #include "pico/time.h"
 #include "hardware/timer.h"
@@ -11,9 +10,7 @@
 #include "hardware/dma.h"
 #include "hardware/irq.h"
 #include "hardware/pwm.h"
-#include <math.h>
 #include "hardware/sync.h"
-
 #include "bb_i2s.h"
 #include "const.h"
 #include "tests.h"
@@ -27,10 +24,13 @@
 #include "sound_level_management.h"
 #include "miscControls.h"
 
+extern volatile uint8_t  bb_buf_len;
+extern uint8_t* bb_buf;
+
 extern struct Voice voices[];
 
-extern int16_t objects_first_input_id[OBJECT_TYPES_NB];
-extern int16_t objects_first_output_id[OBJECT_TYPES_NB];
+extern int16_t  objects_first_input_id[OBJECT_TYPES_NB];
+extern int16_t  objects_first_output_id[OBJECT_TYPES_NB];
 
 extern int16_t  ctl_input_srce[TOTAL_INPUTS_ID_REAL];
 extern char     ctl_input_name[TOTAL_INPUTS_ID_REAL][IN_OUT_NAME_LEN]; 
@@ -669,8 +669,74 @@ void test_A()       // son "a"
 }
 #endif  // TEST_A
 
+#ifdef TEST_CODERS
+// ================= coders test =====================
+// prints every change of CK, DT or SW read by the coder handler, position by position, with the detent counted and the value of the coder
+// the first lines give the state of every position at start-up
+// tbget(tb) clears the log and restarts ; without any change for TEST_END_WAIT_MS, the test ends
+
+extern CoderLogEntry     coderLog[CODER_LOG_LEN];
+extern volatile uint16_t coderLogHead, coderLogTail;
+extern volatile uint32_t coderLogLost;
+
+void test_coders()
+{
+    printf("\n========== coders test: every change of CK, DT or SW read by the coder handler ==========\n");
+    printf("columns: time (ms), position, CK DT SW, detent counted, value of the coder\n");
+    printf("tbget(%u) clears the log and restarts ; without any change for %lu s, the test ends\n", tb, (unsigned long)(TEST_END_WAIT_MS / 1000));
+
+    uint32_t last = millisCounter;                              // time of the last change printed
+    uint32_t lost = coderLogLost;
+    while (millisCounter - last < TEST_END_WAIT_MS) {
+        fillVoices();
+        if (tbget(tb)) {                                        // restart: log cleared
+            while (tbget(tb)) { fillVoices(); }
+            coderLogTail = coderLogHead;
+            last = millisCounter;
+            printf("\n---------- restart ----------\n");
+        }
+        while (coderLogTail != coderLogHead) {
+            const CoderLogEntry e = coderLog[coderLogTail & (CODER_LOG_LEN - 1)];
+            coderLogTail = coderLogTail + 1;
+            printf("%8lu  pos %2u  ck %u dt %u sw %u", (unsigned long)e.time, e.pos, (e.raw >> 2) & 1, (e.raw >> 1) & 1, e.raw & 1);
+            if (e.detent != 0) printf("  detent %+d  value %d", e.detent, e.value);
+            printf("\n");
+            last = millisCounter;
+            fillVoices();
+        }
+        if (coderLogLost != lost) {
+            printf("   %lu entries lost (log full)\n", (unsigned long)(coderLogLost - lost));
+            lost = coderLogLost;
+        }
+    }
+    printf("========== end of the coders test ==========\n\n");
+
+
+    extern uint16_t menu0MaxCoders[CODER_NB];
+    extern volatile int16_t menu0Coders[CODER_NB];
+
+    int16_t coders_value[CODER_NB];
+    memset(coders_value,0x00,CODER_NB*2);
+    memset(menu0MaxCoders,0x01,CODER_NB*2);
+    for(uint8_t i=0;i<CODER_NB;i++) printf("max%u:%u\n",i,menu0MaxCoders[i]);
+    while(1){
+        for(uint8_t c=0;c<CODER_NB;c++){
+            uint16_t cc=menu0Coders[c];
+            if(coders_value[c]!=cc){
+                coders_value[c]=cc;
+                printf("c:%u %u\n",c,cc);
+            }
+        }
+    }
+}    
+#endif  // TEST_CODERS
+
 void testSetup()
 {
+#ifdef TEST_CODERS
+    test_coders();
+#endif
+
 #ifdef TEST_PING    
     test_ping_init();return;
 #endif
@@ -688,6 +754,14 @@ void testSetup()
 #endif
 }
 
+// ----- test ws2812 simple -----
+
+void test_ws()
+{
+    static const uint8_t init_bb[4] = {0x61, 0x68, 0x70, 0x78};
+    memcpy(bb_buf, init_bb, sizeof(init_bb));
+    bb_buf_len=sizeof(init_bb);
+}
 
 /*
 

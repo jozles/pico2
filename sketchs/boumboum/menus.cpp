@@ -294,7 +294,7 @@ enum RevbCoders {        // coders pour menu echo
 // la ligne 0 de tous les menus est préchargée dans l'init ; c'est ensuite géré dans coders_for_menu
 //
 void menus_init(){ 
-    printf("====== menu_init ======\n");   
+    printf("====== menu_init ======");   
     for(uint8_t v=0;v<MAX_VOICES;v++){
         
         for(uint8_t a=0;a<VCES_OUTPUTS_NB;a++){
@@ -474,7 +474,7 @@ void menus_init(){
     //disp_lfm(255,(char*)"menu_Init");
     
     mappingCoders[0]=0; // ligne 0
-    printf("menu_init end\n"); 
+    printf(" end\n"); 
 }
 
 // ****** display title ******
@@ -962,7 +962,8 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
 
     coderSetup(cTC,cTS,cTB,maxi,linesNb);   // coderSetup initialise les variables du coder_handler avec cTC,cTS,cTB,maxi ; ignore lineNb
 
-    printf("cTC:");for(uint8_t c=0;c<CODER_NB;c++){printf(" %u",cTC[c]);}printf(" lnb:%u l:%u\n",linesNb,line);
+    //printf("cTC:");for(uint8_t c=0;c<CODER_NB;c++){printf(" %u",cTC[c]);}printf(" lnb:%u l:%u\n",linesNb,line);
+    printf("menu: %s ",title);
     fullMenuDsp(title,text,linesNb,line_len,line,object_type,0,0,false);
 
     while(1){
@@ -977,7 +978,7 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
     //static uint32_t effectsReportTime = 0;
     //if (millisCounter - effectsReportTime >= 1000) { effectsReportTime = millisCounter; effectsReport(); }
 
-            //ws_show_3(30);
+            ws_show_3(30);
             ledblinkn(2);
             //if(!mode_scope){test_st7789_2();}    // animation balayage de lignes            
             if(debug_ticker()){
@@ -997,7 +998,6 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
             
             if(!oldCTB[7] && (coderTouchB[7]==1)){tb7=!tb7;oldCTB[7]=true;title_dsp(title,line,object_type);} // tb7 toogle sur les rising edges de coderTouchB
             if(oldCTB[7] && (coderTouchB[7]==0)){oldCTB[7]=false;title_dsp(title,line,object_type);}
-
 
             for(uint8_t coder=0;coder<varNb+1;coder++){     // varNb nbre d'items dans la ligne + 1 = nbre coders utilisés + coder de scroll
 

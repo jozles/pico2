@@ -7,7 +7,7 @@
 
 #include "rc_33tables.h"
 
-#define VERSION "v1.4d"
+#define VERSION "v1.4e"
 
 #define PI 3.14159265359
 
@@ -220,6 +220,23 @@ typedef enum {
 #define WS2812_DREQ_PIO __CONCAT(DREQ_PIO,PICO_WS2812_PIO)
 #define WS2812_DREQ_PIO_TX0 __CONCAT(WS2812_DREQ_PIO,_TX0)
 
+#define NB_CORES_USED   1           // bb_buf protection in leds.cpp assumes a single core
+#define COLNB           32          // colours in colPal
+#define DIM_COEFS       {8, 13, 22, 36, 59, 97, 159, 256}  // brightness levels 0..7, factor /256
+#define WS_LATCH_US     600         // min time between end of ws DMA and next transfer (PIO FIFO + LED latch)
+
+#define NBLEDS          70          // LEDs on the strip
+#define SPEC            16          // ws_show_3: width of the moving light spot
+#define MINCOL          2           // ws_show_3: first colour of the cycle (skips off and white)
+#define COLCYCLENB      2           // ws_show_3: strip turns before changing colour
+
+// ws_show_3: brightness factor /256 of each zone of the moving light spot
+#define WS3_K_CENTER    59
+#define WS3_K_NEAR      36
+#define WS3_K_MID       22
+#define WS3_K_EDGE      13
+#define WS3_K_BACK      3           // outside the spot
+
 /* I2S */
 
 #define PICO_I2S_PIO 0
@@ -290,9 +307,11 @@ static_assert(((ECHO_BUF_LEN * 2) % 4) == 0, "the DMA clears bufEcho with 32-bit
 /* tests: a defined TEST_xxx runs its test at start-up (testSetup, tests.cpp) */
 //#define TEST_REVERB                                             // reverb test: test_reverb()
 //#define REVB_TEST_LOG_LEN 700                                   // reverb test: buffers logged (700 x 11.6 ms = 8.1 s)
-#define OLD_TEST
+//#define OLD_TEST
 //#define TEST_PING
 //#define TEST_A
+#define TEST_CODERS                                             // coders test: test_coders(), log of the states read by the coder handler
+#define CODER_LOG_LEN     256                                   // coders test: entries of the log (power of 2)
 
 /* inputs/outputs */
 

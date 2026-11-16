@@ -165,6 +165,8 @@ void __not_in_flash_func(pwm_irq_handler)() {
     ampGlideTick();                         // every timer tick, whatever the polling interval
 
     filterGlideTick();
+
+    bb_leds_handler();
 }
 
 void init_pwm_timer_1khz() {

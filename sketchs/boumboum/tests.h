@@ -10,7 +10,7 @@ void testSetup();
 void testVoice();
 void testVoiceInit(uint8_t v,uint8_t w);
 
-
+void test_ws();
 
 void test_reverb();
 

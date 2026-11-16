@@ -114,28 +114,13 @@ if (watchdog_caused_reboot()) {
 
     menus_init();
     coderSetup(menu0Coders,codersSw,codersTB,menu0MaxCoders,MENU_NAME_LEN);
-    testSetup();
-
-    int16_t coders_value[CODER_NB];
-    memset(coders_value,0x00,CODER_NB*2);
-    memset(menu0MaxCoders,0x01,CODER_NB*2);
-    for(uint8_t i=0;i<CODER_NB;i++) printf("max%u:%u\n",i,menu0MaxCoders[i]);
-    while(1){
-        for(uint8_t c=0;c<CODER_NB;c++){
-            uint16_t cc=menu0Coders[c];
-            if(coders_value[c]!=cc){
-                coders_value[c]=cc;
-                printf("c:%u %u\n",c,cc);
-            }
-        }
-    }
-
+    //testSetup();
+    //test_ws();
     //testVoiceInit(3,0);
 
     uint8_t menu=1;
 
    
-
     while(1){
 
         menu=coders_for_menu("boumboum ",(const char*)menu0_names,MENU0_NB,MENU_NAME_LEN,MENU0____,menu0Coders,codersSw,codersTB,menu0MaxCoders,nullptr,0,MENU0_CODER_NB,menu);
