@@ -241,7 +241,10 @@ typedef enum {
 
 #define PICO_I2S_PIO 0
 #define _i2s_pio __CONCAT(pio, PICO_I2S_PIO)   
-#define PICO_AUDIO_I2S_DATA_PIN 13                      // 2 consecutive gpios
+#define PICO_AUDIO_I2S_DATA_PIN 19                      // 3 consecutive gpios    !!!!! proto 0 : 13
+#ifdef ST7789
+#error "Pins 19-21 are used by the ST7789 interface"
+#endif
 #define SAMPLE_RATE 44100
 
 /* frequencies/voices */

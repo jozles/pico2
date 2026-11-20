@@ -20,6 +20,7 @@
 #include "leds.h"
 //#include "st7789.h"
 #include "menus.h"
+#include "screen.h"
 #include "input_tables_management.h"
 #include "sound_level_management.h"
 #include "miscControls.h"
@@ -762,6 +763,65 @@ void test_ws()
     memcpy(bb_buf, init_bb, sizeof(init_bb));
     bb_buf_len=sizeof(init_bb);
 }
+
+// ----- repérage cablage ------
+
+#define NC 18
+#define NT 16 
+
+void pr(const char* s1,uint8_t n1,int16_t* v,const char* s2,uint8_t n2,bool* x,const char* s3,uint8_t n3,bool* y){
+    const char z=0x00;
+    if(s2==nullptr){s2=&z;}
+    printf("%s ",s1);for(uint8_t i=0;i<n1;i++){printf("%u ",v[i]);}
+    printf("%s ",s2);for(uint8_t i=0;i<n2;i++){printf("%u ",x[i]);}
+    printf("%s ",s3);for(uint8_t i=0;i<n3;i++){printf("%u ",y[i]);}
+    printf("\n");
+}
+
+void tc_clear(uint8_t n,int16_t* v){for(uint8_t i=0;i<n;i++){v[i]=0;}}
+void tc_clear(uint8_t n,bool* v){for(uint8_t i=0;i<n;i++){v[i]=0;}}
+
+void cablage(){
+
+    // coders
+    char ca[8];memcpy(ca,"coders ",8);
+    int16_t c[NC];tc_clear(NC,c);
+    int16_t cc[NC];tc_clear(NC,cc);
+
+    // switchs
+    char sa[8];memcpy(sa,"switchs",8);
+    uint16_t sMaxi[NC];for(uint8_t i=0;i<NC;i++){sMaxi[i]=10000;}
+    bool s[NC];tc_clear(NC,s);
+    bool ss[NT];tc_clear(NT,ss);
+
+    // touch
+    char ta[8];memcpy(ta,"touchs ",8);
+    uint16_t maxi[NC];for(uint8_t i=0;i<NC;i++){maxi[i]=10000;}
+    bool t[NT];tc_clear(NT,t);
+    bool tt[NT];tc_clear(NT,tt);
+
+    coderSetup(c,s,t,maxi,NC);
+
+    pr("coders ",NC,c," switchs ",NC,s," touchs ",NT,t);
+
+    while(1){
+    
+        debug_ticker();
+
+        for(uint8_t i=0;i<NC;i++){
+            if(cc[i]!=c[i]){cc[i]=c[i];pr(ca,NC,c,nullptr,NC,s,nullptr,NT,t);}
+        }
+        for(uint8_t i=0;i<NT;i++){
+            if(ss[i]!=s[i]){ss[i]=s[i];pr(sa,NC,c,nullptr,NC,s,nullptr,NT,t);}
+        }
+        for(uint8_t i=0;i<NT;i++){
+            if(tt[i]!=t[i]){tt[i]=t[i];pr(ta,NC,c,nullptr,NC,s,nullptr,NT,t);}
+        }
+    }
+}
+
+
+
 
 /*
 

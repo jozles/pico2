@@ -263,7 +263,7 @@ void init_global_dma_irq(){
 
 // ****** détection de gpio via irq et flag ******
 
-bool gpio_irq_set=false;
+volatile bool gpio_irq_set=false;
 
 void gpio_irq_handler(uint gpio, uint32_t events) {
     if (events & GPIO_IRQ_EDGE_RISE) {
@@ -355,7 +355,7 @@ void setup(){
 
     pwm_timer_1khz_enable(true);    // start millicounter, coders, buttons, lfos, adsr 
 
-    display(0,30,"pico2 running ... waiting tb to continue",COL_RED,COL_BLACK,1);
+    display(0,220,"pico2 running ... waiting tb to continue",COL_RED,COL_BLACK,1);
 
     // ****** scope check ******
     //scope(voicesScopeDataBuffer,voices[0].frequency,14,true,true,0,0,true);    // scope mode_calcul
@@ -375,16 +375,16 @@ void setup(){
     tft_fill_rect_blank(0,0,TFT_H,TFT_W);
     
     uint8_t m=3;
-    display((TFT_W-(6*10*m))/2,(TFT_H-m*10)/2, "ST7789", 0xF80F, 0x0000,m); // ST7789
+    display((TFT_W-(10*8*m))/2,(TFT_H-m*12)/2, "ESP_ST7789", 0xF80F, 0x0000,m); // ST7789
 
     uint8_t ls=16;
     char s[ls];memset(s,0x00,ls);
     int t=convIntToString(s,TFT_W);s[t]='x';convIntToString(s+t+1,TFT_H);
 
-    display((TFT_W-(7*10))/2,TFT_H/2+m*CHAR_H,s, 0xF81F, 0x0000,1); 
+    display((TFT_W-(7*8))/2,TFT_H/2+m*CHAR_H,s, 0xF81F, 0x0000,1); 
 
     const char* version=VERSION;
-    display((TFT_W-(strlen(version)*10))/2,TFT_H/2+25,version, 0xFFE0, 0x0000,1);
+    display((TFT_W-(strlen(version)*8))/2,TFT_H/2+25,version, 0xFFE0, 0x0000,1);
 
     delayBlk(5);
 

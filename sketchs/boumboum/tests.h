@@ -12,6 +12,8 @@ void testVoiceInit(uint8_t v,uint8_t w);
 
 void test_ws();
 
+void cablage();
+
 void test_reverb();
 
 
