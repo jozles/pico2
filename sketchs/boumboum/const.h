@@ -7,7 +7,7 @@
 
 #include "rc_33tables.h"
 
-#define VERSION "v1.4e"
+#define VERSION "v1.4f"
 
 #define PI 3.14159265359
 
@@ -315,6 +315,16 @@ static_assert(((ECHO_BUF_LEN * 2) % 4) == 0, "the DMA clears bufEcho with 32-bit
 //#define TEST_A
 #define TEST_CODERS                                             // coders test: test_coders(), log of the states read by the coder handler
 #define CODER_LOG_LEN     256                                   // coders test: entries of the log (power of 2)
+
+/* sequencer */
+
+#define MAX_SEQ         8
+#define SEQ_CHAN_NB     4
+#define SEQ_STEP_NB     16
+#define SEQ_INPUT_NB    1
+#define SEQ_OUTPUT_NB   SEQ_CHAN_NB
+#define SEQ_MAX_LEVEL_CODERS (MAX_16B_LINEAR_VALUE-1)
+
 
 /* inputs/outputs */
 

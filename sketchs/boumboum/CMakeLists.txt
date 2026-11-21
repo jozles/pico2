@@ -79,7 +79,8 @@ add_executable(boumboum
 	def/coders_cpld.def
 	def/coders_4051.def
 	blank_.S
-	miscControls.cpp				# adsr, lfos
+	miscControls.cpp				# adsr, lfos, touch, echo, reverb
+	sequencer.cpp
 	input_tables_management.cpp			
 	rc_33tables.cpp
 	tests.cpp

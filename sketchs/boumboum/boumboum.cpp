@@ -109,7 +109,7 @@ if (watchdog_caused_reboot()) {
 }
     setup();
 
-    cablage();
+    //cablage();
     //init_test_7789(20,25*8,0,TFT_H-12*8,TFT_H,1);       // init screen animation
 
     i2s_start(true);                                    // launch sound output
