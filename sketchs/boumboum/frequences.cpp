@@ -76,12 +76,12 @@ uint16_t    lfosCoderCycleR[MAX_LFO];                 // cycle ratio coder value
 uint16_t    lfosCoderCycleRAtt[MAX_LFO];              // cycle ratio input attenuator value
 
 int16_t     lfo_ctl_input_id[MAX_LFO][LFO_INPUTS_NB];    // id des inputs du lfo dans ctl_input_xxx[]
-int16_t     lfo_ctl_output_id[MAX_LFO][MAX_OUTPUTS_PER_OBJ];  // id des outputs du lfo dans ctl_output_xxx[]
+int16_t     lfo_ctl_output_id[MAX_LFO][LFO_OUTPUTS_NB];  // id des outputs du lfo dans ctl_output_xxx[]
 int16_t     lfo_first_output_id;
 int16_t     lfo_first_input_id;
 
 extern int16_t ctl_input_val[TOTAL_INPUTS_ID_REAL];
-extern int16_t ctl_output_id_chain[MAX_OUTPUTS];
+extern int16_t ctl_output_id_chain[];
 extern uint8_t ctl_input_update_type[TOTAL_INPUTS_ID_REAL];
 
 int32_t     voicesScopeDataBuffer[MAX_VOICES*SAMPLES_PER_BUFFER];  // all voices data buffer 
@@ -555,8 +555,6 @@ void lfosInit(){
         currLfoEch[l]=0;
         lfosPhaseStep[l]=0; 
         lfoPhase[l]=0;
-        
-        //for(uint8_t v=0;v<MAX_OUTPUTS_PER_OBJ;v++){lfosOutputsValues[l][v]=0;}
 
         setLfosFrCoders(l, 1768, FULL_ATTENUATION_VALUE);               // 1.5 s
         setLfosCycleRCoders(l, MAXCODER_RC/2, FULL_ATTENUATION_VALUE);
@@ -580,7 +578,7 @@ void __not_in_flash_func(lfosHandler)()
 //gpio_put(TST_PIN,1);    
     lfoTime=millisCounter;
 
-    const int16_t *base32 = &rc_tables[32][0][0];                           // base table 32 pour saw
+    const int16_t *base32 = &rc_tables[32][0][0];       // base table 32 for the saw.
     
     for(uint8_t l=0;l<MAX_LFO;l++){
 

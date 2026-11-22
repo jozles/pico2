@@ -28,8 +28,8 @@ extern int16_t  ctl_input_shft[TOTAL_INPUTS_ID_REAL];                      // al
 extern uint8_t  ctl_input_trig[TOTAL_INPUTS_ID_REAL];                      // all inputs trig type (0 no trig ; 1 up ; 2 down ; 3 both)
 extern int16_t  ctl_input_tlev[TOTAL_INPUTS_ID_REAL];                      // all inputs trig level
 
-extern char     ctl_output_name[MAX_OUTPUTS][IN_OUT_NAME_LEN];
-extern int16_t  ctl_output_id_chain[MAX_OUTPUTS];
+extern char     ctl_output_name[MAX_OUTPUTS_REAL][IN_OUT_NAME_LEN];
+extern int16_t  ctl_output_id_chain[];
 
 extern volatile uint32_t millisCounter;
 
@@ -116,9 +116,7 @@ extern uint16_t adsrCoderDecAtt[MAX_ADSR];
 extern uint16_t adsrCoderSusAtt[MAX_ADSR];
 extern uint16_t adsrCoderRelAtt[MAX_ADSR];
 extern uint16_t adsrCoderLevAtt[MAX_ADSR];
-//extern uint8_t  adsrStatus[MAX_ADSR];
-//extern uint32_t adsrCurrEch[MAX_ADSR];
-//extern uint16_t adsrOutputsValues[MAX_ADSR][MAX_OUTPUTS_PER_OBJ];
+
 extern volatile int16_t menuAdsrCoders[];
 extern uint16_t* adsrVar[];
 extern int32_t  adsrScopeBufReal[MAX_ADSR*ADSR_SCOPE_BUFFER_LEN];
@@ -160,11 +158,17 @@ volatile bool codersTB[CODER_NB];                           // coder it handler 
 extern volatile bool* coderTouchB;
 bool oldCTB[CODER_NB];
 
+extern uint16_t seqCoderGLev[MAX_SEQ];
+extern uint16_t seqCoderGLevAtt[MAX_SEQ];
+extern uint16_t seqCoderStepLev[MAX_SEQ][SEQ_CHANNEL_NB][SEQ_STEP_NB];
+extern volatile int16_t menuSeqCoders[];
+extern uint16_t* seqVar[];
+
 // mapping
 
 #define MAPPING_CODER_NB 6
 volatile int16_t mappingCoders[CODER_NB];   // [0] curr input nb ; [1] curr_input value ; [2] norm ; [3] shift ; [4] trig ; [5] trig level
-uint16_t maxMappingCoders[CODER_NB]={TOTAL_INPUTS_ID_REAL,MAX_OUTPUTS,3,2,4,0xffff,0,0};
+uint16_t maxMappingCoders[CODER_NB]={TOTAL_INPUTS_ID_REAL,MAX_OUTPUTS_REAL,3,2,4,0xffff,0,0};
 
 // i2s
 
@@ -275,6 +279,13 @@ enum RevbCoders {        // coders pour menu echo
      REVBSHIATT,
      REVBRET,
      REVBRETATT
+};
+
+enum SeqCoders {        // coders pour menu sequencers
+     SEQMENU,
+     SEQGLEV,
+     SEQGLEVATT,
+     SEQSTEPLEV
 };
 
 // ****** inits ******
@@ -470,6 +481,18 @@ void menus_init(){
         menuLfmCoders[in*2+1]=tempLfmCoders[in*2][0];    // level of input in, mux 0
         menuLfmCoders[in*2+2]=tempLfmCoders[in*2+1][0];  // attenuator of input in, mux 0
     }                         
+    
+    // ***  Sequencer  ****
+    seqVar[SEQGLEV-1]=seqCoderGLev;            // adsrVar[0]
+    seqVar[SEQGLEVATT-1]=seqCoderGLevAtt;            // adsrVar[1]
+    menuSeqCoders[SEQMENU]=0;                 // line 0 du menu
+    menuSeqCoders[SEQGLEV+SEQ_STEP_NB]=seqCoderGLev[0];
+    menuSeqCoders[SEQGLEVATT+SEQ_STEP_NB]=seqCoderGLevAtt[0];
+    for(uint8_t c=0;c<SEQ_CHANNEL_NB;c++){
+        for(uint8_t s=0;s<SEQ_STEP_NB;s++){
+            menuSeqCoders[s+1]=seqCoderStepLev[0][c][s];
+        }
+    }
 
     //disp_lfm(255,(char*)"menu_Init");
     
@@ -494,7 +517,8 @@ void title_dsp(const char* title,uint8_t item,uint8_t type,float v0, int32_t v1,
         case ADSRL____:snprintf(buf,LINE_LEN,"%s%u %c%c",title,item,onoff[i2s_running],onoff[tb7]);
                        snprintf(buf2,LINE_LEN,"%u %u %u %+u %u",adsrCoderAtt[item],adsrCoderDec[item],adsrCoderSus[item],adsrCoderRel[item],adsrCoderLev[item]);break;
         case ECHOs____:snprintf(buf,LINE_LEN,"%s%u %c%c",title,item,onoff[i2s_running],onoff[tb7]);break;
-        case REVERb___:snprintf(buf,LINE_LEN,"%s%u %c%c",title,item,onoff[i2s_running],onoff[tb7]);break;        
+        case REVERb___:snprintf(buf,LINE_LEN,"%s%u %c%c",title,item,onoff[i2s_running],onoff[tb7]);break;
+        case SEQ______:snprintf(buf,LINE_LEN,"%s:%u %u %u",title,item,seqCoderGLev[0],seqCoderGLevAtt[0]);break;       
         default:snprintf(buf,LINE_LEN,"%s %u %c%c   ",title,type,onoff[i2s_running],onoff[tb7]);break;
     }        
     display(0,0,buf,0x001f,0x0000,1);
@@ -673,14 +697,14 @@ uint8_t coders_for_mapping(){
                     if(ctl_output_name[cc][0]=='-'){                             // search valid output
                         
                         if(cc>ctl_input_srce[currInput]){
-                            while(ctl_output_name[cc][0]=='-' && cc<MAX_OUTPUTS-1){cc++;}
+                            while(ctl_output_name[cc][0]=='-' && cc<MAX_OUTPUTS_REAL-1){cc++;}
                             if(ctl_output_name[cc][0]=='-'){cc=ctl_input_srce[currInput];continue;}   
                         }
                         else {
                             while(ctl_output_name[cc][0]=='-' && cc>0){cc--;}
                         }  
                     }
-                    if(cc<(MAX_OUTPUTS-1) && (cc>=0)){                           // cc output sélectionnée
+                    if(cc<(MAX_OUTPUTS_REAL-1) && (cc>=0)){                           // cc output sélectionnée
 
                         disconnect_input(currInput,ctl_input_srce[currInput]);   // previous srce output
                         mappingCoders[coder]=cc;                                 // valid output store
@@ -905,6 +929,24 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                             //setVoiceEchoCoders(&voices[line], coderEcho, coderEchoAtt);
                 }
                 snprintf(buf+2,LINE_LEN-2,"%3u %3u %3u %3u %3u %3u",revbCoderDur[line],revbCoderDurAtt[line],revbCoderShi[line],revbCoderShiAtt[line],revbCoderRet[line],revbCoderRetAtt[line]);
+                break;
+
+            case SEQ______:
+                if(varChge){
+
+                    // !!!!! // first seq only for the moment ; line is channel
+                    switch (coder){
+                        case SEQMENU: break;
+                        case SEQGLEV: break;
+                        case SEQGLEVATT: break;
+                        case SEQSTEPLEV: break;
+                        default: break;
+                    }
+                }
+                snprintf(buf+2,LINE_LEN-2,"%2u %3u ",seqCoderGLev[0],seqCoderGLevAtt[0]);
+                for (uint8_t s=0;s<SEQ_STEP_NB;s++){
+                    snprintf(buf+9,LINE_LEN-2,"%2u ",seqCoderStepLev[0][line][s]);  // first seq only for the moment
+                }
                 break;
 
             default:break;

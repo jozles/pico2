@@ -20,7 +20,7 @@
 */
 
 struct Coders{
-    uint8_t coderItStatus;            // unused since the decoding by state
+    uint8_t coderItStatus;            // unused since the switch to state decoding
     bool coderClock;                  // current physical coder clock value
     bool coderClock0;                 // previous physical coder clock value
     bool coderData;                   // current physical coder data value
@@ -29,6 +29,8 @@ struct Coders{
     int8_t coderAcc;                  // changes of state counted since the last detent
     int8_t coderDir;                  // direction of the last move: +1 or -1 ; 0 after a pause ; 2 after a skip from rest (full-cycle coders)
     uint32_t coderMoveTime;           // time of the last change of state
+    uint32_t coderDetentTime;         // time of the last detent (acceleration)
+    int8_t coderDetentDir;            // direction of the last detent: +1 or -1 ; 0 before the first one (acceleration)
     bool coderSwitch;                 // current physical coder switch value
     uint32_t coderSwitchTime;         // time of the last switch change
     bool touchButton;                 // current physical touchButton value
@@ -43,7 +45,7 @@ struct CoderPhys{                     // one line of coders_cpld.def or coders_4
     uint8_t dir;                      // DIR_NORM or DIR_REV
 };
 
-struct CoderLogEntry{                 // coders test (TEST_CODERS): one change of CK, DT or SW read by the handler
+struct CoderLogEntry{                 // coder test (TEST_CODERS): one change of CK, DT or SW read by the handler
     uint32_t time;                    // millisCounter
     uint8_t pos;                      // position of the scan
     uint8_t raw;                      // CK, DT, SW read: bits 2, 1, 0

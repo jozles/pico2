@@ -94,9 +94,21 @@
 #define CODER_DIR_HOLD_MS       5          // direction of the last move kept this long (used when a state is skipped)
 
 #define CODER_TIMER_POLLING_INTERVAL_MS 1  // timer polling interval in milliseconds
-#define CODER_STROBE_NUMBER     3          // unused since the decoding by state (still passed to coderInit)
+#define CODER_STROBE_NUMBER     3          // unused since the switch to state decoding (still passed to coderInit)
 #define CODER_SW_STROBE_MS      50         // minimum delay between two valid switch changes (debouncing)
 #define ON_SWITCH               1          // value of codersSw for a pressed switch, whatever its wiring
+
+// acceleration (coderStep in coder.cpp): factor given by the time since the previous detent
+#define CODER_ACC_T1            80         // ms: more than this since the previous detent: x1
+#define CODER_ACC_T2            30         // ms: from T2 to T1: x4
+#define CODER_ACC_T3            15         // ms: from T3 to T2: x16 ; T3 or less: x CODER_ACC_MAX
+#define CODER_ACC_MAX           64         // highest factor (power of 2) ; the factor of a coder never exceeds its maxi/64
+
+// coarse step of the frequency coders: while the coarse touch button is held, each detent of a frequency coder
+// adds one semitone (no acceleration) ; the touch button has no effect on the other coders
+#define CODER_COARSE_TOUCH      0          // logical number of the coarse touch button
+#define CODER_COARSE_PITCH      34         // one semitone: 409 steps per octave / 12 (64 with 768 steps per octave)
+#define CODER_PITCH_MIN_MAXI    1024       // a coder whose maximum reaches this is a frequency coder (VCES_MAX_FREQ_CODERS, LFOS_MAX_FREQ_CODERS)
 
 // unused if CPLD
 
@@ -186,14 +198,14 @@ typedef enum {
 
 /* touch buttons */
 
-#define MAX_TBUT CODER_NB       // use coder poling
+#define MAX_TBUT CODER_NB       // use coder polling
 
 /* lf mixers */
 
 #define MAX_LFM 4
 //#define MAX_LFM_INPUTS 3        // 0: gen ; 1,2 individual
 #define LFM_SCOPE_BUFFER_LEN TFT_W
-#define LFM_SAMPLE_RATE 25      // mS
+#define LFM_SAMPLE_PERIOD_MS 25 // ms
 
 /* led */
 
@@ -203,7 +215,7 @@ typedef enum {
 #define LEDONDUR 60
 #define LEDOFFDUR 1000
 
-#define LED 25              // pico2 built_int led
+#define LED 25              // pico2 built-in LED
 #define LED_PIN LED
 
 /* dma */
@@ -214,7 +226,7 @@ typedef enum {
 
 #define PICO_WS2812_PIO 1
 #define ws2812_pio __CONCAT(pio, PICO_WS2812_PIO)
-#define WS2812_LED_PIN 1    // up to 4 wS2812 led chains on pico2 with the same pio 
+#define WS2812_LED_PIN 1    // up to 4 WS2812 led chains on pico2 with the same pio 
                             // each one using a different state machine (return from ledsWs2812Setup())
                             // voir commentaire dans main
 #define WS2812_DREQ_PIO __CONCAT(DREQ_PIO,PICO_WS2812_PIO)
@@ -313,28 +325,28 @@ static_assert(((ECHO_BUF_LEN * 2) % 4) == 0, "the DMA clears bufEcho with 32-bit
 //#define OLD_TEST
 //#define TEST_PING
 //#define TEST_A
-#define TEST_CODERS                                             // coders test: test_coders(), log of the states read by the coder handler
-#define CODER_LOG_LEN     256                                   // coders test: entries of the log (power of 2)
+//#define TEST_CODERS                                             // coder test: test_coders(), log of the states read by the coder handler
+#define CODER_LOG_LEN     256                                   // coder test: entries of the log (power of 2)
 
 /* sequencer */
 
-#define MAX_SEQ         8
-#define SEQ_CHAN_NB     4
-#define SEQ_STEP_NB     16
+#define MAX_SEQ         2
+#define SEQ_CHANNEL_NB  4
+#define SEQ_STEP_NB     12
 #define SEQ_INPUT_NB    1
-#define SEQ_OUTPUT_NB   SEQ_CHAN_NB
+#define SEQ_OUTPUT_NB   SEQ_CHANNEL_NB
 #define SEQ_MAX_LEVEL_CODERS (MAX_16B_LINEAR_VALUE-1)
 
 
 /* inputs/outputs */
 
-#define MAX_OUTPUT_OBJ          (MAX_VOICES+MAX_LFO+MAX_ADSR+MAX_TBUT+MAX_LFM)
-#define MAX_OUTPUTS_PER_OBJ     8
-#define MAX_OUTPUTS             (MAX_OUTPUT_OBJ*MAX_OUTPUTS_PER_OBJ)
-#define MAX_OUTPUTS_REAL        (TOTAL_VOICES_OUTPUTS_NB+TOTAL_LFO_OUTPUTS_NB+TOTAL_ADSR_OUTPUTS_NB+TOTAL_TBUT_OUTPUTS_NB+TOTAL_LFM_OUTPUTS_NB)
+#define MAX_OUTPUT_OBJ          (MAX_VOICES+MAX_LFO+MAX_ADSR+MAX_TBUT+MAX_LFM+MAX_SEQ)
+//#define MAX_OUTPUTS_PER_OBJ     8
+//#define MAX_OUTPUTS             (MAX_OUTPUT_OBJ*MAX_OUTPUTS_PER_OBJ)
+#define MAX_OUTPUTS_REAL        (TOTAL_VOICES_OUTPUTS_NB+TOTAL_LFO_OUTPUTS_NB+TOTAL_ADSR_OUTPUTS_NB+TOTAL_TBUT_OUTPUTS_NB+TOTAL_LFM_OUTPUTS_NB+TOTAL_SEQ_OUTPUTS_NB)
 #define MAX_INPUT_OBJ           (MAX_VOICES+MAX_LFO+MAX_ADSR+MAX_TBUT+MAX_LFM+MAX_REV+MAX_ECHO)
 
-#define TOTAL_INPUTS_REAL       (TOTAL_VOICES_INPUTS_NB+TOTAL_LFO_INPUTS_NB+TOTAL_ADSR_INPUTS_NB+TOTAL_LFM_INPUTS_NB+TOTAL_REV_INPUTS_NB+TOTAL_ECHO_INPUTS_NB)
+#define TOTAL_INPUTS_REAL       (TOTAL_VOICES_INPUTS_NB+TOTAL_LFO_INPUTS_NB+TOTAL_ADSR_INPUTS_NB+TOTAL_LFM_INPUTS_NB+TOTAL_REV_INPUTS_NB+TOTAL_ECHO_INPUTS_NB+TOTAL_SEQ_INPUTS_NB)
 #define TOTAL_INPUTS_ID_REAL    (TOTAL_INPUTS_REAL+1)
 #define NO_LINK                 (-1)
 #define OBJ_IO_NAME_LEN         5
@@ -420,6 +432,15 @@ typedef enum {
 #undef X
 }  Echo_inputs_names;
 
+typedef enum{
+#define X(name,text) name,
+#include "sequencer_inputs_names.def"
+        SEQ_I_NB
+#define SEQ_INPUTS_NB (SEQ_I_NB-1+SEQ_CHANNEL_NB)       // SEQ_CH_LEVEL
+#define TOTAL_SEQ_INPUTS_NB (SEQ_INPUTS_NB*MAX_SEQ)
+#undef X
+} Seq_inputs_names;
+
 // ****** outputs ******
 
 typedef enum {
@@ -461,6 +482,15 @@ typedef enum {
 #define TOTAL_LFM_OUTPUTS_NB (LFM_OUTPUTS_NB*MAX_LFM)         
 #undef X
 }  Lfm_outputs_names;
+
+typedef enum {
+#define X(name,text) name,
+#include "sequencer_outputs_names.def"
+        SEQ_O_NB
+#define SEQ_OUTPUTS_NB (SEQ_O_NB-2+SEQ_CHANNEL_NB*2+SEQ_CHANNEL_NB*SEQ_STEP_NB*2)  // SEQ_CH_VALUE, SEQ_GEN_GATE - SEQ_CH_STEP_VALUE,SEQ_STEP_GATE
+#define TOTAL_SEQ_OUTPUTS_NB (SEQ_OUTPUTS_NB*MAX_SEQ)
+#undef X
+}  Seq_outputs_names;
 
 
 // ****** basics waves codes ******
@@ -562,4 +592,3 @@ typedef enum {
 #define LINE_SIZE           (TFT_W/CHAR_W)      // characters per line at size 1
 
 #endif  // _CONST_H_
-

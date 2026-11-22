@@ -29,3 +29,7 @@
     X(ECHO_R_ ,"ECHR")
     X(REV_V__ ,"REVV")
     X(ECHO_V_ ,"ECHV")
+    X(SEQ_LEV ,"SGLV")
+    X(SEQ_C_L ,"SCLV")
+    X(SEQ_ST_ ,"SSTA")
+    X(SEQ_CK_ ,"SCLK")

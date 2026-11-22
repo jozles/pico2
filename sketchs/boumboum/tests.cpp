@@ -35,7 +35,7 @@ extern int16_t  objects_first_output_id[OBJECT_TYPES_NB];
 
 extern int16_t  ctl_input_srce[TOTAL_INPUTS_ID_REAL];
 extern char     ctl_input_name[TOTAL_INPUTS_ID_REAL][IN_OUT_NAME_LEN]; 
-extern char     ctl_output_name[MAX_OUTPUTS][IN_OUT_NAME_LEN];
+extern char     ctl_output_name[MAX_OUTPUTS_REAL][IN_OUT_NAME_LEN];
 
 extern float    lfosFrequency[MAX_LFO];                   
 extern uint16_t lfosCodersFreq[MAX_LFO];
@@ -46,7 +46,7 @@ extern uint16_t lfmCoder[LFM_INPUTS_NB][MAX_LFM];
 extern uint16_t lfmCoderAtt[LFM_INPUTS_NB][MAX_LFM];
 
 extern int16_t  lfm_ctl_input_id[LFM_INPUTS_NB][MAX_LFM];
-extern int16_t  lfm_ctl_output_id[MAX_OUTPUTS_PER_OBJ][MAX_LFM];
+extern int16_t  lfm_ctl_output_id[LFM_OUTPUTS_NB][MAX_LFM];
 
 extern const char objects_names[][OBJECTS_NAME_LEN];
 
@@ -55,7 +55,7 @@ extern bool oldCTB[CODER_NB];
 
 // **** tb ****
 
-bool tbget(uint8_t tb)  // toogle sur les rising edges de coderTouchB
+bool tbget(uint8_t tb)  // follows coderTouchB: true while the touch button is held.
 {
     if(!oldCTB[tb] && (coderTouchB[tb]==1)){oldCTB[tb]=true;}
     if(oldCTB[tb] && (coderTouchB[tb]==0)){oldCTB[tb]=false;}
@@ -66,7 +66,7 @@ bool tbget(uint8_t tb)  // toogle sur les rising edges de coderTouchB
 
 void obj_connect(int16_t inp_id,int16_t out_id)
 {
-    if(inp_id<=0 || inp_id>=TOTAL_INPUTS_ID_REAL || out_id<0 || out_id>=MAX_OUTPUTS){
+    if(inp_id<=0 || inp_id>=TOTAL_INPUTS_ID_REAL || out_id<0 || out_id>=MAX_OUTPUTS_REAL){
         printf("obj_connect out of range: inp=%i out=%i\n",inp_id,out_id);
         return;
     }
@@ -102,27 +102,8 @@ void sub_lfo(uint8_t object_type,uint8_t object_nb,uint8_t obj_inp_nb,uint8_t vI
     // CX (voice)vInpNb (lfo out touche)lOutNb
     printf("(%i-%i-%i) %s:%u inp:%u lfo:%u outNb:%u f:%f",
         objects_first_input_id[VOICE____],objects_first_output_id[launcher],objects_first_output_id[ADSR_____],objects_names[object_type],object_nb,vInpNb,lfo,lOutNb,lfosFrequency[lfo]);
-    obj_connect(objects_first_input_id[object_type]+object_nb*obj_inp_nb+vInpNb,objects_first_output_id[launcher]+lfo*MAX_OUTPUTS_PER_OBJ+lOutNb);
+    obj_connect(objects_first_input_id[object_type]+object_nb*obj_inp_nb+vInpNb,objects_first_output_id[launcher]+lfo*LFO_OUTPUTS_NB+lOutNb);
 }
-
-/*void voiceConfig(uint8_t voice,uint8_t wave,uint16_t coderFreq,uint8_t attenFreqLevel,uint8_t freqLfo,uint16_t freqLfoCoder,
-    uint8_t manualAmpLevel,uint8_t attenAmpLevel,uint8_t adsr,int8_t adsrLfo,uint16_t adsrLfoFreqCoder,int8_t cr,uint8_t crAtt)       // adsrLfo >=0 lfo ; <0 touch
-{
-    setVoiceCycleRCoders(&voices[voice],cr+RC_TABLES_NB-1,crAtt);
-    setVoiceAmplCoders(&voices[voice],wave,manualAmpLevel,attenAmpLevel);        // manual level, input level attenuator
-    setVoiceFreqCoders(&voices[voice],coderFreq,attenFreqLevel);
-
-    if(freqLfo!=0){sub_lfo(VOICE____,voice,VOICES_INPUTS_NB,VFRQ,freqLfo,freqLfoCoder,WTRI);}    // modulation freq de la voix
-
-    // CX (voice)SIP (adsr)
-    printf("Amp ctl adsr:%u ",adsr);
-    obj_connect(objects_first_input_id[VOICE____]+voice*VOICES_INPUTS_NB+VSPW+wave,objects_first_output_id[ADSR_____]+adsr*MAX_OUTPUTS_PER_OBJ+ADSR_SHAPE);
-
-    sub_lfo(ADSR_____,adsr,ADSR_INPUTS_NB,STAR,adsrLfo,adsrLfoFreqCoder,WTRI);                 // adsr launcher lfo/touchB
-    
-    printf("voice:%u coderFreq:%i frAtt:%i wave:%u Ampl:%u amplAtt:%i\n\n",
-        voice,voices[voice].coderFreq,voices[voice].coderFreqAtt,wave,voices[voice].coderWaveAmpl[wave],voices[voice].coderWaveAmplAtt[wave]);    
-}*/
 
 void voiceConfig(uint8_t voice,uint8_t wave,uint16_t coderFreq,uint8_t attenFreqLevel,uint8_t freqLfo,uint16_t freqLfoCoder,
     uint8_t manualAmpLevel,uint8_t attenAmpLevel,uint8_t adsr,int8_t adsrLfo,uint16_t adsrLfoFreqCoder,int8_t cr,uint8_t crAtt)       // adsrLfo >=0 lfo ; <0 touch
@@ -135,7 +116,7 @@ void voiceConfig(uint8_t voice,uint8_t wave,uint16_t coderFreq,uint8_t attenFreq
 
     // CX (voice)SIP (adsr)
     printf("Amp ctl adsr:%u ",adsr);
-    obj_connect(objects_first_input_id[VOICE____]+voice*VOICES_INPUTS_NB+VSPW+wave,objects_first_output_id[ADSR_____]+adsr*MAX_OUTPUTS_PER_OBJ+ADSR_SHAPE);
+    obj_connect(objects_first_input_id[VOICE____]+voice*VOICES_INPUTS_NB+VSPW+wave,objects_first_output_id[ADSR_____]+adsr*ADSR_OUTPUTS_NB+ADSR_SHAPE);
 
     sub_lfo(ADSR_____,adsr,ADSR_INPUTS_NB,STAR,adsrLfo,adsrLfoFreqCoder,WTRI);                 // adsr launcher lfo/touchB
     
@@ -204,207 +185,6 @@ static bool testStep(uint32_t timeoutMs)
     return true;
 }
 
-#ifdef OLD_TEST
-
-// Ids of lfm inputs/outputs are read from the tables built at init,
-// so the layout (input-major or lfm-major) is never assumed here.
-static inline int16_t lfmInId(uint8_t lfm,uint8_t inp){return lfm_ctl_input_id[inp][lfm];}
-static inline int16_t lfmOutId(uint8_t lfm){return lfm_ctl_output_id[LMUXO][lfm];}
-
-void sound3(uint8_t voice,uint8_t vwave,uint16_t coderFreq,uint8_t coderAttF,uint8_t coderAmp,uint8_t coderAmpAtt,
-        uint8_t coderCr,uint8_t crAtt,
-        int8_t adsr,int8_t sourceAdsr,
-        int8_t lfm,int8_t lfm1,uint8_t voiceAmpLfoLfmInput,uint8_t voiceFreqLfoLfmInput,uint8_t voiceFreqAdsrLfmInput,
-        int8_t voiceAmpLfo,uint16_t ampLfoFreq,
-        int8_t voiceFreqLfo,uint16_t freqLfoFreq
-    )
-{
-    // config voice
-    vsetup(voice,coderFreq,coderAttF,coderAmp,coderAmpAtt,coderCr,crAtt,vwave);
-
-    // connect source to adsr (sourceAdsr<0 : lfo number -1-sourceAdsr ; otherwise touch button number)
-    uint8_t sourceType=TBUTTON__;
-    int8_t sourceNum=sourceAdsr;
-    uint8_t waveF=0;
-    if(sourceAdsr<0){
-        sourceNum=-1-sourceAdsr;
-        sourceType=LFO______;
-        waveF=WSIN;
-    }
-    obj_connect(objects_first_input_id[ADSR_____]+adsr*ADSR_INPUTS_NB+STAR,
-                objects_first_output_id[sourceType]+sourceNum*MAX_OUTPUTS_PER_OBJ+waveF);
-
-    // config lfo amp
-    if(voiceAmpLfo>=0){
-        setLfosFrCoders(voiceAmpLfo,ampLfoFreq,0);
-        setLfosFrequency(voiceAmpLfo);
-    }
-
-    if(lfm>=0){
-        // connect lfm0 to voice:wave amp input
-        obj_connect(objects_first_input_id[VOICE____]+voice*VOICES_INPUTS_NB+VSPW+vwave,lfmOutId(lfm));
-        // connect adsr to lfm0:0 genAmp input
-        uint8_t adsrLfmInput=0;
-        setLfmCoders(lfm,adsrLfmInput,lfmCoder[adsrLfmInput][lfm],70);
-        obj_connect(lfmInId(lfm,adsrLfmInput),objects_first_output_id[ADSR_____]+adsr*MAX_OUTPUTS_PER_OBJ+ADSR_SHAPE);
-        if(voiceAmpLfo>=0){
-            // connect lfo amp to lfm0:1
-            obj_connect(lfmInId(lfm,voiceAmpLfoLfmInput),objects_first_output_id[LFO______]+voiceAmpLfo*MAX_OUTPUTS_PER_OBJ+LSIN);
-            // config lfo modulation
-            setLfmCoders(lfm,voiceAmpLfoLfmInput,255,120);
-        }
-
-        if(lfm1>=0){
-            // connect lfm1 to voice freq
-            obj_connect(objects_first_input_id[VOICE____]+voice*VOICES_INPUTS_NB+VFRQ,lfmOutId(lfm1));
-            // lfm1 in0 base wide open ; no input
-            setLfmCoders(lfm1,0,MAX_CTL_ATT-1,0);
-            if(voiceAmpLfo>=0){
-                // connect lfo to lfm1:voiceFreqLfoLfmInput (same lfo as amp)
-                obj_connect(lfmInId(lfm1,voiceFreqLfoLfmInput),objects_first_output_id[LFO______]+voiceAmpLfo*MAX_OUTPUTS_PER_OBJ+LSIN);
-                // lfm1 lfo input att wide open
-                setLfmCoders(lfm1,voiceFreqLfoLfmInput,0,MAX_CTL_ATT/2-1);
-            }
-            // connect adsr to lfm1:voiceFreqAdsrLfmInput
-            obj_connect(lfmInId(lfm1,voiceFreqAdsrLfmInput),objects_first_output_id[ADSR_____]+adsr*MAX_OUTPUTS_PER_OBJ+ADSR_SHAPE);
-            // lfm1 adsr input att wide open
-            setLfmCoders(lfm1,voiceFreqAdsrLfmInput,0,MAX_CTL_ATT/2-1);
-        }
-    }
-    else{
-        if(voiceFreqLfo>=0){
-            setLfosFrCoders(voiceFreqLfo,freqLfoFreq,0);
-            setLfosFrequency(voiceFreqLfo);
-            obj_connect(objects_first_input_id[VOICE____]+voice*VOICES_INPUTS_NB+VFRQ,
-                        objects_first_output_id[LFO______]+voiceFreqLfo*MAX_OUTPUTS_PER_OBJ+LTRI);
-        }
-
-        // CX (voice)SIP (adsr)
-        printf("Amp ctl adsr:%u ",adsr);
-        obj_connect(objects_first_input_id[VOICE____]+voice*VOICES_INPUTS_NB+VSPW+vwave,
-                    objects_first_output_id[ADSR_____]+adsr*MAX_OUTPUTS_PER_OBJ+ADSR_SHAPE);
-
-        printf("voice:%u coderFreq:%i frAtt:%i wave:%u Ampl:%u amplAtt:%i\n\n",
-            voice,voices[voice].coderFreq,voices[voice].coderFreqAtt,vwave,voices[voice].coderWaveAmpl[vwave],voices[voice].coderWaveAmplAtt[vwave]);
-    }
-}
-
-void oldTest()
-{
-    // 1096 110Hz // 1936 440Hz // 2355 880Hz    @420/octave demi_ton 35
-
-    #define VOICE0 0x80
-    #define VOICE1 0x40
-    #define VOICE2 0x20
-    #define VOICE3 0x10
-    uint8_t action=VOICE0|VOICE1|VOICE2;
-
-    printf("\n========== test-setup 0x%02X ==========\n",action);    
-
-    if((action&VOICE0) != 0){  
-        
-        // config voice 0    
-        uint8_t  voice=0;
-        uint8_t  vwave=WTRI;
-        uint16_t coderFreq=800; 
-        uint16_t coderFil=1500;           
-        uint8_t  coderAttF=125;
-        uint8_t  coderAmp=15;
-        uint8_t  coderAttAmp=80;         
-        int8_t   cr=10;
-        uint8_t  crAtt=64;
-        uint8_t  freqLfo=0;
-        uint16_t freqLfoCoder=3392;         // 5Hz  
-        uint8_t  adsr=0;
-        int8_t   adsrLfo=2;    
-        uint32_t adsrLfoCoder=1384;         // 1384 6sec // 1790 3sec
-        uint8_t  crLfo=4;
-        uint16_t crLfoCoder=1820;
-        uint8_t  lfm=0;
-        uint8_t  lfmInp0=0;
-        uint8_t  lfmInp1=1;
-        uint8_t  lfmInp2=2;
-        uint8_t  filtLfo=7; 
-
-        voiceConfig(voice,vwave,coderFreq,coderAttF,freqLfo,freqLfoCoder,coderAmp,coderAttAmp,adsr,adsrLfo,adsrLfoCoder,cr,crAtt);
-        
-        asetup(adsr,6,28,12,96);
-
-        voices[voice].coderCycleRAtt=200;                           // input atten
-        sub_lfo(VOICE____,0,VOICES_INPUTS_NB,VCR_,4,1700,WTRI);                      // 1700=3.5s 
-
-        setVoiceFilter(&voices[0],coderFil,100,255,0,255);
-        //setLfosFreq(filtLfo,1790);
-        //setLfosCycleR(filtLfo,0,0);
-
-        //obj_connect(objects_first_input_id[VOICE____]+1*VOICES_INPUTS_NB+VFIL,objects_first_output_id[LFO______]+filtLfo*MAX_OUTPUTS_PER_OBJ+LTRI);        
-        
-        printf("\n");
-    }
-
-    // config voice 1
-    if((action&VOICE1) != 0){
-        
-        uint8_t  v=1;
-        uint8_t  filtLfo=6;
-        uint8_t  adsr=1;
-        //sound3(1,WSIN,1740,12,8,60,1,adsr,-3,0,0,0,0,0,-1,3499,1,3499);
-        voiceConfig(v,WSIN,1740,12,1,3499,0,30,adsr,3,1200,1,0);
-        setVoiceAmplCoders(&voices[v],5,30,0);
-        asetup(adsr,96,60,11,90);
-
-        setVoiceFilter(&voices[1],2000,100,150,0,255);
-        
-        setLfosFrCoders(filtLfo,1384,0);
-        setLfosFrequency(filtLfo);
-        setLfosCycleR(filtLfo,0,0);     //MAXCODER_RC/2,0);
-
-        obj_connect(objects_first_input_id[VOICE____]+1*VOICES_INPUTS_NB+VFIL,objects_first_output_id[LFO______]+filtLfo*MAX_OUTPUTS_PER_OBJ+LTRI);
-    }
-
-    //  config voice2 (touch button 0)
-    if((action&VOICE2) != 0){ 
-        //      tb0->adsr->mux0inp0->sinpower2
-        //      lfo5->mux1inp1 coder[1][1]=32563
-        //      mux1->mux0inp1
-        uint8_t adsr=2;
-        sound3(2,WSIN,2300,70,0,30,1,0,adsr,0,0,1,1,1,2,5,3499,5,3499);
-        asetup(adsr,127,32,16,127);
-    }
-
-    if(action==0){
-        uint8_t     voice=0;
-        uint8_t     vwave=WSIN;
-        int8_t      cr=0;
-        uint8_t     crAtt=0;
-        uint16_t    coderF=1943;
-        uint8_t     coderAttF=70;
-        uint8_t     coderA=10;
-        uint8_t     coderAttA=0;
-        uint8_t     lfo=0;
-        uint8_t     lwave=WSIN;
-
-        setLfosFrCoders(lfo,(uint16_t)1819,0); // 0.375hz ; 2239 0.75hz ; 2659 1.5hz ; 3079 3hz ; 3499 6hz
-        setLfosFrequency(lfo);
-        setLfosCycleR(lfo,0,0);
-
-        vsetup(voice,coderF,coderAttF,coderA,coderAttA,cr,crAtt,vwave);
-
-        setVoiceFilter(&voices[voice],coderF,100,255,0,255);
-        //obj_connect(objects_first_input_id[VOICE____]+voice*VOICES_INPUTS_NB+VFIL,objects_first_output_id[LFO______]+lfo*MAX_OUTPUTS_PER_OBJ+lwave);
-
-        //obj_connect(objects_first_input_id[VOICE____]+voice*VOICES_INPUTS_NB+VFRQ,objects_first_output_id[LFO______]+lfo*MAX_OUTPUTS_PER_OBJ+lwave);        
-    }
-
-    if(action==VOICE3){
-    }        
-    printf("========================================\n");
-
-//pwm_timer_1khz_enable(false);while(1){}
-//disp_lfm(255,"testSetup");
-}
-#endif      // OLD_TEST
-
 #ifdef TEST_REVERB
 // ================= reverb test =====================
 // voice REVB_TEST_VOICE plays short notes (an ADSR on its wave level) into the reverb ; a series of settings is tried,
@@ -460,7 +240,7 @@ static void testRevbWave(uint8_t wave)                          // moves the ADS
     setVoiceAmplCoders(&voices[REVB_TEST_VOICE], revbTestWave, 0, 0);          // the old wave: level 0, attenuator 0 (its input stays connected, it is muted)
     setVoiceAmplCoders(&voices[REVB_TEST_VOICE], wave, 0, REVB_TEST_ATT);
     obj_connect(objects_first_input_id[VOICE____] + REVB_TEST_VOICE * VOICES_INPUTS_NB + VSPW + wave,
-                objects_first_output_id[ADSR_____] + REVB_TEST_ADSR * MAX_OUTPUTS_PER_OBJ + ADSR_SHAPE);
+                objects_first_output_id[ADSR_____] + REVB_TEST_ADSR * ADSR_OUTPUTS_NB + ADSR_SHAPE);
     revbTestWave = wave;
 }
 
@@ -582,7 +362,7 @@ void test_reverb()
     vsetup(v, coderF, 0, 0, REVB_TEST_ATT, 0, 0, REVB_TEST_WAVE, FILTER_CODE_MAX, 0, MAX_CTL_ATT, 0, 0, 1, 0, 0, 0, WAVE_LEVEL_STEPS - 1, 0);
     revbTestWave = REVB_TEST_WAVE;
     obj_connect(objects_first_input_id[VOICE____] + v * VOICES_INPUTS_NB + VSPW + REVB_TEST_WAVE,
-                objects_first_output_id[ADSR_____] + REVB_TEST_ADSR * MAX_OUTPUTS_PER_OBJ + ADSR_SHAPE);
+                objects_first_output_id[ADSR_____] + REVB_TEST_ADSR * ADSR_OUTPUTS_NB + ADSR_SHAPE);
     setAdsrLevCoders(REVB_TEST_ADSR, ADSR_MAX_LEVEL_CODERS, FULL_ATTENUATION_VALUE);
 
     const uint8_t nb = sizeof(revbScenarios) / sizeof(revbScenarios[0]);
@@ -609,8 +389,8 @@ void test_ping_init()
         uint16_t coderf=1535;       // 1535=220Hz
         uint8_t w=WSAW;
 
-        obj_connect(objects_first_input_id[ADSR_____]+adsr*ADSR_INPUTS_NB+STAR,objects_first_output_id[TBUTTON__]+b*MAX_OUTPUTS_PER_OBJ+TOUCH_BUTTON);
-        obj_connect(objects_first_input_id[VOICE____]+v*VOICES_INPUTS_NB+VSPW+w,objects_first_output_id[ADSR_____]+adsr*MAX_OUTPUTS_PER_OBJ+ADSR_SHAPE);
+        obj_connect(objects_first_input_id[ADSR_____]+adsr*ADSR_INPUTS_NB+STAR,objects_first_output_id[TBUTTON__]+b*TBUT_OUTPUTS_NBH_BUTTON);
+        obj_connect(objects_first_input_id[VOICE____]+v*VOICES_INPUTS_NB+VSPW+w,objects_first_output_id[ADSR_____]+adsr*ADSR_OUTPUTS_NB+ADSR_SHAPE);
         asetup(adsr,1,84,0,0,0);    //void asetup(uint8_t adsr,uint8_t att,uint8_t dec, uint8_t sus,uint8_t rel, uint8_t lev)
         //vsetup(v,coderf,0,0,120,0,0,WSIN,coderf+409,0,MAX_CTL_ATT,0,0,1,0,63,0,0,0);
         //setEchoCoder(0,100,0,50,0,63,0);setRevbCoder(0,0,0,0,0,0,0);
@@ -647,19 +427,15 @@ void test_A()       // son "a"
     
     lfoSetup(l0,5,0,0,0);
 
-    /*obj_connect(objects_first_input_id[VOICE____]+v0*VOICES_INPUTS_NB+VFRQ,objects_first_output_id[LFO______]+l0*MAX_OUTPUTS_PER_OBJ+LSIN);
-    obj_connect(objects_first_input_id[VOICE____]+v1*VOICES_INPUTS_NB+VFRQ,objects_first_output_id[LFO______]+l0*MAX_OUTPUTS_PER_OBJ+LSIN);    
-    obj_connect(objects_first_input_id[VOICE____]+v2*VOICES_INPUTS_NB+VFRQ,objects_first_output_id[LFO______]+l0*MAX_OUTPUTS_PER_OBJ+LSIN);    
-*/
-    obj_connect(objects_first_input_id[VOICE____]+v0*VOICES_INPUTS_NB+VSPW+w,objects_first_output_id[ADSR_____]+adsr*MAX_OUTPUTS_PER_OBJ+ADSR_SHAPE);
-    obj_connect(objects_first_input_id[VOICE____]+v1*VOICES_INPUTS_NB+VSPW+w,objects_first_output_id[ADSR_____]+adsr*MAX_OUTPUTS_PER_OBJ+ADSR_SHAPE);
-    obj_connect(objects_first_input_id[VOICE____]+v2*VOICES_INPUTS_NB+VSPW+w,objects_first_output_id[ADSR_____]+adsr*MAX_OUTPUTS_PER_OBJ+ADSR_SHAPE);
+    obj_connect(objects_first_input_id[VOICE____]+v0*VOICES_INPUTS_NB+VSPW+w,objects_first_output_id[ADSR_____]+adsr*ADSR_OUTPUTS_NB+ADSR_SHAPE);
+    obj_connect(objects_first_input_id[VOICE____]+v1*VOICES_INPUTS_NB+VSPW+w,objects_first_output_id[ADSR_____]+adsr*ADSR_OUTPUTS_NB+ADSR_SHAPE);
+    obj_connect(objects_first_input_id[VOICE____]+v2*VOICES_INPUTS_NB+VSPW+w,objects_first_output_id[ADSR_____]+adsr*ADSR_OUTPUTS_NB+ADSR_SHAPE);
 
-    obj_connect(objects_first_input_id[VOICE____]+v0*VOICES_INPUTS_NB+VSPW+w2,objects_first_output_id[ADSR_____]+adsr*MAX_OUTPUTS_PER_OBJ+ADSR_SHAPE);
-    obj_connect(objects_first_input_id[VOICE____]+v1*VOICES_INPUTS_NB+VSPW+w2,objects_first_output_id[ADSR_____]+adsr*MAX_OUTPUTS_PER_OBJ+ADSR_SHAPE);
-    obj_connect(objects_first_input_id[VOICE____]+v2*VOICES_INPUTS_NB+VSPW+w2,objects_first_output_id[ADSR_____]+adsr*MAX_OUTPUTS_PER_OBJ+ADSR_SHAPE);
+    obj_connect(objects_first_input_id[VOICE____]+v0*VOICES_INPUTS_NB+VSPW+w2,objects_first_output_id[ADSR_____]+adsr*ADSR_OUTPUTS_NB+ADSR_SHAPE);
+    obj_connect(objects_first_input_id[VOICE____]+v1*VOICES_INPUTS_NB+VSPW+w2,objects_first_output_id[ADSR_____]+adsr*ADSR_OUTPUTS_NB+ADSR_SHAPE);
+    obj_connect(objects_first_input_id[VOICE____]+v2*VOICES_INPUTS_NB+VSPW+w2,objects_first_output_id[ADSR_____]+adsr*ADSR_OUTPUTS_NB+ADSR_SHAPE);
     
-    obj_connect(objects_first_input_id[ADSR_____]+adsr*ADSR_INPUTS_NB+STAR,objects_first_output_id[TBUTTON__]+b*MAX_OUTPUTS_PER_OBJ+TOUCH_BUTTON);
+    obj_connect(objects_first_input_id[ADSR_____]+adsr*ADSR_INPUTS_NB+STAR,objects_first_output_id[TBUTTON__]+b*TBUT_OUTPUTS_NB+TOUCH_BUTTON);
 
     asetup(adsr,18,0,50,35,31);
 
@@ -671,7 +447,7 @@ void test_A()       // son "a"
 #endif  // TEST_A
 
 #ifdef TEST_CODERS
-// ================= coders test =====================
+// ================= coder test =====================
 // prints every change of CK, DT or SW read by the coder handler, position by position, with the detent counted and the value of the coder
 // the first lines give the state of every position at start-up
 // tbget(tb) clears the log and restarts ; without any change for TEST_END_WAIT_MS, the test ends
@@ -680,16 +456,72 @@ extern CoderLogEntry     coderLog[CODER_LOG_LEN];
 extern volatile uint16_t coderLogHead, coderLogTail;
 extern volatile uint32_t coderLogLost;
 
+
+    extern volatile int16_t*  coderTimerCount;                     // values of the coders (coder.cpp)
+    extern volatile uint16_t* coderCountMaxi;                      // maxima of the coders (coder.cpp)
+
+extern uint16_t          menu0MaxCoders[CODER_NB];
+extern volatile int16_t  menu0Coders[CODER_NB];
+extern CoderPhys         coderPhys[];
+
+// ----- acceleration and coarse step of the coders -----
+// every step: tbget(tb) starts it, a new tbget(tb) ends it
+// a frequency coder (maximum VCES_MAX_FREQ_CODERS) and an attenuator (maximum 255) ; every detent of these coders is printed
+// (from the log of the coder handler) with its change of value and the time since the previous detent: the change gives
+// the factor of the acceleration (1, 4, 16, 64) or the coarse step (CODER_COARSE_PITCH, touch button CODER_COARSE_TOUCH held)
+
+#define ACC_TEST_CODER_F   1                                    // logical number of the coder tested as a frequency coder
+#define ACC_TEST_CODER_A   2                                    // logical number of the coder tested as an attenuator
+#define ACC_TEST_F_START   2000                                 // value of the frequency coder at the start of a step
+#define ACC_TEST_A_MAX     255
+
+struct AccTestStep {
+    const char* text;                                           // what to do, what should be seen
+    bool        reset;                                          // values set back to their start at the beginning of the step
+};
+
+static const AccTestStep accTestSteps[] = {
+    { "coder F: turn SLOWLY about 10 detents (more than 80 ms apart) -> every change +1 or -1", true },
+    { "coder F: one FAST turn -> changes +1, then +4, +16, +64 as the speed grows", true },
+    { "coder F: turn FAST, stop short and turn ONE detent back -> that detent gives -1", true },
+    { "coder F: turn FAST up to the top, then down to the bottom -> stops exactly at the top value, then at 0", false },
+    { "coder F: HOLD touch button CODER_COARSE_TOUCH and turn slowly, then fast, both ways -> every change +-CODER_COARSE_PITCH", true },
+    { "coder A (attenuator 0-255): FAST turns, with and without touch button CODER_COARSE_TOUCH -> +1 then +2 at most, the touch button changes nothing", true },
+};
+
+static void accTestReset(uint16_t maxF,uint16_t maxA,int16_t valF,int16_t valA)
+{
+    const uint32_t irq = save_and_disable_interrupts();         // the coder interrupt writes the same values
+    menu0MaxCoders[ACC_TEST_CODER_F] = maxF;
+    menu0MaxCoders[ACC_TEST_CODER_A] = maxA;
+    menu0Coders[ACC_TEST_CODER_F] = valF;
+    menu0Coders[ACC_TEST_CODER_A] = valA;
+    restore_interrupts(irq);
+}
+
 void test_coders()
 {
-    printf("\n========== coders test: every change of CK, DT or SW read by the coder handler ==========\n");
+
+    //test_coder_acc();
+
+    printf("\n========== coder test: every change of CK, DT or SW read by the coder handler ==========\n");
     printf("columns: time (ms), position, CK DT SW, detent counted, value of the coder\n");
     printf("tbget(%u) clears the log and restarts ; without any change for %lu s, the test ends\n", tb, (unsigned long)(TEST_END_WAIT_MS / 1000));
+
+    if (coderTimerCount != nullptr && coderCountMaxi != nullptr) {      // every coder as a frequency coder: maximum 4498, start 2000
+        for (uint8_t i = 0; i < CODER_NB; i++) { coderCountMaxi[i] = VCES_MAX_FREQ_CODERS; coderTimerCount[i] = 2000; }
+    }
+    else printf("coderSetup not done: no maximum set\n");
 
     uint32_t last = millisCounter;                              // time of the last change printed
     uint32_t lost = coderLogLost;
     while (millisCounter - last < TEST_END_WAIT_MS) {
         fillVoices();
+
+        static bool coarseLast = false;                                  // coarse touch button: print its changes
+        if (coderTouchB != nullptr && coderTouchB[CODER_COARSE_TOUCH] != coarseLast) {
+            coarseLast = coderTouchB[CODER_COARSE_TOUCH]; printf("   coarse touch %u: %u\n", CODER_COARSE_TOUCH, coarseLast); }
+
         if (tbget(tb)) {                                        // restart: log cleared
             while (tbget(tb)) { fillVoices(); }
             coderLogTail = coderLogHead;
@@ -710,11 +542,7 @@ void test_coders()
             lost = coderLogLost;
         }
     }
-    printf("========== end of the coders test ==========\n\n");
-
-
-    extern uint16_t menu0MaxCoders[CODER_NB];
-    extern volatile int16_t menu0Coders[CODER_NB];
+    printf("========== end of the coder test ==========\n\n");
 
     int16_t coders_value[CODER_NB];
     memset(coders_value,0x00,CODER_NB*2);

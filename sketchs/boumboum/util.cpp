@@ -364,6 +364,7 @@ void setup(){
     // après démo mute voices[0] sinus
     setVoiceAmplCoders(&voices[0],WSIN,cga,0);
 
+    printf("waiting tb to continue\n");
     gpio_irq_set = false;            // wait for the touch button to start
     while(!gpio_irq_set){
         debug_ticker();

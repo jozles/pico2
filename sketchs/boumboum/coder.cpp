@@ -12,7 +12,7 @@
 #include "hardware/sync.h"
 
 uint16_t coderTimerPollingInterval=1;       // delay between interrupts (ms), set by coderInit
-uint8_t coderStrobeNumber=3;                // unused since the decoding by state
+uint8_t coderStrobeNumber=3;                // unused since the switch to state decoding
 volatile int16_t* coderTimerCount=nullptr;  // pointer to the values to increment or decrement
 volatile bool* coderTimerSwitch=nullptr;    // switch states: ON_SWITCH when pressed, whatever the wiring
 volatile bool* coderTouchB=nullptr;         // current touch button states (on/off)
@@ -31,7 +31,7 @@ CoderPhys coderPhys[]={
 static_assert(sizeof(coderPhys)/sizeof(coderPhys[0])==CODER_NB,"the coder table must have CODER_NB lines");
 
 #ifdef TEST_CODERS
-// coders test (tests.cpp): log of every change of CK, DT or SW read by the handler
+// coder test (tests.cpp): log of every change of CK, DT or SW read by the handler
 static_assert((CODER_LOG_LEN & (CODER_LOG_LEN-1))==0,"CODER_LOG_LEN must be a power of 2");
 CoderLogEntry coderLog[CODER_LOG_LEN];
 volatile uint16_t coderLogHead=0;           // next entry to write (handler)
@@ -68,21 +68,40 @@ static inline __attribute__((always_inline)) uint8_t coderStateOf(bool ck,bool d
     return ck ? (dt ? 0 : 3) : (dt ? 1 : 2);
 }
 
-// one detent: +1 or -1 on the value of the coder, kept between 0 and its maximum
-static inline __attribute__((always_inline)) void coderCount(uint8_t coder,int8_t detent){
+static_assert((CODER_ACC_MAX & (CODER_ACC_MAX-1))==0 && CODER_ACC_MAX>=16,"CODER_ACC_MAX must be a power of 2, at least 16");
+static_assert(CODER_ACC_T1>CODER_ACC_T2 && CODER_ACC_T2>CODER_ACC_T3,"CODER_ACC_T1 > CODER_ACC_T2 > CODER_ACC_T3");
+static_assert(CODER_COARSE_TOUCH<CODER_NB,"CODER_COARSE_TOUCH must be a touch button number (below CODER_NB)");
+static_assert(VCES_MAX_FREQ_CODERS>=CODER_PITCH_MIN_MAXI && LFOS_MAX_FREQ_CODERS>=CODER_PITCH_MIN_MAXI,"the frequency coders must reach CODER_PITCH_MIN_MAXI");
+static_assert(MAX_CTL_ATT<CODER_PITCH_MIN_MAXI,"an attenuator must stay below CODER_PITCH_MIN_MAXI");
+
+// size of one detent, signed: on a frequency coder (maxi >= CODER_PITCH_MIN_MAXI) with the coarse touch button held,
+// CODER_COARSE_PITCH (one semitone) ; otherwise x1, x4, x16 or CODER_ACC_MAX depending on the time since the previous detent,
+// x1 after a pause or a change of direction ; the factor never exceeds maxi/64 (rounded down to a power of 2)
+static inline __attribute__((always_inline)) int32_t coderStep(Coders* cp,uint8_t coder,int8_t detent,uint32_t now){
+    int32_t n;
+    uint32_t dt=now-cp->coderDetentTime;
+    uint32_t mx=(coderCountMaxi!=nullptr) ? *(coderCountMaxi+coder) : 0;
+    if(mx>=CODER_PITCH_MIN_MAXI && coderTouchB!=nullptr && *(coderTouchB+CODER_COARSE_TOUCH)) n=CODER_COARSE_PITCH;
+    else if(detent!=cp->coderDetentDir || dt>CODER_ACC_T1) n=1;
+    else{
+        n=(dt>CODER_ACC_T2) ? 4 : ((dt>CODER_ACC_T3) ? 16 : CODER_ACC_MAX);
+        uint32_t q=mx>>6;                                                           // maxi/64
+        int32_t cap=(q==0) ? 1 : (int32_t)(1u<<(31-__builtin_clz(q)));             // largest power of 2 <= maxi/64
+        if(n>cap) n=cap;
+    }
+    cp->coderDetentTime=now;
+    cp->coderDetentDir=detent;
+    return (detent<0) ? -n : n;
+}
+
+// one detent: step added to the value of the coder, kept between 0 and its maximum (stops at the limit)
+static inline __attribute__((always_inline)) void coderCount(uint8_t coder,int32_t step){
     if(coderTimerCount==nullptr) return;
-    if(detent<0){
-        if(*(coderTimerCount+coder)>0){
-            (*(coderTimerCount+coder))-=1;
-        }
-        else *(coderTimerCount+coder)=0;
-    }
-    else {
-        (*(coderTimerCount+coder))+=1;
-        if(*(coderTimerCount+coder)>*(coderCountMaxi+coder)){
-            (*(coderTimerCount+coder))-=1;
-        }
-    }
+    int32_t v=(int32_t)*(coderTimerCount+coder)+step;
+    if(v<0) v=0;
+    int32_t mx=*(coderCountMaxi+coder);
+    if(v>mx) v=mx;
+    *(coderTimerCount+coder)=(int16_t)v;
 }
 
 bool __not_in_flash_func(coderTimerHandler)(){
@@ -201,7 +220,7 @@ bool __not_in_flash_func(coderTimerHandler)(){
         }
         cp->coderAcc=acc;
 
-        if(detent!=0) coderCount(coder,detent);
+        if(detent!=0) coderCount(coder,coderStep(cp,coder,detent,currTime));
 #ifdef TEST_CODERS
         if(logIdx>=0){
             coderLog[logIdx].detent=detent;
@@ -261,6 +280,8 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_
         c[i].coderAcc=0;
         c[i].coderDir=0;
         c[i].coderMoveTime=0;
+        c[i].coderDetentTime=0;
+        c[i].coderDetentDir=0;
     }
 
     sleep_ms(10);

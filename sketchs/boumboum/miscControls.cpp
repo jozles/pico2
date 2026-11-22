@@ -32,7 +32,7 @@ uint32_t adsrDurSus[MAX_ADSR];
 uint32_t adsrDurRel[MAX_ADSR];
 uint32_t adsrCurrEch[MAX_ADSR];
 int16_t  adsr_ctl_input_id[MAX_ADSR][ADSR_INPUTS_NB];
-int16_t  adsr_ctl_output_id[MAX_ADSR][MAX_OUTPUTS_PER_OBJ];
+int16_t  adsr_ctl_output_id[MAX_ADSR][ADSR_OUTPUTS_NB];
 int32_t  adsrScopeBufReal[MAX_ADSR*ADSR_SCOPE_BUFFER_LEN];  // real values
 uint16_t adsrScopeBufPtr[MAX_ADSR];
 
@@ -43,7 +43,7 @@ bool     adsrScopeDisp[MAX_ADSR];
 
 /* ******* touchButtons ******* */
 
-int16_t  tbut_ctl_output_id[MAX_TBUT][MAX_OUTPUTS_PER_OBJ];
+int16_t  tbut_ctl_output_id[MAX_TBUT][TBUT_OUTPUTS_NB];
 
 /* *******  lf_mixers  ******** */
 
@@ -54,14 +54,14 @@ int32_t  lfmGenAttValue[MAX_LFM];                           // outputValue Atten
 int16_t  lfmOutputValues[MAX_LFM];
 uint8_t  lfmInputType[LFM_INPUTS_NB][MAX_LFM];
 int16_t  lfm_ctl_input_id[LFM_INPUTS_NB][MAX_LFM];
-int16_t  lfm_ctl_output_id[MAX_OUTPUTS_PER_OBJ][MAX_LFM];
+int16_t  lfm_ctl_output_id[LFM_OUTPUTS_NB][MAX_LFM];
 uint8_t  lfmCh[]={'_','\\','/'};
 int32_t  lfmScopeBufReal[MAX_LFM*LFM_SCOPE_BUFFER_LEN];
 uint16_t lfmScopeBufPtr[MAX_LFM];
 bool     lfmScopeDisp[MAX_LFM];
 
 uint32_t    lfmTime=0;                     
-uint32_t    lfmScopeTimingInterval=1000/LFM_SAMPLE_RATE;
+uint32_t    lfmScopeTimingInterval=1000/LFM_SAMPLE_PERIOD_MS;
 
 extern uint16_t* lfmVar[];
 
@@ -423,7 +423,7 @@ void __not_in_flash_func(touch_button_handler)(uint8_t touchButtonNb,bool* touch
 //                  every input has 1 att coder (captured as 0-255 ; stored unchanged)
 //                  all inputs are int16_t                 
 //                  every input with a type : 0 lin , 1 log , 2 inv log (code for log to be added)
-// log mode to be discussed (currently lin only - use 2 tables to convert lin to log or ilog ; where should the conversion be done ? )
+// log mode to be discussed (currently lin only - use 2 tables to convert lin to log or ilog ; where should the conversion be done? )
 // 
 // 
 //
@@ -458,12 +458,12 @@ void __not_in_flash_func(setLfm)(uint8_t lfm)
         ((ctl_input_val[lfm_ctl_input_id[0][lfm]] * lfmCoderAtt[0][lfm]) >> MAX_CTL_ATT_SHIFT);
 
     // ---- base coders sum of the inputs 1-3 ----
-    // (worst case 3 * 0xff << 7 = 0x017f80)
+    // (worst case 3 * 0xff << 7 = 0x017e80)
     int32_t v0 = (lfmCoder[1][lfm] + lfmCoder[2][lfm] + lfmCoder[3][lfm])
                  << (CODER_BASE_SHIFT);
 
     // ---- attenuated inputs sum ----
-    // (worst case: 3 * 0x7fff * 0xff = 0x017ffffd, it fits in 32 bits)
+    // (worst case: 3 * 0x7fff * 0xff = 0x017e7d03, it fits in 32 bits)
     int32_t v1 = ((int32_t)ctl_input_val[lfm_ctl_input_id[1][lfm]] * lfmCoderAtt[1][lfm]
                 + (int32_t)ctl_input_val[lfm_ctl_input_id[2][lfm]] * lfmCoderAtt[2][lfm]
                 + (int32_t)ctl_input_val[lfm_ctl_input_id[3][lfm]] * lfmCoderAtt[3][lfm]) >> MAX_CTL_ATT_SHIFT;

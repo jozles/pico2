@@ -4,6 +4,7 @@
 #include "const.h"
 #include "frequences.h"
 #include "miscControls.h"
+#include "sequencer.h"
 #include "input_tables_management.h"
 #include "sound_level_management.h"
 #include "util.h"
@@ -11,13 +12,15 @@
 
 #include "hardware/sync.h"
 
+extern int16_t   seq_ctl_input_id[][SEQ_INPUTS_NB];
+extern int16_t   seq_ctl_output_id[MAX_SEQ][SEQ_OUTPUTS_NB];
+
 extern uint8_t   adsrStatus[MAX_ADSR];
 extern uint32_t  adsrCurrEch[MAX_ADSR];
 extern int16_t   adsr_ctl_input_id[][ADSR_INPUTS_NB];
-extern int16_t   adsr_ctl_output_id[][MAX_OUTPUTS_PER_OBJ];
-//extern uint16_t  adsrOutputsValues[MAX_ADSR][MAX_OUTPUTS_PER_OBJ];
+extern int16_t   adsr_ctl_output_id[][ADSR_OUTPUTS_NB];
 
-extern int16_t   tbut_ctl_output_id[][MAX_OUTPUTS_PER_OBJ];
+extern int16_t   tbut_ctl_output_id[][ADSR_OUTPUTS_NB];
 
 extern Voice voices[MAX_VOICES];
 
@@ -25,13 +28,13 @@ extern float     lfosFrequency[MAX_LFO];
 extern uint16_t  lfosCodersFreq[MAX_LFO];
 extern uint16_t  lfosCodersFreqAtt[MAX_LFO];
 extern int16_t   lfo_ctl_input_id[][LFO_INPUTS_NB];
-extern int16_t   lfo_ctl_output_id[][MAX_OUTPUTS_PER_OBJ];
-extern int16_t   lfosOutputsValues[MAX_LFO][MAX_OUTPUTS_PER_OBJ]; 
+extern int16_t   lfo_ctl_output_id[][LFO_OUTPUTS_NB];
+extern int16_t   lfosOutputsValues[MAX_LFO][LFO_OUTPUTS_NB]; 
 
 extern uint16_t  lfmCoder[LFM_INPUTS_NB][MAX_LFM];
 extern uint16_t  lfmCoderAtt[LFM_INPUTS_NB][MAX_LFM];
 extern int16_t   lfm_ctl_input_id[LFM_INPUTS_NB][MAX_LFM];
-extern int16_t   lfm_ctl_output_id[MAX_OUTPUTS_PER_OBJ][MAX_LFM];
+extern int16_t   lfm_ctl_output_id[LFM_OUTPUTS_NB][MAX_LFM];
 extern int16_t   intermediateOutputValues[MAX_LFM];
 extern int16_t   lfmGenAttValue[MAX_LFM];
 extern int16_t   lfmOutputValues[MAX_LFM];
@@ -117,7 +120,7 @@ extern int16_t   echo_ctl_input_id[ECHO_INPUTS_NB][MAX_ECHO];
 //      créer les 2 fichiers *names.def pour décrire ses entrées et sorties
 //      (ajouter pour chaque entrée un nom de type dans norm_types.def)
 //      ajouter dans const.h
-//              son TOTAL_xxx dans les lignes TOTAL_INPUTS_REAL et TOTAL_OUTPUTS_REAL
+//              son TOTAL_xxx dans les lignes TOTAL_INPUTS_REAL et TOTAL_OUTPUTS_REAL      (dans l'enum ci-après ?)
 //              un paragraphe enum d'entrées et de sorties
 //      ajouter ci-aprés
 //              un paragraphe nom des entrées et des sorties 
@@ -177,8 +180,8 @@ int16_t objects_first_output_id[OBJECT_TYPES_NB];
 // pareil pour ses sorties [objet]_outputs_names.def
 // une autre liste concerne les procédures de mise à jour des valeurs des entrées
 
-char      ctl_output_name[MAX_OUTPUTS][IN_OUT_NAME_LEN];    // all objects outputs names
-int16_t   ctl_output_id_chain[MAX_OUTPUTS];                 // all objects outputs chain to input (first link)
+char      ctl_output_name[MAX_OUTPUTS_REAL][IN_OUT_NAME_LEN];    // all objects outputs names
+int16_t   ctl_output_id_chain[MAX_OUTPUTS_REAL];                 // all objects outputs chain to input (first link)
 uint8_t   ctl_output_objects_nb[OBJECT_TYPES_NB];
 
 // ***** objets *****
@@ -227,6 +230,12 @@ const char echo_inputs_names[][OBJ_IO_NAME_LEN]={
     #undef X   
 };
 
+const char seq_inputs_names[][OBJ_IO_NAME_LEN]={
+    #define X(name,text) text,
+    #include "sequencer_inputs_names.def"
+    #undef X
+};
+
 const char lfo_outputs_names[][OBJ_IO_NAME_LEN]={
     #define X(name,text) text,
     #include "lfos_outputs_names.def"   
@@ -257,16 +266,22 @@ const char lfm_outputs_names[][OBJ_IO_NAME_LEN]={
     #undef X   
 };
 
+const char seq_outputs_names[][OBJ_IO_NAME_LEN]={
+    #define X(name,text) text,
+    #include "sequencer_outputs_names.def"
+    #undef X
+};
+
 
 bool init_objects_outputs(void)
 {
-    memset(ctl_output_name,'-',MAX_OUTPUTS*IN_OUT_NAME_LEN);
+    memset(ctl_output_name,'-',MAX_OUTPUTS_REAL*IN_OUT_NAME_LEN);
     int16_t curr_output=1;            // output 0 is null
 
     objects_first_output_id[LFO______]=curr_output;
     for (uint8_t lfo=0;lfo<MAX_LFO;lfo++)
     {
-        for(uint8_t outs=0;outs<MAX_OUTPUTS_PER_OBJ;outs++)
+        for(uint8_t outs=0;outs<LFO_OUTPUTS_NB;outs++)
         {
             ctl_output_id_chain[curr_output]=NO_LINK;
             lfo_ctl_output_id[lfo][outs]=curr_output;
@@ -277,14 +292,16 @@ bool init_objects_outputs(void)
                 memcpy(ctl_output_name[curr_output],buf,IN_OUT_NAME_LEN);
             }
             curr_output++;
-            if(curr_output>=MAX_OUTPUTS){return false;}
+            if(curr_output>=MAX_OUTPUTS_REAL){
+                printf("1-curr_output:%i max:%i\n",curr_output,MAX_OUTPUTS_REAL);
+                return false;}
         }
     }
 
     objects_first_output_id[ADSR_____]=curr_output;    
     for (uint8_t adsr=0;adsr<MAX_ADSR;adsr++)
     {
-        for(uint8_t outs=0;outs<MAX_OUTPUTS_PER_OBJ;outs++)
+        for(uint8_t outs=0;outs<ADSR_OUTPUTS_NB;outs++)
         {        
             ctl_output_id_chain[curr_output]=NO_LINK;
             adsr_ctl_output_id[adsr][outs]=curr_output;
@@ -295,14 +312,16 @@ bool init_objects_outputs(void)
                 memcpy(ctl_output_name[curr_output],buf,IN_OUT_NAME_LEN);
             }       
             curr_output++;
-            if(curr_output>=MAX_OUTPUTS){return false;}
+            if(curr_output>=MAX_OUTPUTS_REAL){
+                printf("2-curr_output:%i max:%i\n",curr_output,MAX_OUTPUTS_REAL);
+                return false;}
         }        
     }
 
     objects_first_output_id[TBUTTON__]=curr_output;    
     for (uint8_t tbut=0;tbut<MAX_TBUT;tbut++)
     {
-        for(uint8_t outs=0;outs<MAX_OUTPUTS_PER_OBJ;outs++)
+        for(uint8_t outs=0;outs<TBUT_OUTPUTS_NB;outs++)
         {        
             ctl_output_id_chain[curr_output]=NO_LINK;
             tbut_ctl_output_id[tbut][outs]=curr_output;
@@ -313,12 +332,14 @@ bool init_objects_outputs(void)
                 memcpy(ctl_output_name[curr_output],buf,IN_OUT_NAME_LEN);
             }       
             curr_output++;
-            if(curr_output>=MAX_OUTPUTS){return false;}
+            if(curr_output>=MAX_OUTPUTS_REAL){
+                printf("3-curr_output:%i max:%i\n",curr_output,MAX_OUTPUTS_REAL);
+                return false;}
         }        
     }
 
     objects_first_output_id[LF_MUX___]=curr_output;    
-    for (uint8_t outs=0;outs<MAX_OUTPUTS_PER_OBJ;outs++)
+    for (uint8_t outs=0;outs<LFM_OUTPUTS_NB;outs++)
     {
         for(uint8_t lfm=0;lfm<MAX_LFM;lfm++)
         {        
@@ -331,7 +352,29 @@ bool init_objects_outputs(void)
                 memcpy(ctl_output_name[curr_output],buf,IN_OUT_NAME_LEN);
             }
             curr_output++;
-            if(curr_output>=MAX_OUTPUTS){return false;}
+            if(curr_output>=MAX_OUTPUTS_REAL){
+                printf("4-curr_output:%i max:%i\n",curr_output,MAX_OUTPUTS_REAL);
+                return false;}
+        }        
+    }
+
+    objects_first_output_id[SEQUENCER]=curr_output;
+    for (uint16_t outs=0;outs<SEQ_OUTPUTS_NB;outs++)
+    {
+        for(uint8_t seq=0;seq<MAX_SEQ;seq++)
+        {        
+            ctl_output_id_chain[curr_output]=NO_LINK;
+            seq_ctl_output_id[seq][outs]=curr_output;
+            if(outs<SEQ_OUTPUTS_NB){
+                char buf[IN_OUT_NAME_LEN]={'S','E','Q','_'};
+                convIntToString(buf+3,seq,3);
+                memcpy(buf+6,&seq_outputs_names[outs],OBJ_IO_NAME_LEN-1);
+                memcpy(ctl_output_name[curr_output],buf,IN_OUT_NAME_LEN);
+            }
+            curr_output++;
+            if(curr_output>MAX_OUTPUTS_REAL){
+                printf("5-curr_output:%i max:%i\n",curr_output,MAX_OUTPUTS_REAL);
+                return false;}
         }        
     }
 
@@ -538,6 +581,35 @@ uint8_t init_objects_inputs(void)
         }
     } 
 
+    objects_first_input_id[SEQUENCER]=curr_input;
+    for (uint8_t seq=0;seq<MAX_SEQ;seq++)
+    {
+
+            for(uint8_t ins=0;ins<SEQ_INPUTS_NB;ins++)              // one sequencer all inputs
+            {
+
+                    if(curr_input>=TOTAL_INPUTS_ID_REAL){return 2;}             // checked before any write
+                    seq_ctl_input_id[seq][ins]=curr_input;
+                    ctl_input_id_chain[curr_input]=NO_LINK;
+                    ctl_input_object[curr_input]=seq;
+                    switch(ins){
+                        case SEQ_LV:ctl_input_update_type[curr_input]=SEQ_LEV ;break;
+                        case SEQ_CL:ctl_input_update_type[curr_input]=SEQ_C_L ;break;
+                        case SEQ_ST:ctl_input_update_type[curr_input]=SEQ_ST_ ;break;
+                        case SEQ_CK:ctl_input_update_type[curr_input]=SEQ_CK_ ;break;
+                        default: break;
+                    }          
+                        char buf[IN_OUT_NAME_LEN]={'S','E','Q','_'};    // see objName value
+                        convIntToString(buf+objName,seq,objNum);
+                        memcpy(buf+objName+objNum,&seq_inputs_names[ins],objOutType);    //OBJ_IO_NAME_LEN-1);
+                        memcpy(ctl_input_name[curr_input],buf,lenInpName);   //IN_OUT_NAME_LEN);
+
+                    curr_input++;
+
+            }
+        
+    }
+
     printf("init_obects_inputs(%u)\n",curr_input-1);
 
     // ajouter ici pour les entrées d'autres objets  (sequencers etc)
@@ -598,7 +670,7 @@ void __not_in_flash_func(connect_input)(uint16_t input_id, uint16_t output_id)  
 
 void __not_in_flash_func(disconnect_input)(uint16_t input_id, uint16_t output_id)
 {
-    if(output_id==0 || output_id>=MAX_OUTPUTS){return;}
+    if(output_id==0 || output_id>=MAX_OUTPUTS_REAL){return;}
 
     uint32_t f = spin_lock_blocking(inputs_id__lock);
     int16_t first = ctl_output_id_chain[output_id];
@@ -716,6 +788,18 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
                                 }break;
                 case LFM____ :  {                                // lfm #
                                 setLfm(object);
+                                }break;
+                case SEQ_LEV :  {
+
+                                }break;
+                case SEQ_C_L :  {
+
+                                }break;
+                case SEQ_ST_ :  {
+
+                                }break;
+                case SEQ_CK_ :  {
+
                                 }break;
                 default: break;
             }

@@ -44,8 +44,8 @@ extern const char menu0_names[][MENU_NAME_LEN];
 // voir les commentaires de coders_for_menu
 
 #define VCE_VAR_F_NB (1+5)                              // voices frequencies menu
-volatile int16_t menuVcesCodersF[CODER_NB];             // [0] curr input nb ; [1] freq ; [2] rc ; [3] freq att ; [4] rc att ; [6] gain coder
-uint16_t menuMaxVcesCodersF[CODER_NB]={MAX_VOICES-1,VCES_MAX_FREQ_CODERS,MAXCODER_RC,MAX_CTL_ATT,MAX_CTL_ATT,0,MAX_16B_LINEAR_VALUE-1,0};
+volatile int16_t menuVcesCodersF[CODER_NB];             // [0] curr input nb ; [1] freq ; [2] rc ; [3] freq att ; [4] rc att ; [5] gain coder
+uint16_t menuMaxVcesCodersF[CODER_NB]={MAX_VOICES-1,VCES_MAX_FREQ_CODERS,MAXCODER_RC,MAX_CTL_ATT,MAX_CTL_ATT,MAX_16B_LINEAR_VALUE-1,0};
 uint16_t* vcesVarF[CODER_NB];                           // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
 
 #define VCE_VAR_M_NB (1+6)                              // voices ampl menu : 6 waves
@@ -54,7 +54,7 @@ uint16_t menuMaxVcesCodersM[CODER_NB]={MAX_VOICES-1,WAVE_LEVEL_STEPS-1,WAVE_LEVE
 uint16_t* vcesVarM[CODER_NB];                           // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
 
 #define VCE_VAR_E_NB (1+6)                              // voices effects menu : echo + echo att + revb + revb att + gen + gen att
-volatile int16_t menuVcesCodersE[CODER_NB];             // [0] curr input nb ; [1] echo ; [2] echo_att ; [3] revb ; [4] revbAtt + [5] gen ; [6] gen_att
+volatile int16_t menuVcesCodersE[CODER_NB];             // [0] curr input nb ; [1] echo ; [2] echo_att ; [3] revb ; [4] revbAtt ; [5] gen ; [6] gen_att
 uint16_t menuMaxVcesCodersE[CODER_NB]={MAX_VOICES-1,WAVE_LEVEL_STEPS-1,MAX_CTL_ATT,WAVE_LEVEL_STEPS-1,MAX_CTL_ATT,WAVE_LEVEL_STEPS-1,MAX_CTL_ATT};
 uint16_t* vcesVarE[CODER_NB];                           // inits dans menu.cpp ; les éléments inutilisés sont nullptr
 
@@ -90,9 +90,13 @@ uint16_t* echoVar[CODER_NB];                            // inits dans menu.cpp ;
 
 #define REVB_VAR_NB (1+6)
 volatile int16_t menuRevbCoders[CODER_NB];              // [0] curr input nb ; [1] dur ; [2] dur ret ; [3] inj ; [4] inj ret ; [5] ret ; [6] att ret
-uint16_t menuMaxRevbCoders[CODER_NB]={MAX_ECHO-1,DUR_ECH_NB-1,MAX_CTL_ATT,ECHO_INJ_STEPS-1,MAX_CTL_ATT,WAVE_LEVEL_STEPS-1,MAX_CTL_ATT-1,0};
+uint16_t menuMaxRevbCoders[CODER_NB]={MAX_REV-1,DUR_ECH_NB-1,MAX_CTL_ATT,REVB_SHI_STEPS-1,MAX_CTL_ATT,WAVE_LEVEL_STEPS-1,MAX_CTL_ATT-1,0};
 uint16_t* revbVar[CODER_NB];                            // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
 
+#define SEQ_VAR_NB (1+12)
+volatile int16_t menuSeqCoders[CODER_NB];               // [0] curr input nb ; [13] GLev ; [14] GLevAtt ; [1]-[12] stepLev
+uint16_t menuMaxSeqCoders[CODER_NB]={MAX_SEQ-1,SEQ_MAX_LEVEL_CODERS,SEQ_MAX_LEVEL_CODERS,SEQ_MAX_LEVEL_CODERS,SEQ_MAX_LEVEL_CODERS,SEQ_MAX_LEVEL_CODERS,SEQ_MAX_LEVEL_CODERS,SEQ_MAX_LEVEL_CODERS,SEQ_MAX_LEVEL_CODERS,SEQ_MAX_LEVEL_CODERS,SEQ_MAX_LEVEL_CODERS,SEQ_MAX_LEVEL_CODERS,SEQ_MAX_LEVEL_CODERS,MAX_CTL_ATT-1,MAX_CTL_ATT-1};
+uint16_t* seqVar[CODER_NB];
 
 int main() {
 
@@ -116,7 +120,7 @@ if (watchdog_caused_reboot()) {
 
     menus_init();
     coderSetup(menu0Coders,codersSw,codersTB,menu0MaxCoders,MENU_NAME_LEN);
-    //testSetup();
+    testSetup();
     //test_ws();
     //testVoiceInit(3,0);
 
@@ -140,6 +144,7 @@ if (watchdog_caused_reboot()) {
             case LMUX_____: coders_for_menu("LM",(const char*)nullptr,MAX_LFM,0,LMUX_____,menuLfmCoders,codersSw,codersTB,menuMaxLfmCoders,lfmVar,LFM_VAR_NB,CODER_NB,0);break;            
             case ECHOs____: coders_for_menu("ECHOs",(const char*)nullptr,MAX_ECHO,0,ECHOs____,menuEchoCoders,codersSw,codersTB,menuMaxEchoCoders,echoVar,ECH_VAR_NB,CODER_NB,0);break;            
             case REVERb___: coders_for_menu("REVERb",(const char*)nullptr,MAX_REV,0,REVERb___,menuRevbCoders,codersSw,codersTB,menuMaxRevbCoders,revbVar,REVB_VAR_NB,CODER_NB,0);break;             
+            case SEQ______: coders_for_menu("Seq",(const char*)nullptr,SEQ_CHANNEL_NB,0,SEQ______,menuSeqCoders,codersSw,codersTB,menuMaxSeqCoders,seqVar,SEQ_VAR_NB,CODER_NB,0);break;
             case MAPPING__: coders_for_mapping();break;
 
             default:break;
