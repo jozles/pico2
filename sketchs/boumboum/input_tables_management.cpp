@@ -398,11 +398,12 @@ uint8_t init_objects_inputs(void)
     memset(ctl_input_srce,0x00,sizeof(ctl_input_srce));
     memset(ctl_input_shft,0x00,sizeof(ctl_input_shft));
     memset(ctl_input_trig,0x00,sizeof(ctl_input_trig));
-    memset(ctl_input_tlev,0x00,sizeof(ctl_input_tlev));
+    //memset(ctl_input_tlev,0x00,sizeof(ctl_input_tlev));
     
     for (uint16_t i=0;i<TOTAL_INPUTS_ID_REAL;i++){
         ctl_input_id_chain[i]=NO_LINK;
         ctl_input_val[i]=0;
+        ctl_input_tlev[i]=1;
     }
 
     memset(ctl_input_name[0],'-',objName);
@@ -747,7 +748,7 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
                 case VCE_WHIT:  setVoiceAmpl(&voices[object],WHIT);break;
                 case VCE_WPNK:  setVoiceAmpl(&voices[object],PONK);break;
                 case VCE_GENA:  setVoiceAmpl(&voices[object],BASIC_WAVES_NB);break;
-                case VCE_FILT:  setVoiceFilterFrequency(&voices[object]);break;         // cutoff code = coder + attenuated input (same shift of 6 as before)                         
+                case VCE_FILT:  setVoiceFilterFrequency(&voices[object]);break;         // cutoff code = coder + attenuated input (shift 3, as every frequency input).                      
                 case VCE_RES :  setVoiceFilterRes(&voices[object]);break;
                 case ECHO_V_ :  setVoiceEcho(&voices[object]);break;                    // echo send level of the voice
                 case ECHO_D_ :                                                          // delay, feedback, return: setEcho computes all three

@@ -222,10 +222,10 @@ void fillDur(void)
 
 // shift applied to the 16-bit input value before it is added to the coder (the input is then attenuated by coderXxxAtt/256):
 // 15 - log2(number of steps of the target scale): 8 sweeps the whole range of the durations (128 steps) with a full-scale input and a full attenuator, 9 sweeps half of it
-#define ADSR_ATT_SHIFT  9       // same values as before the rewrite
-#define ADSR_DEC_SHIFT  9
-#define ADSR_SUS_SHIFT  3
-#define ADSR_REL_SHIFT  3
+#define ADSR_ATT_SHIFT  8       // durations: 128 steps, a full-scale input sweeps the whole range (same rule as the echo and the reverb)
+#define ADSR_DEC_SHIFT  8
+#define ADSR_SUS_SHIFT  8
+#define ADSR_REL_SHIFT  8
 #define ADSR_LEV_SHIFT  10      // level: 32 steps (the old shift of 3 was far too large for this scale)
 
 // compute: the duration of a stage (step of the reading of the rc curve), from the stored coders and the stored value of its input
@@ -405,7 +405,7 @@ void __not_in_flash_func(touch_button_handler)(uint8_t touchButtonNb,bool* touch
             //printf("c:%u csw:%u id:%i\n",touchButtonNb,*touchButtonValue,in_bool_id);
             
             if (__builtin_expect(in_bool_id != NO_LINK, 0)){     
-                update_inputs(in_bool_id,*touchButtonValue *2-1);
+                update_inputs(in_bool_id,(*touchButtonValue) ? 0x7fff : 0);     // gate: 0x7fff while touched, 0 when released (same format as ADSR_GATE)
             }
         
             if(coderTouchB!=nullptr){

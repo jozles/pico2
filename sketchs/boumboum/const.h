@@ -7,7 +7,7 @@
 
 #include "rc_33tables.h"
 
-#define VERSION "v1.4f"
+#define VERSION "v1.50" // n'est plus compatible avec le proto 0
 
 #define PI 3.14159265359
 

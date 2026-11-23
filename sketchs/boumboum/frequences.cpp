@@ -313,7 +313,7 @@ void __not_in_flash_func(setVoiceSteps)(float freq,Voice* v){
 void __not_in_flash_func(setVoiceFrequency)(Voice* v)                                    // frequency -> phase step
 {
     int16_t id = v->voice_ctl_input_id[VFRQ];
-    float f = calcFreq((uint16_t)ctlCombine(v->coderFreq, v->coderFreqAtt, ctl_input_val[id], 6, 0, FREQ_CODE_MAX));
+    float f = calcFreq((uint16_t)ctlCombine(v->coderFreq, v->coderFreqAtt, ctl_input_val[id], 3, 0, FREQ_CODE_MAX));      // frequency input: shift 3, as every frequency input
     setVoiceSteps(f, v);
 }
 
@@ -329,7 +329,7 @@ void __not_in_flash_func(setVoiceFreqCoders)(Voice* v, uint16_t coderFreq, uint1
 void __not_in_flash_func(setVoiceCycleR)(Voice* v)                                       // cycle ratio -> table number
 {
     int16_t id = v->voice_ctl_input_id[VCR_];
-    v->cycleR = (uint8_t)ctlCombine(v->coderCycleR, v->coderCycleRAtt, ctl_input_val[id], 10, INT32_MIN, INT32_MAX);   // periodic table: fillVoiceBuffer_mono reads cycleR&63, and 256 is a multiple of 64
+    v->cycleR = (uint8_t)ctlCombine(v->coderCycleR, v->coderCycleRAtt, ctl_input_val[id], 9, INT32_MIN, INT32_MAX);    // shift 9: a full-scale input at full attenuator gives +-64 steps, one whole turn of the periodic table: fillVoiceBuffer_mono reads cycleR&63, and 256 is a multiple of 64
 }
 
 void __not_in_flash_func(setVoiceCycleRCoders)(Voice* v, uint8_t coderCycleR, int16_t coderCycleRAtt)
@@ -344,7 +344,7 @@ void __not_in_flash_func(setVoiceCycleRCoders)(Voice* v, uint8_t coderCycleR, in
 
 // *************************** filters ****************************
 
-#define FILTER_INPUT_SHIFT 6        // use the value the old VFIL case of update_inputs had
+#define FILTER_INPUT_SHIFT 3        // frequency input: shift 3, as every frequency input (voices, filter, lfos)
 
 // ---- glide of the filter cutoff ----
 // the cutoff code (409 codes per octave, i.e. a logarithmic frequency) goes through a one-pole low-pass, one step per ms:
@@ -528,7 +528,7 @@ void __not_in_flash_func(setLfosFrCoders)(uint8_t lfo, uint16_t coderFreq, uint1
 void __not_in_flash_func(setLfosCycleR)(uint8_t lfo)
 {
     const int16_t valeur = ctl_input_val[lfo_ctl_input_id[lfo][LCR_]];
-    lfosCycleR[lfo]=(uint16_t)(lfosCoderCycleR[lfo]+(((valeur>>10)*lfosCoderCycleRAtt[lfo])>>MAX_CTL_ATT_SHIFT));   // base + attenuated input ; read as &63 by lfosHandler
+    lfosCycleR[lfo]=(uint16_t)(lfosCoderCycleR[lfo]+(((valeur>>9)*lfosCoderCycleRAtt[lfo])>>MAX_CTL_ATT_SHIFT));    // base + attenuated input (shift 9: one whole turn with a full-scale input) ; read as &63 by lfosHandler
 }
 
 // load the coders of the cycle ratio, then compute it

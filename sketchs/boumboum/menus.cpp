@@ -943,9 +943,9 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                         default: break;
                     }
                 }
-                snprintf(buf+2,LINE_LEN-2,"%2u %3u ",seqCoderGLev[0],seqCoderGLevAtt[0]);
+                //snprintf(buf+2,LINE_LEN-2,"%2u %3u ",seqCoderGLev[0],seqCoderGLevAtt[0]);
                 for (uint8_t s=0;s<SEQ_STEP_NB;s++){
-                    snprintf(buf+9,LINE_LEN-2,"%2u ",seqCoderStepLev[0][line][s]);  // first seq only for the moment
+                    snprintf(buf+2+3*s,LINE_LEN-2,"%2u ",seqCoderStepLev[0][line][s]);  // first seq only for the moment
                 }
                 break;
 
