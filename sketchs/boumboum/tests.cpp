@@ -141,12 +141,12 @@ void vsetup(uint8_t v,uint16_t coderFreq,uint16_t coderFreqAtt,int8_t cr,int16_t
 }
 
 void vsetup(uint8_t v,uint16_t coderFreq,uint16_t coderFreqAtt,uint8_t coderAmp,uint8_t  coderAmpAtt,int8_t cr,int16_t crAtt,uint8_t wave){
-    vsetup(v,coderFreq,coderFreqAtt,cr,crAtt,wave,coderAmp, coderAmpAtt,0,0,0,coderFreq+409,0,MAX_CTL_ATT,0,0,1,0,0,0,0,0);   
+    vsetup(v,coderFreq,coderFreqAtt,cr,crAtt,wave,coderAmp, coderAmpAtt,0,0,0,coderFreq+INCRNB,0,MAX_CTL_ATT,0,0,1,0,0,0,0,0);   
 }
 
 void lfoSetup(uint8_t lfo,float freq,uint8_t fAtt,uint8_t rc,uint8_t rcAtt)
 {
-        setLfosFrCoders(lfo,calcCoderFreq(freq*1000),fAtt); // 0.375hz ; 2239 0.75hz ; 2659 1.5hz ; 3079 3hz ; 3499 6hz
+        setLfosFrCoders(lfo,calcCoderFreq(freq*VOICE_FREQ_DIVIDER),fAtt); // 0.375hz ; 2239 0.75hz ; 2659 1.5hz ; 3079 3hz ; 3499 6hz
         setLfosFrequency(lfo);
         setLfosCycleR(lfo,rc,rcAtt);
 }
@@ -205,15 +205,17 @@ void sound3(uint8_t voice,uint8_t vwave,uint16_t coderFreq,uint8_t coderAttF,uin
 
     // connect source to adsr (sourceAdsr<0 : lfo number -1-sourceAdsr ; otherwise touch button number)
     uint8_t sourceType=TBUTTON__;
+    uint8_t sourceTypeNb=1;
     int8_t sourceNum=sourceAdsr;
     uint8_t waveF=0;
     if(sourceAdsr<0){
         sourceNum=-1-sourceAdsr;
         sourceType=LFO______;
+        sourceTypeNb=LFO_OUTPUTS_NB;
         waveF=WSIN;
     }
     obj_connect(objects_first_input_id[ADSR_____]+adsr*ADSR_INPUTS_NB+STAR,
-                objects_first_output_id[sourceType]+sourceNum*LFO_OUTPUTS_NB+waveF);
+                objects_first_output_id[sourceType]+sourceNum*sourceTypeNb+waveF);
 
     // config lfo amp
     if(voiceAmpLfo>=0){
@@ -272,13 +274,19 @@ void sound3(uint8_t voice,uint8_t vwave,uint16_t coderFreq,uint8_t coderAttF,uin
 
 void oldTest()
 {
-    // 1096 110Hz // 1936 440Hz // 2355 880Hz    @420/octave demi_ton 35
+    // 1096 110Hz // 1808 350Hz // 1936 440Hz // 2355 880Hz    @420/octave demi_ton 35
 
     #define VOICE0 0x80
     #define VOICE1 0x40
     #define VOICE2 0x20
     #define VOICE3 0x10
     uint8_t action=VOICE0|VOICE1|VOICE2;
+
+    uint16_t coderLfo5Hz=calcCoderFreq(5 * VOICE_FREQ_DIVIDER);             //3392;         // 5Hz 
+    uint16_t coderLfo5_5Hz=calcCoderFreq(5.5f * VOICE_FREQ_DIVIDER);        //3392;         // 5Hz 
+    uint16_t coderLfo6sec=calcCoderFreq(1/6.0f * VOICE_FREQ_DIVIDER);       //1384;         // 1384 6sec // 1790 3sec
+    uint16_t coderLfo3_5sec=calcCoderFreq(1/3.5f * VOICE_FREQ_DIVIDER);     //1200;
+    uint16_t coderLfo8sec=calcCoderFreq(1/8.0f * VOICE_FREQ_DIVIDER);  
 
     printf("\n========== test-setup 0x%02X ==========\n",action);    
 
@@ -287,18 +295,18 @@ void oldTest()
         // config voice 0    
         uint8_t  voice=0;
         uint8_t  vwave=WTRI;
-        uint16_t coderFreq=800; 
-        uint16_t coderFil=1500;           
+        uint16_t coderFreq=calcCoderFreq(63); 
+        uint16_t coderFil=calcCoderFreq(220.0f);           
         uint8_t  coderAttF=125;
         uint8_t  coderAmp=15;
         uint8_t  coderAttAmp=80;         
         int8_t   cr=10;
         uint8_t  crAtt=64;
         uint8_t  freqLfo=0;
-        uint16_t freqLfoCoder=3392;         // 5Hz  
+        uint16_t freqLfoCoder=coderLfo5Hz;          // 3392;         // 5Hz  
         uint8_t  adsr=0;
         int8_t   adsrLfo=2;    
-        uint32_t adsrLfoCoder=1384;         // 1384 6sec // 1790 3sec
+        uint32_t adsrLfoCoder=coderLfo6sec;         // 1384 6sec // 1790 3sec
         uint8_t  crLfo=4;
         uint16_t crLfoCoder=1820;
         uint8_t  lfm=0;
@@ -312,7 +320,7 @@ void oldTest()
         asetup(adsr,6,28,12,96);
 
         voices[voice].coderCycleRAtt=200;                           // input atten
-        sub_lfo(VOICE____,0,VOICES_INPUTS_NB,VCR_,4,1700,WTRI);                      // 1700=3.5s 
+        sub_lfo(VOICE____,0,VOICES_INPUTS_NB,VCR_,4,coderLfo3_5sec,WTRI);     // 1700=3.5s calcCoderFreq(3.5 * VOICE_FREQ_DIVIDER)
 
         setVoiceFilter(&voices[0],coderFil,100,255,0,255);
         //setLfosFreq(filtLfo,1790);
@@ -329,14 +337,14 @@ void oldTest()
         uint8_t  v=1;
         uint8_t  filtLfo=6;
         uint8_t  adsr=1;
-        //sound3(1,WSIN,1740,12,8,60,1,adsr,-3,0,0,0,0,0,-1,3499,1,3499);
-        voiceConfig(v,WSIN,1740,12,1,3499,0,30,adsr,3,1200,1,0);
+        voiceConfig(v,WSIN,calcCoderFreq(400.0f),5,1,coderLfo5Hz,0,12,adsr,3,coderLfo3_5sec,1,0); //1740 3392 1200
+        //voiceConfig(v,WSIN,calcCoderFreq(350.0f),7,1,3392,0,30,adsr,3,calcCoderFreq(0.12 * VOICE_FREQ_DIVIDER),1,0);   //calcCoderFreq(5.5 * VOICE_FREQ_DIVIDER)
         setVoiceAmplCoders(&voices[v],5,30,0);
         asetup(adsr,96,60,11,90);
 
-        setVoiceFilter(&voices[1],2000,100,150,0,255);
+        setVoiceFilter(&voices[1],calcCoderFreq(400.0f),100,150,0,255);
         
-        setLfosFrCoders(filtLfo,1384,0);
+        setLfosFrCoders(filtLfo,coderLfo6sec,0);    //1384
         setLfosFrequency(filtLfo);
         setLfosCycleR(filtLfo,0,0);     //MAXCODER_RC/2,0);
 
@@ -349,7 +357,7 @@ void oldTest()
         //      lfo5->mux1inp1 coder[1][1]=32563
         //      mux1->mux0inp1
         uint8_t adsr=2;
-        sound3(2,WSIN,2300,70,0,30,1,0,adsr,0,0,1,1,1,2,5,3499,5,3499);
+        sound3(2,WSIN,calcCoderFreq(880.0f),70,0,30,1,0,adsr,0,0,1,1,1,2,5,coderLfo5_5Hz,5,coderLfo5_5Hz);    //calcCoderFreq(5.5 * VOICE_FREQ_DIVIDER),5,calcCoderFreq(5.5 * VOICE_FREQ_DIVIDER));
         asetup(adsr,127,32,16,127);
     }
 
@@ -358,14 +366,14 @@ void oldTest()
         uint8_t     vwave=WSIN;
         int8_t      cr=0;
         uint8_t     crAtt=0;
-        uint16_t    coderF=1943;
+        uint16_t    coderF=calcCoderFreq(440.0f);
         uint8_t     coderAttF=70;
         uint8_t     coderA=10;
         uint8_t     coderAttA=0;
         uint8_t     lfo=0;
         uint8_t     lwave=WSIN;
 
-        setLfosFrCoders(lfo,(uint16_t)1819,0); // 0.375hz ; 2239 0.75hz ; 2659 1.5hz ; 3079 3hz ; 3499 6hz
+        setLfosFrCoders(lfo,coderLfo3_5sec,0); // 1819 0.375hz ; 2239 0.75hz ; 2659 1.5hz ; 3079 3hz ; 3499 6hz
         setLfosFrequency(lfo);
         setLfosCycleR(lfo,0,0);
 
@@ -587,15 +595,15 @@ void test_ping_init()
         uint8_t adsr=3;
         uint8_t v=3;
         uint8_t b=1;
-        uint16_t coderf=1535;       // 1535=220Hz
+        uint16_t coderf=calcCoderFreq(220.0f);
         uint8_t w=WSAW;
 
-        obj_connect(objects_first_input_id[ADSR_____]+adsr*ADSR_INPUTS_NB+STAR,objects_first_output_id[TBUTTON__]+b*TBUT_OUTPUTS_NBH_BUTTON);
+        obj_connect(objects_first_input_id[ADSR_____]+adsr*ADSR_INPUTS_NB+STAR,objects_first_output_id[TBUTTON__]+b*TBUT_OUTPUTS_NB+TOUCH_BUTTON);
         obj_connect(objects_first_input_id[VOICE____]+v*VOICES_INPUTS_NB+VSPW+w,objects_first_output_id[ADSR_____]+adsr*ADSR_OUTPUTS_NB+ADSR_SHAPE);
         asetup(adsr,1,84,0,0,0);    //void asetup(uint8_t adsr,uint8_t att,uint8_t dec, uint8_t sus,uint8_t rel, uint8_t lev)
-        //vsetup(v,coderf,0,0,120,0,0,WSIN,coderf+409,0,MAX_CTL_ATT,0,0,1,0,63,0,0,0);
+        //vsetup(v,coderf,0,0,120,0,0,WSIN,coderf+INCRNB,0,MAX_CTL_ATT,0,0,1,0,63,0,0,0);
         //setEchoCoder(0,100,0,50,0,63,0);setRevbCoder(0,0,0,0,0,0,0);
-        vsetup(v,coderf,0,0,120,0,0,w,coderf+818,0,MAX_CTL_ATT,0,0,1,0,0,0,0,0);    // void vsetup(uint8_t v,uint16_t coderFreq,uint16_t coderFreqAtt,uint16_t coderAmp,uint16_t coderAmpAtt,int8_t cr,int16_t crAtt,uint8_t wave,int16_t filterFr,int16_t filterFrAtt,int16_t filterLevAtt,int16_t filterRes,int16_t filterResAtt,uint8_t cga,uint16_t cgaa,uint8_t echo,uint8_t echoAtt,uint8_t revb,uint8_t revbAtt)
+        vsetup(v,coderf,0,0,120,0,0,w,coderf+2*INCRNB,0,MAX_CTL_ATT,0,0,1,0,0,0,0,0);    // void vsetup(uint8_t v,uint16_t coderFreq,uint16_t coderFreqAtt,uint16_t coderAmp,uint16_t coderAmpAtt,int8_t cr,int16_t crAtt,uint8_t wave,int16_t filterFr,int16_t filterFrAtt,int16_t filterLevAtt,int16_t filterRes,int16_t filterResAtt,uint8_t cga,uint16_t cgaa,uint8_t echo,uint8_t echoAtt,uint8_t revb,uint8_t revbAtt)
         //setRevbCoder(0,100,0,63,0,63,0);setEchoCoder(0,0,0,0,0,0,0);
 }
 #endif // TEST_PING
@@ -607,7 +615,7 @@ void test_A()       // son "a"
     uint8_t v0=4;
     uint8_t v1=5;
     uint8_t v2=6;
-    uint16_t coderF=calcCoderFreq(110); //1535;       // 1535=220Hz
+    uint16_t coderF=calcCoderFreq(110);
     uint16_t f0=750;
     uint16_t f1=1200;
     uint16_t f2=2500;
@@ -865,7 +873,7 @@ void cablage(){
         int8_t      cr=0;
         uint8_t     crAtt=0;
 
-        int16_t     coderFilterF=coderF+409;
+        int16_t     coderFilterF=coderF+INCRNB;
         int16_t     coderFilterFAtt=0;
         int16_t     coderFilterLevAtt=0;
         int16_t     coderFilterRes=0;
@@ -887,7 +895,7 @@ void testVoiceInit(uint8_t vv,uint8_t w)
         cr=0;
         crAtt=0;
 
-        coderFilterF=coderF+409;
+        coderFilterF=coderF+INCRNB;
         coderFilterFAtt=0;
         coderFilterLevAtt=MAX_CTL_ATT-1;
         coderFilterRes=252;

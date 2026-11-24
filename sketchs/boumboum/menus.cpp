@@ -794,8 +794,8 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                     default: break;
                 }
 
-                snprintf(buf+2,LINE_LEN-2,"%4.3f %i %u %i %u ",voices[line].frequency,voices[line].coderCycleR-MAXCODER_RC/2,
-                    voices[line].coderFreqAtt,voices[line].coderCycleRAtt,voices[line].coderFreq);               
+                snprintf(buf+2,LINE_LEN-2,"%4.3f %i %u %i %u ", calcFreq(voices[line].coderFreq),voices[line].coderCycleR-MAXCODER_RC/2,
+                    voices[line].coderFreqAtt,voices[line].coderCycleRAtt,voices[line].coderFreq);               // voices[line].frequency,
                 break;
 
             case VOICES_EF:          
