@@ -32,7 +32,7 @@ const uint8_t octNb = OCTNB;
 float baseFreq = FREQ0;
 float octFreq[octNb+1];
 
-const uint16_t octIncrNb = 409;
+const uint16_t octIncrNb = INCRNB;
 float octIncr[octIncrNb];
 
 #define FILTER_FRAC       8             // fractional bits kept inside the filter (Q8)
@@ -263,21 +263,20 @@ void dumpVoices(Voice* v, uint8_t line)                      // one voice on 3 l
   dbgClickRatio=0; dbgClickBufs=0;                                                                 // peak hold: restarts after each dump
 }
 
-uint16_t __not_in_flash_func(calcCoderFreq)(float freq) // from freq value to coder value
+uint16_t __not_in_flash_func(calcCoderFreq)(float freq) // from freq value to coder value (0..FREQ_CODE_MAX)
 { 
+    if (!(freq > octFreq[0])) return 0;                             // below the lowest frequency (or not a number): code 0
+
     uint8_t oct = 0;
-    while (octFreq[oct+1] <= freq && oct < OCTNB)
+    while (oct < OCTNB - 1 && octFreq[oct+1] <= freq)              // oct stays within 0..OCTNB-1: octFreq[oct+1] is always inside the table
         oct++;
 
-    float f0 = octFreq[oct];
-    float f1 = octFreq[oct+1];
+    float x = log2f(freq / octFreq[oct]);                           // position in the octave (0..1): the steps are logarithmic, as in calcFreq
+    if (x < 0) x = 0;
+    if (x > 1) x = 1;                                               // above the top of the table: the highest code
 
-    float alpha = (freq - f0) / (f1 - f0);
-    if (alpha < 0) alpha = 0;
-    if (alpha > 1) alpha = 1;
-
-    uint16_t incr = (uint16_t)round(alpha * octIncrNb);
-    return oct * octIncrNb + incr;
+    uint32_t code = oct * octIncrNb + (uint32_t)roundf(x * octIncrNb);
+    return (code > FREQ_CODE_MAX) ? FREQ_CODE_MAX : (uint16_t)code;
 }
 
 // base coder + attenuated control input, clamped to [lo,hi]: the one formula for every control input
@@ -347,7 +346,7 @@ void __not_in_flash_func(setVoiceCycleRCoders)(Voice* v, uint8_t coderCycleR, in
 #define FILTER_INPUT_SHIFT 3        // frequency input: shift 3, as every frequency input (voices, filter, lfos)
 
 // ---- glide of the filter cutoff ----
-// the cutoff code (409 codes per octave, i.e. a logarithmic frequency) goes through a one-pole low-pass, one step per ms:
+// the cutoff code (INCRNB codes per octave, i.e. a logarithmic frequency) goes through a one-pole low-pass, one step per ms:
 // whatever the modulation does (sawtooth reset, steps of a coder), the render only sees a cutoff that moves smoothly
 // 160 ms: first value for which the toc of a sawtooth on the cutoff is no longer heard (listening test)
 #define FILTER_GLIDE_MS         160                     // time constant of the low-pass, ms (0 = no glide)
@@ -556,7 +555,7 @@ void lfosInit(){
         lfosPhaseStep[l]=0; 
         lfoPhase[l]=0;
 
-        setLfosFrCoders(l, 1768, FULL_ATTENUATION_VALUE);               // 1.5 s
+        setLfosFrCoders(l, LFOS_INIT_FREQ_CODER, FULL_ATTENUATION_VALUE);
         setLfosCycleRCoders(l, MAXCODER_RC/2, FULL_ATTENUATION_VALUE);
 
         lfoTime=0;

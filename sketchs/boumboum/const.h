@@ -7,7 +7,7 @@
 
 #include "rc_33tables.h"
 
-#define VERSION "v1.51" // n'est plus compatible avec le proto 0
+#define VERSION "v1.50" // n'est plus compatible avec le proto 0
 
 #define PI 3.14159265359
 
@@ -107,7 +107,7 @@
 // coarse step of the frequency coders: while the coarse touch button is held, each detent of a frequency coder
 // adds one semitone (no acceleration) ; the touch button has no effect on the other coders
 #define CODER_COARSE_TOUCH      0          // logical number of the coarse touch button
-#define CODER_COARSE_PITCH      34         // one semitone: 409 steps per octave / 12 (64 with 768 steps per octave)
+#define CODER_COARSE_PITCH      64         // one semitone: 768 steps per octave / 12
 #define CODER_PITCH_MIN_MAXI    1024       // a coder whose maximum reaches this is a frequency coder (VCES_MAX_FREQ_CODERS, LFOS_MAX_FREQ_CODERS)
 
 // unused if CPLD
@@ -173,8 +173,8 @@ typedef enum {
 /* Voices */
 
 #define MAX_VOICES 8 
-#define VCES_MAX_FREQ_CODERS 4498 //4399
-#define VCES_MIN_FREQ_CODERS 25
+#define VCES_MAX_FREQ_CODERS 8447         // 11 octaves of 768 steps, minus 1 (= FREQ_CODE_MAX)
+#define VCES_MIN_FREQ_CODERS 47           // 17.1 Hz
 #define VCES_MAX_AMPL_CODERS MAX_16B_LINEAR_VALUE
 #define GAIN_REDUC 8                    // gain reduction shift in fillVoices
 
@@ -183,7 +183,8 @@ typedef enum {
 #define MAX_LFO 8
 #define LFOS_SAMPLE_RATE 40
 #define LFOS_MAX_FREQ_CODERS VCES_MAX_FREQ_CODERS //3000
-#define LFOS_MIN_FREQ_CODERS 420        // 30sec
+#define LFOS_MIN_FREQ_CODERS 788        // 30 s
+#define LFOS_INIT_FREQ_CODER 3319       // 0.32 Hz (3.1 s): start-up value of every lfo
 #define OSC_SCOPE_BUFFER_LEN 256        // SAMPLE_BUFFER_SIZE         // OSC_SCOPE
 #define VOICE_FREQ_DIVIDER  1024        // pour usage conjoint de calcFreq()
 
@@ -322,7 +323,7 @@ static_assert(((ECHO_BUF_LEN * 2) % 4) == 0, "the DMA clears bufEcho with 32-bit
 /* tests: a defined TEST_xxx runs its test at start-up (testSetup, tests.cpp) */
 //#define TEST_REVERB                                             // reverb test: test_reverb()
 //#define REVB_TEST_LOG_LEN 700                                   // reverb test: buffers logged (700 x 11.6 ms = 8.1 s)
-#define OLD_TEST
+//#define OLD_TEST
 //#define TEST_PING
 //#define TEST_A
 //#define TEST_CODERS                                             // coder test: test_coders(), log of the states read by the coder handler

@@ -24,8 +24,8 @@
 
 
 #define OCTNB 11
-#define INCRNB 409    // int(4096/10)=409
-#define FREQ0 16.345  // pour avoir un LA à 440Hz avecc 409 incréments par octave 
+#define INCRNB 768    // steps per octave: 64 per semitone (exact semitones, 1 octave = 768 << 3 = 6144 units on the signals)
+#define FREQ0 16.351597831287414  // C0 of the tempered scale (A4 = 440 Hz): every note falls on a multiple of 64, A4 = code 3648
 
 // lfos: Q16.16 phase, 11 bits of table index + 16 fractional bits
 #define LFO_PHASE_SHIFT 16
@@ -40,8 +40,9 @@ static_assert(MAX_STEP_FRA == (1u << LFO_PHASE_SHIFT), "lfosPhaseStep is built w
 //#define FILTER_TABLE_LEN     (FILTER_MAX_OCT*FILTER_STEPS_PER_OCT + 1)
 
 //pour ctlCombine
-#define FREQ_CODE_MAX (OCTNB*INCRNB-1)                // 4498: calcFreq() reads octFreq[oct+1], oct <= 10
-#define FILTER_CODE_MAX  (FILTER_MAX_OCT*INCRNB)      // 4090
+#define FREQ_CODE_MAX (OCTNB*INCRNB-1)                // 8447: calcFreq() reads octFreq[oct+1], oct <= 10
+#define FILTER_CODE_MAX  (FILTER_MAX_OCT*INCRNB)      // 7680
+static_assert(FILTER_CODE_MAX == 7680, "filter_g_table.h has one entry per cutoff code 0..7680: regenerate it if INCRNB or FILTER_MAX_OCT change");
 static_assert(VCES_MAX_FREQ_CODERS == FREQ_CODE_MAX, "voice frequency coder maximum and FREQ_CODE_MAX must match");
 
 #define FILTER_MAX_STAGES 4          // allocated size of the state array; the render loop currently always uses 4 stages
