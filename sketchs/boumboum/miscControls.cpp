@@ -7,6 +7,7 @@
 #include "miscControls.h"
 #include "input_tables_management.h"
 #include "frequences.h"
+#include "leds.h"
 #include "hardware/sync.h"
 #include "hardware/dma.h"
 #include <math.h>
@@ -31,15 +32,19 @@ uint32_t adsrDurDec[MAX_ADSR];
 uint32_t adsrDurSus[MAX_ADSR];
 uint32_t adsrDurRel[MAX_ADSR];
 uint32_t adsrCurrEch[MAX_ADSR];
+uint8_t  adsrLeds[MAX_ADSR];
+bool     adsrLedsMask[MAX_ADSR];
 int16_t  adsr_ctl_input_id[MAX_ADSR][ADSR_INPUTS_NB];
 int16_t  adsr_ctl_output_id[MAX_ADSR][ADSR_OUTPUTS_NB];
+
 int32_t  adsrScopeBufReal[MAX_ADSR*ADSR_SCOPE_BUFFER_LEN];  // real values
 uint16_t adsrScopeBufPtr[MAX_ADSR];
+bool     adsrScopeDisp[MAX_ADSR];
 
 uint32_t    adsrTime=0;
 uint32_t    adsrTimingInterval=1000/ADSR_SAMPLE_RATE;
 
-bool     adsrScopeDisp[MAX_ADSR];
+
 
 /* ******* touchButtons ******* */
 
@@ -129,12 +134,14 @@ void adsrInit()                     // (id ptrs dans inits_objects_inputs/output
         setAdsrDurCoders(a,ADSR_SUS,12,FULL_ATTENUATION_VALUE);
         setAdsrDurCoders(a,ADSR_REL,96,FULL_ATTENUATION_VALUE);
         setAdsrLevCoders(a,ADSR_MAX_LEVEL_CODERS,FULL_ATTENUATION_VALUE);
-
+        adsrLeds[a]=WSLEDOFF|ADSR_WS_COL;
+        adsrLedsMask[a]=true;
         adsrStatus[a]=ADSR_OFF;
         adsrCurrEch[a]=0;
         adsrScopeBufPtr[a]=0;
 
     }
+    setWsLeds(adsrLeds,ADSR_LEDS_POS,ADSR_LEDS_NB,adsrLedsMask);
 }
 
 #define ONE_Q16     65536
@@ -314,10 +321,11 @@ void __not_in_flash_func(adsrHandler)()
                 const uint32_t lev=(uint32_t)amplLevel[adsrLev[a]]<<1;   // the stages work on the 0..65535 scale (halved once, at the end of the stages): the level must be on this scale too
                 uint32_t* ce=&adsrCurrEch[a];            
                 uint32_t  cx=*ce>>16;   // prev currEch  
-                
+                bool ledChge=false;
+
                 switch(*as){
                     case ADSR_ATT:
-                        if(*ce==0){adsrAttStart[a]=ADSR_RETRIGGER_FROM_LEVEL?adsrLastOut[a]:0;}   // first tick of an attack (every trigger sets *ce to 0)
+                        if(*ce==0){adsrAttStart[a]=ADSR_RETRIGGER_FROM_LEVEL?adsrLastOut[a]:0;adsrLeds[a]=WSLEDON|ADSR_WS_COL;ledChge=true;}   // first tick of an attack (every trigger sets *ce to 0)
                         cx=adsrNext(ce,adsrDurAtt[a]);
                         o32=adsrAttStart[a]+(((uint32_t)P16-adsrAttStart[a])*rcCurve[cx])/(uint32_t)P16;
                         ov_=(uint16_t)o32;
@@ -348,11 +356,12 @@ void __not_in_flash_func(adsrHandler)()
                         ov0=rcCurve[cx];
                         ov_=(uint16_t)(lev-(lev*ov0)/(uint32_t)P16);
 
-                        if (cx == RC_SAMPLES_NB-1) { *ce = 0; *as = ADSR_OFF;ov_=0;} 
+                        if (cx == RC_SAMPLES_NB-1) { *ce = 0; *as = ADSR_OFF;ov_=0;adsrLeds[a]=WSLEDOFF|ADSR_WS_COL;ledChge=true;} 
                         break;
 
                     default:break;
                 }
+                if(ledChge){setWsLeds(adsrLeds+a,ADSR_LEDS_POS+a,1,adsrLedsMask);}
                 adsrLastOut[a]=ov_;     // kept for the next trigger
                 ov_ >>= 1;      // single conversion from the internal ~0-65536 scale to the int16 scale used by update_inputs, done once for all four stages
                 

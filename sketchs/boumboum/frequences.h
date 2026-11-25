@@ -24,6 +24,8 @@
 
 
 #define OCTNB 11
+#define LFO_OCTNB 13  // octaves of the octave table octFreq: the voices use the first OCTNB, the lfos (calcFreq / VOICE_FREQ_DIVIDER) all of them
+static_assert(LFO_OCTNB >= OCTNB, "the octave table must cover the voices");
 #define INCRNB 768    // steps per octave: 64 per semitone (exact semitones, 1 octave = 768 << 3 = 6144 units on the signals)
 #define FREQ0 16.351597831287414  // C0 of the tempered scale (A4 = 440 Hz): every note falls on a multiple of 64, A4 = code 3648
 
@@ -44,6 +46,8 @@ static_assert(MAX_STEP_FRA == (1u << LFO_PHASE_SHIFT), "lfosPhaseStep is built w
 #define FILTER_CODE_MAX  (FILTER_MAX_OCT*INCRNB)      // 7680
 static_assert(FILTER_CODE_MAX == 7680, "filter_g_table.h has one entry per cutoff code 0..7680: regenerate it if INCRNB or FILTER_MAX_OCT change");
 static_assert(VCES_MAX_FREQ_CODERS == FREQ_CODE_MAX, "voice frequency coder maximum and FREQ_CODE_MAX must match");
+#define LFO_FREQ_CODE_MAX (LFO_OCTNB*INCRNB-1)        // 9983: lfo frequency codes
+static_assert(LFOS_MAX_FREQ_CODERS == LFO_FREQ_CODE_MAX, "lfo frequency coder maximum and LFO_FREQ_CODE_MAX must match");
 
 #define FILTER_MAX_STAGES 4          // allocated size of the state array; the render loop currently always uses 4 stages
 
@@ -120,6 +124,7 @@ void setVoiceCycleR(Voice* v);
 void setVoiceSteps(float freq,Voice* v);
 float calcFreq(uint16_t val);
 uint16_t calcCoderFreq(float freq);
+uint16_t calcLfoCoderFreq(float freq);                     // lfo frequency in Hz -> lfo coder value (0..LFO_FREQ_CODE_MAX)
 
 void filtersInit(uint8_t v);
 float calcFilterFreq(int32_t code);

@@ -7,15 +7,16 @@
 
 #include "rc_33tables.h"
 
-#define VERSION "v1.50" // n'est plus compatible avec le proto 0
+#define VERSION "v1.53"
 
 #define PI 3.14159265359
 
 #define BB_TEST_MODE
 
 #define TST_PIN 0
+#define TST_PIN2 1
 
-#define GP_ANAL_PIN 6   // gpio analog output
+#define GP_ANAL_PIN 6   // pwm gpio analog output 
 
 #define BUT_VCC_PIN 28
 #define BUTTON_PIN  27
@@ -112,11 +113,11 @@
 
 // unused if CPLD
 
+#ifndef CPLD
+
 #define CODER_GPIO_VCC         22
 #define CODER_PIO_SEL0          2       // CODER_SEL_NB consecutive pins
 #define CODER_SEL_NB            4       // selection bits
-
-#ifndef CPLD
 
 #define MUXED_TOUCH_PIN        26
 
@@ -181,12 +182,12 @@ typedef enum {
 /* lfos */
 
 #define MAX_LFO 8
-#define LFOS_SAMPLE_RATE 40
-#define LFOS_MAX_FREQ_CODERS VCES_MAX_FREQ_CODERS //3000
-#define LFOS_MIN_FREQ_CODERS 788        // 30 s
-#define LFOS_INIT_FREQ_CODER 3319       // 0.32 Hz (3.1 s): start-up value of every lfo
+#define LFOS_SAMPLE_RATE 100                // lfos computed every 10 ms: 10 points per period at 10 Hz
+#define LFOS_MAX_FREQ_CODERS 9983         // 13 octaves of 768 steps, minus 1 (= LFO_FREQ_CODE_MAX): 0.002 Hz (8.3 min) to 16.3 Hz
+#define LFOS_MIN_FREQ_CODERS 0          // the slowest: 0.002 Hz (8.3 min)
+#define LFOS_INIT_FREQ_CODER 5623       // 0.32 Hz (3.1 s): start-up value of every lfo
 #define OSC_SCOPE_BUFFER_LEN 256        // SAMPLE_BUFFER_SIZE         // OSC_SCOPE
-#define VOICE_FREQ_DIVIDER  1024        // pour usage conjoint de calcFreq()
+#define VOICE_FREQ_DIVIDER  8192        // lfo frequency = calcFreq(code) / VOICE_FREQ_DIVIDER: 13 octaves below the voices (power of 2: exact octaves)
 
 /* Adsrl */
 
@@ -196,6 +197,7 @@ typedef enum {
 #define ADSR_MAX_TIME_CODERS (DUR_ECH_NB-1)       // valeur maxi saisie par les coders      
 #define ADSR_MAX_LEVEL_CODERS (MAX_16B_LINEAR_VALUE-1)
 #define ADSR_SCOPE_BUFFER_LEN TFT_W
+#define ADSR_START_TLEV 1      // trigger level of the start input: 0 -> positive (touch buttons, gates) and negative -> positive (lfos) both trigger
 
 /* touch buttons */
 
@@ -227,7 +229,7 @@ typedef enum {
 
 #define PICO_WS2812_PIO 1
 #define ws2812_pio __CONCAT(pio, PICO_WS2812_PIO)
-#define WS2812_LED_PIN 1    // up to 4 WS2812 led chains on pico2 with the same pio 
+#define WS2812_LED_PIN  22  // up to 4 WS2812 led chains on pico2 with the same pio 
                             // each one using a different state machine (return from ledsWs2812Setup())
                             // voir commentaire dans main
 #define WS2812_DREQ_PIO __CONCAT(DREQ_PIO,PICO_WS2812_PIO)
@@ -235,7 +237,8 @@ typedef enum {
 
 #define NB_CORES_USED   1           // bb_buf protection in leds.cpp assumes a single core
 #define COLNB           32          // colours in colPal
-#define DIM_COEFS       {8, 13, 22, 36, 59, 97, 159, 256}  // brightness levels 0..7, factor /256
+//#define DIM_COEFS       {8, 13, 22, 36, 59, 97, 159, 256}  // brightness levels 0..7, factor /256
+#define DIM_COEFS       {0, 2, 6, 16, 32, 64, 128, 256}  // brightness levels 0..7, factor /256
 #define WS_LATCH_US     600         // min time between end of ws DMA and next transfer (PIO FIFO + LED latch)
 
 #define NBLEDS          70          // LEDs on the strip
@@ -243,12 +246,56 @@ typedef enum {
 #define MINCOL          2           // ws_show_3: first colour of the cycle (skips off and white)
 #define COLCYCLENB      2           // ws_show_3: strip turns before changing colour
 
+#define WS_REFRESH_MS   10
+
 // ws_show_3: brightness factor /256 of each zone of the moving light spot
 #define WS3_K_CENTER    59
 #define WS3_K_NEAR      36
 #define WS3_K_MID       22
 #define WS3_K_EDGE      13
 #define WS3_K_BACK      3           // outside the spot
+
+#define WS_COL_OFF            0
+#define WS_COL_WHITE          1
+#define WS_COL_RED            2
+#define WS_COL_ORANGE_RED     3
+#define WS_COL_ORANGE         4
+#define WS_COL_AMBER          5
+#define WS_COL_YELLOW         6
+#define WS_COL_LIME           7
+#define WS_COL_GREEN          8
+#define WS_COL_SPRING_GREEN   9
+#define WS_COL_AQUAMARINE    10
+#define WS_COL_CYAN          11
+#define WS_COL_SKY_BLUE      12
+#define WS_COL_AZURE         13
+#define WS_COL_BLUE          14
+#define WS_COL_VIOLET        15
+#define WS_COL_PURPLE        16
+#define WS_COL_MAGENTA       17
+#define WS_COL_FUCHSIA       18
+#define WS_COL_DEEP_PINK     19
+#define WS_COL_SALMON        20
+#define WS_COL_PEACH         21
+#define WS_COL_PALE_YELLOW   22
+#define WS_COL_PALE_LIME     23
+#define WS_COL_MINT          24
+#define WS_COL_PALE_CYAN     25
+#define WS_COL_PALE_SKY      26
+#define WS_COL_PALE_BLUE     27
+#define WS_COL_LAVENDER      28
+#define WS_COL_PALE_MAGENTA  29
+#define WS_COL_PINK          30
+#define WS_COL_WARM_WHITE    31
+
+#define WSLEDON 0x60
+#define WSLEDOFF 0x20
+#define ADSR_WS_COL WS_COL_RED
+#define ADSR_LEDS_NB 4
+#define ADSR_LEDS_POS 0
+#define LFO_WS_COL WS_COL_BLUE
+#define LFO_LEDS_NB 4
+#define LFO_LEDS_POS ADSR_LEDS_POS+ADSR_LEDS_NB
 
 /* I2S */
 
@@ -323,11 +370,12 @@ static_assert(((ECHO_BUF_LEN * 2) % 4) == 0, "the DMA clears bufEcho with 32-bit
 /* tests: a defined TEST_xxx runs its test at start-up (testSetup, tests.cpp) */
 //#define TEST_REVERB                                             // reverb test: test_reverb()
 //#define REVB_TEST_LOG_LEN 700                                   // reverb test: buffers logged (700 x 11.6 ms = 8.1 s)
-//#define OLD_TEST
+#define OLD_TEST
+//#define TEST_WSLEDS
 //#define TEST_PING
 //#define TEST_A
 //#define TEST_CODERS                                             // coder test: test_coders(), log of the states read by the coder handler
-#define CODER_LOG_LEN     256                                   // coder test: entries of the log (power of 2)
+//#define CODER_LOG_LEN     256                                   // coder test: entries of the log (power of 2)
 
 /* sequencer */
 

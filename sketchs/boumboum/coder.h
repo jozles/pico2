@@ -53,7 +53,7 @@ struct CoderLogEntry{                 // coder test (TEST_CODERS): one change of
     int16_t value;                    // value of the coder after this change (-1: coderSetup not done yet)
 };
 
-void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_t sel_nb,uint8_t nb,uint16_t ctpi,uint8_t cstn);
+void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t nb,uint16_t ctpi,uint8_t cstn);
 
 bool coderTimerHandler();
 

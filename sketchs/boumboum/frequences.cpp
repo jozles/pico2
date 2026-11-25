@@ -13,6 +13,7 @@
 #include "input_tables_management.h"
 #include "sound_level_management.h"
 #include "miscControls.h"
+#include "leds.h"
 #include "hardware/sync.h"
 
 extern int32_t       echoBus[MAX_ECHO][ECHO_STEPS];
@@ -30,7 +31,7 @@ volatile uint8_t dumpLine=0;
 
 const uint8_t octNb = OCTNB;
 float baseFreq = FREQ0;
-float octFreq[octNb+1];
+float octFreq[LFO_OCTNB+1];                    // octave frequencies: OCTNB octaves for the voices, LFO_OCTNB for the lfos
 
 const uint16_t octIncrNb = INCRNB;
 float octIncr[octIncrNb];
@@ -72,6 +73,10 @@ uint16_t    lfoScopeBufPtr=0;
 
 uint16_t    lfosCycleR[MAX_LFO];                      // cycle ratio 
 uint16_t    lfosCoderCycleR[MAX_LFO];                 // cycle ratio coder value -64/+64
+bool        lfoSqLast[MAX_LFO];
+
+uint8_t     lfoLeds[MAX_LFO];                     // =WSLEDON&GREEN;lfoLedsMask[l]=true;setWsLeds(lfoLeds,LFO_LEDS_POS,LFO_NB_LEDS,lfoLedsMask);
+bool        lfoLedsMask[MAX_LFO];
 
 uint16_t    lfosCoderCycleRAtt[MAX_LFO];              // cycle ratio input attenuator value
 
@@ -131,7 +136,7 @@ void showOctFreq()
 }
 
 void fillOctFreq() { 
-  for (uint8_t i = 0; i <= octNb; i++) {
+  for (uint8_t i = 0; i <= LFO_OCTNB; i++) {
     octFreq[i] = baseFreq * (1<<i); 
   }
   //showOctFreq();  
@@ -263,12 +268,13 @@ void dumpVoices(Voice* v, uint8_t line)                      // one voice on 3 l
   dbgClickRatio=0; dbgClickBufs=0;                                                                 // peak hold: restarts after each dump
 }
 
-uint16_t __not_in_flash_func(calcCoderFreq)(float freq) // from freq value to coder value (0..FREQ_CODE_MAX)
+// frequency -> code, on octNbMax octaves of octFreq, clamped to 0..codeMax
+static uint16_t __not_in_flash_func(calcCoderFreqOct)(float freq,uint8_t octNbMax,uint32_t codeMax)
 { 
     if (!(freq > octFreq[0])) return 0;                             // below the lowest frequency (or not a number): code 0
 
     uint8_t oct = 0;
-    while (oct < OCTNB - 1 && octFreq[oct+1] <= freq)              // oct stays within 0..OCTNB-1: octFreq[oct+1] is always inside the table
+    while (oct < octNbMax - 1 && octFreq[oct+1] <= freq)           // oct stays within 0..octNbMax-1: octFreq[oct+1] is always inside the table
         oct++;
 
     float x = log2f(freq / octFreq[oct]);                           // position in the octave (0..1): the steps are logarithmic, as in calcFreq
@@ -276,7 +282,17 @@ uint16_t __not_in_flash_func(calcCoderFreq)(float freq) // from freq value to co
     if (x > 1) x = 1;                                               // above the top of the table: the highest code
 
     uint32_t code = oct * octIncrNb + (uint32_t)roundf(x * octIncrNb);
-    return (code > FREQ_CODE_MAX) ? FREQ_CODE_MAX : (uint16_t)code;
+    return (code > codeMax) ? (uint16_t)codeMax : (uint16_t)code;
+}
+
+uint16_t __not_in_flash_func(calcCoderFreq)(float freq)          // voice (or filter) frequency in Hz -> coder value (0..FREQ_CODE_MAX)
+{
+    return calcCoderFreqOct(freq, OCTNB, FREQ_CODE_MAX);
+}
+
+uint16_t __not_in_flash_func(calcLfoCoderFreq)(float freq)       // lfo frequency in Hz -> lfo coder value (0..LFO_FREQ_CODE_MAX)
+{
+    return calcCoderFreqOct(freq * VOICE_FREQ_DIVIDER, LFO_OCTNB, LFO_FREQ_CODE_MAX);
 }
 
 // base coder + attenuated control input, clamped to [lo,hi]: the one formula for every control input
@@ -509,7 +525,7 @@ void __not_in_flash_func(setLfosSteps)(float freq,uint8_t lfo){
 void __not_in_flash_func(setLfosFrequency)(uint8_t lfo)
 {
     int16_t id = lfo_ctl_input_id[lfo][LFRQ];
-    float f=calcFreq((uint16_t)ctlCombine(lfosCodersFreq[lfo],lfosCodersFreqAtt[lfo],ctl_input_val[id],3,0,FREQ_CODE_MAX))/VOICE_FREQ_DIVIDER;
+    float f=calcFreq((uint16_t)ctlCombine(lfosCodersFreq[lfo],lfosCodersFreqAtt[lfo],ctl_input_val[id],3,0,LFO_FREQ_CODE_MAX))/VOICE_FREQ_DIVIDER;
     setLfosSteps(f,lfo);
 }
 
@@ -557,9 +573,13 @@ void lfosInit(){
 
         setLfosFrCoders(l, LFOS_INIT_FREQ_CODER, FULL_ATTENUATION_VALUE);
         setLfosCycleRCoders(l, MAXCODER_RC/2, FULL_ATTENUATION_VALUE);
+        lfoSqLast[l]=false;
+        lfoLeds[l]=WSLEDOFF|LFO_WS_COL;
+        lfoLedsMask[l]=true;
 
         lfoTime=0;
     }
+    setWsLeds(lfoLeds,LFO_LEDS_POS,LFO_LEDS_NB,lfoLedsMask);    
     //memset(lfoScopeBuffer,0x0000,sizeof(lfoScopeBuffer));
 
 }
@@ -573,7 +593,7 @@ void dumpLfos()
 
 void __not_in_flash_func(lfosHandler)()
 {
-  if((millisCounter-lfoTime)>lfoTimingInterval){
+  if((millisCounter-lfoTime)>=lfoTimingInterval){             // >=: one computation every lfoTimingInterval ms exactly (> gave one ms more)
 //gpio_put(TST_PIN,1);    
     lfoTime=millisCounter;
 
@@ -621,6 +641,15 @@ void __not_in_flash_func(lfosHandler)()
         int16_t c3=(currLfoEch[l] & (BASIC_WAVE_TABLE_LEN>>1)) ? -0x7fff : 0x7fff;
         out_id=ctl_output_id_chain[lfo_ctl_output_id[l][LSQR]];
         if (__builtin_expect(out_id != NO_LINK, 0)){update_inputs(out_id,c3);}
+
+        const bool on = (c3 >= 0);
+        if(__builtin_expect(on!=lfoSqLast[l],false) && l<LFO_LEDS_NB){
+            uint8_t led[]={WSLEDOFF,WSLEDON};
+            lfoSqLast[l]=on;
+            lfoLeds[l]=led[on]|LFO_WS_COL;
+            setWsLeds(lfoLeds+l,LFO_LEDS_POS+l,1,lfoLedsMask);
+        }
+
         
         uint32_t bufScopeOffset=l*OSC_SCOPE_BUFFER_LEN*BASIC_WAVES_NB + lfoScopeBufPtr*BASIC_WAVES_NB;
         lfoScopeBufReal[bufScopeOffset+LSIN]=c0;

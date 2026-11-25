@@ -18,7 +18,7 @@ extern volatile uint32_t millisCounter;
 static int ws_dma_chan;
 static dma_channel_config dma_cfg;
 static volatile bool ws_dma_done = false;
-static volatile uint32_t ws_dma_done_us = 0;   // time of the last end of ws DMA transfer (us)
+static volatile uint32_t ws_dma_done_us = 0;   // time of the end of the last ws DMA transfer
 static spin_lock_t *ws_dma_lock;
 
 static PIO ws_pio;
@@ -26,53 +26,46 @@ static int ws_sm;
 
 extern uint32_t gdis;
 
+
 uint32_t colPal[COLNB]={       // format 0xGGRRBB00, values for LEDs (light proportional to value)
-        0x00000000,     //  0 off
-        0xffffff00,     //  1 white
-        0x00ff0000,     //  2 red
-        0x17ff0000,     //  3 orange red
-        0x3fff0000,     //  4 orange
-        0x85ff0000,     //  5 amber
-        0xffff0000,     //  6 yellow
-        0xff670000,     //  7 lime
-        0xff000000,     //  8 green
-        0xff003700,     //  9 spring green
-        0xff00a900,     // 10 aquamarine
-        0xff00ff00,     // 11 cyan
-        0x6700ff00,     // 12 sky blue
-        0x1700ff00,     // 13 azure
-        0x0000ff00,     // 14 blue
-        0x002fff00,     // 15 violet
-        0x0085ff00,     // 16 purple
-        0x00ffff00,     // 17 magenta
-        0x00ff6700,     // 18 fuchsia
-        0x00ff2500,     // 19 deep pink
-        0x43ff4300,     // 20 salmon
-        0x80ff4300,     // 21 peach
-        0xeaff4300,     // 22 pale yellow
-        0xff8f4300,     // 23 pale lime
-        0xff437200,     // 24 mint
-        0xea43ff00,     // 25 pale cyan
-        0x8043ff00,     // 26 pale sky
-        0x4343ff00,     // 27 pale blue
-        0x438fff00,     // 28 lavender
-        0x43ffea00,     // 29 pale magenta
-        0x43ff8000,     // 30 pink
-        0xc0ff8300};    // 31 warm white
-
-// bb_buf / bb_buf_len : writers fill bb_buf first, then set bb_buf_len (last) to trigger the update
-// bb_leds_handler (1 kHz PWM IRQ) takes a snapshot of bb_buf with interrupts disabled
-static_assert(NB_CORES_USED == 1,
-    "bb_buf/bb_buf_len are protected by disabling interrupts, which only works on one core: "
-    "with 2 cores, protect them with a spinlock shared by the writers and bb_leds_handler");
-
-volatile uint8_t bb_buf_len=0;
-uint8_t*    bb_buf;
+    0x00000000,      //  0    WS_COL_OFF
+    0xffffff00,      //  1    WS_COL_WHITE
+    0x00ff0000,      //  2    WS_COL_RED
+    0x17ff0000,      //  3    WS_COL_ORANGE_RED
+    0x3fff0000,      //  4    WS_COL_ORANGE
+    0x85ff0000,      //  5    WS_COL_AMBER
+    0xffff0000,      //  6    WS_COL_YELLOW
+    0xff670000,      //  7    WS_COL_LIME
+    0xff000000,      //  8    WS_COL_GREEN
+    0xff003700,      //  9    WS_COL_SPRING_GREEN
+    0xff00a900,      // 10    WS_COL_AQUAMARINE
+    0xff00ff00,      // 11    WS_COL_CYAN
+    0x6700ff00,      // 12    WS_COL_SKY_BLUE
+    0x1700ff00,      // 13    WS_COL_AZURE
+    0x0000ff00,      // 14    WS_COL_BLUE
+    0x002fff00,      // 15    WS_COL_VIOLET
+    0x0085ff00,      // 16    WS_COL_PURPLE
+    0x00ffff00,      // 17    WS_COL_MAGENTA
+    0x00ff6700,      // 18    WS_COL_FUCHSIA
+    0x00ff2500,      // 19    WS_COL_DEEP_PINK
+    0x43ff4300,      // 20    WS_COL_SALMON
+    0x80ff4300,      // 21    WS_COL_PEACH
+    0xeaff4300,      // 22    WS_COL_PALE_YELLOW
+    0xff8f4300,      // 23    WS_COL_PALE_LIME
+    0xff437200,      // 24    WS_COL_MINT
+    0xea43ff00,      // 25    WS_COL_PALE_CYAN
+    0x8043ff00,      // 26    WS_COL_PALE_SKY
+    0x4343ff00,      // 27    WS_COL_PALE_BLUE
+    0x438fff00,      // 28    WS_COL_LAVENDER
+    0x43ffea00,      // 29    WS_COL_PALE_MAGENTA
+    0x43ff8000,      // 30    WS_COL_PINK
+    0xc0ff8300,      // 31    WS_COL_WARM_WHITE
+};
 
 volatile bool get_ws_dma_done(){return ws_dma_done;}
 
-void ws_dma_wait(){                     // wait for end of current ws DMA transfer
-    uint32_t save;                      // and set ws dma_done false
+void ws_dma_wait(){                     // wait for the end of the current ws DMA transfer, then set ws_dma_done to false ».
+    uint32_t save;                      
     while(true){
         uint32_t f = spin_lock_blocking(ws_dma_lock); //save = save_and_disable_interrupts();
         if(ws_dma_done) {
@@ -181,7 +174,7 @@ printf("test perso\n");
     }
 }
 
-// bb_buf byte : 0x00 = off ; bits 0-4 = colour (0 to 31) ; bits 5-7 = brightness (0 = dimmest visible, 7 = full)
+// leds[] byte : bits 0-4 = colour (0 to 31, 0 = off) ; bits 5-7 = brightness (0 = dimmest visible, 7 = full)
 
 static uint16_t dimCoef[8] = DIM_COEFS;         // brightness factors /256, in RAM for speed
 
@@ -207,31 +200,49 @@ uint32_t __not_in_flash_func(dimColorFast)(uint32_t color, uint8_t level)
     return dimColorK(color, dimCoef[level & 7]);
 }
 
-static uint32_t bbLeds[NBLEDS];                 // read by DMA: must not be on the stack
+static_assert(NB_CORES_USED == 1,
+    "bbLeds/bbLedsDirty rely on the write order between the main loop and an interrupt on the same core: "
+    "with 2 cores, protect them with a spinlock shared by setWsLeds and bb_leds_handler");
 
+/*  chaque objet a ses leds décrites par (position, longueur) dans la chaîne des ws
+    lorsqu'un objet veut afficher ses leds, il passe (pointeur,position,longueur,modifs)
+    à setWsLeds qui encode la modif dans bbLeds et lève bbLedsDirty ;
+    bb_leds_handler (irq 1 kHz) lance le transfert DMA toutes les WS_REFRESH_MS ms si bbLeds a changé
+*/
+
+static uint32_t bbLeds[NBLEDS];                 // read by DMA: must not be on the stack
+static volatile bool bbLedsDirty = false;       // true when bbLeds has changed since the last transfer
+
+// Called from the main loop only: encodes the modified LEDs into bbLeds, never waits
+bool __not_in_flash_func(setWsLeds)(const uint8_t* leds, uint8_t pos, uint8_t len, const bool* modifs)
+{
+    if((pos+len > NBLEDS) || (len==0)){return false;}
+
+    for(uint8_t i=0;i<len;i++){
+        if(modifs[i]){
+            uint8_t b=leds[i];
+            bbLeds[i+pos] = dimColorK(colPal[b & 0x1f], dimCoef[(b >> 5) & 7]);   // colPal[0] is black: 0 at any level
+        }
+    }
+    bbLedsDirty = true;                         // set AFTER the writes (see bb_leds_handler)
+    return true;
+}
+
+// Called by the 1 kHz interrupt: every WS_REFRESH_MS ms, sends bbLeds if it has changed, never waits
+// bbLedsDirty is cleared BEFORE starting the transfer: if this interrupt occurs while setWsLeds
+// is writing, the remaining writes set the flag again and are sent at the next period
 void __not_in_flash_func(bb_leds_handler)()
 {
-    if(__builtin_expect(bb_buf_len,false)){
-        uint8_t snap[NBLEDS];
-        uint8_t len;
+    static uint8_t tick = 0;
 
-        uint32_t ints = save_and_disable_interrupts();
-        // previous transfer not over, or LEDs not latched yet: retry on next tick (bb_buf_len unchanged)
-        if(!ws_dma_done || (time_us_32() - ws_dma_done_us) < WS_LATCH_US){
-            restore_interrupts(ints);
-            return;}
-        ws_dma_done = false;
-        len = bb_buf_len; if(len > NBLEDS){len = NBLEDS;}
-        memcpy(snap, bb_buf, len);
-        bb_buf_len = 0;
-        restore_interrupts(ints);
+    if(++tick < WS_REFRESH_MS){return;}
+    tick = 0;
 
-        for(uint8_t i=0;i<len;i++){
-            uint8_t b=snap[i];
-            bbLeds[i] = (b==0) ? 0 : dimColorFast(colPal[b & 0x1f], b >> 5);
-        }
-        dma_channel_configure(ws_dma_chan,&dma_cfg,&ws_pio->txf[ws_sm],bbLeds,len,true);
-    }
+    if(!bbLedsDirty || !ws_dma_done || (time_us_32() - ws_dma_done_us) < WS_LATCH_US){return;}
+
+    bbLedsDirty = false;
+    ws_dma_done = false;
+    dma_channel_configure(ws_dma_chan,&dma_cfg,&ws_pio->txf[ws_sm],bbLeds,NBLEDS,true);
 }
 
 uint32_t reduc(uint32_t col,uint8_t reduc){

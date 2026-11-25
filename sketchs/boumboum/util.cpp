@@ -148,7 +148,7 @@ uint pwm_irq_slice=PWM_IRQ_SLICE;
 
 void __not_in_flash_func(pwm_irq_handler)() {
 
-    //gpio_put(TST_PIN,HIGH);
+    gpio_put(TST_PIN2,HIGH);
 
     pwm_hw->intr = 1u << pwm_irq_slice; // pwm_clear_irq(pwm_irq_slice);   // slice 0 (clear irq)
 
@@ -167,6 +167,8 @@ void __not_in_flash_func(pwm_irq_handler)() {
     filterGlideTick();
 
     bb_leds_handler();
+
+    gpio_put(TST_PIN2,LOW);
 }
 
 void init_pwm_timer_1khz() {
@@ -289,6 +291,7 @@ void gpio_irq_init(uint pin) {
 void setup(){
 
     gpio_init(TST_PIN);gpio_set_dir(TST_PIN,GPIO_OUT); gpio_put(TST_PIN,LOW); 
+    gpio_init(TST_PIN2);gpio_set_dir(TST_PIN2,GPIO_OUT); gpio_put(TST_PIN2,LOW);     
 
     gpio_init(LED);gpio_set_dir(LED,GPIO_OUT); gpio_put(LED,LOW);
     delayBlk(3);               
@@ -301,7 +304,7 @@ void setup(){
     objects_table_init();
 
     // ****** coders ******
-    coderInit(CODER_GPIO_CLOCK,CODER_GPIO_DATA,CODER_GPIO_SW,CODER_GPIO_VCC,CODER_PIO_SEL0,CODER_SEL_NB,CODER_NB,CODER_TIMER_POLLING_INTERVAL_MS,CODER_STROBE_NUMBER);
+    coderInit(CODER_GPIO_CLOCK,CODER_GPIO_DATA,CODER_GPIO_SW,CODER_NB,CODER_TIMER_POLLING_INTERVAL_MS,CODER_STROBE_NUMBER);
     coderSetup(nullptr,nullptr,nullptr,nullptr,0);
 
     // ****** ws2812 ******

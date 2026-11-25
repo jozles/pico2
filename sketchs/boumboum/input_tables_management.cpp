@@ -20,7 +20,7 @@ extern uint32_t  adsrCurrEch[MAX_ADSR];
 extern int16_t   adsr_ctl_input_id[][ADSR_INPUTS_NB];
 extern int16_t   adsr_ctl_output_id[][ADSR_OUTPUTS_NB];
 
-extern int16_t   tbut_ctl_output_id[][ADSR_OUTPUTS_NB];
+extern int16_t   tbut_ctl_output_id[][TBUT_OUTPUTS_NB];
 
 extern Voice voices[MAX_VOICES];
 
@@ -451,7 +451,7 @@ uint8_t init_objects_inputs(void)
                 case LEVE:ctl_input_update_type[curr_input]=A_LEVEL ;break;
                 case STAR:ctl_input_update_type[curr_input]=A_START ;
                           ctl_input_trig[curr_input]=INP_UP_TRIG;
-                          ctl_input_tlev[curr_input]=0;
+                          ctl_input_tlev[curr_input]=ADSR_START_TLEV;
                           //printf("id:%u adsr_input_trig:%u:%u t:%u l:%u \n",curr_input,adsr,ins,ctl_input_trig[curr_input],ctl_input_tlev[curr_input]);
                           break;
                 default: break;
@@ -781,7 +781,7 @@ void __not_in_flash_func(update_inputs)(int16_t id,int16_t valeur)  // inputs up
                                             adsrCurrEch[object]=0;
                                         }break;
                                     case INP_U_D_TRIG:
-                                        if((valeur>tlev && prev<tlev) || (valeur<=tlev && prev>tlev)){
+                                        if((valeur>=tlev && prev<tlev) || (valeur<=tlev && prev>tlev)){
                                             adsrStatus[object]=ADSR_ATT;
                                             adsrCurrEch[object]=0;
                                         }break;

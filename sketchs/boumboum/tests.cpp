@@ -25,9 +25,6 @@
 #include "sound_level_management.h"
 #include "miscControls.h"
 
-extern volatile uint8_t  bb_buf_len;
-extern uint8_t* bb_buf;
-
 extern struct Voice voices[];
 
 extern int16_t  objects_first_input_id[OBJECT_TYPES_NB];
@@ -146,7 +143,7 @@ void vsetup(uint8_t v,uint16_t coderFreq,uint16_t coderFreqAtt,uint8_t coderAmp,
 
 void lfoSetup(uint8_t lfo,float freq,uint8_t fAtt,uint8_t rc,uint8_t rcAtt)
 {
-        setLfosFrCoders(lfo,calcCoderFreq(freq*VOICE_FREQ_DIVIDER),fAtt); // 0.375hz ; 2239 0.75hz ; 2659 1.5hz ; 3079 3hz ; 3499 6hz
+        setLfosFrCoders(lfo,calcLfoCoderFreq(freq),fAtt); // freq: lfo frequency in Hz
         setLfosFrequency(lfo);
         setLfosCycleR(lfo,rc,rcAtt);
 }
@@ -282,11 +279,12 @@ void oldTest()
     #define VOICE3 0x10
     uint8_t action=VOICE0|VOICE1|VOICE2;
 
-    uint16_t coderLfo5Hz=calcCoderFreq(5 * VOICE_FREQ_DIVIDER);             //3392;         // 5Hz 
-    uint16_t coderLfo5_5Hz=calcCoderFreq(5.5f * VOICE_FREQ_DIVIDER);        //3392;         // 5Hz 
-    uint16_t coderLfo6sec=calcCoderFreq(1/6.0f * VOICE_FREQ_DIVIDER);       //1384;         // 1384 6sec // 1790 3sec
-    uint16_t coderLfo3_5sec=calcCoderFreq(1/3.5f * VOICE_FREQ_DIVIDER);     //1200;
-    uint16_t coderLfo8sec=calcCoderFreq(1/8.0f * VOICE_FREQ_DIVIDER);  
+    uint16_t coderLfo5Hz=calcLfoCoderFreq(5);             //3392;         // 5Hz 
+    uint16_t coderLfo5_5Hz=calcLfoCoderFreq(5.5f);        //3392;         // 5Hz 
+    uint16_t coderLfo6sec=calcLfoCoderFreq(1/6.0f);       //1384;         // 1384 6sec // 1790 3sec
+    uint16_t coderLfo3_5sec=calcLfoCoderFreq(1/3.5f);     //1200;
+    uint16_t coderLfo7sec=calcLfoCoderFreq(1/7.0f);  
+    uint16_t coderLfo8sec=calcLfoCoderFreq(1/8.0f);    
 
     printf("\n========== test-setup 0x%02X ==========\n",action);    
 
@@ -306,7 +304,7 @@ void oldTest()
         uint16_t freqLfoCoder=coderLfo5Hz;          // 3392;         // 5Hz  
         uint8_t  adsr=0;
         int8_t   adsrLfo=2;    
-        uint32_t adsrLfoCoder=coderLfo6sec;         // 1384 6sec // 1790 3sec
+        uint32_t adsrLfoCoder=coderLfo7sec;         // 1384 6sec // 1790 3sec
         uint8_t  crLfo=4;
         uint16_t crLfoCoder=1820;
         uint8_t  lfm=0;
@@ -320,7 +318,7 @@ void oldTest()
         asetup(adsr,6,28,12,96);
 
         voices[voice].coderCycleRAtt=200;                           // input atten
-        sub_lfo(VOICE____,0,VOICES_INPUTS_NB,VCR_,4,coderLfo3_5sec,WTRI);     // 1700=3.5s calcCoderFreq(3.5 * VOICE_FREQ_DIVIDER)
+        sub_lfo(VOICE____,0,VOICES_INPUTS_NB,VCR_,4,coderLfo3_5sec,WTRI);     // period 3.5 s
 
         setVoiceFilter(&voices[0],coderFil,100,255,0,255);
         //setLfosFreq(filtLfo,1790);
@@ -337,8 +335,8 @@ void oldTest()
         uint8_t  v=1;
         uint8_t  filtLfo=6;
         uint8_t  adsr=1;
-        voiceConfig(v,WSIN,calcCoderFreq(400.0f),5,1,coderLfo5Hz,0,12,adsr,3,coderLfo3_5sec,1,0); //1740 3392 1200
-        //voiceConfig(v,WSIN,calcCoderFreq(350.0f),7,1,3392,0,30,adsr,3,calcCoderFreq(0.12 * VOICE_FREQ_DIVIDER),1,0);   //calcCoderFreq(5.5 * VOICE_FREQ_DIVIDER)
+        voiceConfig(v,WSIN,calcCoderFreq(400.0f),5,1,coderLfo5Hz,0,5,adsr,3,coderLfo8sec,1,0); //1740 3392 1200
+        //voiceConfig(v,WSIN,calcCoderFreq(350.0f),7,1,3392,0,30,adsr,3,calcLfoCoderFreq(0.12),1,0);   //calcLfoCoderFreq(5.5)
         setVoiceAmplCoders(&voices[v],5,30,0);
         asetup(adsr,96,60,11,90);
 
@@ -357,7 +355,7 @@ void oldTest()
         //      lfo5->mux1inp1 coder[1][1]=32563
         //      mux1->mux0inp1
         uint8_t adsr=2;
-        sound3(2,WSIN,calcCoderFreq(880.0f),70,0,30,1,0,adsr,0,0,1,1,1,2,5,coderLfo5_5Hz,5,coderLfo5_5Hz);    //calcCoderFreq(5.5 * VOICE_FREQ_DIVIDER),5,calcCoderFreq(5.5 * VOICE_FREQ_DIVIDER));
+        sound3(2,WSIN,calcCoderFreq(880.0f),70,0,30,1,0,adsr,0,0,1,1,1,2,5,coderLfo5_5Hz,5,coderLfo5_5Hz);    //calcLfoCoderFreq(5.5),5,calcLfoCoderFreq(5.5));
         asetup(adsr,127,32,16,127);
     }
 
@@ -769,8 +767,82 @@ void test_coders()
 }    
 #endif  // TEST_CODERS
 
+#ifdef TEST_WSLEDS
+// ================= ws2812 test =====================
+// LEDs 0 to 7: brightness 0 to 7 ; LEDs 8 to WS_TEST_LEDS-1: a single LED lit, going back and forth
+// tbget(tb): next colour (0 to 31, 0 = off) for every LED of the test ; tbget(WS_TEST_TB_END): end of the test
+// the LEDs are written by setWsLeds and sent by bb_leds_handler (1 kHz interrupt, every WS_REFRESH_MS ms)
+
+#define WS_TEST_LEDS     19                                     // LEDs really connected (NBLEDS may be larger)
+#define WS_TEST_LEVELS   8                                      // LEDs 0 to 7: brightness 0 to 7
+#define WS_TEST_STEP_MS  120                                    // time of the moving LED on each position
+#define WS_TEST_TB_END   6                                      // touch button that ends the test
+#define WS_TEST_BYTE(col,lev)  ((uint8_t)(((lev) << 5) | (col)))
+
+static_assert(WS_TEST_LEDS <= NBLEDS && WS_TEST_LEDS > WS_TEST_LEVELS + 1,
+    "WS_TEST_LEDS must not exceed NBLEDS and must leave at least 2 LEDs for the moving one");
+
+void test_wsleds()
+{
+    static bool all[WS_TEST_LEDS];                              // every LED modified
+    for (uint8_t i = 0; i < WS_TEST_LEDS; i++) all[i] = true;
+    uint8_t leds[WS_TEST_LEDS];
+    uint8_t col = 1;                                            // white
+    uint8_t pos = WS_TEST_LEVELS;                               // position of the moving LED
+    int8_t  dir = 1;
+
+    printf("\n========== ws2812 test (%u LEDs) ==========\n", WS_TEST_LEDS);
+    printf("LEDs 0 to %u: brightness 0 to 7 ; LEDs %u to %u: one LED going back and forth\n", WS_TEST_LEVELS - 1, WS_TEST_LEVELS, WS_TEST_LEDS - 1);
+    printf("tbget(%u): next colour ; tbget(%u): end of the test\n", tb, WS_TEST_TB_END);
+    printf("   colour %u\n", col);
+
+    bool newCol = true;                                         // whole test zone to be written
+    bool tbLast = tbget(tb);
+    uint32_t t0 = millisCounter;
+
+    while (!tbget(WS_TEST_TB_END)) {
+        fillVoices();
+
+        const bool tbNow = tbget(tb);
+        if (tbNow && !tbLast) {                                 // new touch: next colour
+            col = (col + 1) & 0x1f;
+            printf("   colour %u\n", col);
+            newCol = true;
+        }
+        tbLast = tbNow;
+
+        if (newCol) {                                           // every LED of the test zone
+            newCol = false;
+            memset(leds, 0, WS_TEST_LEDS);
+            for (uint8_t l = 0; l < WS_TEST_LEVELS; l++) leds[l] = WS_TEST_BYTE(col, l);
+            leds[pos] = WS_TEST_BYTE(col, 7);
+            setWsLeds(leds, 0, WS_TEST_LEDS, all);
+        }
+
+        if (millisCounter - t0 >= WS_TEST_STEP_MS) {            // moving LED: only the 2 LEDs that change are written
+            t0 = millisCounter;
+            const uint8_t old = pos;
+            if (pos + dir < WS_TEST_LEVELS || pos + dir >= WS_TEST_LEDS) dir = -dir;
+            pos += dir;
+            leds[old] = 0;
+            leds[pos] = WS_TEST_BYTE(col, 7);
+            const uint8_t first = (old < pos) ? old : pos;
+            setWsLeds(&leds[first], first, 2, all);
+        }
+    }
+
+    memset(leds, 0, WS_TEST_LEDS);                              // every LED of the test off
+    setWsLeds(leds, 0, WS_TEST_LEDS, all);
+    printf("========== end of the ws2812 test ==========\n\n");
+}
+#endif  // TEST_WSLEDS
+
 void testSetup()
 {
+#ifdef TEST_WSLEDS
+    test_wsleds();
+#endif
+
 #ifdef TEST_CODERS
     test_coders();
 #endif
@@ -790,15 +862,6 @@ void testSetup()
 #ifdef TEST_A
     test_A();
 #endif
-}
-
-// ----- test ws2812 simple -----
-
-void test_ws()
-{
-    static const uint8_t init_bb[4] = {0x61, 0x68, 0x70, 0x78};
-    memcpy(bb_buf, init_bb, sizeof(init_bb));
-    bb_buf_len=sizeof(init_bb);
 }
 
 // ----- repérage cablage ------

@@ -771,7 +771,7 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
                         }break;                        
                     default:break;
                 }
-                snprintf(buf+2,LINE_LEN-2,"%1.3f %1.3f %d   ",lfosFrequency[line],1/lfosFrequency[line],lfosCoderCycleR[line]-MAXCODER_RC/2);
+                snprintf(buf+2,LINE_LEN-2,"%1.3f %1.3f %d %u ",lfosFrequency[line],1/lfosFrequency[line],lfosCoderCycleR[line]-MAXCODER_RC/2,lfosCodersFreq[line]);
                 break; 
             case VOICES_FR:
                 switch (coder){
@@ -1020,7 +1020,7 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
     //static uint32_t effectsReportTime = 0;
     //if (millisCounter - effectsReportTime >= 1000) { effectsReportTime = millisCounter; effectsReport(); }
 
-            ws_show_3(30);
+            //ws_show_3(30);
             ledblinkn(2);
             //if(!mode_scope){test_st7789_2();}    // animation balayage de lignes            
             if(debug_ticker()){

@@ -232,7 +232,7 @@ bool __not_in_flash_func(coderTimerHandler)(){
     return true;    // restart the timer
 }
 
-void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_t sel_nb,uint8_t nb,uint16_t ctpi,uint8_t cstn){
+void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t nb,uint16_t ctpi,uint8_t cstn){
 
     // ********************* doit absolument etre fait avant la mise en route du timer *******************
     coderTimerCount=nullptr;
@@ -242,10 +242,12 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_
     gpio_clock_pin=ck;
     gpio_data_pin=data;
     gpio_switch_pin=sw;
-#ifndef CPLD    
-    gpio_vcc_pin=vc;
-    gpio_sel0_pin=sel0;
-    coder_sel_nb=sel_nb;
+#ifndef CPLD  
+
+//,,,
+    gpio_vcc_pin=CODER_GPIO_VCC;
+    gpio_sel0_pin=CODER_PIO_SEL0;
+    coder_sel_nb=CODER_SEL_NB;
     
     gpio_init(gpio_vcc_pin);gpio_set_dir(gpio_vcc_pin,GPIO_OUT);gpio_put(gpio_vcc_pin,1);
     sel_gpio_mask=0;
@@ -322,7 +324,7 @@ void coderInit(uint8_t ck,uint8_t data,uint8_t sw,uint8_t vc,uint8_t sel0,uint8_
 uint32_t test_cnt=1;
 void slow_coder_test(uint32_t ms){
     
-    coderInit(CODER_GPIO_CLOCK,CODER_GPIO_DATA,CODER_GPIO_SW,CODER_GPIO_VCC,CODER_PIO_SEL0,CODER_SEL_NB,CODER_NB,CODER_TIMER_POLLING_INTERVAL_MS,CODER_STROBE_NUMBER);
+    coderInit(CODER_GPIO_CLOCK,CODER_GPIO_DATA,CODER_GPIO_SW,CODER_NB,CODER_TIMER_POLLING_INTERVAL_MS,CODER_STROBE_NUMBER);
         //uint8_t selc=coder | 0x08;  // *********************************** force 4051 enable haut ******************** 
 
 #ifndef CPLD 
