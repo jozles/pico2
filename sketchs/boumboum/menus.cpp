@@ -16,6 +16,7 @@
 #include "hardware/sync.h"
 #include "tests.h"
 #include "screen.h"
+#include "display_esp.h"
 
 #ifdef ST7789
 #include "st7789.h"
@@ -43,6 +44,7 @@ bool oldTbut[MAX_TBUT];
 
 uint8_t tbLeds[TB_LEDS_NB];
 bool tbLedsMask[TB_LEDS_NB];
+
 
 
 // mapping
@@ -165,9 +167,48 @@ extern volatile bool* coderTouchB;
 
 extern uint16_t seqCoderGLev[MAX_SEQ];
 extern uint16_t seqCoderGLevAtt[MAX_SEQ];
+extern uint16_t seqCoderMode[MAX_SEQ];
+extern uint16_t seqCoderStepsNb[MAX_SEQ];
 extern uint16_t seqCoderStepLev[MAX_SEQ][SEQ_CHANNEL_NB][SEQ_STEP_NB];
 extern volatile int16_t menuSeqCoders[];
 extern uint16_t* seqVar[];
+extern uint8_t seqMode[];
+extern uint8_t seqCtl[MAX_SEQ];
+
+// sequencer
+// the sequencer choice is made with the menu button always active ; pressing it go back to general menu
+// the sequencer # general level is made with the coder SEQ_CODER_GLEV ;
+// the sequencer # general level att is made with the coder SEQ_CODER_GLEV_ATT ;
+// the channel choice is made with the coder SEQ_CODER_CHANNEL ; 
+// the ative step number choice is made with SEQ_CODER_STEP_NB ; pressing it follow the validation rules (see below)
+// the sequencer config choice is made with SEQ_CODER_CONFIG ; pressing it follow the validation rules (see below)
+// the channel start/stop is made by pressing SEQ_CODER_CHANNEL ;
+// validation rules : initialy pressing the coder is needed to validate the entry ; 
+//      pressing while the entry is not modified go to direct entry : no validation needed ; pressing again go back to validation mode
+
+
+uint8_t curSeq=0;
+uint8_t curSeqChannel[MAX_SEQ];
+uint8_t curSeqSegment[MAX_SEQ][SEQ_CHANNEL_NB];
+bool    curSeqStepValid[MAX_SEQ];
+uint8_t curSeqStepCapture[MAX_SEQ];
+bool    curSeqConfValid[MAX_SEQ];
+uint8_t curSeqConfCapture[MAX_SEQ];
+
+void seqMenuInit()
+{
+    curSeq=0;
+    for(uint8_t s=0;s<MAX_SEQ;s++){
+        curSeqChannel[s]=0;
+        curSeqStepValid[s];
+        curSeqStepCapture[s]=0;
+        curSeqConfValid[s]=false;
+        curSeqConfCapture[s]=0;
+        for(uint8_t c=0;c<SEQ_CHANNEL_NB;c++){
+            curSeqSegment[s][c]=0;
+        }
+    }
+}
 
 // mapping
 
@@ -290,6 +331,8 @@ enum SeqCoders {        // coders pour menu sequencers
      SEQMENU,
      SEQGLEV,
      SEQGLEVATT,
+     SEQMODE,
+     SEQSTEPSNB,
      SEQSTEPLEV
 };
 
@@ -310,7 +353,10 @@ enum SeqCoders {        // coders pour menu sequencers
 // la ligne 0 de tous les menus est préchargée dans l'init ; c'est ensuite géré dans coders_for_menu
 //
 void menus_init(){ 
-    printf("====== menu_init ======");   
+    printf("====== menu_init ======");
+    
+    seqMenuInit();
+
     for(uint8_t v=0;v<MAX_VOICES;v++){
         
         for(uint8_t a=0;a<VCES_OUTPUTS_NB;a++){
@@ -488,11 +534,15 @@ void menus_init(){
     }                         
     
     // ***  Sequencer  ****
-    seqVar[SEQGLEV-1]=seqCoderGLev;            // adsrVar[0]
-    seqVar[SEQGLEVATT-1]=seqCoderGLevAtt;            // adsrVar[1]
-    menuSeqCoders[SEQMENU]=0;                 // line 0 du menu
-    menuSeqCoders[SEQGLEV+SEQ_STEP_NB]=seqCoderGLev[0];
-    menuSeqCoders[SEQGLEVATT+SEQ_STEP_NB]=seqCoderGLevAtt[0];
+    seqVar[SEQGLEV-1]=seqCoderGLev;                     // seqVar[0]
+    seqVar[SEQGLEVATT-1]=seqCoderGLevAtt;               // seqVar[1]
+    seqVar[SEQMODE-1]=seqCoderMode;
+    seqVar[SEQSTEPSNB-1]=seqCoderStepsNb;
+    menuSeqCoders[SEQMENU]=0;                           // line 0 du menu
+    menuSeqCoders[SEQGLEV]=seqCoderGLev[0];
+    menuSeqCoders[SEQGLEVATT]=seqCoderGLevAtt[0];
+    menuSeqCoders[SEQMODE]=seqCoderMode[0];
+    menuSeqCoders[SEQSTEPSNB]=seqCoderStepsNb[0];
     for(uint8_t c=0;c<SEQ_CHANNEL_NB;c++){
         for(uint8_t s=0;s<SEQ_STEP_NB;s++){
             menuSeqCoders[s+1]=seqCoderStepLev[0][c][s];
@@ -771,7 +821,7 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
         float f;
 
         switch(type){
-            case MENU0____:snprintf(buf+2,LINE_LEN-2,"%s  ",menu+line*len);break; // général
+            case MENU0____:snprintf(buf+2,LINE_LEN-2,"%s  ",menu+line*len);break;           // général
             case LFOS_____:
                 switch(coder){
                     case OSCCODERFREQ:if(varChge){                                          // cc=coder freq
@@ -1008,6 +1058,55 @@ void fullMenuDsp(const char* title,const char* menu,uint8_t linesNb,uint8_t line
         //printf("beg:%d m:%s l:%d len:%d cl:%d type:%d cod:%d\n",first_row,menu+line_len*l,l,line_len,currline==l,type,coder);//,cc,mode_scope,NO_VAR_CHANGE);
         menuLineDsp(menu,l,line_len,currline==l,type,coder,cc,mode_scope,NO_VAR_CHANGE);
     }
+}
+
+char pictos[SEQ_MODES_NB]={        
+    (0x80+SEQM_UP_FR),
+    (0x80+SEQM_UP_OW),
+    (0x80+SEQM_DOWN_FR),
+    (0x80+SEQM_DOWN_OW),
+    (0x80+SEQM_UD_FR),
+    (0x80+SEQM_UD_OW),
+    (0x80+SEQM_RND_FR),
+    (0x80+SEQM_RND_OW)
+};
+
+void fullSeqDsp()
+{
+    uint16_t fgc=COL_YELLOW;
+    uint16_t bgc=0x0000;
+    uint8_t lineLen=12;
+    for(uint8_t s=0;s<MAX_SEQ;s++){
+        snprintf(buf,lineLen,"%u %2u \x01%c %u ",s,seqCoderStepsNb[curSeq],pictos[seqMode[s]],curSeqChannel);
+        if(seqCtl[s]){lnk_color(COL_RED, COL_BLACK);}
+        else lnk_color(COL_GREEN, COL_BLACK);
+        display(0,s*(12*1+6)+first_row,buf,fgc,bgc,1);
+    }
+}
+
+void coders_for_sequencer(volatile int16_t* cTC,volatile bool* cTS,volatile bool* cTB,uint16_t* maxi,uint16_t** var,uint8_t varNb)
+{
+    coderSetup(cTC,cTS,cTB,maxi,1+16);
+
+    printf("menu: sequencers");
+    fullSeqDsp();
+
+    while(1){
+            //ws_show_3(30);
+            ledblinkn(2);           
+            if(debug_ticker()){
+                //if(adsrStatus[0]==ADSR_OFF){adsrStatus[0]=ADSR_ATT;adsrCurrEch[0]=0;}
+            }
+
+            int s=tst_switchs_(CODER_NB);      // returns -1: nothing ; 0..n: number of the coder ; EMERGENCY_BUTTON = -100
+
+            //if(s==EMERGENCY_BUTTON){i2s_start(!i2s_running);title_dsp(title,line,object_type);}           
+            if(s==0){return;}    // switch du coder 0 ou capaTouch
+
+            if(tbChge(MUTE_TBUT,"sequencers",curSeq,SEQ______)){i2s_start(!i2s_running);};
+            tbChge(SEQ_TBUT,"sequencers",curSeq,SEQ______); 
+    }
+    
 }
 
 // ****** coders_for_menu() ****** affiche un menu avec ligne courante en reverse avec des saisies optionnelles ; 

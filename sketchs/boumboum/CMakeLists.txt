@@ -86,6 +86,7 @@ add_executable(boumboum
 	tests.cpp
 	screen.cpp
 	display_esp.cpp
+	pictos.cpp
 	)
 
 # le rp2350.ld permet de placer des variables en ram DTCM (voir filterDTable)

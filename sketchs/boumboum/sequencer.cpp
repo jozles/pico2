@@ -16,15 +16,13 @@ uint16_t    seqCoderGLev[MAX_SEQ];
 uint16_t    seqCoderGLevAtt[MAX_SEQ];
 uint16_t    seqCoderStepLev[MAX_SEQ][SEQ_CHANNEL_NB][SEQ_STEP_NB];
 uint16_t    seqCoderMode[MAX_SEQ];                               // saisie seqMode
-uint16_t    seqCoderMax[MAX_SEQ];                                // saisie seqMax
+uint16_t    seqCoderStepsNb[MAX_SEQ];                            // saisie seqStepsNb
 
 uint8_t     seqMode[MAX_SEQ];                                    // 1 up, 2 up/down, 3 down, 4 random up, 5 random up/down, 6 random down etc... un bit supplémentaire indique one way  
 uint8_t     seqCtl[MAX_SEQ];                                     // 0 compteur arrêté pas de gate 
 uint8_t     seqChanCtl[MAX_SEQ][SEQ_CHANNEL_NB];                 // 0 channel arrêté pas de gate ; 1 suit le compteur
 uint16_t    seqStepCtl[MAX_SEQ][SEQ_CHANNEL_NB][SEQ_STEP_NB];    // 0 masque la sortie de la gate ; 1 gate sort
-uint8_t     seqMax[MAX_SEQ];                                     // valeur maxi pour le compteur
-
-uint8_t     seqStepMode[MAX_SEQ][SEQ_STEP_NB];
+uint8_t     seqStepsNb[MAX_SEQ];                                 // valeur maxi pour le compteur
 
 uint8_t     seqGLev[MAX_SEQ];                                    // effective GLevel index f(coder,modulation), 0..SEQ_MAX_LEVEL_CODERS
 uint16_t    seqStepLevel[MAX_SEQ][SEQ_CHANNEL_NB][SEQ_STEP_NB];  // effective level index g(Glevel,coderStep)

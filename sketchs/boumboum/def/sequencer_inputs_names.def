@@ -3,6 +3,6 @@
 // there is SEQ_CHANNEL_NB inputs for SEQ_CH_LEVEL 
 
     X(SEQ_LV,"SLEV")        // general attenuator
-    X(SEQ_CL,"SCHL")        // channel attenuator    
-    X(SEQ_ST,"S_ST")        // start/stop gate (0 stop ; 1 start ; 2/3 toogle)
+    //X(SEQ_CL,"SCHL")        // channel attenuator    
+    X(SEQ_ST,"S_ST")        // start/stop gate (0 stop ; 0x7fff start) ... toggle to add
     X(SEQ_CK,"S_CK")        // clock 

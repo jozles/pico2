@@ -595,7 +595,7 @@ uint8_t init_objects_inputs(void)
                     ctl_input_object[curr_input]=seq;
                     switch(ins){
                         case SEQ_LV:ctl_input_update_type[curr_input]=SEQ_LEV ;break;
-                        case SEQ_CL:ctl_input_update_type[curr_input]=SEQ_C_L ;break;
+                        //case SEQ_CL:ctl_input_update_type[curr_input]=SEQ_C_L ;break;
                         case SEQ_ST:ctl_input_update_type[curr_input]=SEQ_ST_ ;break;
                         case SEQ_CK:ctl_input_update_type[curr_input]=SEQ_CK_ ;break;
                         default: break;

@@ -358,4 +358,38 @@ void lnk_scroll_down(const char* s, uint16_t fg, uint16_t bg, int8_t mult)
     send_small(b, p, true);
 }
 
+// ---------------------------------------------------------
+// pictograms
+// ---------------------------------------------------------
+static uint8_t icon_buf[LNK_ICON_BUF_SIZE] __attribute__((aligned(4)));
+
+// loads pictogram n (0..127): w x h pixels, h rows of (w + 7) / 8 bytes, leftmost pixel in bit 7
+// returns false if the size is too large or the packet was dropped
+bool lnk_icon_load(uint8_t n, uint8_t w, uint8_t h, const uint8_t* pixels)
+{
+    uint16_t bytes = (uint16_t)h * ((w + 7) / 8);
+    if (n >= LNK_ICON_NB || w == 0 || h == 0 || bytes > LNK_ICON_MAX_BYTES) { return false; }
+    while (!lnk_buffer_free(icon_buf)) {        // previous pictogram still being sent
+        sleep_us(LNK_POLL_US);
+        fillVoices();
+    }
+    uint8_t* p = put_hdr(pkt_begin(icon_buf), LNK_CMD_BITMAP, 3 + bytes);
+    *p++ = n;
+    *p++ = w;
+    *p++ = h;
+    memcpy(p, pixels, bytes);
+    return send_string(icon_buf, pkt_end(icon_buf, p + bytes));
+}
+
+// draws pictogram n with its top-left corner on (x, y), in the current colours
+void lnk_icon_at(uint8_t n, uint16_t x, uint16_t y)
+{
+    uint8_t* b = small_buf_get();
+    uint8_t* p = put_hdr(pkt_begin(b), LNK_CMD_ICON_AT, 5);
+    *p++ = n;
+    p = put16(p, x);
+    p = put16(p, y);
+    send_small(b, p, false);
+}
+
 #endif // ST7789

@@ -7,7 +7,7 @@
 
 #include "rc_33tables.h"
 
-#define VERSION "v1.54"
+#define VERSION "v1.55"
 
 #define PI 3.14159265359
 
@@ -386,11 +386,42 @@ static_assert(((ECHO_BUF_LEN * 2) % 4) == 0, "the DMA clears bufEcho with 32-bit
 
 #define MAX_SEQ         2
 #define SEQ_CHANNEL_NB  4
-#define SEQ_STEP_NB     12
+enum Seq_modes {
+        SEQM_UP_FR,
+        SEQM_DOWN_FR, 
+        SEQM_UD_FR,               
+        SEQM_UP_OW,
+        SEQM_DOWN_OW,
+        SEQM_UD_OW,
+        SEQM_DU_OW,
+        SEQM_RND_FR,
+        SEQM_RND_OW,
+        SEQ_MODES_NB
+};
+#define SEQ_STEP_NB     32
 #define SEQ_INPUT_NB    1
 #define SEQ_OUTPUT_NB   SEQ_CHANNEL_NB
 #define SEQ_MAX_LEVEL_CODERS (MAX_16B_LINEAR_VALUE-1)
 
+#define SEQ_CODER_MENU          0
+#define SEQ_CODER_GLEV          1
+#define SEQ_CODER_GLEV_ATT      2
+#define SEQ_CODER_CHANNEL       17
+#define SEQ_CODER_STEPS_NB      16
+#define SEQ_CODER_MODE          15
+#define SEQ_CODER_VAL0          5
+#define SEQ_CODER_VAL1          6
+#define SEQ_CODER_VAL2          7
+#define SEQ_CODER_VAL3          8
+#define SEQ_CODER_VAL4          9
+#define SEQ_CODER_VAL5          10
+#define SEQ_CODER_VAL6          11
+#define SEQ_CODER_VAL7          12
+
+#define SEQ_PICTOS_SIZE_W       32
+#define SEQ_PICTOS_SIZE_H       16
+#define SEQ_PICTOS_BYTES        (((SEQ_PICTOS_SIZE_W) + 7) / 8 * (SEQ_PICTOS_SIZE_H))     // 64
+#define SEQ_PICTOS_NB           9
 
 /* inputs/outputs */
 
@@ -637,9 +668,24 @@ typedef enum {
 #define LNK_GRAPH_BUF_SIZE  (LNK_PKT_HDR + LNK_HDR_SIZE + LNK_GRAPH_MAX_PIX * LNK_GRAPH_PIX_SIZE + 1)      // 1927
 #define LNK_NB_SMALL_BUF    3     // one being sent, one waiting, one being filled
 
+#define LNK_ICON_BUF_SIZE   (LNK_PKT_HDR + LNK_HDR_SIZE + 3 + LNK_ICON_MAX_BYTES + 1)                      // 522
+
 // Timing
 #define LNK_WAIT_TIMEOUT_US 100000    // ESP silent this long: packets dropped until it is ready again
 #define LNK_POLL_US         100       // polling step while waiting (sound kept running)
+
+#define LNK_CMD_BITMAP      'B'   // load a pictogram: number, width, height (1 byte each), then the pixels
+                                  // (1 bit per pixel, leftmost pixel in bit 7, each row starts on a new byte)
+#define LNK_CMD_ICON_AT     'J'   // draw a pictogram: number (1 byte), x, y (top-left corner); text position unchanged
+
+// Pictograms in a text: LNK_ICON_xxx then LNK_ICON_CODE(number), e.g. "Vol \x01\x85" = pictogram 5, bottom on the baseline
+#define LNK_ICON_BOTTOM     0x01  // bottom of the pictogram on the baseline of the letters
+#define LNK_ICON_TOP        0x02  // top of the pictogram on the top of the character cell
+#define LNK_ICON_MIDDLE     0x03  // centred on the height of the character cell
+#define LNK_ICON_FLAG       0x80
+#define LNK_ICON_CODE(n)    ((char)(LNK_ICON_FLAG | (n)))
+#define LNK_ICON_NB         128   // pictograms 0..127
+#define LNK_ICON_MAX_BYTES  512   // pixel bytes of one pictogram: (width + 7) / 8 * height
 
 #endif  //  ndef ST7789
 

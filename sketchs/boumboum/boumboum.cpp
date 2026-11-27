@@ -16,6 +16,10 @@
 #include "menus.h"
 #include "tests.h"
 #include "screen.h"
+#include "pictos.h"
+#ifndef ST7789
+#include "display_esp.h"
+#endif
 
 #ifdef ST7789
 #include "st7789.h"
@@ -23,6 +27,8 @@
 
 const char* version=VERSION;
 uint8_t currVoice=0;
+
+extern const uint8_t seqModePict[SEQ_PICTOS_NB][SEQ_PICTOS_BYTES];
 
 extern volatile bool codersSw[];                   // coder it handler scans all physical coders
 extern volatile bool codersTB[CODER_NB];
@@ -93,10 +99,11 @@ volatile int16_t menuRevbCoders[CODER_NB];              // [0] curr input nb ; [
 uint16_t menuMaxRevbCoders[CODER_NB]={MAX_REV-1,DUR_ECH_NB-1,MAX_CTL_ATT,REVB_SHI_STEPS-1,MAX_CTL_ATT,WAVE_LEVEL_STEPS-1,MAX_CTL_ATT-1,0};
 uint16_t* revbVar[CODER_NB];                            // inits dans menu.cpp ; les éléments inutilisés sont nullptr 
 
-#define SEQ_VAR_NB (1+12)
-volatile int16_t menuSeqCoders[CODER_NB];               // [0] curr input nb ; [13] GLev ; [14] GLevAtt ; [1]-[12] stepLev
+#define SEQ_VAR_NB (1+4+12)
+volatile int16_t menuSeqCoders[CODER_NB];               // [0] curr input nb ; [13] GLev ; [14] GLevAtt ; [15] config ; [16] stepsNb ; [1]-[12] stepLev
 uint16_t menuMaxSeqCoders[CODER_NB]={MAX_SEQ-1,SEQ_MAX_LEVEL_CODERS,SEQ_MAX_LEVEL_CODERS,SEQ_MAX_LEVEL_CODERS,SEQ_MAX_LEVEL_CODERS,SEQ_MAX_LEVEL_CODERS,SEQ_MAX_LEVEL_CODERS,SEQ_MAX_LEVEL_CODERS,SEQ_MAX_LEVEL_CODERS,SEQ_MAX_LEVEL_CODERS,SEQ_MAX_LEVEL_CODERS,SEQ_MAX_LEVEL_CODERS,SEQ_MAX_LEVEL_CODERS,MAX_CTL_ATT-1,MAX_CTL_ATT-1};
 uint16_t* seqVar[CODER_NB];
+
 
 int main() {
 
@@ -112,11 +119,14 @@ if (watchdog_caused_reboot()) {
     printf("RESET = NORMAL\n\n");
 }
     setup();
+  
+/*for (int i = 0; i < SEQ_PICTOS_NB; i++) { 
+    lnk_icon_load(10 + i, SEQ_PICTOS_SIZE_W, SEQ_PICTOS_SIZE_H, seqModePict[i]); 
+    lnk_icon_at(10 + i, 10, (SEQ_PICTOS_SIZE_H+4)*i);
+}
+while(1){}*/
 
     //cablage();
-    //init_test_7789(20,25*8,0,TFT_H-12*8,TFT_H,1);       // init screen animation
-
-    i2s_start(true);                                    // launch sound output
 
     menus_init();
     coderSetup(menu0Coders,codersSw,codersTB,menu0MaxCoders,MENU_NAME_LEN);
@@ -124,8 +134,9 @@ if (watchdog_caused_reboot()) {
     //test_ws();
     //testVoiceInit(3,0);
 
+    i2s_start(true);                            // launch sound output
+    
     uint8_t menu=1;
-
    
     while(1){
 
@@ -144,7 +155,7 @@ if (watchdog_caused_reboot()) {
             case LMUX_____: coders_for_menu("LM",(const char*)nullptr,MAX_LFM,0,LMUX_____,menuLfmCoders,codersSw,codersTB,menuMaxLfmCoders,lfmVar,LFM_VAR_NB,CODER_NB,0);break;            
             case ECHOs____: coders_for_menu("ECHOs",(const char*)nullptr,MAX_ECHO,0,ECHOs____,menuEchoCoders,codersSw,codersTB,menuMaxEchoCoders,echoVar,ECH_VAR_NB,CODER_NB,0);break;            
             case REVERb___: coders_for_menu("REVERb",(const char*)nullptr,MAX_REV,0,REVERb___,menuRevbCoders,codersSw,codersTB,menuMaxRevbCoders,revbVar,REVB_VAR_NB,CODER_NB,0);break;             
-            case SEQ______: coders_for_menu("Seq",(const char*)nullptr,SEQ_CHANNEL_NB,0,SEQ______,menuSeqCoders,codersSw,codersTB,menuMaxSeqCoders,seqVar,SEQ_VAR_NB,CODER_NB,0);break;
+            case SEQ______: coders_for_sequencer(menuSeqCoders,codersSw,codersTB,menuMaxSeqCoders,seqVar,SEQ_VAR_NB);break;
             case MAPPING__: coders_for_mapping();break;
 
             default:break;

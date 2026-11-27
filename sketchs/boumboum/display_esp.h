@@ -22,5 +22,7 @@ void     lnk_graph_send(uint8_t* buf, uint16_t nb_pix);
 void     lnk_scroll_zone(uint16_t y, uint8_t nb_lines, uint8_t pitch, uint16_t bg);
 void     lnk_scroll_up(const char* s, uint16_t fg, uint16_t bg, int8_t mult);
 void     lnk_scroll_down(const char* s, uint16_t fg, uint16_t bg, int8_t mult);
+bool     lnk_icon_load(uint8_t n, uint8_t w, uint8_t h, const uint8_t* pixels);
+void     lnk_icon_at(uint8_t n, uint16_t x, uint16_t y);
 
 #endif // _DISPLAY_ESP_H_

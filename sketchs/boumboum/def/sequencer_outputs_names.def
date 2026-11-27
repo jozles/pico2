@@ -4,7 +4,7 @@
 // SEQ_CHANNEL_NB*SEQ_STEP_NB outputs for SEQ_CH_STEP_VALUE,SEQ_STEP_GATE
 
     X(SEQ_CH_VALUE,"SCHV")          // every channel has one level output
-    X(SEQ_CH_STEP_VALUE,"SCSV")     // every step of every channel has one level value output
+    //X(SEQ_CH_STEP_VALUE,"SCSV")     // every step of every channel has one level value output
     X(SEQ_GEN_GATE,"SGGA")          // every channel has one gate output
-    X(SEQ_STEP_GATE,"SGAT")         // every step of every channel has one gate output
+    //X(SEQ_STEP_GATE,"SGAT")         // every step of every channel has one gate output
     X(SEQ_COUNTER,"SCNT")           // counter value
