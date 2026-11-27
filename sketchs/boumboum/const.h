@@ -7,7 +7,7 @@
 
 #include "rc_33tables.h"
 
-#define VERSION "v1.53"
+#define VERSION "v1.54"
 
 #define PI 3.14159265359
 
@@ -20,7 +20,7 @@
 
 #define BUT_VCC_PIN 28
 #define BUTTON_PIN  27
-#define BUTTON_CODE -100
+#define EMERGENCY_BUTTON -100
 
 /* slices */
 
@@ -201,7 +201,10 @@ typedef enum {
 
 /* touch buttons */
 
-#define MAX_TBUT CODER_NB       // use coder polling
+#define MAX_TBUT CODER_NB       // use coder polling so MAX_TBUT *MUST* be CODER_NB
+
+#define SEQ_TBUT        7
+#define MUTE_TBUT       6
 
 /* lf mixers */
 
@@ -241,7 +244,7 @@ typedef enum {
 #define DIM_COEFS       {0, 2, 6, 16, 32, 64, 128, 256}  // brightness levels 0..7, factor /256
 #define WS_LATCH_US     600         // min time between end of ws DMA and next transfer (PIO FIFO + LED latch)
 
-#define NBLEDS          70          // LEDs on the strip
+#define NBLEDS          19          // LEDs on the strip
 #define SPEC            16          // ws_show_3: width of the moving light spot
 #define MINCOL          2           // ws_show_3: first colour of the cycle (skips off and white)
 #define COLCYCLENB      2           // ws_show_3: strip turns before changing colour
@@ -294,8 +297,10 @@ typedef enum {
 #define ADSR_LEDS_NB 4
 #define ADSR_LEDS_POS 0
 #define LFO_WS_COL WS_COL_BLUE
-#define LFO_LEDS_NB 4
+#define LFO_LEDS_NB 6
 #define LFO_LEDS_POS ADSR_LEDS_POS+ADSR_LEDS_NB
+#define TB_LEDS_NB   8
+#define TB_LEDS_POS  11
 
 /* I2S */
 

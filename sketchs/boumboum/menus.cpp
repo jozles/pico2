@@ -38,7 +38,12 @@ extern volatile uint32_t i2sUnderruns;
 extern volatile bool dumpRequest; 
 extern volatile uint8_t dumpLine;
 
-volatile bool tb7=false;
+extern volatile bool tbut[MAX_TBUT];
+bool oldTbut[MAX_TBUT];
+
+uint8_t tbLeds[TB_LEDS_NB];
+bool tbLedsMask[TB_LEDS_NB];
+
 
 // mapping
 
@@ -156,7 +161,7 @@ extern uint16_t* revbVar[];
 volatile bool codersSw[CODER_NB];                           // coder it handler scans all physical coders
 volatile bool codersTB[CODER_NB];                           // coder it handler scans all touchButtons
 extern volatile bool* coderTouchB;
-bool oldCTB[CODER_NB];
+//bool oldCTB[CODER_NB];
 
 extern uint16_t seqCoderGLev[MAX_SEQ];
 extern uint16_t seqCoderGLevAtt[MAX_SEQ];
@@ -495,7 +500,21 @@ void menus_init(){
     }
 
     //disp_lfm(255,(char*)"menu_Init");
-    
+
+    // *** tbut ***
+    if(i2s_start){tbut[MUTE_TBUT]=true;}
+    for(uint8_t b=0;b<MAX_TBUT;b++){
+        oldTbut[b]=tbut[b];
+    }
+
+    // *** leds ***
+    for(uint8_t l=0;l<TB_LEDS_NB;l++){
+        tbLeds[l]=((oldTbut[l]*3)<<5)|WS_COL_GREEN;;
+        tbLedsMask[l]=true;
+    }
+
+    setWsLeds(tbLeds,TB_LEDS_POS,TB_LEDS_NB,tbLedsMask);
+        
     mappingCoders[0]=0; // ligne 0
     printf(" end\n"); 
 }
@@ -504,6 +523,7 @@ void menus_init(){
 void title_dsp(const char* title,uint8_t item,uint8_t type,float v0, int32_t v1, int32_t v2){
 
     char onoff[2]={'O','I'};
+    bool tb7=tbut[7];
 
     memset(buf,0x20,LINE_LEN);buf[LINE_LEN-1]=0x00;
     memset(buf2,0x20,LINE_LEN);buf2[LINE_LEN-1]=0x00;
@@ -556,7 +576,7 @@ int8_t tst_switchs(uint8_t coder,uint8_t maxi){
 #define SCOPE_MODE -2       
 extern volatile bool gpio_irq_set;
 
-int8_t __not_in_flash_func(tst_switchs_)(uint8_t max_sw){      // returns -1: nothing ; 0..n: number of the coder ; BUTTON_CODE (-100): button
+int8_t __not_in_flash_func(tst_switchs_)(uint8_t max_sw){      // returns -1: nothing ; 0..n: number of the coder ; EMERGENCY_BUTTON (-100): emergency button
 
     if((millisCounter-swIgnore)>=SWIGNORE){ 
         for(uint8_t c=0;c<max_sw;c++){
@@ -571,7 +591,7 @@ int8_t __not_in_flash_func(tst_switchs_)(uint8_t max_sw){      // returns -1: no
     if((millisCounter-tbIgnore)>=SWIGNORE){
         if(gpio_irq_set){
             gpio_irq_set=false;
-            return BUTTON_CODE;
+            return EMERGENCY_BUTTON;
         }
     }                
     return -1;                          // nothing
@@ -639,7 +659,7 @@ uint8_t coders_for_mapping(){
                 fillVoices();
 
                 int s=tst_switchs_(MAPPING_CODER_NB);            
-                if(s>=0 || s== BUTTON_CODE){
+                if(s>=0 || s== EMERGENCY_BUTTON){
                     // erase line 0 (tft_draw_text_11x12_dma_mult(0,line*((11+2))+FIRSTLINEH,buf11x12,fgc,bgc,1);)
                     tft_fill_rect_blank(FIRSTLINEH,0,11+3,TFT_W);
                     return s;}
@@ -962,6 +982,17 @@ void menuLineDsp(const char* menu,uint8_t line,uint8_t len,bool rev,uint8_t type
     }
 }
 
+bool tbChge(uint8_t t,const char* title,uint8_t line,uint8_t object_type){             // detect if button chge then toggle led (diplay (led value) title is no more needed and should be remove)
+    if(__builtin_expect(tbut[t] != oldTbut[t],false)){
+        oldTbut[t]=!oldTbut[t];
+        *(tbLeds+t)=((oldTbut[t]*3)<<5)|WS_COL_GREEN;
+        setWsLeds(tbLeds+t,TB_LEDS_POS+t,1,tbLedsMask);
+        title_dsp(title,line,object_type);
+        return true;
+    }
+    return false;
+}
+
 
 void fullMenuDsp(const char* title,const char* menu,uint8_t linesNb,uint8_t line_len,uint8_t currline,uint8_t type,uint8_t coder,uint32_t cc,bool mode_scope){
 
@@ -1004,32 +1035,22 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
 
     coderSetup(cTC,cTS,cTB,maxi,linesNb);   // coderSetup initialise les variables du coder_handler avec cTC,cTS,cTB,maxi ; ignore lineNb
 
-    //printf("cTC:");for(uint8_t c=0;c<CODER_NB;c++){printf(" %u",cTC[c]);}printf(" lnb:%u l:%u\n",linesNb,line);
     printf("menu: %s ",title);
     fullMenuDsp(title,text,linesNb,line_len,line,object_type,0,0,false);
 
     while(1){
-
-            //testVoice();
-
-            //if(dumpRequest){dumpRequest=false; dumpVoices(voices,dumpLine);}
-            //envLogDump();
             
             fillVoices();        
 
-    //static uint32_t effectsReportTime = 0;
-    //if (millisCounter - effectsReportTime >= 1000) { effectsReportTime = millisCounter; effectsReport(); }
-
             //ws_show_3(30);
-            ledblinkn(2);
-            //if(!mode_scope){test_st7789_2();}    // animation balayage de lignes            
+            ledblinkn(2);           
             if(debug_ticker()){
                 //if(adsrStatus[0]==ADSR_OFF){adsrStatus[0]=ADSR_ATT;adsrCurrEch[0]=0;}
             }
             
-            int s=tst_switchs_(switchsNb);
+            int s=tst_switchs_(switchsNb);      // returns -1: nothing ; 0..n: number of the coder ; EMERGENCY_BUTTON (-100): unique button
 
-            if(s==BUTTON_CODE){i2s_start(!i2s_running);title_dsp(title,line,object_type);}           
+            //if(s==EMERGENCY_BUTTON){i2s_start(!i2s_running);title_dsp(title,line,object_type);}           
             if(s==0){return line;}    // switch du coder 0 ou capaTouch
             if(s>0){                            // switch coders 1 à n
                 mode_scope=true;firstScope=true;
@@ -1037,10 +1058,10 @@ uint8_t coders_for_menu(const char* title,const char* text,uint8_t linesNb,uint8
                 else type_scope^=1;
                 wave=s-1;
             }
-            
-            if(!oldCTB[7] && (coderTouchB[7]==1)){tb7=!tb7;oldCTB[7]=true;title_dsp(title,line,object_type);} // tb7 toogle sur les rising edges de coderTouchB
-            if(oldCTB[7] && (coderTouchB[7]==0)){oldCTB[7]=false;title_dsp(title,line,object_type);}
 
+            if(tbChge(MUTE_TBUT,title,line,object_type)){i2s_start(!i2s_running);};
+            tbChge(SEQ_TBUT,title,line,object_type);   
+            
             for(uint8_t coder=0;coder<varNb+1;coder++){     // varNb nbre d'items dans la ligne + 1 = nbre coders utilisés + coder de scroll
 
                 uint32_t cc=cTC[coder];

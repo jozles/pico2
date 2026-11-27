@@ -48,6 +48,9 @@ uint32_t    adsrTimingInterval=1000/ADSR_SAMPLE_RATE;
 
 /* ******* touchButtons ******* */
 
+extern volatile bool* coderTouchB;
+volatile bool tbut[MAX_TBUT];
+
 int16_t  tbut_ctl_output_id[MAX_TBUT][TBUT_OUTPUTS_NB];
 
 /* *******  lf_mixers  ******** */
@@ -122,7 +125,7 @@ extern int16_t          ctl_output_id_chain[];
 extern const uint32_t   yTableQ16[];
 extern Voice            voices[MAX_VOICES];
 
-
+/* ********* adsr ********* */
 
 void adsrInit()                     // (id ptrs dans inits_objects_inputs/outputs)
 {
@@ -394,6 +397,8 @@ void __not_in_flash_func(adsrHandler)()
     }
 }
 
+/* ******** irq buttons ******** */
+
 void irq_button_init(uint8_t pin)
 {
     gpio_init(pin);gpio_set_function(pin, GPIO_FUNC_SIO);gpio_set_dir(pin,GPIO_IN);
@@ -402,14 +407,17 @@ void irq_button_init(uint8_t pin)
     gpio_irq_init(pin);  // après  init_global_dma_irq();
 }
 
-void touch_button_init(uint8_t pin)
+void emergency_button_init(uint8_t pin)
 {
     gpio_init(pin);gpio_set_function(pin, GPIO_FUNC_SIO);gpio_set_dir(pin,GPIO_IN);
 }
 
+/* ******** polled with coders buttons ******** */
+
 void __not_in_flash_func(touch_button_handler)(uint8_t touchButtonNb,bool* touchButtonValue,volatile bool* coderTouchB)
 {
             *touchButtonValue=!(*touchButtonValue);
+            if(*touchButtonValue) tbut[touchButtonNb]=!tbut[touchButtonNb];   // toggled at every touch (not at the release)
             int16_t in_bool_id=ctl_output_id_chain[tbut_ctl_output_id[touchButtonNb][0]];
             //printf("c:%u csw:%u id:%i\n",touchButtonNb,*touchButtonValue,in_bool_id);
             
@@ -421,6 +429,13 @@ void __not_in_flash_func(touch_button_handler)(uint8_t touchButtonNb,bool* touch
                 coderTouchB[touchButtonNb]=*touchButtonValue;
             }
 }
+
+void touch_buttons_init(){
+    for(uint8_t t=0;t<MAX_TBUT;t++){
+        tbut[t]=false;
+    }
+}
+
 
 /* ******  lf mixers  ****** */
 //

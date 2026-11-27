@@ -14,8 +14,10 @@ void setAdsrLev(uint8_t adsr);                                                  
 void fillDur(void);
 
 void irq_button_init(uint8_t pin);
+void emergency_button_init(uint8_t pin);
 void touch_button_handler(uint8_t touchButtonNb,bool* touchButtonValue,volatile bool* coderTouchB);
-void touch_button_init(uint8_t pin);
+void touch_buttons_init();
+
 
 void lf_mixer_init();
 void setLfmCoders(uint8_t lfm,uint8_t inp,uint16_t coder,uint16_t coderAtt);   // load the coders of an input (0 = general gain, 1-3 = mixed inputs), then compute the output
@@ -25,6 +27,8 @@ void disp_lfm(uint8_t lfm);
 void disp_lfm(uint8_t lfm,char* t);
 
 void effects_init();
+
+
 
 enum AdsrStates {
     ADSR_OFF,

@@ -50,14 +50,7 @@ extern const char objects_names[][OBJECTS_NAME_LEN];
 extern volatile bool* coderTouchB;
 extern bool oldCTB[CODER_NB];
 
-// **** tb ****
 
-bool tbget(uint8_t tb)  // follows coderTouchB: true while the touch button is held.
-{
-    if(!oldCTB[tb] && (coderTouchB[tb]==1)){oldCTB[tb]=true;}
-    if(oldCTB[tb] && (coderTouchB[tb]==0)){oldCTB[tb]=false;}
-    return oldCTB[tb];
-}
 
 // ================= test Setup =====================
 
@@ -173,9 +166,9 @@ extern volatile uint32_t millisCounter;
 // waits for the next step, the audio keeps running: true when tbget(tb) has been set, false when timeoutMs has gone by without it (0 = no limit)
 static bool testStep(uint32_t timeoutMs)
 {
-    while (tbget(tb)) { fillVoices(); }                               // end of the previous touch
+    while (coderTouchB[tb]) { fillVoices(); }                               // end of the previous touch
     const uint32_t t0 = millisCounter;
-    while (!tbget(tb)) {
+    while (!coderTouchB[tb]) {
         fillVoices();
         if (timeoutMs != 0 && (millisCounter - t0) >= timeoutMs) return false;
     }

@@ -320,7 +320,8 @@ void setup(){
 
     // ****** button(s) ******
     irq_button_init(BUTTON_PIN);
-    touch_button_init(MUXED_TOUCH_PIN);
+    emergency_button_init(MUXED_TOUCH_PIN);
+    touch_buttons_init();
 
     // ****** sound ******
     sound_tables_init();
